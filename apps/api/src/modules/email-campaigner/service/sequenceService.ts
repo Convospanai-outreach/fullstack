@@ -643,16 +643,22 @@ export class SequenceService {
         // idempotencyKey keeps a re-run of this step from duplicating the task.
         try {
             const { enqueueExtensionTask } = await import("@/linkedin/extension-bridge");
+            // Chat/message steps with a drafted body → INSERT_DRAFT (the extension
+            // inserts the draft into the LinkedIn composer for the rep to review and
+            // send). Every other LinkedIn step → OPEN_PROFILE (open the profile tab).
+            const stepType = run.step?.stepType;
+            const body = run.step?.body ?? null;
+            const useDraft = (stepType === "LI_CHAT" || stepType === "CHAT_MESSAGE") && Boolean(body);
             await enqueueExtensionTask({
                 teamId: run.teamId,
-                type: "OPEN_PROFILE",
+                type: useDraft ? "INSERT_DRAFT" : "OPEN_PROFILE",
                 payload: {
                     profileUrl: lead.linkedIn,
                     leadId: run.leadId,
                     campaignId: run.enrollment?.campaign?.id ?? run.campaignId ?? null,
-                    note: run.step?.body ?? null,
+                    ...(useDraft ? { body } : { note: body }),
                 },
-                idempotencyKey: `ext_openprofile_${run.id}`,
+                idempotencyKey: `ext_${useDraft ? "insertdraft" : "openprofile"}_${run.id}`,
             });
         } catch (err) {
             console.warn("[sequenceService] Failed to enqueue LinkedIn extension task:", err);

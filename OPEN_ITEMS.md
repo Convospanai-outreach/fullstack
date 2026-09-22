@@ -5062,7 +5062,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   expiring (16/16 in file). API strict typecheck (`tsc -p tsconfig.strict.json`)
   and apps/web `tsc --noEmit` both clean.
 
-- **OPEN-255 (In progress — slices 1–2 of 3 shipped; slice 3 deferred):** roadmap.md item 2.4 — LinkedIn
+- **OPEN-255 (Fixed — all 3 slices shipped; owner-owed load-test/publish for the v2 extension):** roadmap.md item 2.4 — LinkedIn
   extension (F-08). **Re-verifying against live code corrected the framing:** the
   live extension (repo `manifest.json` v1.0.0, `background.js`) is *intentionally*
   Chrome-Web-Store-approval-safe and **capture-only** — permissions are just
@@ -5107,12 +5107,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (+enqueue on LinkedIn step, best-effort on throw), updated `tasks/pending` test.
   API strict typecheck clean; 249 passed across the email-campaigner + linkedin
   suites.
-  **Slice 3 (deferred):** promote `background.v2-planned.js` → shipped
-  `background.js` + a v2 manifest (alarms/tabs/notifications/API-host) +
-  content-script EXECUTE_TASK executor — **cannot be E2E-tested by me and requires
-  the user to load-test and re-publish to the Chrome Web Store (new permission
-  review).** ToS note: v2 is assistive (human reviews/sends), not autonomous
-  outbound automation.
+  **Slice 3 (shipped — owner decisions: coexist + full scope):** re-verifying corrected the
+  ledger's "promote → overwrite background.js" framing — the live `background.js` is **not** a
+  thin v1; it drives the whole popup via 9 `CMF_*` handlers, and the v2-planned worker's message
+  set is disjoint, so overwriting would kill the v1 popup. Instead the v2 poller is **merged**
+  into `background.js` behind a capability gate (`typeof chrome.alarms !== "undefined"`) so it is
+  fully inert under the v1 manifest (no `alarms` permission → undefined → dormant). Also found:
+  only `OPEN_PROFILE` had a server producer, and `options.js` referenced an undefined
+  `cmfNormalizeApiBase` (v2 settings save would have thrown). Delivered: (a) `manifest.v2.json`
+  (v2.0.0, adds alarms/notifications/tabs + API host via `optional_host_permissions`, options_page)
+  — **v1 `manifest.json` untouched, store listing unchanged** (coexist); (b) merged capability-gated
+  poller in `background.js` serving `OPEN_PROFILE`/`ADD_LEAD`/`INSERT_DRAFT`, using the flat
+  settings contract `options.js` already sends (UPDATE_SETTINGS/GET_STATE/TOGGLE_PAUSE); (c) a
+  `content.js` `EXECUTE_TASK` executor that inserts a draft into the LinkedIn composer or captures
+  a lead — **assistive only, never clicks Send/Connect**; (d) a real `INSERT_DRAFT` producer in
+  `sequenceService.executeLinkedInRun` (chat/message steps with a body → INSERT_DRAFT, else
+  OPEN_PROFILE); (e) `cmfNormalizeApiBase` added to `utils.js`; (f) README v2 build/sideload steps.
+  MV3 lifecycle hardening (advisor-caught, since the service worker is killed ~30s idle): the
+  pending-task map is persisted to `chrome.storage.local` (not in-memory) and re-dispatched via a
+  `CMF_CONTENT_READY` ping from the content script, `OPEN_PROFILE` reports its result in the awaited
+  main flow (not inside a `tabs.create` callback that can outlive the worker), and a collision guard
+  stops two batched tasks from clobbering the same tab. **Known limitation (not fixed here):** the
+  server has **no watchdog** to reclaim an extension task stuck in `processing` (grep confirms
+  none); the client fixes make a strand unlikely, and the human `PipelineService` task is still the
+  fallback, but a future reclaimer (lease/timeout on `processing` extension jobs) would close the gap.
+  Tests: `sequenceService.linkedinAndCall.test.ts` (+INSERT_DRAFT/OPEN_PROFILE branch) and
+  `src/extension/__tests__/v2-slice3.test.ts` (manifest validity, v1-untouched, capability gate,
+  v1 handlers preserved, no auto-submit/no synthetic Enter, task persistence + content-ready
+  re-dispatch); apps/api strict tsc clean; 259 tests green across extension + email-campaigner suites.
+  **Owner-owed (cannot be done by me):** load-unpacked the v2 build (see README), run a LinkedIn
+  sequence step, confirm the poller opens the profile / inserts the draft. Publishing v2 to the
+  Chrome Web Store (new permission review) is a separate owner decision; the v1 store build stays
+  live until then. ToS note: v2 is assistive (human reviews/sends), not autonomous.
 
 - **OPEN-256 (Fixed):** `ml-training/review` cross-tenant IDOR (S-04 class, adjacent to item 2.7).
   **Context:** roadmap.md item 2.7 (tenant scoping, S-04/S-05) was already fully

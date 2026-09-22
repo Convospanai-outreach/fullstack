@@ -31,9 +31,31 @@ Active Version 1 permissions:
 - `activeTab`
 - LinkedIn profile host access only: `https://www.linkedin.com/in/*`
 
-## V2 Planned Architecture
+## V2 Preview (task polling) — sideload only
 
-Version 2 features remain planned but inactive in the current manifest. The previous background task worker is preserved as `background.v2-planned.js` and is not referenced by `manifest.json`. `options.html` and `options.js` are also not referenced by the active Version 1 manifest.
+Version 2 adds authenticated **task polling**: the extension polls
+`GET /api/extension/tasks/pending`, opens the requested LinkedIn profile in a tab, or inserts a
+drafted message into the LinkedIn composer **for the user to review and send**, and reports the
+result to `POST /api/extension/tasks/result`. It is **assistive, not autonomous** — it never clicks
+Send or Connect on the user's behalf.
+
+V2 ships as a **separate sideload build**, not in the published store listing:
+
+- `manifest.json` (v1.0.0) is unchanged and remains the published, approval-safe store build.
+- `manifest.v2.json` (v2.0.0) is the v2 preview manifest, adding `alarms`, `notifications`, `tabs`,
+  and the CraftMyFunnel API host (declared as `optional_host_permissions` for arbitrary
+  self-hosted origins), plus `options_page`.
+- The v2 task worker is **merged into `background.js`** behind a capability gate
+  (`typeof chrome.alarms !== "undefined"`), so it is completely inert under the v1 manifest (which
+  grants no `alarms`). The old `background.v2-planned.js` remains only as a historical reference and
+  is not loaded by either manifest.
+- The `EXECUTE_TASK` executor lives in `content.js`; settings (API base, token, extension key,
+  team id, poll interval) are entered on `options.html`.
+
+Server-side, LinkedIn sequence steps enqueue extension tasks best-effort
+(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`): chat/message steps with a drafted
+body enqueue `INSERT_DRAFT`, every other LinkedIn step enqueues `OPEN_PROFILE`. The human
+`PipelineService` task remains the fallback for teams without the extension.
 
 The disabled V2 request-recorder/data-normalizer architecture is scaffolded in TypeScript:
 
@@ -116,6 +138,27 @@ Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/
 ```
 
 The ZIP intentionally contains only the active V1 extension files and docs.
+
+## Build & Sideload the V2 Preview
+
+The v2 preview is not published. To load-test it locally, stage the files with `manifest.v2.json`
+renamed to `manifest.json`:
+
+```powershell
+$src = "apps/api/src/extension"
+$dst = "dist/chrome-extension-v2"
+Remove-Item -Recurse -Force $dst -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force -Path $dst | Out-Null
+Copy-Item "$src/manifest.v2.json" "$dst/manifest.json"
+Copy-Item "$src/background.js","$src/content.js","$src/popup.html","$src/popup.js","$src/popup.css","$src/options.html","$src/options.js","$src/utils.js" $dst
+Copy-Item "$src/icons" $dst -Recurse
+```
+
+Then in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `dist/chrome-extension-v2`.
+Open the extension's Options, set the API base (e.g. `https://craftmyfunnel.live/api`), paste an
+extension token (minted via the app) and the extension key, save, then run a LinkedIn sequence step
+and confirm the profile opens / the draft is inserted for review. Publishing v2 to the Chrome Web
+Store is a separate decision and triggers a new permission review.
 
 ## Manual Test Checklist
 

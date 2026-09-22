@@ -6,3 +6,8 @@ function cmfIsLinkedInProfileUrl(value) {
     return false;
   }
 }
+
+// Trims trailing slashes off the configured API base (used by the V2 options page).
+function cmfNormalizeApiBase(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
