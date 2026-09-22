@@ -45,7 +45,7 @@ function getGoogleConfig() {
     const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
     const redirectUri =
         process.env["GOOGLE_GMAIL_REDIRECT_URI"] ||
-        "https://www.craftmyfunnel.live/api/integrations/google/oauth/callback";
+        "https://craftmyfunnel.live/api/integrations/google/oauth/callback";
 
     if (!clientId || !clientSecret) {
         throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured.");

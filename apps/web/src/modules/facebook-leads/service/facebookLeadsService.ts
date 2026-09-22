@@ -35,7 +35,7 @@ function getFacebookConfig() {
     const appSecret = process.env["FACEBOOK_APP_SECRET"];
     const redirectUri =
         process.env["FACEBOOK_LEADS_REDIRECT_URI"] ||
-        "https://www.craftmyfunnel.live/api/integrations/facebook/oauth/callback";
+        "https://craftmyfunnel.live/api/integrations/facebook/oauth/callback";
 
     if (!appId || !appSecret) {
         throw new Error("FACEBOOK_APP_ID and FACEBOOK_APP_SECRET must be configured.");

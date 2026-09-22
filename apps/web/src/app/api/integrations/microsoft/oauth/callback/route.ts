@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
   const errorDescription = req.nextUrl.searchParams.get("error_description");
 
-  const baseUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://www.craftmyfunnel.live";
+  const baseUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://craftmyfunnel.live";
   const redirectTo = (path: string, params: Record<string, string>) => {
     const url = new URL(path, baseUrl);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
