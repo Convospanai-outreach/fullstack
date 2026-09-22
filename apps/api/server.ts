@@ -13,6 +13,7 @@ import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAu
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
+import { httpRequestDuration } from '@/lib/metrics';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,10 +45,28 @@ const fastify = Fastify({
   requestTimeout: 60_000,
   logger: {
     level: 'info',
-    transport: {
-      target: 'pino-pretty'
-    }
+    // pino-pretty is a dev-only transport (a devDependency, and it serializes
+    // synchronously); in production emit the default structured JSON so logs are
+    // parseable by aggregators and there's no pretty-print overhead (roadmap I-06).
+    ...(process.env.NODE_ENV === 'production' ? {} : { transport: { target: 'pino-pretty' } })
   }
+});
+
+// Records per-request latency into the Prometheus histogram exposed at /metrics
+// (roadmap 2.10 / I-06). Uses the matched route pattern, not the raw URL, so IDs
+// in the path don't blow up label cardinality; unmatched requests (404s) bucket
+// under "unmatched".
+fastify.addHook('onResponse', (request, reply, done) => {
+  try {
+    const route = request.routeOptions?.url ?? 'unmatched';
+    httpRequestDuration.observe(
+      { method: request.method, route, status_code: String(reply.statusCode) },
+      reply.elapsedTime / 1000
+    );
+  } catch {
+    // Never let metrics recording affect the response lifecycle.
+  }
+  done();
 });
 
 const HOP_BY_HOP_RESPONSE_HEADERS = new Set([

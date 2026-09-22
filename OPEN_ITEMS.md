@@ -5478,6 +5478,27 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   whose live pass is owner-owed from PR #566 (OPEN-261) — do this verification during that pass.
   - `docs/api/page.tsx` example URLs still use www (cosmetic doc examples; left as-is).
 
+- **OPEN-265 (Fixed — 2.10 I-06 slice; Sentry/B-09 still DSN-blocked):** roadmap.md item 2.10
+  (observability). Shipped the two DSN-independent, verifiable pieces:
+  - **Dropped `pino-pretty` in production** (`server.ts`): the Fastify logger unconditionally used
+    the `pino-pretty` transport (a devDependency, synchronous pretty-print, non-JSON output). Now
+    gated to non-production; prod emits default structured JSON for aggregators.
+  - **Fastify `onResponse` latency histogram** (`http_request_duration_seconds`, labels
+    method/route/status_code) added to `src/lib/metrics.ts` and recorded by a new `onResponse` hook
+    in `server.ts`, using the matched **route pattern** (`request.routeOptions.url`), not the raw
+    URL, to bound label cardinality. Auto-exposed by the existing token-gated `/metrics` route.
+  Regression test `src/lib/metrics.test.ts` (histogram registers + exposes labeled samples via
+  `getMetrics()`; source guards for the onResponse hook and the pino-pretty prod gate). apps/api
+  strict tsc clean; 5 tests green.
+  **Still open (B-09 — deliberately NOT shipped, unchanged from the earlier responsible stop):**
+  Sentry never initialises (no `withSentryConfig`, client config reads a non-`NEXT_PUBLIC_` DSN and
+  uses the removed `new Sentry.Replay()`). Correct Next 16 + Sentry v10 client wiring needs a
+  `NEXT_PUBLIC_SENTRY_DSN` to verify it actually initialises at runtime, and the Next 16.3.4
+  `instrumentation-client` load mechanism couldn't be confirmed from the installed dist — a wrong
+  wiring is a silent fake-fix CI can't catch, so it stays owner-owed (provide a DSN + a preview to
+  verify against). Also deferred: winston/Docker `json-file` log rotation (I-06 infra half, in the
+  compose file — owner).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
