@@ -5321,7 +5321,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   leads truly receive the sequence, so a §8 live pass (Activate → watch
   `/approvals` and the sent folder) is owed before fully trusting it.
 
-- **OPEN-261 (Fixed — U-01, U-03; U-02 & U-05 deferred to a decision):** roadmap.md
+- **OPEN-261 (Fixed — U-01, U-03; U-02 = won't-do, U-05 → reworked in OPEN-262):** roadmap.md
   item 2.12 (slice 4) — first-run wizard blockers.
   **U-01 (mailbox step falsely "coming soon"):** `setup/page.tsx`'s
   `MAILBOX_PROVIDERS` marked Google Workspace and Microsoft 365 `comingSoon: true`
@@ -5351,13 +5351,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     audience") and uses the ICP to compute `icpFitScore` on every attached lead.
     Making it optional is a frontend+backend change that also decides what lead
     scoring means with no ICP — a product decision, not a bug fix.
+    **DECISION (2026-09-21, owner): WON'T-DO.** "Don't make ICP optional. It's
+    intrinsic to campaigns and their outcomes." `/campaigns/new` and
+    `POST /api/campaigns` keep the hard ICP requirement. Closed.
   - **U-05 (hide the 10 always-on modules under `emailFirstBeta`):**
     `productFlags.ts`'s `ALWAYS_ON_HIDDEN_FEATURE_KEYS` force-surfaces 10 modules
     unconditionally, with a detailed comment explaining this was deliberate ("these
     all had working UI and backend already, just no default path... aren't invisible
     to a fresh team"). The roadmap wants them hidden for the email-first beta —
     directly reversing that documented choice, and changing every user's sidebar.
-    Needs the owner's call on which intent wins.
+    **DECISION (2026-09-21, owner): "beta options needs to be worked on completely" —
+    not the quick flip. Reworked as a proper readiness-gated + per-team-DB system in
+    OPEN-262.**
+
+- **OPEN-262 (Fixed — U-05 rework):** roadmap.md item 2.12 — beta/hidden-features
+  system reworked from a hardcoded always-on list + per-device cookie into
+  **readiness-gated defaults + per-team DB persistence** (owner decisions this session:
+  readiness-gated defaults; per-team DB; backfill existing teams so nobody loses nav).
+  **What changed:**
+  - Deleted `ALWAYS_ON_HIDDEN_FEATURE_KEYS` from `productFlags.ts`; the env override
+    (`NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES`) remains as an ops force-on.
+  - New `Team.enabledFeatures Json?` (nullable) across all 3 schema mirrors + migration
+    `20260921120000_add_team_enabled_features` (mirrored into all 3 `prisma/migrations/`).
+    Additive/nullable; the migration also **backfills** existing teams with the previous
+    always-on 10 keys in the same `migration.sql`. `null` = never customized → readiness
+    defaults computed at read; a JSON `string[]` = the team's explicit choice (Prisma
+    disallows optional scalar lists, hence `Json?` for the 3-state distinction).
+  - Extracted `loadFeatureContext`/`resolveReadiness` into `lib/hiddenFeaturesReadiness.ts`
+    and added `resolveEnabledFeatureKeys(FromContext)`.
+  - `GET /api/settings/hidden-features` now reads the DB-resolved set (and best-effort
+    seeds the `convo-hidden-features` cookie in try/catch — a cookie-write failure must
+    never 500 the GET and blank every sidebar). `PUT` writes `Team.enabledFeatures` (DB,
+    shared across members) + the cookie cache.
+  - No sidebar/layout refactor: `DashboardSidebar` already fetches that GET via SWR, so
+    the endpoint is the delivery channel. The proxy gate keeps reading the cookie (verified
+    discoverability-only, not a security boundary), now DB-seeded, so no per-request DB read.
+  **Stated tradeoff:** a user hitting a hidden-feature URL directly with no cookie yet is
+  bounced once to `/settings/features`, then works (self-heals on next dashboard mount).
+  Regression test: `tests/unit/beta-options-rework.test.ts` (8 cases — readiness resolution,
+  null-vs-[]-vs-array, structural guards). apps/web `tsc --noEmit` + apps/api strict tsc
+  clean; new test green. **Owner-owed prod step:** merge → `gh workflow run
+  web-prisma-migrate.yml` (applies column + backfill) → confirm web redeploy.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

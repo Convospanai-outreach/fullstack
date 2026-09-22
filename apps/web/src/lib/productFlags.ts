@@ -205,20 +205,12 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
         .join(",");
 }
 
-// Surfaced by default so the list-building half of the funnel (CSV import, Hunter
-// email finder) and the reach-out channels (LinkedIn, caller, WhatsApp, workflows,
-// playbooks, marketplace, knowledge/RAG-grounding) aren't invisible to a fresh team -
-// these all had working UI and backend already, just no default path to them. Every
-// other hidden feature stays opt-in via NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES or the
-// per-user Settings toggle.
-const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = [
-    "linkedin-runner", "knowledge", "caller", "whatsapp",
-    "csv-ingestion", "hunter-email-finder", "workflows", "playbooks", "marketplace",
-    "crystal-knows",
-];
-
+// Defaults are no longer a hardcoded always-on list. Per-team enablement is
+// readiness-gated and stored in Team.enabledFeatures (see hiddenFeaturesReadiness.ts);
+// the per-team set is delivered to the client via /api/settings/hidden-features, which
+// also seeds the proxy-gate cookie. This env-only set stays as an ops override that
+// force-enables features everywhere regardless of readiness.
 const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
-    ...ALWAYS_ON_HIDDEN_FEATURE_KEYS,
     ...parseEnabledHiddenFeatureKeys(process.env["NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES"] || ""),
 ]);
 
