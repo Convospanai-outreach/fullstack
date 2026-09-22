@@ -5419,6 +5419,46 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   clean; new test green. **Owner-owed prod step:** merge → `gh workflow run
   web-prisma-migrate.yml` (applies column + backfill) → confirm web redeploy.
 
+- **OPEN-263 (Fixed — 2.9 latency alerting slice; + pre-existing health-check bug found & fixed):**
+  roadmap.md item 2.9 (B-04). The `health-check.yml` scheduled workflow only asserted HTTP 200 +
+  DB-up — no latency signal at all, so the intermittent 3.4–12.4s TTFB windows the audit found were
+  invisible. **Also discovered while wiring it:** the workflow's web probe used
+  `https://www.craftmyfunnel.live/api/health`, which since the 2.13 canonical-host change (PR #562)
+  **301-redirects to the apex** `craftmyfunnel.live` — curl without `-L` treats the 301 as non-200,
+  so the web health check has been **failing every 15 min unnoticed** — confirmed via
+  `gh run list --workflow=health-check.yml --status=failure`: the last 5+ scheduled runs
+  (2026-09-21 → 2026-09-22) all failed, which itself demonstrates B-04 (a red scheduled run that
+  nobody sees is not alerting). **Fixes:** (a) point the web probe at
+  the canonical apex `https://craftmyfunnel.live/api/health`; (b) add a TTFB latency SLO — a WARN
+  threshold (`LATENCY_WARN_SECONDS`, default 2s) that surfaces a breach via `::warning::` + job
+  summary without failing, and a severe threshold (`LATENCY_FAIL_SECONDS`, default 8s) that
+  hard-fails **only when the breach persists across a 20s retry** (a cold instance warms within that
+  window; a real slow window persists 20+ min), kept separate from the 200/DB outage signal so
+  latency noise never masks a real outage. Both thresholds are env-tunable. Verified by dry-running
+  the probe logic against the live endpoints (api warns at ~3.9s, web OK ~0.7s, run passes) and
+  `yaml.safe_load`. **Baseline note:** the API currently runs ~3.4–3.9s TTFB even warm, so the 2s
+  WARN will fire routinely until the infra work lands — that is the alert correctly reporting the
+  SLO breach, not a bug.
+  **Still owner-owed (infra, not code) for 2.9 to fully close:** point `API_INTERNAL_ORIGIN` at a
+  private/direct origin instead of the public Cloudflare hostname (B-05 infra half); measure Render
+  instance type/region vs an India-heavy user base (I-12); and route health-check failures to a team
+  channel (Slack/Discord/PagerDuty) — needs a webhook secret, so it can't be wired here.
+
+- **OPEN-264 (Open — found while fixing OPEN-263; owner verification needed, NOT fixed here):**
+  stale `www.craftmyfunnel.live` references after the 2.13 canonical-host change made the apex
+  `craftmyfunnel.live` canonical (www 301-redirects to it). `grep -rn "www\.craftmyfunnel"` found,
+  besides the health check (fixed in OPEN-263):
+  - **OAuth callback URLs hardcoded to www** — `googleMailboxService.ts:48`,
+    `microsoftMailboxService.ts:24`, `facebookLeadsService.ts:38`, and the
+    `microsoft/oauth/callback/route.ts:13` fallback base (`NEXT_PUBLIC_APP_URL || www...`). If the
+    provider redirects to `www.` and it 301s to the apex, the OAuth `code`/`state` can be dropped
+    and/or the token-exchange `redirect_uri` won't match what's registered — a potential broken
+    round-trip. **This is exactly the U-01 mailbox-OAuth flow whose live pass is owner-owed from
+    PR #566 (OPEN-261).** NOT changed here: flipping a `redirect_uri` blindly could break a flow
+    that currently works if `www.` is what's registered in the provider console — the owner must
+    confirm the registered URIs first, then align code + console together.
+  - `docs/api/page.tsx` example URLs use www (cosmetic; low priority).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

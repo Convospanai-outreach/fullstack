@@ -12,20 +12,37 @@ jobs:
     name: Check /health endpoints
     runs-on: ubuntu-22.04
     timeout-minutes: 5
+    env:
+      # Latency SLO thresholds (seconds), tunable without code changes.
+      # WARN surfaces a breach (::warning:: + job summary) without failing.
+      # FAIL hard-fails the run, but only when a breach persists across a retry
+      # (see below), so a single cold start does not alert.
+      LATENCY_WARN_SECONDS: '2'
+      LATENCY_FAIL_SECONDS: '8'
     steps:
       - name: Poll apps/web and apps/api health endpoints
         shell: bash
         run: |
           set -uo pipefail
           failed=false
+          severe=false
 
-          check() {
-            local name="$1"
-            local url="$2"
-            local body http_code
-            body="$(curl -sS --max-time 15 -w '\n%{http_code}' "$url")"
-            http_code="$(echo "$body" | tail -n1)"
-            body="$(echo "$body" | sed '$d')"
+          # Probes one endpoint: hard-fails on non-200 / DB down (outage signal,
+          # kept separate from latency), and classifies TTFB against the SLO.
+          probe() {
+            local name="$1" url="$2" out meta body http_code ttfb
+            out="$(curl -sS --max-time 15 -w '\n%{http_code}|%{time_starttransfer}' "$url")" || true
+            meta="$(echo "$out" | tail -n1)"
+            http_code="${meta%%|*}"
+            ttfb="${meta##*|}"
+            ttfb="${ttfb:-0}"
+            body="$(echo "$out" | sed '$d')"
+
+            if [[ -z "$http_code" || ! "$http_code" =~ ^[0-9]+$ ]]; then
+              echo "::error::$name ($url) no response within 15s (curl timeout or connection error)"
+              failed=true
+              return
+            fi
             if [[ "$http_code" != "200" ]]; then
               echo "::error::$name ($url) returned HTTP $http_code: $body"
               failed=true
@@ -36,15 +53,37 @@ jobs:
               failed=true
               return
             fi
-            echo "$name OK: $body"
+
+            if awk "BEGIN{exit !(${ttfb}+0 > ${LATENCY_FAIL_SECONDS})}"; then
+              echo "::warning::$name TTFB ${ttfb}s exceeds severe latency threshold ${LATENCY_FAIL_SECONDS}s"
+              severe=true
+            elif awk "BEGIN{exit !(${ttfb}+0 > ${LATENCY_WARN_SECONDS})}"; then
+              echo "::warning::$name TTFB ${ttfb}s exceeds latency SLO ${LATENCY_WARN_SECONDS}s"
+            fi
+            echo "$name OK (TTFB ${ttfb}s): $body"
           }
 
-          check "apps/api" "https://api.craftmyfunnel.live/health"
-          check "apps/web" "https://www.craftmyfunnel.live/api/health"
+          probe "apps/api" "https://api.craftmyfunnel.live/health"
+          probe "apps/web" "https://craftmyfunnel.live/api/health"
+
+          # A severe breach is re-probed once after 20s: a cold instance is warm
+          # again within that window (cold ~4.4s -> warm ~0.06s in the audit),
+          # whereas a real slow window persists 20+ minutes and stays severe.
+          if [[ "$severe" == "true" && "$failed" != "true" ]]; then
+            echo "Severe latency observed; re-probing in 20s to rule out a cold start..."
+            sleep 20
+            severe=false
+            probe "apps/api" "https://api.craftmyfunnel.live/health"
+            probe "apps/web" "https://craftmyfunnel.live/api/health"
+            if [[ "$severe" == "true" ]]; then
+              echo "::error::Sustained severe latency (TTFB > ${LATENCY_FAIL_SECONDS}s on retry)"
+              failed=true
+            fi
+          fi
 
           if [[ "$failed" == "true" ]]; then
             echo "### Production health check FAILED" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
-          echo "### Production health check passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Production health check passed (latency SLO ${LATENCY_WARN_SECONDS}s warn / ${LATENCY_FAIL_SECONDS}s fail)" >> "$GITHUB_STEP_SUMMARY"
