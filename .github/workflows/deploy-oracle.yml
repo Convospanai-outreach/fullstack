@@ -190,6 +190,10 @@ jobs:
           username: ${{ secrets.ORACLE_SSH_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           envs: IMAGE_TAG,CONTAINER,HEALTH_CHECK
+          # Default is 10m. The failure path (image pull, which has taken ~5m,
+          # plus a 180s health wait, a rollback and a second 180s wait) can
+          # exceed that and kill the script mid-rollback.
+          command_timeout: 20m
           script: |
             set -e
             cd /opt/fullstack
@@ -203,6 +207,16 @@ jobs:
 
             previous_image="$(docker inspect --format='{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
             previous_tag="${previous_image##*:}"
+
+            # deploy_with_tag re-exports IMAGE_TAG, so keep the requested tag for messages.
+            requested_tag="$IMAGE_TAG"
+
+            # Each host's compose healthcheck probes every 30s with no start_period,
+            # so the first probe lands before a ~35s boot finishes and the second at
+            # ~60s. A 60s wait raced that second probe and lost by milliseconds
+            # (run 36228314139), failing every deploy while the container was healthy.
+            # 36 x 5s = 180s tolerates boots up to ~150s.
+            HEALTH_WAIT_ATTEMPTS=36
 
             deploy_with_tag() {
               local tag="$1"
@@ -219,7 +233,7 @@ jobs:
 
             wait_healthy() {
               local attempt
-              for attempt in $(seq 1 12); do
+              for attempt in $(seq 1 "$HEALTH_WAIT_ATTEMPTS"); do
                 if [ "$HEALTH_CHECK" = "http" ]; then
                   status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$CONTAINER" 2>/dev/null || echo "missing")"
                   if [ "$status" = "healthy" ]; then
@@ -239,18 +253,18 @@ jobs:
             deploy_with_tag "$IMAGE_TAG"
 
             if wait_healthy; then
-              echo "Deploy of $IMAGE_TAG to $CONTAINER healthy."
+              echo "Deploy of $requested_tag to $CONTAINER healthy."
               exit 0
             fi
 
-            echo "::error::$CONTAINER did not become healthy on $IMAGE_TAG within 60s."
+            echo "::error::$CONTAINER did not become healthy on $requested_tag within $((HEALTH_WAIT_ATTEMPTS * 5))s."
             docker logs --tail 100 "$CONTAINER" || true
 
             if [ -n "$previous_tag" ] && [ "$previous_tag" != "$IMAGE_TAG" ]; then
               echo "Rolling back $CONTAINER to previous tag: $previous_tag"
               deploy_with_tag "$previous_tag"
               if wait_healthy; then
-                echo "::error::Rolled back $CONTAINER to $previous_tag after $IMAGE_TAG failed its health check."
+                echo "::error::Rolled back $CONTAINER to $previous_tag after $requested_tag failed its health check."
               else
                 echo "::error::Rollback to $previous_tag also failed its health check on $CONTAINER."
               fi
