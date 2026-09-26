@@ -5598,6 +5598,57 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `deploy/oracle/docker-compose.{api,worker}.yml`. Adding `start_period: 60s` to the api healthcheck
   there would also stop boot-time probes counting as failures.
 
+- **OPEN-268 (Fixed — 4 of 6 sub-points; 7-day TTL, lockout DoS and per-session superadmin id deferred):**
+  roadmap.md item 3.4 (S-11, S-12). Re-verified against current code; every claim was still true.
+  - **S-11 timing-unsafe extension key — fixed at both sites.** `validateExtensionAuth`
+    (`apps/api/routes/extension/_lib/auth.ts`) *and* the audit-missed twin in
+    `apps/api/routes/extension/auth/token/route.ts` compared `x-extension-key` with `!==`. New
+    `extensionKeyMatches()` uses `crypto.timingSafeEqual`, following the repo's length-check
+    convention. A wrong-length guess compares the key against itself, so there is no throw and no
+    length leak. There is no hash step: a sha256-first version tripped CodeQL
+    `js/insufficient-password-hash` on the PR. The `!requiredKey` guard stays in front, because an
+    empty header equals an empty key.
+  - **S-11 no revoke — fixed.** Extension tokens are already DB-backed `Session` rows (NextAuth is
+    `strategy: "jwt"`, so that table holds only extension credentials). New `DELETE /api/extension/token`
+    (apps/web, NextAuth-authenticated) runs `session.deleteMany({ where: { userId } })`, which revokes
+    all of the caller's extension tokens and never touches other users' rows or web logins. No schema change.
+  - **S-11 7-day TTL + refresh — NOT changed.** Neither client can survive it. The v1 store build's
+    token is pasted by hand into settings, and a 401 only shows "Pending Sync". The v2 worker only logs
+    `Task polling failed: 401`. Neither calls the apps/api 60s `/extension/auth/token` mint. Shortening
+    the TTL would silently break the published v1 extension, so the 30-day TTL stays (follow-up).
+  - **S-12 per-IP limiter — added.** `apps/web/src/app/api/superadmin/login/route.ts` now calls the
+    existing `checkRateLimit` (`@/lib/rateLimit`, `RATE_LIMITS.AUTH` = 5/hour) keyed explicitly on
+    `ip:<x-forwarded-for[0]>`, *before* any DB work. It does not use `applyRateLimit`, which keys on a
+    caller-chosen `x-api-key` header when present, so a caller could rotate buckets. Without `REDIS_URL`
+    the store is per-process (I-07). **It does NOT fix the lockout DoS:** `failedAttempts` only resets on
+    success, so after the first lock one wrong guess every 15 min keeps the admin locked, and no per-IP
+    budget stops that. It also relies on `x-forwarded-for[0]`, which the client can spoof behind Render
+    and Cloudflare, like every other IP-keyed limiter here.
+  - **S-12 unrevocable 12h session — stateless mitigation.** `lib/superadmin/session.ts` now keys the
+    HMAC on `NEXTAUTH_SECRET:SUPERADMIN_SESSION_VERSION` when that env var is set. Changing it revokes
+    **every** superadmin session without rotating `NEXTAUTH_SECRET`. Unset or empty keeps today's key,
+    so deploying this signs nobody out (documented in `apps/web/.env.example`). Per-user revoke already works: all three superadmin routes
+    re-check the `SuperAdminCredential` row. A true per-session server-side id needs a new table, which
+    the schema HARD RULE forbids here (follow-up).
+  - **S-12 anonymous `/overview` probe — not changed.** It is by design, and the route 401s before any
+    DB or upstream work.
+  Tests: apps/api `routes/extension/_lib/auth.test.ts` + `auth/token/route.test.ts` wrap `timingSafeEqual`
+  and assert it runs on equal-length buffers. There are also same-length and prefix-extended wrong-key
+  tests and an empty-key guard test. apps/web
+  `tests/unit/extension-token-revoke.test.ts` (scoped `deleteMany`, 401 path) and
+  `tests/unit/superadmin-hardening.test.ts` (6th attempt from one IP → 429 with no DB lookup, other IP
+  unaffected; version rotation revokes; legacy cookies stay valid while unset). Each was verified to fail
+  with its fix reverted. Both typechecks are clean. apps/web `tests/unit` 49 files / 252 tests; apps/api
+  260 files / 1526 tests. Known tradeoff: the per-IP cap counts every attempt and has a 1-hour window, so
+  an admin who mistypes 5 times from one IP waits up to 60 min (the account lockout was 15). Escape
+  hatches: `DISABLE_RATE_LIMIT=true` or a restart when there's no Redis. **Owner-owed:** none needed to ship. Optional: set `SUPERADMIN_SESSION_VERSION` on
+  Render `craftmyfunnel-web` and change it to revoke all superadmin sessions, and set `REDIS_URL` for web
+  to share the limiter across instances. **Follow-ups:** a 7-day TTL once a client refresh path ships
+  (needs a new store build); a Revoke button on `/setup` next to "generate sync token"; lockout-DoS
+  redesign (per-IP or per-(IP, account) lockout keyed on a trusted client-IP header, owner decision);
+  confirm which client-IP header is trustworthy at the Render/Cloudflare edge; a per-session superadmin
+  id (needs a table, after the schema PR).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

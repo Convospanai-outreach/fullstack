@@ -7,7 +7,12 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h - short-lived, ops surface, n
 function getSecret(): string {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) throw new Error("NEXTAUTH_SECRET is not configured");
-    return secret;
+    // Server-side revoke switch for these otherwise-stateless cookies: changing
+    // SUPERADMIN_SESSION_VERSION invalidates every outstanding superadmin session
+    // without rotating NEXTAUTH_SECRET (which would sign out every web user too).
+    // Unset/empty keeps the original key, so shipping this signs nobody out.
+    const version = process.env["SUPERADMIN_SESSION_VERSION"];
+    return version ? `${secret}:${version}` : secret;
 }
 
 // Opaque token, HMAC-signed with the same secret/scheme as the existing

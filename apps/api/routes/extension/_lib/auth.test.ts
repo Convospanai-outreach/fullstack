@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma } = vi.hoisted(() => ({
+const { mockPrisma, timingSafeEqualSpy } = vi.hoisted(() => ({
   mockPrisma: {
     user: {
       findUnique: vi.fn(),
@@ -9,11 +9,20 @@ const { mockPrisma } = vi.hoisted(() => ({
       findUnique: vi.fn(),
     },
   },
+  timingSafeEqualSpy: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: mockPrisma,
 }));
+
+// Wrap (not replace) timingSafeEqual so the real constant-time compare still runs,
+// but the test can prove the extension key goes through it rather than `!==`.
+vi.mock("crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("crypto")>();
+  timingSafeEqualSpy.mockImplementation(actual.timingSafeEqual);
+  return { ...actual, default: { ...actual, timingSafeEqual: timingSafeEqualSpy }, timingSafeEqual: timingSafeEqualSpy };
+});
 
 import { validateExtensionAuth } from "./auth";
 
@@ -47,6 +56,38 @@ describe("validateExtensionAuth", () => {
     const result = await validateExtensionAuth(request({ key: "wrong", bearer: "anything" }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
+    expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("compares the extension key in constant time on equal-length buffers (S-11)", async () => {
+    // "wrong" is shorter than ENV_KEY: a raw timingSafeEqual would throw on the
+    // length mismatch, and `!==` would leak timing - the helper avoids both.
+    const result = await validateExtensionAuth(request({ key: "wrong", bearer: "anything" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
+    expect(timingSafeEqualSpy).toHaveBeenCalledTimes(1);
+    const [provided, required] = timingSafeEqualSpy.mock.calls[0] as [Buffer, Buffer];
+    expect(provided.length).toBe(required.length);
+  });
+
+  it("rejects a same-length wrong key and a key that only extends the real one", async () => {
+    const sameLength = "x".repeat(ENV_KEY.length);
+    for (const key of [sameLength, `${ENV_KEY}x`]) {
+      const result = await validateExtensionAuth(request({ key, bearer: "anything" }));
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
+    }
+    expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("still rejects when EXTENSION_API_KEY is empty, even if an empty key header is sent", async () => {
+    // An empty header equals an empty key, so the empty-key guard must run before the compare.
+    process.env["EXTENSION_API_KEY"] = "";
+    const result = await validateExtensionAuth(request({ key: "", bearer: "anything" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("MISSING_EXTENSION_KEY");
     expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
   });
 
