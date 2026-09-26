@@ -5603,9 +5603,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **S-11 timing-unsafe extension key — fixed at both sites.** `validateExtensionAuth`
     (`apps/api/routes/extension/_lib/auth.ts`) *and* the audit-missed twin in
     `apps/api/routes/extension/auth/token/route.ts` compared `x-extension-key` with `!==`. New
-    `extensionKeyMatches()` sha256-hashes both sides and uses `crypto.timingSafeEqual` (equal-length
-    buffers, no length leak, no throw). The `!requiredKey` guard stays in front of it, because
-    sha256("") === sha256("").
+    `extensionKeyMatches()` uses `crypto.timingSafeEqual`, following the repo's length-check
+    convention. A wrong-length guess compares the key against itself, so there is no throw and no
+    length leak. There is no hash step: a sha256-first version tripped CodeQL
+    `js/insufficient-password-hash` on the PR. The `!requiredKey` guard stays in front, because an
+    empty header equals an empty key.
   - **S-11 no revoke — fixed.** Extension tokens are already DB-backed `Session` rows (NextAuth is
     `strategy: "jwt"`, so that table holds only extension credentials). New `DELETE /api/extension/token`
     (apps/web, NextAuth-authenticated) runs `session.deleteMany({ where: { userId } })`, which revokes
@@ -5631,12 +5633,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **S-12 anonymous `/overview` probe — not changed.** It is by design, and the route 401s before any
     DB or upstream work.
   Tests: apps/api `routes/extension/_lib/auth.test.ts` + `auth/token/route.test.ts` wrap `timingSafeEqual`
-  and assert it runs on equal-length digests. There is also an empty-key guard test. apps/web
+  and assert it runs on equal-length buffers. There are also same-length and prefix-extended wrong-key
+  tests and an empty-key guard test. apps/web
   `tests/unit/extension-token-revoke.test.ts` (scoped `deleteMany`, 401 path) and
   `tests/unit/superadmin-hardening.test.ts` (6th attempt from one IP → 429 with no DB lookup, other IP
   unaffected; version rotation revokes; legacy cookies stay valid while unset). Each was verified to fail
   with its fix reverted. Both typechecks are clean. apps/web `tests/unit` 49 files / 252 tests; apps/api
-  260 files / 1525 tests. **Owner-owed:** none needed to ship. Optional: set `SUPERADMIN_SESSION_VERSION` on
+  260 files / 1526 tests. Known tradeoff: the per-IP cap counts every attempt and has a 1-hour window, so
+  an admin who mistypes 5 times from one IP waits up to 60 min (the account lockout was 15). Escape
+  hatches: `DISABLE_RATE_LIMIT=true` or a restart when there's no Redis. **Owner-owed:** none needed to ship. Optional: set `SUPERADMIN_SESSION_VERSION` on
   Render `craftmyfunnel-web` and change it to revoke all superadmin sessions, and set `REDIS_URL` for web
   to share the limiter across instances. **Follow-ups:** a 7-day TTL once a client refresh path ships
   (needs a new store build); a Revoke button on `/setup` next to "generate sync token"; lockout-DoS
