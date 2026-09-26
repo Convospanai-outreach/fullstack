@@ -5497,7 +5497,44 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `instrumentation-client` load mechanism couldn't be confirmed from the installed dist — a wrong
   wiring is a silent fake-fix CI can't catch, so it stays owner-owed (provide a DSN + a preview to
   verify against). Also deferred: winston/Docker `json-file` log rotation (I-06 infra half, in the
-  compose file — owner).
+  compose file — owner). **→ B-09 code wiring now shipped in OPEN-266** (the earlier
+  `instrumentation-client` blocker was re-investigated and disproven — Next 16.3.4 supports it).
+
+- **OPEN-266 (Fixed — B-09 Sentry wiring; DSN provisioning still owner-owed):** roadmap.md item B-09.
+  The earlier stop (OPEN-265) deferred this on the belief that Next 16.3.4's `instrumentation-client`
+  load mechanism couldn't be confirmed. Re-investigated against `node_modules`: Next 16.3.4 ships the
+  loader (75 dist refs incl. `next-instrumentation-client-loader.js`), and `@sentry/nextjs` 10.69.0
+  exports `replayIntegration`, `captureRouterTransitionStart`, `captureRequestError`, `withSentryConfig`
+  (all confirmed as functions from the installed client build; `Sentry.Replay` is `undefined` — the old
+  code's `new Sentry.Replay()` would have thrown at load). Correct wiring is a **no-op until a DSN is
+  set** (Sentry.init with an absent dsn disables the SDK), so it fixes "never initialises" without a
+  fake-fix. Shipped:
+  - **`src/instrumentation-client.ts` (NEW)** — client `Sentry.init` reading `NEXT_PUBLIC_SENTRY_DSN`
+    (was `SENTRY_DSN`, which the browser bundle can't read), v10 `replayIntegration()` (was the removed
+    `new Sentry.Replay()`), and `export const onRouterTransitionStart` for navigation tracing. Replaces
+    the legacy `sentry.client.config.ts`.
+  - **`src/instrumentation.ts` (EDIT)** — server `Sentry.init` (reads `SENTRY_DSN`) placed at the **top**
+    of the `nodejs` branch, before the hardware-verify block that early-returns in prod (unset
+    `ENABLE_WEB_HARDWARE_VERIFY`) — otherwise Sentry would never init server-side; plus
+    `export const onRequestError = Sentry.captureRequestError`. Replaces the legacy `sentry.server.config.ts`.
+  - **`next.config.mjs` (EDIT)** — wrapped export with `withSentryConfig` (injects the client bundle;
+    uploads source maps only when `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` are present, else the
+    build succeeds and skips upload). Existing `webpack` fn + `transpilePackages` verified preserved.
+  - **Deleted** the two legacy `sentry.{client,server}.config.ts` — never loaded (nothing imported them,
+    and they sat outside tsconfig `include` so were never even typechecked), used the wrong DSN var, and
+    referenced the removed v10 API. Documented here per the surgical-changes rule (replaced as part of
+    the migration, not a silent dead-code deletion).
+  Regression test `tests/unit/sentry-wiring.test.ts` (7 structural guards — correct DSN var, v10
+  `replayIntegration` not `new Replay`, both instrumentation exports, init-before-early-return ordering,
+  `withSentryConfig` wrap, legacy files removed; structural because Sentry is a no-op without a DSN and
+  apps/web has no React render tests). apps/web `tsc --noEmit` clean; full `tests/unit` gate green
+  (46 files / 240 tests); `next.config.mjs` confirmed to wrap without throwing. **Local full `next build`
+  was interrupted by system memory pressure (not a failure); the webpack-plugin injection is exercised
+  on this PR by the `render-parity-build.yml` gate, which runs the exact `npm run build:web` on every
+  `pull_request` (its docs-only skip does not apply — this change touches `src/` + config).**
+  **Still owner-owed:** provision `NEXT_PUBLIC_SENTRY_DSN` (client) + `SENTRY_DSN` (server) in Render,
+  and optionally `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` to enable source-map upload; then
+  confirm events arrive in the Sentry dashboard. Until a DSN is set the SDK stays inert by design.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

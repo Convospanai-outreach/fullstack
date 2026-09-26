@@ -1,6 +1,24 @@
+import * as Sentry from '@sentry/nextjs';
 
 export async function register() {
     if (process.env['NEXT_RUNTIME'] === 'nodejs') {
+        // Initialise Sentry first, before the hardware-verify logic can early-return
+        // (which it does whenever ENABLE_WEB_HARDWARE_VERIFY is unset, i.e. in prod).
+        // No-op until SENTRY_DSN is provisioned.
+        const sentryDsn = process.env['SENTRY_DSN'];
+        Sentry.init({
+            ...(sentryDsn ? { dsn: sentryDsn } : {}),
+            tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+            debug: false,
+            environment: process.env.NODE_ENV || 'development',
+            beforeSend(event) {
+                if (process.env.NODE_ENV === 'development') {
+                    return null;
+                }
+                return event;
+            },
+        });
+
         const runtimeMode = process.env['CRAFTMYFUNNEL_RUNTIME_MODE'];
         const isVercelRuntime = process.env['VERCEL'] === '1' || Boolean(process.env['VERCEL_ENV']);
         const explicitlyEnabled = process.env['ENABLE_WEB_HARDWARE_VERIFY'] === 'true';
@@ -35,3 +53,6 @@ export async function register() {
         }
     }
 }
+
+// Reports server/SSR errors to Sentry. Next 16 calls this hook automatically.
+export const onRequestError = Sentry.captureRequestError;

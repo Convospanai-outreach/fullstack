@@ -1,6 +1,7 @@
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -117,4 +118,12 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+// Wraps the config so Sentry can inject its client bundle and (when
+// SENTRY_AUTH_TOKEN + org/project are set) upload source maps at build time.
+// With none of those env vars present the build still succeeds and simply skips
+// the upload step, so this is safe to ship before Sentry is provisioned.
+export default withSentryConfig(nextConfig, {
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    silent: !process.env.CI,
+});
