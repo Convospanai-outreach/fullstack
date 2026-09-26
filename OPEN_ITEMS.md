@@ -5535,6 +5535,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   **Still owner-owed:** provision `NEXT_PUBLIC_SENTRY_DSN` (client) + `SENTRY_DSN` (server) in Render,
   and optionally `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` to enable source-map upload; then
   confirm events arrive in the Sentry dashboard. Until a DSN is set the SDK stays inert by design.
+  **Post-merge (2026-09-26) — two production defects the PR gates could not see, both fixed in a follow-up PR:**
+  - **Render build OOM.** #572 passed CI (incl. `render-parity-build`), but both Render deploys of
+    `0e02a973` died with `build_failed` — the merge's own auto-deploy *before* any DSN was set, and again
+    after. Logs end abruptly with no error (a container SIGKILL, not a JS heap message) during
+    page-data/static generation, at different points each run. Cause: Next sizes its build worker pool
+    as `os.cpus() - 1`, and Render's builder reports 48 cores → **47 workers**, each loading the whole app;
+    `withSentryConfig`'s per-worker weight pushed a previously-passing build over the memory cap (GitHub
+    runners have far more RAM, so CI stayed green). Confirmed by setting `CIRCLE_NODE_TOTAL=2` on
+    `craftmyfunnel-web` (Next reads it to size the default pool → 1 worker): the next build went **live**
+    (`dep-darns7vpn0mc73db1vmg`). Permanent fix: `experimental.cpus: 4` in `next.config.mjs` — only
+    `next/dist/build` reads it, so dev/runtime are unaffected; an explicit value overrides the env-derived
+    default. Once the follow-up deploys, the `CIRCLE_NODE_TOTAL` env var is inert and can be deleted
+    from the Render dashboard (the MCP tool can only merge env vars, not delete them).
+  - **Client events blocked by CSP.** With the DSN set, a live Playwright check on `craftmyfunnel.live`
+    showed the browser SDK initialised correctly (10.69.0, DSN project `…578017792`, `environment:
+    production`, GlobalHandlers/BrowserTracing/Replay active) and it *did* capture a thrown smoke-test
+    error — but every envelope POST was refused: `connect-src` in `src/proxy.ts` didn't allow the
+    ingest host. So client-side Sentry was live-but-deaf and added CSP errors to every visitor's console.
+    Fix: derive the ingest origin from `NEXT_PUBLIC_SENTRY_DSN` (`new URL(dsn).origin` — no key or
+    project path) and append it to `connect-src`, mirroring the existing `publicApiOrigin` pattern (whose
+    runtime env read is confirmed working in the live CSP). `worker-src 'self' blob:` already covers
+    Replay's compression worker.
+  Regression test `tests/unit/sentry-csp-and-build-workers.test.ts` — drives the **real proxy** and
+  asserts on the emitted CSP header (origin allowlisted; no key/project leak; no host without a DSN;
+  malformed DSN ignored), and loads the **real Sentry-wrapped config** in a child Node process to assert
+  `experimental.cpus === 4`. Verified to fail on the two bug-encoding cases with both fixes reverted.
+  tsc clean; `tests/unit` 47 files / 245 tests green. **Correction:** the console smoke test suggested
+  earlier (`Sentry.captureException(...)`) cannot work — the bundled SDK does not expose `window.Sentry`.
+  Verify with a real uncaught error instead. **Still owner-owed:** (a) confirm the smoke-test event
+  appears in the Sentry dashboard once the CSP fix deploys; (b) the org has a second project (`…2096`)
+  that doesn't own this DSN — keep or delete it; (c) optional source maps (`SENTRY_ORG`/`SENTRY_PROJECT`
+  = `sudhisha-digital` / project slug, plus a secret `SENTRY_AUTH_TOKEN`). Side observation, not fixed:
+  prod `NEXT_PUBLIC_API_URL` points at `https://www.craftmyfunnel.live`, which now 301s to the apex.
 
 - **OPEN-267 (Fixed in workflow — VM compose alignment owner-owed):** `Deploy to Oracle VMs` failed on
   **every** main push since 2026-09-22 (5 straight runs: `84cb524d` … `0e02a973`; last green `711e53f2`,
