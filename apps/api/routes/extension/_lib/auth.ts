@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
@@ -34,6 +35,17 @@ function isLegacyFallbackEnabled(): boolean {
 
 function failure(status: number, code: ExtensionAuthFailureCode, error: string): ExtensionAuthResult {
   return { ok: false, status, code, error };
+}
+
+// Constant-time key check. Both sides are hashed first so timingSafeEqual always
+// gets equal-length buffers (it throws otherwise) and the compare time leaks
+// neither the key's length nor how many leading characters a guess got right.
+// Callers must still reject an empty/unset required key before calling this.
+export function extensionKeyMatches(providedKey: string | null, requiredKey: string): boolean {
+  if (providedKey === null) return false;
+  const provided = createHash("sha256").update(providedKey).digest();
+  const required = createHash("sha256").update(requiredKey).digest();
+  return timingSafeEqual(provided, required);
 }
 
 function readAuthToken(req: NextRequest): string | null {
@@ -93,7 +105,7 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
 export async function validateExtensionAuth(req: NextRequest): Promise<ExtensionAuthResult> {
   const requiredKey = process.env["EXTENSION_API_KEY"];
   const providedKey = req.headers.get("x-extension-key");
-  if (!requiredKey || providedKey !== requiredKey) {
+  if (!requiredKey || !extensionKeyMatches(providedKey, requiredKey)) {
     return requiredKey
       ? failure(401, "INVALID_EXTENSION_KEY", "Invalid extension key")
       : failure(401, "MISSING_EXTENSION_KEY", "Extension key is not configured");

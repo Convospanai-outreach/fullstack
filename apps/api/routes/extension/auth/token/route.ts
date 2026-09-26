@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
+import { extensionKeyMatches } from "../../_lib/auth";
 
 export async function POST(req: NextRequest) {
     try {
         const requiredKey = process.env["EXTENSION_API_KEY"];
         const providedKey = req.headers.get("x-extension-key");
 
-        if (!requiredKey || providedKey !== requiredKey) {
+        if (!requiredKey || !extensionKeyMatches(providedKey, requiredKey)) {
             return NextResponse.json({ ok: false, error: "Invalid extension key" }, { status: 401 });
         }
 
