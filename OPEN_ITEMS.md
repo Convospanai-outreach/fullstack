@@ -5536,6 +5536,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   and optionally `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` to enable source-map upload; then
   confirm events arrive in the Sentry dashboard. Until a DSN is set the SDK stays inert by design.
 
+- **OPEN-267 (Fixed in workflow — VM compose alignment owner-owed):** `Deploy to Oracle VMs` failed on
+  **every** main push since 2026-09-22 (5 straight runs: `84cb524d` … `0e02a973`; last green `711e53f2`,
+  which itself needed a retry). Found while verifying how #567's migration reached prod — the
+  `migrate` job (I-03) *does* run `prisma migrate deploy` before compose up, so migrations were applied
+  (`20260921120000_add_team_enabled_features` finished 02:37Z on 09-22, right after that run's migrate
+  job). The failure is always `api-main` at "Deploy, health-check, and roll back"; `api-worker` passes.
+  **Root cause — a timing race, not broken code.** Hosts' compose healthcheck probes every 30s with no
+  `start_period`; Node boot now takes ~35s (container started 08:03:36.09, listening 08:04:11.19), so
+  the first probe always fails and the second lands at ~+60s — exactly when `wait_healthy`'s 60s budget
+  (12 × 5s) expires. In run 36228314139 the passing probe arrived at 08:04:38.694 and the job declared
+  failure at 08:04:38.712 — **18 ms late**. The "rollback" then showed `Container api-main Running`
+  (a no-op on the already-healthy new container) and the job exited red anyway. Live `/health` returns
+  200 with `database: up`, so production API was never down.
+  **Fix (`.github/workflows/deploy-oracle.yml`):** health wait 60s → 180s (`HEALTH_WAIT_ATTEMPTS=36`,
+  tolerates boots up to ~150s); `command_timeout: 20m` on the ssh step (default 10m would kill the
+  failure path — ~5m pull + 180s + rollback + 180s — mid-rollback); keep the requested tag in
+  `requested_tag` because `deploy_with_tag` re-exports `IMAGE_TAG`, which made the rollback message
+  report "after latest failed" instead of the real tag. Verified by replaying the real `script:` block
+  (extracted from the YAML) against a stubbed docker with a fake clock: the `main` script reproduces
+  the production failure verbatim at +62s; the new script passes at +62s and +150s, still fails and
+  rolls back when the container never gets healthy, and the worker path is unchanged.
+  **Still open (owner — needs SSH to the VMs):** both hosts pulled `api:latest` even though the job
+  exported `IMAGE_TAG=sha-0e02a97`, so the live `/opt/fullstack/docker-compose.yml` files ignore
+  `IMAGE_TAG` (the repo reference copies use `${IMAGE_TAG:-latest}`). Consequences: deploys ship
+  whatever `:latest` is rather than the exact SHA the CI gate approved, and **rollback is a no-op**
+  (it "rolls back" to the same `:latest`). Align each host's compose `image:` line with
+  `deploy/oracle/docker-compose.{api,worker}.yml`. Adding `start_period: 60s` to the api healthcheck
+  there would also stop boot-time probes counting as failures.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
