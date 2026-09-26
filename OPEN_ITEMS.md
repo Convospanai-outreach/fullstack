@@ -5607,7 +5607,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `Activity` has no `teamId` column: the team feed scopes through `campaignId`, which also had no index
   despite its FK from Campaign. Four migrations `20260926100000`–`…100300`, each exactly one
   `CREATE INDEX CONCURRENTLY IF NOT EXISTS` (CIC can't run in a transaction block, and Postgres runs
-  a multi-statement query string as one implicit transaction), mirrored into apps/api + apps/web +
+  a multi-statement query string as one implicit transaction; confirmed working under Prisma 7
+  `migrate deploy` by PR #576's CI, where both jobs applied all four), mirrored into apps/api + apps/web +
   packages/db, with `@@index` in all three schemas. **HNSW deliberately not added:** the two vector
   columns without one (`LLMCache.embedding`, `patent_guardrails.vector`) have no live similarity query
   anywhere in the repo. `SemanticCache.get()`/`set()` are uncalled (only `getExact` is used), and their
