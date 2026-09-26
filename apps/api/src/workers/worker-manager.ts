@@ -47,6 +47,8 @@ export class WorkerManager {
     private customDomainInterval: number = parseInt(process.env['CUSTOM_DOMAIN_POLL_INTERVAL_MS'] || '300000'); // 5 minutes
     private lastShadowSignalReconcileTick: number = 0;
     private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
+    private lastRetentionTick: number = 0;
+    private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
 
     async start() {
         if (this.isRunning) return;
@@ -230,6 +232,15 @@ export class WorkerManager {
                 console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
             }
             this.lastShadowSignalReconcileTick = now;
+        }
+
+        // Log-table retention (roadmap 3.2 / I-08). Dry run unless
+        // RETENTION_ENABLED=true. Kept last, and the sweep never throws, so a
+        // failing table can't starve the ticks above or retry every loop.
+        if (now - this.lastRetentionTick >= this.retentionInterval) {
+            const { runRetentionSweep } = await import("./handlers/retentionSweep");
+            await runRetentionSweep();
+            this.lastRetentionTick = now;
         }
     }
 

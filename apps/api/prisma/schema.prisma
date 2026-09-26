@@ -131,6 +131,7 @@ model Lead {
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
   @@index([teamId, domain])
+  @@index([teamId, updatedAt]) // Lead lists: WHERE teamId ORDER BY updatedAt DESC
 }
 
 // Per-field provenance for Lead data - which source (Hunter, CSV import, Netjana,
@@ -496,6 +497,9 @@ model Activity {
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
   campaignId String?
   agentId    String?
+
+  // No teamId column: the team feed scopes through campaignId, newest first
+  @@index([campaignId, createdAt])
 }
 
 model Agent {
@@ -626,6 +630,7 @@ model Job {
   @@index([taskType])
   @@index([tenantId])
   @@index([targetRuntime])
+  @@index([status, processAt, priority]) // JobQueue.dequeue: status IN (...) AND processAt <= now
 }
 
 model JobRun {
@@ -2146,6 +2151,7 @@ model ApprovalRequest {
   @@index([teamId])
   @@index([status])
   @@index([tier, autoDenyAt])
+  @@index([teamId, status]) // Approvals list + pending counts
 }
 
 model Playbook {
