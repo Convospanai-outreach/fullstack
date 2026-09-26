@@ -482,6 +482,19 @@ async function appProxy(req: NextRequest) {
         }
     }
 
+    // The Sentry browser SDK posts events to the ingest host named in the DSN.
+    // Without that origin here the browser refuses every send, so client-side
+    // error reporting initialises but silently delivers nothing.
+    let sentryIngestOrigin = '';
+    const sentryDsn = process.env['NEXT_PUBLIC_SENTRY_DSN'] || '';
+    if (/^https?:\/\//.test(sentryDsn)) {
+        try {
+            sentryIngestOrigin = new URL(sentryDsn).origin;
+        } catch {
+            sentryIngestOrigin = '';
+        }
+    }
+
     const cspValues = [
         "default-src 'self'",
         // Scripts: Allow self, Google Auth, Razorpay, Cloudflare Turnstile, Google Tag
@@ -494,8 +507,8 @@ async function appProxy(req: NextRequest) {
         "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
-        // Connect: Self, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
+        // Connect: Self, Analytics, Razorpay, Sentry ingest, plus Sovereign AI nodes & WebSockets
+        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin} ${sentryIngestOrigin}`,
         // Frames: Google Auth, Razorpay & Cloudflare Turnstile
         "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com",
         // Media/Workers: Stricter constraints

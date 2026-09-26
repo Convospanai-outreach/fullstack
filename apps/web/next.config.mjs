@@ -36,6 +36,13 @@ const nextConfig = {
         'pg',
     ],
     experimental: {
+        // Container build hosts report the machine's full core count through
+        // os.cpus() (48 on Render's builder), so `next build` spawned 47
+        // page-data/static-generation workers, each loading the whole app. Once
+        // withSentryConfig added per-worker weight the build was OOM-killed.
+        // A fixed pool keeps peak build memory independent of the host's cores.
+        // Only the build pipeline reads this; dev and runtime are unaffected.
+        cpus: 4,
         optimizePackageImports: isDevelopment || !usePackageImportOptimization
             ? []
             : ['lucide-react', 'recharts', 'date-fns', 'three', '@react-three/fiber', '@react-three/drei'],
