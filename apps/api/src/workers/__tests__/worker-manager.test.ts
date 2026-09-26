@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { JobQueue } from "@/lib/queue";
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { worker } from "../job-processor";
+import { runRetentionSweep } from "../handlers/retentionSweep";
 import { WorkerManager } from "../worker-manager";
 
 vi.mock("@/lib/queue", () => ({
@@ -71,6 +72,10 @@ vi.mock("@/modules/branding/customDomainPoller", () => ({
 
 vi.mock("../handlers/shadowSignalReconciliationWorker", () => ({
     reconcileOrphanedShadowSignals: vi.fn().mockResolvedValue({ scanned: 0, matched: 0 }),
+}));
+
+vi.mock("../handlers/retentionSweep", () => ({
+    runRetentionSweep: vi.fn().mockResolvedValue([]),
 }));
 
 describe("WorkerManager claim propagation", () => {
@@ -169,5 +174,15 @@ describe("WorkerManager maintenance tick", () => {
         await (manager as any).handleMaintenanceTick();
 
         expect(SequenceService.processDue).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs the retention sweep on the maintenance tick, at most once per day", async () => {
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(runRetentionSweep).toHaveBeenCalledTimes(1);
+        expect((manager as any).retentionInterval).toBe(24 * 60 * 60 * 1000);
     });
 });

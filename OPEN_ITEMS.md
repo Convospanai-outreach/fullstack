@@ -5598,6 +5598,41 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `deploy/oracle/docker-compose.{api,worker}.yml`. Adding `start_period: 60s` to the api healthcheck
   there would also stop boot-time probes counting as failures.
 
+- **OPEN-271 (Fixed — indexes ship on merge; retention ships dry-run, deletion owner-gated):** roadmap.md
+  item 3.2 (I-08, I-09). **I-09 (indexes):** re-verified against the 2026-09-18 audit. Four real gaps,
+  each tied to a live query: `Lead(teamId, updatedAt)` (lead lists `WHERE teamId ORDER BY updatedAt DESC`),
+  `ApprovalRequest(teamId, status)` (`getPendingRequests` + pending counts), `Job(status, processAt,
+  priority)` (`JobQueue.dequeue`: `status IN ('queued','pending') AND processAt <= now`), and
+  **`Activity(campaignId, createdAt)` instead of the prescribed `(teamId, createdAt)`**, because
+  `Activity` has no `teamId` column: the team feed scopes through `campaignId`, which also had no index
+  despite its FK from Campaign. Four migrations `20260926100000`–`…100300`, each exactly one
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS` (CIC can't run in a transaction block, and Postgres runs
+  a multi-statement query string as one implicit transaction; confirmed working under Prisma 7
+  `migrate deploy` by PR #576's CI, where both jobs applied all four), mirrored into apps/api + apps/web +
+  packages/db, with `@@index` in all three schemas. **HNSW deliberately not added:** the two vector
+  columns without one (`LLMCache.embedding`, `patent_guardrails.vector`) have no live similarity query
+  anywhere in the repo. `SemanticCache.get()`/`set()` are uncalled (only `getExact` is used), and their
+  `WHERE 1-(e<=>q) > t ORDER BY score DESC` shape couldn't use HNSW anyway, while `PatentGuardrail` is
+  unreferenced. **I-08 (retention):** new `apps/api/src/workers/handlers/retentionSweep.ts`, run daily
+  (once at worker start, then every 24h) as the last WorkerManager maintenance tick. It is a **dry run
+  (per-table counts logged) unless `RETENTION_ENABLED` is exactly `true`**, and it never throws. Batches
+  are 1000 rows, capped at 20 batches per table per tick, and the predicate is re-applied on every delete. Rows eligible:
+  `Job` succeeded/dead_lettered with `completedAt` > 90d; `OutboxEvent` RELAYED > 30d; `Notification`
+  read > 90d; `LLMUsageLog`/`EmailEvent`/`LandingEvent` > 365d (each window env-overridable via
+  `RETENTION_<TABLE>_DAYS`). Never touched: `Activity` (user-visible timeline — product decision left to
+  owner), `AuditLog` (existing archive script unchanged, still unscheduled), queued/running jobs,
+  undelivered outbox rows, unread notifications. Tests: `retentionSweep.test.ts` (13; in-memory rows,
+  asserts survivors), `db-indexes.test.ts` (12 structural), +1 wiring test in `worker-manager.test.ts`;
+  each verified to fail with its logic reverted. Full apps/api suite 262 files / 1548 tests green;
+  destructive-migration scanner clean on all 12 new files. **Owner-owed:** (1) after merge, confirm
+  `deploy-oracle.yml`'s `migrate` job applied all four (if a CIC is interrupted it leaves an INVALID
+  index and blocks later deploys — recovery runbook in the PR); (2) review the `[Retention] Dry run`
+  worker logs, then set `RETENTION_ENABLED=true` on the worker VM. Before that, note the user-visible
+  effects: all-time funnel/summary EmailEvent counts and all-time ROI LLM cost shrink, lead timelines
+  lose email events older than a year, `Message.emailEventId` is SET NULL, and deleted Jobs free their
+  idempotency keys. Raise a table's `RETENTION_<TABLE>_DAYS` to keep it longer; (3) decide Activity
+  retention.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
