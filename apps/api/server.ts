@@ -1,6 +1,9 @@
+import '@/lib/sentryInit'; // must stay first: initialises Sentry before anything else loads
+import { captureException, setupSentryFastify } from '@/lib/sentry';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -12,6 +15,7 @@ import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
+import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES } from '@/lib/internalAuth';
@@ -52,6 +56,8 @@ const fastify = Fastify({
     ...(process.env.NODE_ENV === 'production' ? {} : { transport: { target: 'pino-pretty' } })
   }
 });
+
+setupSentryFastify(fastify);
 
 // Records per-request latency into the Prometheus histogram exposed at /metrics
 // (roadmap 2.10 / I-06). Uses the matched route pattern, not the raw URL, so IDs
@@ -411,6 +417,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     reply.status(status).send(buffer);
   } catch (error: any) {
     fastify.log.error(error);
+    captureException(error);
     reply.status(500).send({
       ok: false,
       error: process.env.NODE_ENV === 'production'
@@ -482,10 +489,25 @@ function toFastifyRoutePath(nextRoutePath: string) {
     .replace(/\[([^\]]+)\]/g, ':$1');
 }
 
+// The user a request is verified as, from the same two credentials nextAdapter
+// accepts: a NextAuth JWT, or apps/web's HMAC-signed identity headers. Keys the
+// rate-limit backstop (see rateLimitBackstop.ts).
+async function verifiedUserId(request: any): Promise<string | undefined> {
+  const secret = process.env.NEXTAUTH_SECRET;
+  const token = (secret ? await getToken({ req: request.raw, secret }) : null) ||
+    verifyInternalAuthHeaders(request.headers || {});
+  if (!token) return undefined;
+  return typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;
+}
+
 const start = async () => {
   try {
     const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
-    
+
+    // Awaited before loadRoutes: the plugin attaches its limit to each route
+    // from an onRoute hook, so routes registered before it loads get none.
+    await fastify.register(rateLimit, rateLimitBackstopOptions(verifiedUserId));
+
     // Auto-load routes
     const routesDir = path.join(__dirname, 'routes');
     if (fs.existsSync(routesDir)) {
