@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { instrumentAnthropic } from "@/lib/sentry";
 import { loadTeamProviders, extractJsonBlock } from "@/lib/aiService";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
@@ -44,7 +45,7 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
         throw new Error("BATCH draft generation requires a configured Anthropic API key for this team.");
     }
 
-    const client = new Anthropic({ apiKey: providers.anthropic.apiKey });
+    const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
     const model = providers.anthropic.model || BATCH_MODEL;
 
     const messageBatch = await client.messages.batches.create({
@@ -92,7 +93,7 @@ export async function pollBatch(batchId: string): Promise<{ ready: boolean }> {
         throw new Error(`BATCH draft polling requires a configured Anthropic API key for team ${batch.teamId}.`);
     }
 
-    const client = new Anthropic({ apiKey: providers.anthropic.apiKey });
+    const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
     const remote = await client.messages.batches.retrieve(batch.providerBatchId);
 
     if (remote.processing_status !== "ended") {
