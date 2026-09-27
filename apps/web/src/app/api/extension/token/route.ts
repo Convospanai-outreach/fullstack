@@ -16,8 +16,8 @@ export async function POST() {
 
     const { prisma } = await import("@/lib/db");
 
-    // Extension tokens are never explicitly revoked, so garbage-collect this
-    // user's own already-expired ones whenever they mint a new one - bounds
+    // Extension tokens are only revoked on request (DELETE below), so garbage-collect
+    // this user's own already-expired ones whenever they mint a new one - bounds
     // Session table growth without touching any other still-valid device's token.
     await prisma.session.deleteMany({ where: { userId, expires: { lt: new Date() } } });
 
@@ -29,4 +29,20 @@ export async function POST() {
     });
 
     return NextResponse.json({ ok: true, token, expiresAt: expires.toISOString() });
+}
+
+// Revokes every extension token this user has minted (all devices) - the kill
+// switch for a lost machine or leaked token. Session rows are only ever extension
+// credentials (see the NextAuth note above), so this never signs anyone out of
+// the web app, and the where clause keeps it scoped to the caller's own rows.
+export async function DELETE() {
+    const { userId } = await getCurrentContext();
+    if (!userId) {
+        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { prisma } = await import("@/lib/db");
+    const { count } = await prisma.session.deleteMany({ where: { userId } });
+
+    return NextResponse.json({ ok: true, revoked: count });
 }
