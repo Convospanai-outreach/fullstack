@@ -43,6 +43,7 @@
         "groq-sdk": "^0.37.0",
         "imapflow": "^2.0.5",
         "ioredis": "^5.9.1",
+        "isomorphic-dompurify": "^2.35.0",
         "lru-cache": "^11.2.4",
         "mailparser": "^3.9.28",
         "next": "^16.2.11",

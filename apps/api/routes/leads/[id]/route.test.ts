@@ -70,4 +70,21 @@ describe("PATCH /leads/[id]", () => {
             data: { company: "New Co" },
         });
     });
+
+    // roadmap 3.3 (S-10): allowlisted keys carried untyped values straight to
+    // Prisma (e.g. tags as a string, consentObtained as "yes").
+    it("400s wrongly typed allowlisted fields without writing", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce({ id: "lead-1" });
+
+        const response = await PATCH(
+            patchRequest({ tags: "vip", consentObtained: "yes" }),
+            { params: Promise.resolve({ id: "lead-1" }) }
+        );
+
+        expect(response.status).toBe(400);
+        const json = await response.json();
+        expect(json.details.fieldErrors.tags).toBeDefined();
+        expect(json.details.fieldErrors.consentObtained).toBeDefined();
+        expect(mockPrisma.lead.updateMany).not.toHaveBeenCalled();
+    });
 });

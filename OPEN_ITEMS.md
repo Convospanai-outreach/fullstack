@@ -5683,6 +5683,37 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   idempotency keys. Raise a table's `RETENTION_<TABLE>_DAYS` to keep it longer; (3) decide Activity
   retention.
 
+- **OPEN-270 (Fixed — worker deploy + report-uri owner-owed; 130 JSON routes still unvalidated):** roadmap.md
+  item 3.3 (S-09, S-10). **S-09:** landing-page HTML was cleaned by a hand-rolled tokenizer
+  (`apps/api/src/modules/landing-agent/rendering.ts`), the Cloudflare worker served it with no CSP/XFO, and
+  `/p/[slug]` renders the raw `renderedJson` on the app's own origin via apps/web's *duplicate* copy of that
+  tokenizer. Now: `sanitizeLandingHtml` is `isomorphic-dompurify@2.35.0` (reuses the lock's existing jsdom
+  27.4.0) with the same tag/attr allow-lists, `FORBID_TAGS: svg, math`, and hooks that keep the old extra
+  rules (isSafeLink-only href/src so no `data:`/`javascript:`, filtered class tokens, no raw `rel`,
+  `target` normalised + `rel="noopener noreferrer"`). The public-page API (`getPublicPage`) now returns
+  `renderedJson.html` DOMPurify-cleaned, so `/p/[slug]` gets it too without adding jsdom to Next (apps/web's
+  copy no longer re-escapes existing entities in attribute values, which would have turned DOMPurify's
+  `?a=1&amp;b=2` into a broken `&amp;amp;` on UTM links/CDN image URLs). The worker
+  (`workers/landing-pages/src/index.ts`) enforces `frame-ancestors 'none'` + `X-Frame-Options: DENY` on the
+  page and thank-you responses and sends the rest as `Content-Security-Policy-Report-Only`, allowing only the
+  lead-form inline script by a sha256 that `cloudflarePagesService` computes at publish time and stores in
+  the KV entry (`scriptHash`). Verified in Chromium through the real worker handler: the page's own script
+  runs with zero report-only violations; an injected inline script is reported. **S-10:** new
+  `apps/api/src/lib/validation/parseBody.ts` (400 `{error, code: VALIDATION_ERROR, details}` with zod field
+  errors, 400 on malformed JSON) and migrated `campaigns/[id]` PATCH (`status` constrained to
+  draft|active|paused|completed|scheduled), `billing/checkout`, `billing/topup`, `billing/verify`,
+  `leads/[id]` PATCH, `pipeline/leads/[leadId]` PATCH, `pipeline/tasks/[id]` PATCH; also the same `status`
+  check on apps/web's own `PATCH /api/campaigns/[id]` (the one the dashboard actually hits). Tests:
+  `rendering.test.ts` (XSS payloads + legit page), `handlers.publicPage.test.ts`,
+  `cloudflarePagesService.test.ts` (hash), `landingPagesWorker.test.ts`, `parseBody.test.ts`, the 7 route
+  tests, `apps/web/tests/unit/campaign-patch-status-validation.test.ts`,
+  `apps/web/tests/unit/landing-agent-attr-entities.test.ts` — 22 new cases fail with the fixes reverted. **Owner-owed:** (1) `wrangler deploy` of `workers/landing-pages` (no workflow deploys it);
+  (2) re-run `src/scripts/backfill-cloudflare-landing-pages.ts` so already-published pages get `scriptHash`
+  (until then they report their own script); (3) optional `report-uri` endpoint before flipping the CSP to
+  enforcing. **Follow-ups:** 130 of 165 `route.ts` files that read JSON still have no schema; apps/web's
+  duplicate `rendering.ts` (GrapesEditor preview is `sandbox=""` srcDoc, so no script runs there) still uses
+  the hand-rolled tokenizer.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
