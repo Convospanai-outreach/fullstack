@@ -180,6 +180,8 @@ services:
 
 (`apps/api/Dockerfile`'s default `CMD` runs `server.ts` — the "main" process — with no override needed here, and `wget` is already installed in the runtime image.)
 
+The image runs as the unprivileged `node` user (uid 1000), for both the api and worker containers. Any file bind-mounted into them, such as `config/prod-ca-2021.crt`, must be readable by uid 1000 (e.g. mode `644`).
+
 ### 6.2 `api-worker` — `/opt/fullstack/docker-compose.yml`
 
 ```yaml

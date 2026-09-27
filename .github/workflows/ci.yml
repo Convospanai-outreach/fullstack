@@ -302,9 +302,77 @@ jobs:
       continue-on-error: true
       run: docker build -t craftmyfunnel-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
 
+  # Builds the production API image and boots it the way the Oracle VMs do
+  # (NODE_ENV=production, its own CMD and user), then requires GET /health to
+  # return 200. /health's readiness probe runs SELECT 1, so it gets a real
+  # Postgres. A build that compiles but can't start fails here, not on deploy.
+  api-image-boot:
+    name: API Image Boot (/health)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: craftmyfunnel_boot_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build API image
+      run: docker build -t craftmyfunnel-api-boot -f apps/api/Dockerfile .
+
+    - name: Boot the image
+      run: |
+        # Throwaway values: the boot-time secret check rejects the samples.
+        docker run -d --name api-boot --network host \
+          -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci" \
+          -e NEXTAUTH_SECRET="$(openssl rand -hex 32)" \
+          -e ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+          -e CRON_SECRET="$(openssl rand -hex 16)" \
+          craftmyfunnel-api-boot
+
+    - name: Require GET /health to return 200
+      run: |
+        for attempt in $(seq 1 60); do
+          code=$(curl -s --max-time 5 -o health.json -w '%{http_code}' http://127.0.0.1:3001/health || true)
+          if [ "$code" = "200" ]; then
+            cat health.json
+            exit 0
+          fi
+          if [ "$(docker inspect -f '{{.State.Running}}' api-boot)" != "true" ]; then
+            echo "::error::The API container exited before /health returned 200."
+            exit 1
+          fi
+          sleep 2
+        done
+        echo "::error::/health did not return 200 within 120s (last status: ${code})."
+        exit 1
+
+    - name: Require a non-root process
+      run: |
+        uid=$(docker exec api-boot id -u)
+        echo "API process uid: ${uid}"
+        test "$uid" != "0"
+
+    - name: API container logs
+      if: always()
+      run: docker logs api-boot 2>&1 | tail -n 200 || true
+
   ci-gate:
     name: CI Gate
-    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke]
+    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke, api-image-boot]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -326,6 +394,10 @@ jobs:
           fi
           if [ "${{ needs.docker-smoke.result }}" != "success" ]; then
             echo "::error::Docker Build Smoke did not complete successfully."
+            exit 1
+          fi
+          if [ "${{ needs.api-image-boot.result }}" != "success" ]; then
+            echo "::error::API Image Boot did not complete successfully."
             exit 1
           fi
         fi
