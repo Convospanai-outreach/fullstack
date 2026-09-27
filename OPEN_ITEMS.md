@@ -5598,6 +5598,90 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `deploy/oracle/docker-compose.{api,worker}.yml`. Adding `start_period: 60s` to the api healthcheck
   there would also stop boot-time probes counting as failures.
 
+- **OPEN-268 (Fixed — 4 of 6 sub-points; 7-day TTL, lockout DoS and per-session superadmin id deferred):**
+  roadmap.md item 3.4 (S-11, S-12). Re-verified against current code; every claim was still true.
+  - **S-11 timing-unsafe extension key — fixed at both sites.** `validateExtensionAuth`
+    (`apps/api/routes/extension/_lib/auth.ts`) *and* the audit-missed twin in
+    `apps/api/routes/extension/auth/token/route.ts` compared `x-extension-key` with `!==`. New
+    `extensionKeyMatches()` uses `crypto.timingSafeEqual`, following the repo's length-check
+    convention. A wrong-length guess compares the key against itself, so there is no throw and no
+    length leak. There is no hash step: a sha256-first version tripped CodeQL
+    `js/insufficient-password-hash` on the PR. The `!requiredKey` guard stays in front, because an
+    empty header equals an empty key.
+  - **S-11 no revoke — fixed.** Extension tokens are already DB-backed `Session` rows (NextAuth is
+    `strategy: "jwt"`, so that table holds only extension credentials). New `DELETE /api/extension/token`
+    (apps/web, NextAuth-authenticated) runs `session.deleteMany({ where: { userId } })`, which revokes
+    all of the caller's extension tokens and never touches other users' rows or web logins. No schema change.
+  - **S-11 7-day TTL + refresh — NOT changed.** Neither client can survive it. The v1 store build's
+    token is pasted by hand into settings, and a 401 only shows "Pending Sync". The v2 worker only logs
+    `Task polling failed: 401`. Neither calls the apps/api 60s `/extension/auth/token` mint. Shortening
+    the TTL would silently break the published v1 extension, so the 30-day TTL stays (follow-up).
+  - **S-12 per-IP limiter — added.** `apps/web/src/app/api/superadmin/login/route.ts` now calls the
+    existing `checkRateLimit` (`@/lib/rateLimit`, `RATE_LIMITS.AUTH` = 5/hour) keyed explicitly on
+    `ip:<x-forwarded-for[0]>`, *before* any DB work. It does not use `applyRateLimit`, which keys on a
+    caller-chosen `x-api-key` header when present, so a caller could rotate buckets. Without `REDIS_URL`
+    the store is per-process (I-07). **It does NOT fix the lockout DoS:** `failedAttempts` only resets on
+    success, so after the first lock one wrong guess every 15 min keeps the admin locked, and no per-IP
+    budget stops that. It also relies on `x-forwarded-for[0]`, which the client can spoof behind Render
+    and Cloudflare, like every other IP-keyed limiter here.
+  - **S-12 unrevocable 12h session — stateless mitigation.** `lib/superadmin/session.ts` now keys the
+    HMAC on `NEXTAUTH_SECRET:SUPERADMIN_SESSION_VERSION` when that env var is set. Changing it revokes
+    **every** superadmin session without rotating `NEXTAUTH_SECRET`. Unset or empty keeps today's key,
+    so deploying this signs nobody out (documented in `apps/web/.env.example`). Per-user revoke already works: all three superadmin routes
+    re-check the `SuperAdminCredential` row. A true per-session server-side id needs a new table, which
+    the schema HARD RULE forbids here (follow-up).
+  - **S-12 anonymous `/overview` probe — not changed.** It is by design, and the route 401s before any
+    DB or upstream work.
+  Tests: apps/api `routes/extension/_lib/auth.test.ts` + `auth/token/route.test.ts` wrap `timingSafeEqual`
+  and assert it runs on equal-length buffers. There are also same-length and prefix-extended wrong-key
+  tests and an empty-key guard test. apps/web
+  `tests/unit/extension-token-revoke.test.ts` (scoped `deleteMany`, 401 path) and
+  `tests/unit/superadmin-hardening.test.ts` (6th attempt from one IP → 429 with no DB lookup, other IP
+  unaffected; version rotation revokes; legacy cookies stay valid while unset). Each was verified to fail
+  with its fix reverted. Both typechecks are clean. apps/web `tests/unit` 49 files / 252 tests; apps/api
+  260 files / 1526 tests. Known tradeoff: the per-IP cap counts every attempt and has a 1-hour window, so
+  an admin who mistypes 5 times from one IP waits up to 60 min (the account lockout was 15). Escape
+  hatches: `DISABLE_RATE_LIMIT=true` or a restart when there's no Redis. **Owner-owed:** none needed to ship. Optional: set `SUPERADMIN_SESSION_VERSION` on
+  Render `craftmyfunnel-web` and change it to revoke all superadmin sessions, and set `REDIS_URL` for web
+  to share the limiter across instances. **Follow-ups:** a 7-day TTL once a client refresh path ships
+  (needs a new store build); a Revoke button on `/setup` next to "generate sync token"; lockout-DoS
+  redesign (per-IP or per-(IP, account) lockout keyed on a trusted client-IP header, owner decision);
+  confirm which client-IP header is trustworthy at the Render/Cloudflare edge; a per-session superadmin
+  id (needs a table, after the schema PR).
+- **OPEN-271 (Fixed — indexes ship on merge; retention ships dry-run, deletion owner-gated):** roadmap.md
+  item 3.2 (I-08, I-09). **I-09 (indexes):** re-verified against the 2026-09-18 audit. Four real gaps,
+  each tied to a live query: `Lead(teamId, updatedAt)` (lead lists `WHERE teamId ORDER BY updatedAt DESC`),
+  `ApprovalRequest(teamId, status)` (`getPendingRequests` + pending counts), `Job(status, processAt,
+  priority)` (`JobQueue.dequeue`: `status IN ('queued','pending') AND processAt <= now`), and
+  **`Activity(campaignId, createdAt)` instead of the prescribed `(teamId, createdAt)`**, because
+  `Activity` has no `teamId` column: the team feed scopes through `campaignId`, which also had no index
+  despite its FK from Campaign. Four migrations `20260926100000`–`…100300`, each exactly one
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS` (CIC can't run in a transaction block, and Postgres runs
+  a multi-statement query string as one implicit transaction; confirmed working under Prisma 7
+  `migrate deploy` by PR #576's CI, where both jobs applied all four), mirrored into apps/api + apps/web +
+  packages/db, with `@@index` in all three schemas. **HNSW deliberately not added:** the two vector
+  columns without one (`LLMCache.embedding`, `patent_guardrails.vector`) have no live similarity query
+  anywhere in the repo. `SemanticCache.get()`/`set()` are uncalled (only `getExact` is used), and their
+  `WHERE 1-(e<=>q) > t ORDER BY score DESC` shape couldn't use HNSW anyway, while `PatentGuardrail` is
+  unreferenced. **I-08 (retention):** new `apps/api/src/workers/handlers/retentionSweep.ts`, run daily
+  (once at worker start, then every 24h) as the last WorkerManager maintenance tick. It is a **dry run
+  (per-table counts logged) unless `RETENTION_ENABLED` is exactly `true`**, and it never throws. Batches
+  are 1000 rows, capped at 20 batches per table per tick, and the predicate is re-applied on every delete. Rows eligible:
+  `Job` succeeded/dead_lettered with `completedAt` > 90d; `OutboxEvent` RELAYED > 30d; `Notification`
+  read > 90d; `LLMUsageLog`/`EmailEvent`/`LandingEvent` > 365d (each window env-overridable via
+  `RETENTION_<TABLE>_DAYS`). Never touched: `Activity` (user-visible timeline — product decision left to
+  owner), `AuditLog` (existing archive script unchanged, still unscheduled), queued/running jobs,
+  undelivered outbox rows, unread notifications. Tests: `retentionSweep.test.ts` (13; in-memory rows,
+  asserts survivors), `db-indexes.test.ts` (12 structural), +1 wiring test in `worker-manager.test.ts`;
+  each verified to fail with its logic reverted. Full apps/api suite 262 files / 1548 tests green;
+  destructive-migration scanner clean on all 12 new files. **Owner-owed:** (1) after merge, confirm
+  `deploy-oracle.yml`'s `migrate` job applied all four (if a CIC is interrupted it leaves an INVALID
+  index and blocks later deploys — recovery runbook in the PR); (2) review the `[Retention] Dry run`
+  worker logs, then set `RETENTION_ENABLED=true` on the worker VM. Before that, note the user-visible
+  effects: all-time funnel/summary EmailEvent counts and all-time ROI LLM cost shrink, lead timelines
+  lose email events older than a year, `Message.emailEventId` is SET NULL, and deleted Jobs free their
+  idempotency keys. Raise a table's `RETENTION_<TABLE>_DAYS` to keep it longer; (3) decide Activity
+  retention.
 - **OPEN-269 (Fixed — S-13..S-16 hardening; legacy-HMAC removal + in-memory caches are follow-ups):**
   roadmap.md item 3.5 (S-13..S-16). All four findings re-verified against `main` 80f0f552; all still open.
   - **S-13 internal HMAC.** Signature covered only `v1.ts.userId.email.role`, so a captured header set
