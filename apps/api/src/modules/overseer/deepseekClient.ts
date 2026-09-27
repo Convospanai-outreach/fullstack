@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { logger } from "@/lib/logger";
+import { instrumentOpenAI } from "@/lib/sentry";
 
 export type StallCandidate = {
     enrollmentId: string;
@@ -50,7 +51,7 @@ export async function judgeStalledEnrollments(candidates: StallCandidate[]): Pro
         return candidates.map(fallbackJudgment);
     }
 
-    const client = new OpenAI({ apiKey, baseURL: DEEPSEEK_BASE_URL });
+    const client = instrumentOpenAI(new OpenAI({ apiKey, baseURL: DEEPSEEK_BASE_URL }));
     const prompt = [
         "You are a funnel-operations reviewer. For each stalled sequence enrollment below, ",
         "suggest exactly one action from RESEND_STEP, ROUTE_MANUAL, LIKELY_DEAD, or TRY_WHATSAPP, plus a one-sentence reason.",

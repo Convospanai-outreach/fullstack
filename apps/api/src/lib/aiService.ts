@@ -5,6 +5,7 @@ import { LLMProvider, TaskComplexity } from "@/ai/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import { instrumentAnthropic, instrumentOpenAI } from "@/lib/sentry";
 import {
     enforceAgentOutputGuardrails,
     GuardrailOptions
@@ -411,12 +412,12 @@ async function callProvider(
     if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK) {
         // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
         // just a different base URL. Mirrors modules/overseer/deepseekClient.ts.
-        const client = new OpenAI({
+        const client = instrumentOpenAI(new OpenAI({
             apiKey: candidate.apiKey,
             timeout: LLM_TIMEOUT_MS,
             maxRetries: MAX_RETRIES_PER_PROVIDER,
             ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {})
-        });
+        }));
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
         // no explicit cache_control needed, just put the stable instructions
         // in their own leading message so the prefix is byte-identical
@@ -436,7 +437,7 @@ async function callProvider(
         };
     }
 
-    const client = new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
+    const client = instrumentAnthropic(new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
     const message = await client.messages.create({
         model: candidate.model,
         max_tokens: 800,
@@ -679,7 +680,7 @@ export class AIService {
 
         try {
         if (providers.openai?.apiKey) {
-            const client = new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
+            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
             // providers.openai.model is the team's chat-completion model override
             // (e.g. "gpt-4o") - never a valid embeddings model, so it must not be
             // reused here the way it is for chat calls elsewhere in this file.
@@ -835,7 +836,7 @@ export class AIService {
         let settledCredits = false;
 
         try {
-            const client = new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
+            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
             const response = await client.images.generate({
                 model,
                 prompt: safePrompt,

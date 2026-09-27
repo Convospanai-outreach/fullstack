@@ -1,3 +1,4 @@
+import "@/lib/sentryInit"; // must stay first: initialises Sentry before anything else loads
 import { startWorker } from "./worker";
 
 export async function runBackgroundWorker() {

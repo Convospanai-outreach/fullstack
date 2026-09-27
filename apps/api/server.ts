@@ -1,3 +1,5 @@
+import '@/lib/sentryInit'; // must stay first: initialises Sentry before anything else loads
+import { captureException, setupSentryFastify } from '@/lib/sentry';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -51,6 +53,8 @@ const fastify = Fastify({
     ...(process.env.NODE_ENV === 'production' ? {} : { transport: { target: 'pino-pretty' } })
   }
 });
+
+setupSentryFastify(fastify);
 
 // Records per-request latency into the Prometheus histogram exposed at /metrics
 // (roadmap 2.10 / I-06). Uses the matched route pattern, not the raw URL, so IDs
@@ -428,6 +432,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     reply.status(status).send(buffer);
   } catch (error: any) {
     fastify.log.error(error);
+    captureException(error);
     reply.status(500).send({
       ok: false,
       error: process.env.NODE_ENV === 'production'
