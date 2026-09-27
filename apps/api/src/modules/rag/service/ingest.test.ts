@@ -34,10 +34,9 @@ describe("IngestService.ingestUrl - SSRF guard", () => {
     it("proceeds to fetch and ingest a URL that passes the safety check", async () => {
         mockAssertSafeWebhookUrl.mockResolvedValueOnce(undefined);
         mockAddDocument.mockResolvedValue({ id: "doc-1" });
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            text: async () => "<html><body>" + "Real page content here. ".repeat(10) + "</body></html>",
-        });
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response("<html><body>" + "Real page content here. ".repeat(10) + "</body></html>")
+        );
         vi.stubGlobal("fetch", fetchMock);
 
         const result = await ingestService.ingestUrl("https://example.com/page", "kb-1");
