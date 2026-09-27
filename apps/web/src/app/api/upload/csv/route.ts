@@ -4,6 +4,34 @@ import Papa from "papaparse";
 
 export const dynamic = "force-dynamic";
 
+// Same ceiling as apps/api's CSV upload (MAX_CSV_UPLOAD_BYTES in
+// modules/csv-ingestion/api/upload.ts) - roadmap 3.5 / S-14.
+const MAX_CSV_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+// Returns null once the body exceeds the cap. Content-Length is only a hint (absent
+// on chunked uploads, and a caller can lie), so bytes are also counted as they
+// arrive and the stream is cancelled as soon as the cap is passed.
+async function readCappedBody(req: NextRequest): Promise<string | null> {
+    const declared = Number(req.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_CSV_UPLOAD_BYTES) return null;
+    if (!req.body) return "";
+
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_CSV_UPLOAD_BYTES) {
+            await reader.cancel();
+            return null;
+        }
+        chunks.push(value);
+    }
+    return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 function autoDetectFieldMapping(headers: string[]): Record<string, string> {
     const mapping: Record<string, string> = {};
     headers.forEach((h) => {
@@ -32,13 +60,21 @@ export async function POST(req: NextRequest) {
         let fieldMapping: any = undefined;
         let campaignId: string | undefined = undefined;
 
+        const rawBody = await readCappedBody(req);
+        if (rawBody === null) {
+            return NextResponse.json(
+                { error: `CSV upload is too large. Maximum size is ${MAX_CSV_UPLOAD_BYTES / (1024 * 1024)}MB.` },
+                { status: 413 }
+            );
+        }
+
         if (contentType?.includes("application/json")) {
-            const body = await req.json();
+            const body = JSON.parse(rawBody);
             csvText = body.csv || body.csvText || "";
             fieldMapping = body.fieldMapping;
             campaignId = body.campaignId;
         } else {
-            csvText = await req.text();
+            csvText = rawBody;
         }
 
         if (!csvText || csvText.trim() === "") {

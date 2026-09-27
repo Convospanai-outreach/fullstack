@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download } from "lucide-react";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { neutralizeCsvFormula } from "@/lib/csvFormula";
 
 interface AuditLog {
     id: string;
@@ -75,7 +76,7 @@ export default function AuditLogPage() {
                 log.user?.email || "System",
                 log.user?.enterpriseRole || "SYSTEM"
             ])
-        ].map(row => row.join(",")).join("\n");
+        ].map(row => row.map(cell => `"${neutralizeCsvFormula(String(cell ?? "")).replace(/"/g, '""')}"`).join(",")).join("\n");
 
         const blob = new Blob([csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);

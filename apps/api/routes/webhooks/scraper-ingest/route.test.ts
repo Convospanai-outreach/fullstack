@@ -35,11 +35,17 @@ vi.mock("@/modules/audit/ServiceWatcher", () => ({
 
 import { POST } from "./route";
 
-function signedRequest(body: any, { badHash = false }: { badHash?: boolean } = {}) {
+function signedRequest(
+    body: any,
+    { badHash = false, timestamp = String(Date.now()), encodeHash = (h: string) => h }: {
+        badHash?: boolean;
+        timestamp?: string;
+        encodeHash?: (hash: string) => string;
+    } = {}
+) {
     const rawBody = JSON.stringify(body);
-    const timestamp = String(Date.now());
     const expectedHash = crypto.createHmac("sha256", SCRAPER_SECRET).update(`${rawBody}.${timestamp}`).digest("hex");
-    const complianceHash = badHash ? "0".repeat(64) : expectedHash;
+    const complianceHash = badHash ? "0".repeat(64) : encodeHash(expectedHash);
 
     return new Request("http://localhost/webhooks/scraper-ingest", {
         method: "POST",
@@ -70,6 +76,60 @@ describe("POST /webhooks/scraper-ingest", () => {
         const res = await POST(signedRequest({ jobId: "job-1", url: "https://example.com" }, { badHash: true }));
         expect(res.status).toBe(401);
         expect(mockScrapingJob.upsert).not.toHaveBeenCalled();
+    });
+
+    it("never logs any part of the valid (expected) hash on a mismatch (roadmap 3.5 / S-16)", async () => {
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const body = { jobId: "job-log", url: "https://example.com" };
+        const timestamp = String(Date.now());
+        const expectedHash = crypto
+            .createHmac("sha256", SCRAPER_SECRET)
+            .update(`${JSON.stringify(body)}.${timestamp}`)
+            .digest("hex");
+
+        await POST(signedRequest(body, { badHash: true, timestamp }));
+
+        const logged = errorSpy.mock.calls.flat().map(String).join(" ");
+        expect(logged).not.toContain(expectedHash.substring(0, 8));
+        errorSpy.mockRestore();
+    });
+
+    it("rejects an exact replay of a signed request inside the window (roadmap 3.5 / S-16)", async () => {
+        const body = { jobId: "job-replay", url: "https://example.com", teamId: "team-1" };
+        const timestamp = String(Date.now());
+
+        const first = await POST(signedRequest(body, { timestamp }));
+        const replay = await POST(signedRequest(body, { timestamp }));
+
+        expect(first.status).toBe(200);
+        expect(replay.status).toBe(401);
+        expect(mockScrapingJob.upsert).toHaveBeenCalledTimes(1);
+        expect(mockProcessWebhookData).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a replay whose hash is re-encoded (upper case / trailing junk) to dodge the cache", async () => {
+        const body = { jobId: "job-replay-enc", url: "https://example.com", teamId: "team-1" };
+        const timestamp = String(Date.now());
+
+        const first = await POST(signedRequest(body, { timestamp }));
+        const upper = await POST(signedRequest(body, { timestamp, encodeHash: (h) => h.toUpperCase() }));
+        const junk = await POST(signedRequest(body, { timestamp, encodeHash: (h) => `${h}zz` }));
+
+        expect(first.status).toBe(200);
+        expect(upper.status).toBe(401);
+        expect(junk.status).toBe(401);
+        expect(mockScrapingJob.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts two distinct signed requests with the same body", async () => {
+        const body = { jobId: "job-twice", url: "https://example.com", teamId: "team-1" };
+        const now = Date.now();
+
+        const first = await POST(signedRequest(body, { timestamp: String(now) }));
+        const second = await POST(signedRequest(body, { timestamp: String(now + 1) }));
+
+        expect(first.status).toBe(200);
+        expect(second.status).toBe(200);
     });
 
     it("sets teamId on create when the caller supplies one", async () => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/admin";
+import { neutralizeCsvFormula } from "@/lib/csvStream";
 
 export async function POST(req: NextRequest) {
     // Cross-tenant client error export - SYSTEM_ADMIN only, same as the sibling
@@ -28,10 +29,13 @@ export async function POST(req: NextRequest) {
             const csv = [
                 "Timestamp,Message,URL,User ID,IP,User Agent",
                 ...errors.map(e => {
-                    const message = e.message.replace(/"/g, '""');
-                    const url = e.url.replace(/"/g, '""');
-                    const userAgent = e.userAgent.replace(/"/g, '""');
-                    return `${e.createdAt.toISOString()},"${message}","${url}","${e.userId || 'N/A'}","${e.ip}","${userAgent}"`;
+                    // Client errors are reported by anonymous visitors, so every text
+                    // cell is attacker-controlled (roadmap 3.5 / S-14).
+                    const message = neutralizeCsvFormula(e.message).replace(/"/g, '""');
+                    const url = neutralizeCsvFormula(e.url).replace(/"/g, '""');
+                    const userAgent = neutralizeCsvFormula(e.userAgent).replace(/"/g, '""');
+                    const ip = neutralizeCsvFormula(e.ip).replace(/"/g, '""');
+                    return `${e.createdAt.toISOString()},"${message}","${url}","${e.userId || 'N/A'}","${ip}","${userAgent}"`;
                 })
             ].join("\n");
 

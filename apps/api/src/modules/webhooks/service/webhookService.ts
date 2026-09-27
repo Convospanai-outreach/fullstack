@@ -166,12 +166,19 @@ class WebhookService {
                 method: "POST",
                 headers,
                 body,
+                // The SSRF guard above only vetted webhook.url. Following a redirect
+                // would reach wherever Location points (e.g. 302 -> 169.254.169.254)
+                // unchecked, so redirects are never followed (roadmap 3.5 / S-15).
+                redirect: "manual",
                 signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS)
             });
 
             status = response.status;
             responseContent = await response.text();
 
+            if (status >= 300 && status < 400) {
+                throw new Error(`Target returned redirect ${status}; redirects are not followed`);
+            }
             if (!response.ok) {
                 throw new Error(`Target returned ${status}`);
             }

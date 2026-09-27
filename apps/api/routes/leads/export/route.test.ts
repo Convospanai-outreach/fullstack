@@ -116,4 +116,32 @@ describe("GET /api/leads/export", () => {
             skip: 1,
         });
     });
+
+    it("neutralizes formula-triggering cells so a spreadsheet treats them as text (roadmap 3.5 / S-14)", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.lead.findMany.mockResolvedValue([
+            lead("l1", {
+                fullName: '=HYPERLINK("http://evil.test","x")',
+                company: "+1+1",
+                jobTitle: "-2+3",
+                location: "@SUM(A1)",
+                linkedIn: "\t=1",
+                status: "\r=1",
+            }),
+        ]);
+        const { GET } = await import("./route");
+
+        const text = await (await GET()).text();
+        const row = text.split("\n")[1];
+
+        expect(row).toContain(`"'=HYPERLINK(""http://evil.test"",""x"")"`);
+        expect(row).toContain(`"'+1+1"`);
+        expect(row).toContain(`"'-2+3"`);
+        expect(row).toContain(`"'@SUM(A1)"`);
+        expect(row).toContain(`"'\t=1"`);
+        expect(row).toContain(`"'\r=1"`);
+        // Ordinary values are untouched.
+        expect(row).toContain(`"j@a.com"`);
+    });
 });

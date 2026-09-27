@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getToken } from "next-auth/jwt";
+import { buildInternalAuthHeaders } from "@/lib/internalAuthHeaders";
 
 const INTERNAL_API_ORIGIN =
     process.env["API_INTERNAL_ORIGIN"] ||
@@ -187,7 +188,7 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
     return null;
 }
 
-async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
+async function addInternalAuthHeaders(req: NextRequest, headers: Headers, method: string, target: URL) {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) return;
 
@@ -202,15 +203,10 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
 
     const email = typeof token?.email === "string" ? token.email : "";
     const role = typeof token?.["enterpriseRole"] === "string" ? token["enterpriseRole"] : "";
-    const timestamp = String(Date.now());
-    const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
-    const signature = createHmac("sha256", secret).update(payload).digest("hex");
-
-    headers.set("x-craftmyfunnel-user-id", userId);
-    headers.set("x-craftmyfunnel-user-email", email);
-    headers.set("x-craftmyfunnel-user-role", role);
-    headers.set("x-craftmyfunnel-auth-ts", timestamp);
-    headers.set("x-craftmyfunnel-auth-signature", signature);
+    const signed = buildInternalAuthHeaders({ secret, userId, email, role, method, path: target.pathname });
+    for (const [name, value] of Object.entries(signed)) {
+        headers.set(name, value);
+    }
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
@@ -240,7 +236,7 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
                 headers.set("x-craftmyfunnel-internal-relay", `${timestamp}.${signature}`);
             }
         } else {
-            await addInternalAuthHeaders(req, headers);
+            await addInternalAuthHeaders(req, headers, req.method, target);
         }
 
         const method = req.method.toUpperCase();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
+import { neutralizeCsvFormula } from "@/lib/csvStream";
 
 // See admin/audit/route.ts - ORG_ADMIN/COMPLIANCE_OFFICER are self-service
 // per-workspace roles, not platform-level operators.
@@ -123,12 +124,14 @@ export async function POST(req: NextRequest) {
         });
 
         if (format === "csv") {
-            // Generate CSV
+            // Generate CSV. Quoted and formula-neutralized: taskId comes from the
+            // free-form event payload (roadmap 3.5 / S-14).
+            const cell = (value: unknown) => `"${neutralizeCsvFormula(String(value)).replace(/"/g, '""')}"`;
             const csv = [
                 "Timestamp,Event Type,Actor,Team ID,Task ID",
                 ...events.map(e => {
                     const taskId = (e.payload as any).taskId || "N/A";
-                    return `${e.timestamp.toISOString()},${e.name},${e.actorId},${e.teamId},${taskId}`;
+                    return `${e.timestamp.toISOString()},${cell(e.name)},${cell(e.actorId)},${cell(e.teamId)},${cell(taskId)}`;
                 })
             ].join("\\n");
 
