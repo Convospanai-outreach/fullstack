@@ -18,7 +18,7 @@ import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
-import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES } from '@/lib/internalAuth';
+import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -495,7 +495,11 @@ function toFastifyRoutePath(nextRoutePath: string) {
 async function verifiedUserId(request: any): Promise<string | undefined> {
   const secret = process.env.NEXTAUTH_SECRET;
   const token = (secret ? await getToken({ req: request.raw, secret }) : null) ||
-    verifyInternalAuthHeaders(request.headers || {});
+    // Verify-only: nextAdapter claims the v2 nonce later in the same request.
+    verifyInternalAuthHeaders(request.headers || {}, {
+      method: request.method,
+      path: internalAuthPath(request.url),
+    });
   if (!token) return undefined;
   return typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;
 }
