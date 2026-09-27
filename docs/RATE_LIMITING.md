@@ -117,6 +117,16 @@ RATE_LIMITS.ERROR_LOGGING = {
 }
 ```
 
+### 7. Global Backstop (apps/api, OPEN-274)
+- **Limit:** 1000 requests per minute per key, across all routes
+- **Applies to:** every apps/api route, in Fastify's `onRequest`, before the tiers above and before any auth check
+- **Identifier:** the verified user (NextAuth JWT or apps/web's HMAC-signed identity headers), else IP
+- **Why not IP:** signed-in traffic comes through apps/web's `/api/proxy` from Render's shared outbound IPs, so an IP key would put every user in one bucket
+- **Implementation:** `@fastify/rate-limit`, options in `apps/api/src/lib/rateLimitBackstop.ts`, registered in `apps/api/server.ts` before routes load
+- **Store:** in memory, per process
+- **Off when:** `NODE_ENV=test` or `DISABLE_RATE_LIMIT=true` (same switch as the tiers)
+- **429 body:** Fastify's default error shape (`statusCode`, `error`, `message`), with `Retry-After` and `X-RateLimit-*` headers
+
 ---
 
 ## Client Identification
