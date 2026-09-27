@@ -5715,9 +5715,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   code and node_modules stay root-owned, so the process can't rewrite them. The one path it writes,
   `tmp/` (CSV uploads, `csv-ingestion/api/upload.ts`), is created and chowned to `node`. Chromium already
   runs with `--no-sandbox`, and tsx's cache goes to `/tmp`. (3) New `API Image Boot (/health)` job in
-  ci.yml, required by CI Gate. It builds the image, boots it with its own CMD and user,
-  `NODE_ENV=production`, throwaway secrets and a real Postgres service, then requires `GET /health` →
-  200 (readiness runs `SELECT 1`) and a non-zero uid. Checked locally without Docker (AGENT_RULES): a
+  ci.yml, required by CI Gate. It builds the image and boots it twice, with the api command and with
+  the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
+  Postgres service and the CA file bind-mounted the way the VMs mount it (read-only, root-owned, 644).
+  It then requires `GET /health` → 200 (readiness runs `SELECT 1`), the worker loop to start, a
+  non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
+  worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
   `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid
   1000 against root-owned code, it served liveness 200 with no EACCES. The Docker-specific parts are
   proven only by the CI job. **Owner-owed before the first deploy of this image:** on both VMs,

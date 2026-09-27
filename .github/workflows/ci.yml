@@ -303,9 +303,11 @@ jobs:
       run: docker build -t craftmyfunnel-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
 
   # Builds the production API image and boots it the way the Oracle VMs do
-  # (NODE_ENV=production, its own CMD and user), then requires GET /health to
-  # return 200. /health's readiness probe runs SELECT 1, so it gets a real
-  # Postgres. A build that compiles but can't start fails here, not on deploy.
+  # (NODE_ENV=production, its own user, the same read-only CA bind mount), once
+  # with the api command and once with the worker command. GET /health must
+  # return 200 (its readiness probe runs SELECT 1, so it gets a real Postgres)
+  # and the worker must render a PDF with Chromium, both as a non-root user. An
+  # image that builds but can't start fails here, not on deploy.
   api-image-boot:
     name: API Image Boot (/health)
     needs: detect-docs-only
@@ -333,15 +335,30 @@ jobs:
     - name: Build API image
       run: docker build -t craftmyfunnel-api-boot -f apps/api/Dockerfile .
 
-    - name: Boot the image
+    - name: Boot the api and worker containers
       run: |
+        # Mounted the way deploy/oracle/docker-compose.*.yml mounts it: read-only,
+        # root-owned, mode 644 (docs/deployment/oracle-vm-deployment.md).
+        mkdir boot-config
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -days 1 \
+          -subj "/CN=api-image-boot" -out boot-config/prod-ca-2021.crt
+        sudo chown root:root boot-config/prod-ca-2021.crt
+        sudo chmod 644 boot-config/prod-ca-2021.crt
+        mount="$PWD/boot-config/prod-ca-2021.crt:/app/prod-ca-2021.crt:ro"
+
         # Throwaway values: the boot-time secret check rejects the samples.
-        docker run -d --name api-boot --network host \
-          -e DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci" \
-          -e NEXTAUTH_SECRET="$(openssl rand -hex 32)" \
-          -e ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-          -e CRON_SECRET="$(openssl rand -hex 16)" \
+        cat > boot.env <<EOF
+        DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci
+        NEXTAUTH_SECRET=$(openssl rand -hex 32)
+        ENCRYPTION_KEY=$(openssl rand -hex 32)
+        CRON_SECRET=$(openssl rand -hex 16)
+        EOF
+
+        docker run -d --name api-boot --network host --env-file boot.env -v "$mount" \
           craftmyfunnel-api-boot
+        # Same command as deploy/oracle/docker-compose.worker.yml.
+        docker run -d --name worker-boot --network host --env-file boot.env -v "$mount" \
+          craftmyfunnel-api-boot node ../../node_modules/tsx/dist/cli.mjs src/workers/start-workers.ts
 
     - name: Require GET /health to return 200
       run: |
@@ -360,15 +377,62 @@ jobs:
         echo "::error::/health did not return 200 within 120s (last status: ${code})."
         exit 1
 
-    - name: Require a non-root process
+    - name: Require the worker to start its loop
       run: |
-        uid=$(docker exec api-boot id -u)
-        echo "API process uid: ${uid}"
-        test "$uid" != "0"
+        for attempt in $(seq 1 60); do
+          if docker logs worker-boot 2>&1 | grep -q "Starting management loop"; then
+            exit 0
+          fi
+          if [ "$(docker inspect -f '{{.State.Running}}' worker-boot)" != "true" ]; then
+            echo "::error::The worker container exited during startup."
+            exit 1
+          fi
+          sleep 2
+        done
+        echo "::error::The worker did not start its loop within 120s."
+        exit 1
 
-    - name: API container logs
+    - name: Require non-root processes that can read the CA mount
+      run: |
+        for container in api-boot worker-boot; do
+          uid=$(docker exec "$container" id -u)
+          echo "${container} runs as uid ${uid}"
+          test "$uid" != "0"
+          docker exec "$container" test -r /app/prod-ca-2021.crt
+        done
+
+    - name: Require Chromium to render a PDF in the worker
+      run: |
+        # Same launch args as invoicePdfRenderer.ts, which only runs in the worker.
+        docker exec worker-boot node -e '
+          require("puppeteer")
+            .launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] })
+            .then(async (browser) => {
+              const page = await browser.newPage();
+              await page.setContent("<p>api-image-boot</p>");
+              const pdf = await page.pdf();
+              await browser.close();
+              if (!pdf.length) throw new Error("Chromium returned an empty PDF");
+              console.log(`Rendered a ${pdf.length}-byte PDF as uid ${process.getuid()}`);
+            })
+            .catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
+        '
+
+    - name: Container logs
       if: always()
-      run: docker logs api-boot 2>&1 | tail -n 200 || true
+      run: |
+        for container in api-boot worker-boot; do
+          echo "::group::${container}"
+          docker logs "$container" 2>&1 | tail -n 200 || true
+          echo "::endgroup::"
+        done
+
+    - name: Remove containers
+      if: always()
+      run: docker rm -f api-boot worker-boot > /dev/null 2>&1 || true
 
   ci-gate:
     name: CI Gate
