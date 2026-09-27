@@ -5753,6 +5753,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   today; Redis is roadmap 3.1 / I-07); an admin's total is now 1000/min across routes (ADMIN tier
   allows 5000); with `TRUST_PROXY` off, all unverified traffic shares one bucket.
 
+- **OPEN-275 (Fixed — CI half of roadmap 3.7; image half is OPEN-276):** two checks CI skipped.
+  (1) **I-14:** apps/web's CI only ran `vitest run tests/unit`, so the 56 test files that sit next to
+  their route or service under `src/` (256 tests, including the `/api/proxy`, leads, campaigns and
+  upload-csv route tests) never ran in any workflow. New `test:colocated` script (`vitest run src`) and
+  a `Colocated Tests` step in ci.yml's web-build job, which CI Gate already requires. All 256 pass today.
+  (2) **apps/api dependency audit:** `scripts/audit-with-allowlist.mjs` ran only from apps/web. Inside a
+  workspace folder `npm audit` only covers that workspace's tree (run from apps/api it drops web-only
+  packages like `image-size`), so dependencies only apps/api uses were never audited. New `Security
+  Audit` step in api-typecheck, same script and allowlist. It passes today; the only high findings are
+  the three prisma-chain advisories already allowlisted. **Assumption:** roadmap.md is not in the repo,
+  so 3.7's CI scope was taken from the ledger's I-14 note plus the audit gap found here. Not added: an
+  apps/api linter (none is configured) and Playwright as a required gate (still `workflow_dispatch`).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

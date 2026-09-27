@@ -179,6 +179,18 @@ jobs:
         NEXTAUTH_URL: http://localhost:3000
         REDIS_URL: "redis://localhost:6379"
 
+    # Tests that live next to their route/service under src/ (roadmap I-14).
+    # Unit Tests above only runs tests/unit, so these never ran in CI.
+    - name: Colocated Tests
+      working-directory: apps/web
+      run: npm run test:colocated
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        NEXTAUTH_SECRET: ci-secret-not-real
+        NEXTAUTH_URL: http://localhost:3000
+        REDIS_URL: "redis://localhost:6379"
+
     - name: Coverage Gate
       working-directory: apps/web
       run: npm run test:coverage
@@ -247,6 +259,13 @@ jobs:
 
     - name: Install dependencies
       run: npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+
+    # Same allowlisted high/critical gate the web jobs run. Run inside a workspace
+    # folder, `npm audit` only covers that workspace's tree, so the web jobs never
+    # covered dependencies that only apps/api uses.
+    - name: Security Audit
+      working-directory: apps/api
+      run: node ../../scripts/audit-with-allowlist.mjs
 
     - name: Generate Prisma Client
       working-directory: apps/api
