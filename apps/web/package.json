@@ -24,6 +24,7 @@
         "test:ui": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest --ui",
         "test:coverage": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run tests/unit --coverage",
         "test:unit": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run tests/unit",
+        "test:colocated": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run src",
         "test:integration": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run tests/integration",
         "test:e2e": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- playwright test",
         "db:generate": "node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS=--max-old-space-size=8192 -- prisma generate",
