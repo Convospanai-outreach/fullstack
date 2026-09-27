@@ -5604,14 +5604,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `src/workers/start-workers.ts`: no DSN = no-op; `sendDefaultPii: false`; `tracesSampleRate` 0.1
   (`SENTRY_TRACES_SAMPLE_RATE` override); `registerEsmLoaderHooks: false` (routes are dynamically
   imported through tsx); OpenAI/Anthropic auto-integrations removed; unhandled rejections kept fatal
-  (`mode: "strict"`, since the SDK's default "warn" listener would stop Node crashing). Errors:
+  (`mode: "strict"`, since the SDK's default "warn" listener would stop Node crashing). A
+  `beforeSend`/`beforeSendTransaction` scrubber keeps only request method + path: verified that SDK
+  10.69, even with `sendDefaultPii: false`, attaches raw `Authorization`/`Cookie`/`x-api-key`/internal
+  HMAC headers and query strings (which can carry lead emails) to error events. Errors:
   `setupFastifyErrorHandler` + `captureException` in the Next-adapter catch (response unchanged) and in
   the worker's job-failure path. **AI tracing is metadata-only** (owner decision: prompts carry lead
   PII): all 7 `new OpenAI`/`new Anthropic` sites (aiService ×4 incl. DeepSeek, batchDraftService ×2,
   overseer/deepseekClient) wrapped via `instrumentOpenAI`/`instrumentAnthropic` with
   `recordInputs/recordOutputs: false`. Tests: `src/lib/__tests__/sentry.test.ts` (init no-op, options,
   wrapper options, structural guard over every client construction in apps/api) and
-  `sentry.privacy.test.ts` (real SDK: model + tokens sent, lead email/prompt/completion never sent).
+  `sentry.privacy.test.ts` (real SDK: model + tokens sent, lead email/prompt/completion never sent;
+  credential headers, cookies, client IP and query strings never sent).
   **Not instrumented:** Gemini (legacy `@google/generative-ai` is unsupported by Sentry; migrating
   to `@google/genai` is a follow-up); no conversation ids (no stable id reaches the LLM call sites;
   the worker has no per-job isolation scope). **Owner-owed:** set `SENTRY_DSN` (the `node` project)

@@ -19,6 +19,41 @@ const EXPLICITLY_WRAPPED_AI_INTEGRATIONS = new Set(["OpenAI", "Anthropic_AI"]);
 
 const DEFAULT_TRACES_SAMPLE_RATE = 0.1;
 
+const URL_KEYS = new Set(["url", "url.full", "http.url", "http.target"]);
+const DROPPED_KEYS = new Set(["http.query", "url.query", "http.client_ip", "client.address"]);
+
+function stripQuery(value: unknown): unknown {
+    return typeof value === "string" ? value.split("?")[0] : value;
+}
+
+function scrubData(data: Record<string, unknown> | undefined): void {
+    if (!data) return;
+    for (const key of Object.keys(data)) {
+        if (DROPPED_KEYS.has(key) || key.startsWith("http.request.header.") || key.startsWith("http.response.header.")) {
+            delete data[key];
+        } else if (URL_KEYS.has(key)) {
+            data[key] = stripQuery(data[key]);
+        }
+    }
+}
+
+/**
+ * Even with sendDefaultPii false, @sentry/node 10.69 attaches raw request headers
+ * (Authorization, Cookie, x-api-key, the internal HMAC headers), cookies and query
+ * strings to events, and some unfiltered headers, client IPs and query strings to
+ * span data. Query strings can carry lead emails and third-party API keys. Keep
+ * only method + path.
+ */
+export function scrubEvent<T extends Sentry.Event>(event: T): T {
+    if (event.request) {
+        event.request = { method: event.request.method, url: stripQuery(event.request.url) as string | undefined };
+    }
+    scrubData(event.contexts?.trace?.data as Record<string, unknown> | undefined);
+    for (const span of event.spans ?? []) scrubData(span.data as Record<string, unknown> | undefined);
+    for (const breadcrumb of event.breadcrumbs ?? []) scrubData(breadcrumb.data);
+    return event;
+}
+
 function parseSampleRate(raw: string | undefined): number {
     if (raw === undefined || raw.trim() === "") return DEFAULT_TRACES_SAMPLE_RATE;
     const value = Number(raw);
@@ -39,6 +74,8 @@ export function initSentry(env: NodeJS.ProcessEnv = process.env): boolean {
             // Release is left to the SDK, which reads SENTRY_RELEASE from the env.
             tracesSampleRate: parseSampleRate(env["SENTRY_TRACES_SAMPLE_RATE"]),
             sendDefaultPii: false,
+            beforeSend: scrubEvent,
+            beforeSendTransaction: scrubEvent,
             // Routes are dynamically imported after init; don't chain
             // import-in-the-middle onto tsx's loader for them. AI clients are
             // wrapped explicitly, so the loader hooks aren't needed.
