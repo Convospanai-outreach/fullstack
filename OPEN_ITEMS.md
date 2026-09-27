@@ -5630,7 +5630,13 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   of the old api verifier and against the new one. `upload-csv-size-cap.test.ts` and
   `csv-formula-injection.test.ts` cover the web cap and exports. Each test fails with its fix reverted.
   The adapter's header-dropping in `server.ts` has no unit test (importing server.ts boots the server).
-  **Owner-owed:** nothing to configure. Watch api logs for unexpected 401s after deploy: a path that a
+  **S-13 is not fully closed until follow-up (1):** while v1 is accepted, a captured header set can
+  still be replayed as v1 (v2 headers stripped) for 5 min — inherent to the deploy-gap requirement.
+  **Owner-owed:** no env vars. (a) Confirm the external scraper re-signs retries with a fresh
+  `X-Timestamp`: an identical retry (same body + timestamp, including after a 500) now gets 401
+  "Replayed request". (b) Ingress callers only gain replay protection if told the opt-in format —
+  `X-Timestamp` = epoch ms, `X-Compliance-Hash` = HMAC-SHA256(`WEBHOOK_SECRET`,
+  `${JSON.stringify(body)}.${ts}`). (c) Watch api logs for unexpected 401s after deploy: a path that a
   proxy re-encodes between web and api (e.g. Go/Caddy turning `|` into `%7C`) fails v2 closed.
   **Follow-ups:** (1) drop v1 acceptance in `internalAuth.ts` once the web build with this change is
   live on Render and a rollback to a pre-change web build is ruled out; (2) make ingress `X-Timestamp`
