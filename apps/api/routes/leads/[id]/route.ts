@@ -26,7 +26,7 @@ const patchLeadSchema = z.object({
     value: z.number().nullish(),
     consentObtained: z.boolean().optional(),
     whatsappConsent: z.boolean().optional(),
-    whatsappConsentAt: z.string().nullish(),
+    whatsappConsentAt: z.iso.datetime({ offset: true }).nullish(),
     whatsappConsentBy: optionalText,
     whatsappNumber: optionalText,
     preferredMeetingType: optionalText,

@@ -87,4 +87,37 @@ describe("PATCH /leads/[id]", () => {
         expect(json.details.fieldErrors.consentObtained).toBeDefined();
         expect(mockPrisma.lead.updateMany).not.toHaveBeenCalled();
     });
+
+    // whatsappConsentAt is a DateTime column: any other string reached Prisma and
+    // came back as a 500.
+    it("400s a whatsappConsentAt that is not an ISO datetime without writing", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce({ id: "lead-1" });
+
+        const response = await PATCH(
+            patchRequest({ whatsappConsentAt: "yes" }),
+            { params: Promise.resolve({ id: "lead-1" }) }
+        );
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).details.fieldErrors.whatsappConsentAt).toBeDefined();
+        expect(mockPrisma.lead.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("writes an ISO datetime whatsappConsentAt", async () => {
+        mockPrisma.lead.findFirst
+            .mockResolvedValueOnce({ id: "lead-1", whatsappConsentAt: null })
+            .mockResolvedValueOnce({ id: "lead-1" });
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
+
+        const response = await PATCH(
+            patchRequest({ whatsappConsentAt: "2026-01-01T10:00:00.000Z" }),
+            { params: Promise.resolve({ id: "lead-1" }) }
+        );
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith({
+            where: { id: "lead-1", teamId: "team-1" },
+            data: { whatsappConsentAt: "2026-01-01T10:00:00.000Z" },
+        });
+    });
 });
