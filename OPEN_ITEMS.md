@@ -5732,6 +5732,27 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   in both VMs' `/opt/fullstack/.env` and recreate the containers; optionally
   `SENTRY_TRACES_SAMPLE_RATE` and `SENTRY_RELEASE` (no commit/tag env var reaches the containers today).
 
+- **OPEN-274 (Fixed — CodeQL alert #46):** global rate-limit backstop for apps/api. `@fastify/rate-limit`
+  was a dependency but never registered, and CodeQL's `js/missing-rate-limiting` does not recognize the
+  hand-rolled tier limiter in `nextAdapter`. Its "performs authorization" match is the
+  `verifyInternalAuthHeaders(...)` call inside the adapter. That gap was real: a gated route with no or bad
+  credentials returns 401 *before* any tier is checked, so the token/HMAC check itself had no limit.
+  **Fix:** `server.ts` registers the plugin in `start()`, awaited before `loadRoutes()` (it attaches
+  per route from an `onRoute` hook, so a route registered earlier gets no limit), with options from
+  `src/lib/rateLimitBackstop.ts`: 1000 req/min per key in `onRequest`, same kill switch as the tiers
+  (`NODE_ENV=test` / `DISABLE_RATE_LIMIT=true`). **Key = verified user, not IP:** signed-in traffic
+  arrives via apps/web's `/api/proxy` from Render's shared egress IPs (and, with `TRUST_PROXY` still
+  off, as Caddy's address), so an IP key puts every user in one bucket. `verifiedUserId` in `server.ts`
+  accepts exactly what `nextAdapter` accepts (NextAuth JWT, else the HMAC-verified internal headers);
+  anything unverified, including a forged `x-craftmyfunnel-user-id`, falls back to `ip:`. Tiers are
+  unchanged. Tests: `src/lib/__tests__/rateLimitBackstop.test.ts` (per-user buckets behind one IP; IP
+  fallback; an anonymous flood from a user's IP leaves that user's bucket alone; kill switch). Each was
+  checked to fail with its piece reverted. Booted the real server locally: 1000 credential-less requests
+  to a gated route returned 401, the 1001st 429; a validly signed user on the same IP still passed; a
+  forged-signature user got 429. **Tradeoffs:** in-memory store, per process (one api-main process
+  today; Redis is roadmap 3.1 / I-07); an admin's total is now 1000/min across routes (ADMIN tier
+  allows 5000); with `TRUST_PROXY` off, all unverified traffic shares one bucket.
+
 - **OPEN-275 (Fixed — CI half of roadmap 3.7; image half is OPEN-276):** two checks CI skipped.
   (1) **I-14:** apps/web's CI only ran `vitest run tests/unit`, so the 56 test files that sit next to
   their route or service under `src/` (256 tests, including the `/api/proxy`, leads, campaigns and
