@@ -5717,8 +5717,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   runs with `--no-sandbox`, and tsx's cache goes to `/tmp`. (3) New `API Image Boot (/health)` job in
   ci.yml, required by CI Gate. It builds the image and boots it twice, with the api command and with
   the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
-  Postgres service and the CA file bind-mounted the way the VMs mount it (read-only, root-owned, 644).
-  It then requires `GET /health` → 200 (readiness runs `SELECT 1`), the worker loop to start, a
+  Postgres service migrated first (as deploy-oracle.yml does) and the CA file bind-mounted the way the
+  VMs mount it (read-only, root-owned, 644). It then requires `GET /health` → 200 (readiness runs
+  `SELECT 1`), one full worker maintenance pass with no loop or retention errors, a
   non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
   worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
   `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid

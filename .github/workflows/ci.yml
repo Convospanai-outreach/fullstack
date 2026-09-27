@@ -304,9 +304,9 @@ jobs:
 
   # Builds the production API image and boots it the way the Oracle VMs do
   # (NODE_ENV=production, its own user, the same read-only CA bind mount), once
-  # with the api command and once with the worker command. GET /health must
-  # return 200 (its readiness probe runs SELECT 1, so it gets a real Postgres)
-  # and the worker must render a PDF with Chromium, both as a non-root user. An
+  # with the api command and once with the worker command, against a migrated
+  # Postgres. GET /health must return 200, and the worker must finish a full
+  # maintenance pass and render a PDF with Chromium, all as a non-root user. An
   # image that builds but can't start fails here, not on deploy.
   api-image-boot:
     name: API Image Boot (/health)
@@ -335,7 +335,7 @@ jobs:
     - name: Build API image
       run: docker build -t craftmyfunnel-api-boot -f apps/api/Dockerfile .
 
-    - name: Boot the api and worker containers
+    - name: Migrate, then boot the api and worker containers
       run: |
         # Mounted the way deploy/oracle/docker-compose.*.yml mounts it: read-only,
         # root-owned, mode 644 (docs/deployment/oracle-vm-deployment.md).
@@ -349,10 +349,17 @@ jobs:
         # Throwaway values: the boot-time secret check rejects the samples.
         cat > boot.env <<EOF
         DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci
+        DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci
         NEXTAUTH_SECRET=$(openssl rand -hex 32)
         ENCRYPTION_KEY=$(openssl rand -hex 32)
         CRON_SECRET=$(openssl rand -hex 16)
         EOF
+
+        # Migrate first, as deploy-oracle.yml does, so the worker's queries hit real
+        # tables. Production migrates from the deploy runner, not from this image, so
+        # this setup runs as root rather than making it part of what the job tests.
+        docker run --rm --network host --env-file boot.env --user root craftmyfunnel-api-boot \
+          npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
 
         docker run -d --name api-boot --network host --env-file boot.env -v "$mount" \
           craftmyfunnel-api-boot
@@ -377,19 +384,34 @@ jobs:
         echo "::error::/health did not return 200 within 120s (last status: ${code})."
         exit 1
 
-    - name: Require the worker to start its loop
+    - name: Require a full worker pass without errors
       run: |
+        # The loop's first pass runs every maintenance task against the database and
+        # ends with the retention sweep's dry run. A failing task logs
+        # "[Worker] Loop error" and cuts the pass short.
         for attempt in $(seq 1 60); do
-          if docker logs worker-boot 2>&1 | grep -q "Starting management loop"; then
+          logs=$(docker logs worker-boot 2>&1)
+          if grep -q "Loop error" <<< "$logs"; then
+            echo "::error::The worker loop failed."
+            grep "Loop error" <<< "$logs" | head -n 5
+            exit 1
+          fi
+          if grep -q "\[Retention\]" <<< "$logs"; then
+            # Give the sweep's remaining tables a moment to log.
+            sleep 3
+            if docker logs worker-boot 2>&1 | grep -E "Loop error|sweep failed"; then
+              echo "::error::The worker's first pass logged an error."
+              exit 1
+            fi
             exit 0
           fi
           if [ "$(docker inspect -f '{{.State.Running}}' worker-boot)" != "true" ]; then
-            echo "::error::The worker container exited during startup."
+            echo "::error::The worker container exited during its first pass."
             exit 1
           fi
           sleep 2
         done
-        echo "::error::The worker did not start its loop within 120s."
+        echo "::error::The worker did not finish its first pass within 120s."
         exit 1
 
     - name: Require non-root processes that can read the CA mount
