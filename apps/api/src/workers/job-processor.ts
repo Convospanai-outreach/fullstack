@@ -16,6 +16,7 @@ import { handleInvoicePdfRender } from "./handlers/invoicePdfWorker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
+import { captureException } from "@/lib/sentry";
 
 function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -293,6 +294,7 @@ export const worker = {
             if (error instanceof JobClaimLostError) {
                 throw error;
             }
+            captureException(error);
             await JobQueue.fail(claim.jobId, claim.version, message);
             throw error;
         }
