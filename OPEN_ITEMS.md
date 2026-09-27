@@ -5682,6 +5682,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   lose email events older than a year, `Message.emailEventId` is SET NULL, and deleted Jobs free their
   idempotency keys. Raise a table's `RETENTION_<TABLE>_DAYS` to keep it longer; (3) decide Activity
   retention.
+- **OPEN-273 (Fixed — redirects followed at most 3 hops, SSRF guard re-run on each; DNS-rebinding TOCTOU deferred):**
+  RAG ingestUrl followed redirects past the SSRF guard (readable SSRF; follow-up from OPEN-269/S-15) —
+  `apps/api/src/modules/rag/service/ingest.ts` ran `assertSafeWebhookUrl` on the submitted URL only, then
+  called `fetch` with default `redirect: "follow"`, so a public page answering `302 Location:
+  http://169.254.169.254/...` (or any internal host) was fetched unchecked. The body was stored as
+  `KnowledgeItem.content` via `vectorStore.addDocument` and is returned to the team by
+  `GET /knowledge/[id]`, making it a readable SSRF (worse than S-15's blind webhook variant). Fix: new
+  `fetchPublicPage` uses `redirect: "manual"`, follows 301/302/303/307/308 by hand for at most 3 hops, and
+  re-runs the full guard (http/https allow-list + resolved-IP check) on every hop's resolved URL; one 15s
+  `AbortSignal.timeout` covers all hops and the body read; bodies over 5 MB are refused (Content-Length
+  and a streaming byte count). Following is kept rather than refused (as #577 does for webhooks) because
+  ingested pages routinely redirect (http→https, trailing slash, www). The shared guard in
+  `webhookService.ts` is untouched (PR #577 owns that file). Tests: new `ingest.redirect.test.ts` (9,
+  real fetch + real guard against local HTTP servers; DNS mocked only for the hop standing in for a
+  public attacker host): 302→127.0.0.1 refused with the internal server never hit, 302→169.254.169.254
+  refused, same-site 301 still ingested, redirect loop stops after 3 hops, `file:`/`ftp:`/`gopher:` and a
+  302→`file:` refused, 6 MB chunked body refused. Each was revert-checked (redirect follow, guard only on
+  hop 1, refuse-all-redirects, guard protocol line removed, stream cap removed). Full apps/api suite
+  263 files / 1561 tests green; apps/api typecheck clean. **Follow-ups:** (1) DNS-rebinding TOCTOU — the
+  guard resolves the host, then fetch resolves it again, so a rebinding host can still flip to a private
+  IP between the two; closing it needs an undici dispatcher with a validated/pinned lookup; (2) once #577
+  lands, consolidate this and the webhook fetch into one guarded-fetch helper; (3) the guard's error text
+  says "Webhook URL…" in the ingest context too. apps/web's `ingestUrl` is a simulation that never
+  fetches, so it is unaffected.
 
 - **OPEN-272 (Fixed — code merged-inert until `SENTRY_DSN` is set; DSN provisioning owner-owed):** Sentry + AI
   agent tracing in apps/api (B-09 follow-up). apps/api (api-main + api-worker) had no Sentry at all.
