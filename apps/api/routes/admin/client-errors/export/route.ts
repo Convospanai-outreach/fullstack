@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
                     const url = neutralizeCsvFormula(e.url).replace(/"/g, '""');
                     const userAgent = neutralizeCsvFormula(e.userAgent).replace(/"/g, '""');
                     const ip = neutralizeCsvFormula(e.ip).replace(/"/g, '""');
-                    return `${e.createdAt.toISOString()},"${message}","${url}","${e.userId || 'N/A'}","${ip}","${userAgent}"`;
+                    const userId = neutralizeCsvFormula(e.userId || 'N/A').replace(/"/g, '""');
+                    return `${e.createdAt.toISOString()},"${message}","${url}","${userId}","${ip}","${userAgent}"`;
                 })
             ].join("\n");
 

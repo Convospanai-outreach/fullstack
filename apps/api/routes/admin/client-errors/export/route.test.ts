@@ -43,4 +43,27 @@ describe("POST /admin/client-errors/export", () => {
             `2026-01-01T00:00:00.000Z,"'=HYPERLINK(""http://evil.test"",""x"")","'+https://example.test","N/A","'@1.2.3.4","'-Mozilla"`
         );
     });
+
+    it("neutralizes and quotes the userId, which the anonymous intake route also takes from the body", async () => {
+        mockPrisma.clientError.findMany.mockResolvedValue([
+            {
+                createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                message: "m",
+                url: "u",
+                userId: '=1+1","injected',
+                ip: "i",
+                userAgent: "a",
+            },
+        ]);
+
+        const res = await POST(
+            new NextRequest("http://localhost/admin/client-errors/export", {
+                method: "POST",
+                body: JSON.stringify({ format: "csv" }),
+            })
+        );
+        const row = (await res.text()).split("\n")[1];
+
+        expect(row).toBe(`2026-01-01T00:00:00.000Z,"m","u","'=1+1"",""injected","i","a"`);
+    });
 });
