@@ -5598,6 +5598,48 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `deploy/oracle/docker-compose.{api,worker}.yml`. Adding `start_period: 60s` to the api healthcheck
   there would also stop boot-time probes counting as failures.
 
+- **OPEN-269 (Fixed — S-13..S-16 hardening; legacy-HMAC removal + in-memory caches are follow-ups):**
+  roadmap.md item 3.5 (S-13..S-16). All four findings re-verified against `main` 80f0f552; all still open.
+  - **S-13 internal HMAC.** Signature covered only `v1.ts.userId.email.role`, so a captured header set
+    replayed against any route for 5 min. Verifier was copied three times (`server.ts`, `src/lib/auth.ts`,
+    `src/lib/admin.ts`), and one request can pass through all three. Now: one verifier,
+    `apps/api/src/lib/internalAuth.ts`. The web signer (`apps/web/src/lib/internalAuthHeaders.ts`, used by
+    `/api/proxy` and the superadmin client) still sends the **unchanged v1 signature**, so an old api build
+    keeps working across the separate Render/Oracle deploys. It adds `x-craftmyfunnel-auth-nonce` and
+    `x-craftmyfunnel-auth-signature-v2`, an HMAC over a JSON array (not a dot-join, because email and path
+    are user-influenced) of ts, nonce, method, pathname, userId, email and role. The api accepts both
+    formats. When either v2 header is present, v2 must verify, with no fallback to v1. The Fastify adapter
+    verifies once per request and claims the nonce as single-use. Headers that fail there (including
+    replays) are dropped before the handler, so the verify-only checks in auth.ts/admin.ts can't accept them.
+  - **S-16.** scraper-ingest gets a replay cache keyed on the *decoded* signature (the caller sends no
+    nonce; Node's hex decoder accepts upper case and trailing junk). The removed log line printed the first
+    8 chars of the **expected** hash, i.e. part of the valid signature. In ingress, `X-Timestamp` is now
+    optional-but-verified: when present, the signature is over `${JSON.stringify(body)}.${ts}` and the
+    timestamp must be within 5 min. When absent, the old body-only check still applies.
+  - **S-15.** Outbound webhooks use `redirect: "manual"`, and a 3xx response is a delivery failure.
+  - **S-14.** Formula prefixes (`= + - @ \t \r`) are neutralized in every export found: leads,
+    analytics, data-export, admin client-errors, admin agent-audit (now quoted too), and the browser-built
+    admin audit-log and ROI exports. Papa's default `escapeFormulae` regex misses multi-line cells, so an
+    explicit one is passed. `/api/upload/csv` is capped at 10 MiB, the same as apps/api's
+    `MAX_CSV_UPLOAD_BYTES`. The cap is checked on both Content-Length and bytes actually read, and
+    overflow returns 413.
+  Tests: `apps/api` `src/lib/__tests__/internalAuth.test.ts` covers both formats, no downgrade and
+  replay. `webhookService.redirect.test.ts` uses real local servers for 302→internal and
+  302→169.254.169.254. There are also new cases in the scraper-ingest, ingress and five export tests.
+  `apps/web/tests/unit/internal-auth-signing.test.ts` checks the real new signer against a verbatim copy
+  of the old api verifier and against the new one. `upload-csv-size-cap.test.ts` and
+  `csv-formula-injection.test.ts` cover the web cap and exports. Each test fails with its fix reverted.
+  The adapter's header-dropping in `server.ts` has no unit test (importing server.ts boots the server).
+  **Owner-owed:** nothing to configure. Watch api logs for unexpected 401s after deploy: a path that a
+  proxy re-encodes between web and api (e.g. Go/Caddy turning `|` into `%7C`) fails v2 closed.
+  **Follow-ups:** (1) drop v1 acceptance in `internalAuth.ts` once the web build with this change is
+  live on Render and a rollback to a pre-change web build is ruled out; (2) make ingress `X-Timestamp`
+  required once callers send it; (3) move the in-memory replay caches to Redis (roadmap 3.1 / I-07),
+  since they are per-process today; (4) **RAG `ingestUrl` still follows redirects after the same SSRF
+  guard and returns the body to the team** (a readable SSRF, worse than S-15); (5) `/api/proxy`
+  buffers request bodies uncapped (`req.arrayBuffer()`) before `/api/upload/csv` sees them;
+  (6) agent-audit CSV joins rows with a literal `"\\n"` (pre-existing bug, not fixed here).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -140,8 +140,9 @@ describe("internal auth signing across the web/api deploy gap", () => {
         expect(target.pathname).toBe("/admin/super/users/google%7Cuser%2042%2Fx");
 
         expect(oldApiVerifyInternalAuthHeaders(sent)?.sub).toBe("admin-1");
+        // nonce present = verified via v2 (method + path bound), not the legacy fallback.
         expect(
-            verifyInternalAuthHeaders(sent, { method: "GET", path: internalAuthPath(`${target.pathname}${target.search}`) })?.sub
-        ).toBe("admin-1");
+            verifyInternalAuthHeaders(sent, { method: "GET", path: internalAuthPath(`${target.pathname}${target.search}`) })
+        ).toMatchObject({ sub: "admin-1", nonce: expect.any(String) });
     });
 });
