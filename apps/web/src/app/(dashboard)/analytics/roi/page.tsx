@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/StatCard"; // Reusing existing components
 import { Button } from "@/components/ui/button";
+import { neutralizeCsvFormula } from "@/lib/csvFormula";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
@@ -68,12 +69,12 @@ export default function ROIDashboardPage() {
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
-    // Prevent CSV formula injection: a cell whose text starts with =, +, -, or @ can
+    // Prevent CSV formula injection: a cell whose text starts with =, +, -, @, tab or CR can
     // be interpreted as a formula by Excel/Sheets when the file is opened. Prefixing
     // with an apostrophe forces spreadsheet apps to treat it as plain text.
     const csvSafeCell = (value: unknown) => {
         let str = value === null || value === undefined ? "" : String(value);
-        if (/^[=+\-@]/.test(str)) str = `'${str}`;
+        str = neutralizeCsvFormula(str);
         return JSON.stringify(str);
     };
 

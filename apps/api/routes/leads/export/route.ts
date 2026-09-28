@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
-import { streamingCsvResponse } from "@/lib/csvStream";
+import { neutralizeCsvFormula, streamingCsvResponse } from "@/lib/csvStream";
 
 const EXPORT_BATCH_SIZE = 1000;
 
@@ -14,7 +14,7 @@ export async function GET() {
         }
         await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
-        const clean = (text: string | null) => text ? `"${text.replace(/"/g, '""')}"` : "";
+        const clean = (text: string | null) => text ? `"${neutralizeCsvFormula(text).replace(/"/g, '""')}"` : "";
 
         // Stream in id-stable batches (cursor pagination) so the whole lead table
         // is never held in memory at once. Order matches the previous non-streamed

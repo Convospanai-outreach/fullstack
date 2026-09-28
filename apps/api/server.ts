@@ -9,7 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { Readable } from 'node:stream';
-import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
+import { randomUUID } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
@@ -18,6 +18,7 @@ import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
+import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -171,35 +172,6 @@ function getAdaptedRequestBody(request: any, headers: Headers) {
   return JSON.stringify(request.body);
 }
 
-function verifyInternalAuthHeaders(headers: Record<string, unknown>) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) return null;
-
-  const userId = typeof headers['x-craftmyfunnel-user-id'] === 'string' ? headers['x-craftmyfunnel-user-id'] : '';
-  const email = typeof headers['x-craftmyfunnel-user-email'] === 'string' ? headers['x-craftmyfunnel-user-email'] : '';
-  const role = typeof headers['x-craftmyfunnel-user-role'] === 'string' ? headers['x-craftmyfunnel-user-role'] : '';
-  const timestamp = typeof headers['x-craftmyfunnel-auth-ts'] === 'string' ? headers['x-craftmyfunnel-auth-ts'] : '';
-  const signature = typeof headers['x-craftmyfunnel-auth-signature'] === 'string' ? headers['x-craftmyfunnel-auth-signature'] : '';
-
-  if (!userId || !timestamp || !signature) return null;
-
-  const issuedAt = Number(timestamp);
-  if (!Number.isFinite(issuedAt) || Math.abs(Date.now() - issuedAt) > 5 * 60 * 1000) {
-    return null;
-  }
-
-  const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
-  const expected = createHmac('sha256', secret).update(payload).digest('hex');
-  const expectedBuffer = Buffer.from(expected, 'hex');
-  const actualBuffer = Buffer.from(signature, 'hex');
-
-  if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
-    return null;
-  }
-
-  return { sub: userId, email, enterpriseRole: role };
-}
-
 /**
  * Adapter to bridge Next.js Route Handlers to Fastify
  */
@@ -308,6 +280,16 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       if (!(await enforceRateLimit(`ip:${serverSource}`))) return;
     }
 
+    // Signed internal identity headers from apps/web (roadmap 3.5 / S-13). Verified
+    // and their single-use nonce claimed here, exactly once per request, for public
+    // and gated routes alike. If they don't authenticate (including a replayed
+    // nonce), they are dropped from the handler's request below, so the verify-only
+    // checks in auth.ts/admin.ts can never accept them.
+    const internalIdentity = authenticateInternalRequest(request.headers || {}, {
+      method: request.method,
+      path: internalAuthPath(request.url),
+    });
+
     if (!isPublic) {
       const secret = process.env.NEXTAUTH_SECRET;
       if (!secret && process.env.NODE_ENV === 'production') {
@@ -318,7 +300,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       const token = await getToken({
         req: request.raw,
         secret
-      }) || verifyInternalAuthHeaders(request.headers || {});
+      }) || internalIdentity;
       
       if (!token) {
         reply.status(401).send({ error: 'Unauthorized' });
@@ -348,6 +330,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     Object.entries(request.headers || {}).forEach(([k, v]: any) => {
       if (typeof v === 'undefined') return;
       if (CLIENT_SUPPLIED_INTERNAL_SOURCE_HEADERS.has(k.toLowerCase())) return;
+      if (!internalIdentity && INTERNAL_AUTH_HEADER_NAMES.has(k.toLowerCase())) return;
       if (Array.isArray(v)) headers.set(k, v.join(','));
       else headers.set(k, String(v));
     });
@@ -512,7 +495,11 @@ function toFastifyRoutePath(nextRoutePath: string) {
 async function verifiedUserId(request: any): Promise<string | undefined> {
   const secret = process.env.NEXTAUTH_SECRET;
   const token = (secret ? await getToken({ req: request.raw, secret }) : null) ||
-    verifyInternalAuthHeaders(request.headers || {});
+    // Verify-only: nextAdapter claims the v2 nonce later in the same request.
+    verifyInternalAuthHeaders(request.headers || {}, {
+      method: request.method,
+      path: internalAuthPath(request.url),
+    });
   if (!token) return undefined;
   return typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;
 }

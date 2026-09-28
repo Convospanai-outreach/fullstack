@@ -7,6 +7,17 @@
 
 import { logger } from "@/lib/logger";
 
+/** Cells a spreadsheet would evaluate as a formula (OWASP CSV injection). No `m`
+ *  flag and no trailing `.*$`, so a multi-line cell like "=1+1\nx" still matches. */
+export const CSV_FORMULA_PREFIX = /^[=+\-@\t\r]/;
+
+/** Prefixes a formula-triggering cell with `'` so spreadsheets treat it as text.
+ *  Apply before quote-escaping, and quote any cell containing `,` `"` CR or LF -
+ *  otherwise a separator inside the cell starts a new, un-neutralized one. */
+export function neutralizeCsvFormula(value: string): string {
+    return CSV_FORMULA_PREFIX.test(value) ? `'${value}` : value;
+}
+
 export function streamingCsvResponse(opts: {
     filename: string;
     /** Column header line, WITHOUT a trailing newline. */

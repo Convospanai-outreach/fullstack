@@ -336,6 +336,26 @@ describe("JobQueue.fail", () => {
 
         expect(NotificationDispatcher.send).not.toHaveBeenCalled();
     });
+
+    it("dead-letters a non-retryable failure even when attempts remain", async () => {
+        const runningJob = {
+            id: "job-4",
+            status: "running",
+            type: "WEBHOOK_DISPATCH",
+            attempts: 1,
+            maxAttempts: 3,
+            payload: {},
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(runningJob);
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce({ ...runningJob, status: "dead_lettered" });
+
+        await JobQueue.fail("job-4", 3, "Target returned redirect 302", false);
+
+        expect(prisma.job.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "dead_lettered" }) })
+        );
+    });
 });
 
 describe("JobQueue claim handoff fencing", () => {

@@ -4,6 +4,38 @@ import Papa from "papaparse";
 
 export const dynamic = "force-dynamic";
 
+// Same ceiling as apps/api's CSV upload (MAX_CSV_UPLOAD_BYTES in
+// modules/csv-ingestion/api/upload.ts) - roadmap 3.5 / S-14.
+const MAX_CSV_UPLOAD_BYTES = 10 * 1024 * 1024;
+// A JSON body carries the CSV as an escaped string plus the mapping fields, so it
+// can be larger than the CSV itself. It gets headroom here, and the CSV inside is
+// held to MAX_CSV_UPLOAD_BYTES once parsed.
+const MAX_JSON_UPLOAD_BYTES = 2 * MAX_CSV_UPLOAD_BYTES;
+
+// Returns null once the body exceeds maxBytes. Content-Length is only a hint (absent
+// on chunked uploads, and a caller can lie), so bytes are also counted as they
+// arrive and the stream is cancelled as soon as the cap is passed.
+async function readCappedBody(req: NextRequest, maxBytes: number): Promise<string | null> {
+    const declared = Number(req.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > maxBytes) return null;
+    if (!req.body) return "";
+
+    const reader = req.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+            await reader.cancel();
+            return null;
+        }
+        chunks.push(value);
+    }
+    return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 function autoDetectFieldMapping(headers: string[]): Record<string, string> {
     const mapping: Record<string, string> = {};
     headers.forEach((h) => {
@@ -32,13 +64,24 @@ export async function POST(req: NextRequest) {
         let fieldMapping: any = undefined;
         let campaignId: string | undefined = undefined;
 
-        if (contentType?.includes("application/json")) {
-            const body = await req.json();
+        const tooLarge = () => NextResponse.json(
+            { error: `CSV upload is too large. Maximum size is ${MAX_CSV_UPLOAD_BYTES / (1024 * 1024)}MB.` },
+            { status: 413 }
+        );
+        const isJson = !!contentType?.includes("application/json");
+        const rawBody = await readCappedBody(req, isJson ? MAX_JSON_UPLOAD_BYTES : MAX_CSV_UPLOAD_BYTES);
+        if (rawBody === null) return tooLarge();
+
+        if (isJson) {
+            const body = JSON.parse(rawBody);
             csvText = body.csv || body.csvText || "";
             fieldMapping = body.fieldMapping;
             campaignId = body.campaignId;
+            if (typeof csvText === "string" && Buffer.byteLength(csvText, "utf8") > MAX_CSV_UPLOAD_BYTES) {
+                return tooLarge();
+            }
         } else {
-            csvText = await req.text();
+            csvText = rawBody;
         }
 
         if (!csvText || csvText.trim() === "") {
