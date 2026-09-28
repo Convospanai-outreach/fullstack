@@ -5682,6 +5682,119 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   lose email events older than a year, `Message.emailEventId` is SET NULL, and deleted Jobs free their
   idempotency keys. Raise a table's `RETENTION_<TABLE>_DAYS` to keep it longer; (3) decide Activity
   retention.
+- **OPEN-273 (Fixed — redirects followed at most 3 hops, SSRF guard re-run on each; DNS-rebinding TOCTOU deferred):**
+  RAG ingestUrl followed redirects past the SSRF guard (readable SSRF; follow-up from OPEN-269/S-15) —
+  `apps/api/src/modules/rag/service/ingest.ts` ran `assertSafeWebhookUrl` on the submitted URL only, then
+  called `fetch` with default `redirect: "follow"`, so a public page answering `302 Location:
+  http://169.254.169.254/...` (or any internal host) was fetched unchecked. The body was stored as
+  `KnowledgeItem.content` via `vectorStore.addDocument` and is returned to the team by
+  `GET /knowledge/[id]`, making it a readable SSRF (worse than S-15's blind webhook variant). Fix: new
+  `fetchPublicPage` uses `redirect: "manual"`, follows 301/302/303/307/308 by hand for at most 3 hops, and
+  re-runs the full guard (http/https allow-list + resolved-IP check) on every hop's resolved URL; one 15s
+  `AbortSignal.timeout` covers all hops and the body read; bodies over 5 MB are refused (Content-Length
+  and a streaming byte count). Following is kept rather than refused (as #577 does for webhooks) because
+  ingested pages routinely redirect (http→https, trailing slash, www). The shared guard in
+  `webhookService.ts` is untouched (PR #577 owns that file). Tests: new `ingest.redirect.test.ts` (9,
+  real fetch + real guard against local HTTP servers; DNS mocked only for the hop standing in for a
+  public attacker host): 302→127.0.0.1 refused with the internal server never hit, 302→169.254.169.254
+  refused, same-site 301 still ingested, redirect loop stops after 3 hops, `file:`/`ftp:`/`gopher:` and a
+  302→`file:` refused, 6 MB chunked body refused. Each was revert-checked (redirect follow, guard only on
+  hop 1, refuse-all-redirects, guard protocol line removed, stream cap removed). Full apps/api suite
+  263 files / 1561 tests green; apps/api typecheck clean. **Follow-ups:** (1) DNS-rebinding TOCTOU — the
+  guard resolves the host, then fetch resolves it again, so a rebinding host can still flip to a private
+  IP between the two; closing it needs an undici dispatcher with a validated/pinned lookup; (2) once #577
+  lands, consolidate this and the webhook fetch into one guarded-fetch helper; (3) the guard's error text
+  says "Webhook URL…" in the ingest context too. apps/web's `ingestUrl` is a simulation that never
+  fetches, so it is unaffected. **Follow-up fix (CodeAnt on #580):** the guard's `dns.lookup` takes no
+  signal, so a resolver that never answered could hold a hop past the 15s deadline; each hop's guard is
+  now raced against that same deadline (test: a never-answering lookup ends in a `TimeoutError`).
+
+- **OPEN-272 (Fixed — code merged-inert until `SENTRY_DSN` is set; DSN provisioning owner-owed):** Sentry + AI
+  agent tracing in apps/api (B-09 follow-up). apps/api (api-main + api-worker) had no Sentry at all.
+  **Fix:** `@sentry/node ~10.69.0` (same line as apps/web's `@sentry/nextjs`, already hoisted in the
+  lockfile). `src/lib/sentry.ts` + first-import shim `src/lib/sentryInit.ts` in `server.ts` and
+  `src/workers/start-workers.ts`: no DSN = no-op; `sendDefaultPii: false`; `tracesSampleRate` 0.1
+  (`SENTRY_TRACES_SAMPLE_RATE` override); `registerEsmLoaderHooks: false` (routes are dynamically
+  imported through tsx); OpenAI/Anthropic auto-integrations removed; unhandled rejections kept fatal
+  (`mode: "strict"`, since the SDK's default "warn" listener would stop Node crashing). A
+  `beforeSend`/`beforeSendTransaction` scrubber keeps only request method + path: verified that SDK
+  10.69, even with `sendDefaultPii: false`, attaches raw `Authorization`/`Cookie`/`x-api-key`/internal
+  HMAC headers and query strings (which can carry lead emails) to error events. Errors:
+  `setupFastifyErrorHandler` + `captureException` in the Next-adapter catch (response unchanged) and in
+  the worker's job-failure path. **AI tracing is metadata-only** (owner decision: prompts carry lead
+  PII): all 7 `new OpenAI`/`new Anthropic` sites (aiService ×4 incl. DeepSeek, batchDraftService ×2,
+  overseer/deepseekClient) wrapped via `instrumentOpenAI`/`instrumentAnthropic` with
+  `recordInputs/recordOutputs: false`. Tests: `src/lib/__tests__/sentry.test.ts` (init no-op, options,
+  wrapper options, structural guard over every client construction in apps/api) and
+  `sentry.privacy.test.ts` (real SDK: model + tokens sent, lead email/prompt/completion never sent;
+  credential headers, cookies, client IP and query strings never sent).
+  **Not instrumented:** Gemini (legacy `@google/generative-ai` is unsupported by Sentry; migrating
+  to `@google/genai` is a follow-up); no conversation ids (no stable id reaches the LLM call sites;
+  the worker has no per-job isolation scope). **Owner-owed:** set `SENTRY_DSN` (the `node` project)
+  in both VMs' `/opt/fullstack/.env` and recreate the containers; optionally
+  `SENTRY_TRACES_SAMPLE_RATE` and `SENTRY_RELEASE` (no commit/tag env var reaches the containers today).
+
+- **OPEN-274 (Fixed — CodeQL alert #46):** global rate-limit backstop for apps/api. `@fastify/rate-limit`
+  was a dependency but never registered, and CodeQL's `js/missing-rate-limiting` does not recognize the
+  hand-rolled tier limiter in `nextAdapter`. Its "performs authorization" match is the
+  `verifyInternalAuthHeaders(...)` call inside the adapter. That gap was real: a gated route with no or bad
+  credentials returns 401 *before* any tier is checked, so the token/HMAC check itself had no limit.
+  **Fix:** `server.ts` registers the plugin in `start()`, awaited before `loadRoutes()` (it attaches
+  per route from an `onRoute` hook, so a route registered earlier gets no limit), with options from
+  `src/lib/rateLimitBackstop.ts`: 1000 req/min per key in `onRequest`, same kill switch as the tiers
+  (`NODE_ENV=test` / `DISABLE_RATE_LIMIT=true`). **Key = verified user, not IP:** signed-in traffic
+  arrives via apps/web's `/api/proxy` from Render's shared egress IPs (and, with `TRUST_PROXY` still
+  off, as Caddy's address), so an IP key puts every user in one bucket. `verifiedUserId` in `server.ts`
+  accepts exactly what `nextAdapter` accepts (NextAuth JWT, else the HMAC-verified internal headers);
+  anything unverified, including a forged `x-craftmyfunnel-user-id`, falls back to `ip:`. Tiers are
+  unchanged. Tests: `src/lib/__tests__/rateLimitBackstop.test.ts` (per-user buckets behind one IP; IP
+  fallback; an anonymous flood from a user's IP leaves that user's bucket alone; kill switch). Each was
+  checked to fail with its piece reverted. Booted the real server locally: 1000 credential-less requests
+  to a gated route returned 401, the 1001st 429; a validly signed user on the same IP still passed; a
+  forged-signature user got 429. **Tradeoffs:** in-memory store, per process (one api-main process
+  today; Redis is roadmap 3.1 / I-07); an admin's total is now 1000/min across routes (ADMIN tier
+  allows 5000); with `TRUST_PROXY` off, all unverified traffic shares one bucket.
+
+- **OPEN-275 (Fixed — CI half of roadmap 3.7; image half is OPEN-276):** two checks CI skipped.
+  (1) **I-14:** apps/web's CI only ran `vitest run tests/unit`, so the 56 test files that sit next to
+  their route or service under `src/` (256 tests, including the `/api/proxy`, leads, campaigns and
+  upload-csv route tests) never ran in any workflow. New `test:colocated` script (`vitest run src`) and
+  a `Colocated Tests` step in ci.yml's web-build job, which CI Gate already requires. All 256 pass today.
+  (2) **apps/api dependency audit:** `scripts/audit-with-allowlist.mjs` ran only from apps/web. Inside a
+  workspace folder `npm audit` only covers that workspace's tree (run from apps/api it drops web-only
+  packages like `image-size`), so dependencies only apps/api uses were never audited. New `Security
+  Audit` step in api-typecheck, same script and allowlist. It passes today; the only high findings are
+  the three prisma-chain advisories already allowlisted. **Assumption:** roadmap.md is not in the repo,
+  so 3.7's CI scope was taken from the ledger's I-14 note plus the audit gap found here. Not added: an
+  apps/api linter (none is configured) and Playwright as a required gate (still `workflow_dispatch`).
+
+- **OPEN-276 (Fixed in code — image half of roadmap 3.7; CI half is OPEN-275):** apps/api image hardening.
+  The runtime image ran as **root** and shipped every devDependency. **Fix** (`apps/api/Dockerfile`):
+  (1) `npm ci --omit=dev`, which drops vitest, `@vitest/coverage-v8`, `@types/*` and pino-pretty (602
+  packages instead of 661; pino-pretty only loads outside production). (2) `USER node` (uid 1000). The
+  code and node_modules stay root-owned, so the process can't rewrite them. The one path it writes,
+  `tmp/` (CSV uploads, `csv-ingestion/api/upload.ts`), is created and chowned to `node`. Chromium already
+  runs with `--no-sandbox`, and tsx's cache goes to `/tmp`. (3) New `API Image Boot (/health)` job in
+  ci.yml, required by CI Gate. It builds the image and boots it twice, with the api command and with
+  the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
+  Postgres service migrated first (as deploy-oracle.yml does) and the CA file bind-mounted the way the
+  VMs mount it (read-only, root-owned, 644). It then requires `GET /health` → 200 (readiness runs
+  `SELECT 1`), one full worker maintenance pass with no loop or retention errors (one
+  exception: no migration creates the `Landing*` tables, since production got them from an earlier
+  out-of-band `prisma db push`, so the fresh CI database's missing `LandingEvent` is only a warning), a
+  non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
+  worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
+  `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid
+  1000 against root-owned code, it served liveness 200 with no EACCES. The Docker-specific parts are
+  proven only by the CI job. **Owner-owed before the first deploy of this image:** on both VMs,
+  `/opt/fullstack/config/prod-ca-2021.crt` (bind-mounted read-only) must be readable by uid 1000 (e.g.
+  `chmod 644`). If it's 600/root, DB TLS fails, and the deploy's health-check rolls back. **Not done
+  (follow-ups):** splitting the image so api-main doesn't carry Chromium (the worker uses the same image
+  and needs it); a Trivy scan of the API image (docker-ghcr.yml scans only web); pinning the base image by
+  digest (no Dependabot config to keep it fresh); a baseline migration for the `Landing*` tables (older than
+  this change). **Assumption:** roadmap.md is not in the repo, so 3.7's
+  image scope was inferred.
+
 - **OPEN-269 (Fixed — S-13..S-16 hardening; legacy-HMAC removal + in-memory caches are follow-ups):**
   roadmap.md item 3.5 (S-13..S-16). All four findings re-verified against `main` 80f0f552; all still open.
   - **S-13 internal HMAC.** Signature covered only `v1.ts.userId.email.role`, so a captured header set
@@ -5729,46 +5842,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   guard and returns the body to the team** (a readable SSRF, worse than S-15); (5) `/api/proxy`
   buffers request bodies uncapped (`req.arrayBuffer()`) before `/api/upload/csv` sees them;
   (6) agent-audit CSV joins rows with a literal `"\\n"` (pre-existing bug, not fixed here).
-
-- **OPEN-275 (Fixed — CI half of roadmap 3.7; image half is OPEN-276):** two checks CI skipped.
-  (1) **I-14:** apps/web's CI only ran `vitest run tests/unit`, so the 56 test files that sit next to
-  their route or service under `src/` (256 tests, including the `/api/proxy`, leads, campaigns and
-  upload-csv route tests) never ran in any workflow. New `test:colocated` script (`vitest run src`) and
-  a `Colocated Tests` step in ci.yml's web-build job, which CI Gate already requires. All 256 pass today.
-  (2) **apps/api dependency audit:** `scripts/audit-with-allowlist.mjs` ran only from apps/web. Inside a
-  workspace folder `npm audit` only covers that workspace's tree (run from apps/api it drops web-only
-  packages like `image-size`), so dependencies only apps/api uses were never audited. New `Security
-  Audit` step in api-typecheck, same script and allowlist. It passes today; the only high findings are
-  the three prisma-chain advisories already allowlisted. **Assumption:** roadmap.md is not in the repo,
-  so 3.7's CI scope was taken from the ledger's I-14 note plus the audit gap found here. Not added: an
-  apps/api linter (none is configured) and Playwright as a required gate (still `workflow_dispatch`).
-
-- **OPEN-276 (Fixed in code — image half of roadmap 3.7; CI half is OPEN-275):** apps/api image hardening.
-  The runtime image ran as **root** and shipped every devDependency. **Fix** (`apps/api/Dockerfile`):
-  (1) `npm ci --omit=dev`, which drops vitest, `@vitest/coverage-v8`, `@types/*` and pino-pretty (602
-  packages instead of 661; pino-pretty only loads outside production). (2) `USER node` (uid 1000). The
-  code and node_modules stay root-owned, so the process can't rewrite them. The one path it writes,
-  `tmp/` (CSV uploads, `csv-ingestion/api/upload.ts`), is created and chowned to `node`. Chromium already
-  runs with `--no-sandbox`, and tsx's cache goes to `/tmp`. (3) New `API Image Boot (/health)` job in
-  ci.yml, required by CI Gate. It builds the image and boots it twice, with the api command and with
-  the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
-  Postgres service migrated first (as deploy-oracle.yml does) and the CA file bind-mounted the way the
-  VMs mount it (read-only, root-owned, 644). It then requires `GET /health` → 200 (readiness runs
-  `SELECT 1`), one full worker maintenance pass with no loop or retention errors (one
-  exception: no migration creates the `Landing*` tables, since production got them from an earlier
-  out-of-band `prisma db push`, so the fresh CI database's missing `LandingEvent` is only a warning), a
-  non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
-  worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
-  `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid
-  1000 against root-owned code, it served liveness 200 with no EACCES. The Docker-specific parts are
-  proven only by the CI job. **Owner-owed before the first deploy of this image:** on both VMs,
-  `/opt/fullstack/config/prod-ca-2021.crt` (bind-mounted read-only) must be readable by uid 1000 (e.g.
-  `chmod 644`). If it's 600/root, DB TLS fails, and the deploy's health-check rolls back. **Not done
-  (follow-ups):** splitting the image so api-main doesn't carry Chromium (the worker uses the same image
-  and needs it); a Trivy scan of the API image (docker-ghcr.yml scans only web); pinning the base image by
-  digest (no Dependabot config to keep it fresh); a baseline migration for the `Landing*` tables (older than
-  this change). **Assumption:** roadmap.md is not in the repo, so 3.7's
-  image scope was inferred.
+  **CodeAnt review fixes:** the client-errors CSV export now neutralizes and quotes `userId` (it comes
+  from the anonymous intake body); a JSON upload's 10 MiB cap applies to the CSV inside it, not the JSON
+  envelope; at its cap the replay cache drops every expired entry before evicting a live one; a webhook
+  delivery that gets a 3xx is dead-lettered at once (`NonRetryableJobError`) instead of retried.
+  Follow-up (4) is done (OPEN-273).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
