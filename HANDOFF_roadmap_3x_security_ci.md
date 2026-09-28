@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `361c977` (2026-09-28, ~01:50 UTC). All six PRs from this batch are merged and no PRs are open.
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `361c977` (2026-09-28, ~02:30 UTC). All six PRs from this batch are merged. The #579 deploy took the prod API down; see STEP 1.
 
 ---
 
@@ -8,8 +8,9 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. Everything below is squash-merged to main (361c977) and was deployed through
-"Register Docker Images to GHCR" -> "Deploy to Oracle VMs". Start with:
+work. Everything below is squash-merged to main (361c977). All but #579 deployed cleanly through
+"Register Docker Images to GHCR" -> "Deploy to Oracle VMs"; #579's deploy took the prod API down
+(STEP 1). Start with:
   git checkout main && git pull
   npm ci            (#579 added isomorphic-dompurify; without it 3 landing-agent test files fail to load)
   npx prisma generate --schema apps/api/prisma/schema.prisma   (only if api tests can't find the Prisma client)
@@ -31,12 +32,37 @@ MERGED IN THIS BATCH (ledger entries in OPEN_ITEMS.md)
 - #579 OPEN-270 (roadmap 3.3): DOMPurify landing sanitizer, worker CSP, parseBody + zod on hot
   routes. Plus lead whatsappConsentAt must be an ISO datetime, CodeQL test-regex fix.
 
-STEP 1 - Verify the last deploy
-The "Deploy to Oracle VMs" run for 361c977 (#579) had not started at handoff (its GHCR build was
-running). Confirm it succeeded: gh run list --workflow deploy-oracle.yml -L 3. It health-checks
-and auto-rolls back; if it failed, read the job log and report before changing anything.
+STEP 1 - Prod API outage from the #579 deploy (check this first)
+"Deploy to Oracle VMs" run 36368134525 (361c977) recreated api-main at 02:08:41 UTC, then the
+script went silent and the SSH step hit its 20m timeout at 02:22:27: no health result, no
+rollback. At 02:27 https://api.craftmyfunnel.live/health gave no response in 15s (web was
+healthy). The worker host deployed fine.
+Likely cause, unconfirmed: #579's isomorphic-dompurify loads jsdom at boot (loadRoutes imports
+every route), measured locally at about +82 MB RSS. api-main has a 512M memory limit (the worker
+has 640M), so the VM probably swapped hard.
+a) Ask the owner whether api-main was rolled back, and probe
+   curl -sS -m 15 https://api.craftmyfunnel.live/health (or run "Production Health Check").
+b) If not, the owner runs this on the api-main VM (reboot it from the OCI console first if SSH hangs):
+     docker inspect -f '{{.State.OOMKilled}} {{.RestartCount}} {{.State.Health.Status}}' api-main
+     docker stats --no-stream api-main; free -m; dmesg -T | grep -iE 'oom|killed' | tail -5
+     cd /opt/fullstack && docker stop api-main
+     docker pull ghcr.io/convospanai-outreach/fullstack/api:sha-30a40e7
+     docker tag ghcr.io/convospanai-outreach/fullstack/api:sha-30a40e7 ghcr.io/convospanai-outreach/fullstack/api:latest
+     docker compose up -d        (then wait until docker inspect -f '{{.State.Health.Status}}' api-main
+                                  prints healthy, about 2 min)
+   sha-30a40e7 is #577, the last good api-main deploy. #579 added no migrations.
+c) The workflow's auto-rollback can't help: both deploy logs say "api:latest Pulled", so the host's
+   /opt/fullstack/docker-compose.yml looks pinned to :latest, not ${IMAGE_TAG:-latest} like
+   deploy/oracle/docker-compose.api.yml. "Roll back to the previous tag" re-pulls the same image,
+   and a workflow_dispatch deploy redeploys main. Fixing the host file is an owner action.
+d) Until a fix lands, any main merge touching apps/**, packages/** or package*.json rebuilds
+   :latest with #579's code and redeploys it (docs-only merges don't). Fix-forward, owner picks,
+   using the evidence from b): raise api-main's memory limit if the VM has the RAM; or sanitize in
+   apps/api with something lighter than jsdom (lazy-loading jsdom only moves the spike to the first
+   landing render); or revert #579.
 
 STEP 2 - Owner actions (need the owner's credentials or decisions; do them WITH the owner)
+(a and b only matter if #579 stays; skip them if the owner reverts it in STEP 1 d.)
 a) cd workers/landing-pages && wrangler deploy  - #579's worker headers are not live until then.
 b) Re-run apps/api/src/scripts/backfill-cloudflare-landing-pages.ts so already-published pages
    get a scriptHash (until then their report-only CSP flags their own script).
