@@ -82,6 +82,26 @@ describe("POST /api/upload/csv size cap", () => {
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
     });
 
+    it("caps the CSV inside a JSON body, not the JSON envelope around it", async () => {
+        // ~8 MiB of CSV whose quotes JSON-escape to ~16 MiB: under the cap as a CSV,
+        // over it as a JSON body.
+        const csv = `email,note\nfoo@example.com,"${'""'.repeat(Math.floor(CAP * 0.4))}"\n`;
+        const body = JSON.stringify({ csv });
+        expect(Buffer.byteLength(csv)).toBeLessThan(CAP);
+        expect(Buffer.byteLength(body)).toBeGreaterThan(CAP);
+
+        const res = await POST(
+            new Request("http://localhost/api/upload/csv", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body,
+            }) as any
+        );
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ success: true, created: 1 });
+    });
+
     it("still imports a CSV under the cap (text and JSON bodies)", async () => {
         const text = await POST(
             new Request("http://localhost/api/upload/csv", {
