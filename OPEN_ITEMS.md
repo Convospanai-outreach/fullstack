@@ -5766,6 +5766,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   so 3.7's CI scope was taken from the ledger's I-14 note plus the audit gap found here. Not added: an
   apps/api linter (none is configured) and Playwright as a required gate (still `workflow_dispatch`).
 
+- **OPEN-276 (Fixed in code — image half of roadmap 3.7; CI half is OPEN-275):** apps/api image hardening.
+  The runtime image ran as **root** and shipped every devDependency. **Fix** (`apps/api/Dockerfile`):
+  (1) `npm ci --omit=dev`, which drops vitest, `@vitest/coverage-v8`, `@types/*` and pino-pretty (602
+  packages instead of 661; pino-pretty only loads outside production). (2) `USER node` (uid 1000). The
+  code and node_modules stay root-owned, so the process can't rewrite them. The one path it writes,
+  `tmp/` (CSV uploads, `csv-ingestion/api/upload.ts`), is created and chowned to `node`. Chromium already
+  runs with `--no-sandbox`, and tsx's cache goes to `/tmp`. (3) New `API Image Boot (/health)` job in
+  ci.yml, required by CI Gate. It builds the image and boots it twice, with the api command and with
+  the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
+  Postgres service migrated first (as deploy-oracle.yml does) and the CA file bind-mounted the way the
+  VMs mount it (read-only, root-owned, 644). It then requires `GET /health` → 200 (readiness runs
+  `SELECT 1`), one full worker maintenance pass with no loop or retention errors (one
+  exception: no migration creates the `Landing*` tables, since production got them from an earlier
+  out-of-band `prisma db push`, so the fresh CI database's missing `LandingEvent` is only a warning), a
+  non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
+  worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
+  `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid
+  1000 against root-owned code, it served liveness 200 with no EACCES. The Docker-specific parts are
+  proven only by the CI job. **Owner-owed before the first deploy of this image:** on both VMs,
+  `/opt/fullstack/config/prod-ca-2021.crt` (bind-mounted read-only) must be readable by uid 1000 (e.g.
+  `chmod 644`). If it's 600/root, DB TLS fails, and the deploy's health-check rolls back. **Not done
+  (follow-ups):** splitting the image so api-main doesn't carry Chromium (the worker uses the same image
+  and needs it); a Trivy scan of the API image (docker-ghcr.yml scans only web); pinning the base image by
+  digest (no Dependabot config to keep it fresh); a baseline migration for the `Landing*` tables (older than
+  this change). **Assumption:** roadmap.md is not in the repo, so 3.7's
+  image scope was inferred.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

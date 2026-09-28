@@ -12,8 +12,10 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages ./packages
 
+# Production dependencies only. devDependencies (vitest, coverage, @types/*,
+# pino-pretty) are never loaded under NODE_ENV=production.
 RUN sh -c 'for attempt in 1 2 3; do \
-      npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps --prefer-offline --fetch-retries=5 --fetch-retry-maxtimeout=120000 && exit 0; \
+      npm ci --workspace apps/api --include-workspace-root --omit=dev --no-audit --no-fund --legacy-peer-deps --prefer-offline --fetch-retries=5 --fetch-retry-maxtimeout=120000 && exit 0; \
       echo "npm ci failed on attempt ${attempt}, retrying..." >&2; \
       sleep 5; \
     done; \
@@ -51,6 +53,12 @@ COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/apps/api ./apps/api
 
 WORKDIR /app/apps/api
+
+# Run as the base image's unprivileged `node` user (uid 1000). The code and
+# node_modules stay root-owned, so the process can't rewrite them. tmp/ is the
+# only path it writes at runtime (CSV uploads, csv-ingestion/api/upload.ts).
+RUN mkdir -p tmp && chown node:node tmp
+USER node
 
 EXPOSE 3001
 CMD ["node", "../../node_modules/tsx/dist/cli.mjs", "server.ts"]
