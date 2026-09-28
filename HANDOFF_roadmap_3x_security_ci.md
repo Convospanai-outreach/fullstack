@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `76a5af1` (2026-09-28, ~05:15 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; prod is back (see STEP 1). #588 then added a boot-memory budget to CI.
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `8a5fff1` (2026-09-28, ~06:05 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; prod is back (see STEP 1). #588 and #589 then added a boot-memory budget to CI.
 
 ---
 
@@ -8,7 +8,7 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. main is at 76a5af1. Everything below went through "Register Docker Images to GHCR" ->
+work. main is at 8a5fff1. Everything below went through "Register Docker Images to GHCR" ->
 "Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it; the revert's
 deploy (run #315, 04:42 UTC) passed its health check. Start with:
   git checkout main && git pull
@@ -31,9 +31,9 @@ MERGED IN THIS BATCH (ledger entries in OPEN_ITEMS.md)
   entries before evicting, NonRetryableJobError dead-letters 3xx webhook deliveries.
 - #579 OPEN-270 (roadmap 3.3): REVERTED by #586. It had the DOMPurify landing sanitizer, worker
   CSP, parseBody + zod on hot routes, lead whatsappConsentAt as an ISO datetime.
-- #588 OPEN-277 (after the incident): "API Image Boot" now runs api-boot and worker-boot with
-  --memory=640m (like the VMs) and fails if api-boot uses more than API_BOOT_MEM_BUDGET_MIB (330)
-  after /health.
+- #588 + #589 OPEN-277 (after the incident): "API Image Boot" now runs api-boot and worker-boot
+  with --memory=640m (like the VMs) and fails if api-boot uses more than API_BOOT_MEM_BUDGET_MIB
+  (240; the CI baseline is ~200 MiB, and #579 added ~66 MiB there) after /health.
 
 OPEN PRS
 - #587 (draft) OPEN-278, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
@@ -64,11 +64,10 @@ e) After 3.3 re-lands (follow-up 1): cd workers/landing-pages && wrangler deploy
    report-uri before the worker CSP goes enforcing.
 
 STEP 3 - Follow-ups (ask the owner which to take; one PR each, smallest safe diff)
-1. Re-land roadmap 3.3 (#579, OPEN-270) with the sanitizer lazy-loaded (dynamic import on first
-   sanitize); it must pass #588's 330 MiB boot budget. Caveat: the budget only covers boot. The
-   public page API sanitizes on every request, so lazy-loading moves the ~120 MB to the first
-   public page view. That fits under the 640m container limit, but if the host is short on
-   memory, sanitize once at publish time and serve the stored HTML instead.
+1. Re-land roadmap 3.3 (#579, OPEN-270) with sanitize-html instead of isomorphic-dompurify
+   (+7 MiB measured, per OPEN-277); it must pass the 240 MiB boot budget. Keep the old allow-lists
+   and URL/class/rel/target rules, and re-check the public page API output, since it sanitizes on
+   every request.
 2. Baseline migration for the six Landing* tables (LandingCampaign, LandingAsset,
    LandingWireframeOption, LandingPage, LandingLead, LandingEvent). They exist in prod only from
    an old prisma db push; no migration creates them (see
