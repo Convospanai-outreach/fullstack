@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite
 import { lookup } from "node:dns/promises";
 import { webhookService } from "../service/webhookService";
 import { prisma } from "@/lib/db";
+import { NonRetryableJobError } from "@/lib/queue";
 
 // Roadmap 3.5 / S-15. Uses the real fetch against local servers (the sibling
 // failure test stubs global.fetch, which can't show whether a redirect is followed).
@@ -54,8 +55,10 @@ describe("WebhookService redirect handling", () => {
         servers.push(internal.server, attacker.server);
         useWebhookUrl(`http://127.0.0.1:${attacker.port}/hook`);
 
-        await expect(webhookService.processDelivery("wh_1", "lead.created", { id: "l1" }))
-            .rejects.toThrow("Target returned redirect 302; redirects are not followed");
+        const delivery = webhookService.processDelivery("wh_1", "lead.created", { id: "l1" });
+        await expect(delivery).rejects.toThrow("Target returned redirect 302; redirects are not followed");
+        // The job is dead-lettered instead of retried: the target would only redirect again.
+        await expect(delivery).rejects.toBeInstanceOf(NonRetryableJobError);
 
         expect(internalHits).toBe(0);
         expect(prisma.webhookLog.create).toHaveBeenCalledWith({

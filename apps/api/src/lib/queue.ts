@@ -77,6 +77,14 @@ export class JobClaimLostError extends Error {
     }
 }
 
+/** A handler failure that retrying can't fix: the job is dead-lettered on its first failure. */
+export class NonRetryableJobError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "NonRetryableJobError";
+    }
+}
+
 export class JobQueue {
     /**
      * Enqueue a new job
@@ -291,15 +299,16 @@ export class JobQueue {
     }
 
     /**
-     * Mark job as failed. Retry if attempts < maxAttempts.
+     * Mark job as failed. Retry if attempts < maxAttempts, unless the failure is
+     * not retryable.
      */
-    static async fail(jobId: string, claimVersion: number, error: string) {
+    static async fail(jobId: string, claimVersion: number, error: string, retryable = true) {
         const job = await prisma.job.findFirst({
             where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
         });
         if (!job) throw new JobClaimLostError(jobId);
 
-        const isRetryable = job.attempts < job.maxAttempts;
+        const isRetryable = retryable && job.attempts < job.maxAttempts;
 
         if (isRetryable) {
             // Schedule retry with exponential backoff

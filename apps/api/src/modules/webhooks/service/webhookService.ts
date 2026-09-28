@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import crypto from "crypto";
 import net from "node:net";
 import { lookup } from "node:dns/promises";
-import { JobQueue } from "@/lib/queue";
+import { JobQueue, NonRetryableJobError } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 
 const WEBHOOK_TIMEOUT_MS = 10000;
@@ -177,7 +177,9 @@ class WebhookService {
             responseContent = await response.text();
 
             if (status >= 300 && status < 400) {
-                throw new Error(`Target returned redirect ${status}; redirects are not followed`);
+                // Redirects are never followed, so a retry would only get the same
+                // redirect: fail the job without retrying.
+                throw new NonRetryableJobError(`Target returned redirect ${status}; redirects are not followed`);
             }
             if (!response.ok) {
                 throw new Error(`Target returned ${status}`);
