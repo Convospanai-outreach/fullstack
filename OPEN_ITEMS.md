@@ -5921,6 +5921,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   answers 503): post-GC heapUsed origin/main 116.5 MiB, this branch 119.4 MiB (+2.9), #579 144.0 MiB (+27.5);
   median RSS 326.0 / 323.4 / 375.6 MiB (Windows working set, noisy); jsdom not in the module cache on this
   branch (it is on #579), and nothing in apps/api imports jsdom/dompurify (jsdom stays a vitest-only dev dep).
+  CI `API Image Boot` on #590: api-boot 204.4 MiB (main's CI baseline 200.5, budget 240).
   Tests: #579's suites pass (XSS payloads adapted only for ` />` void serialization), plus sanitize-html cases
   (uppercase/split tags, comments, whitespace/mixed-case/vbscript schemes, svg/math content dropped, `<>` in
   attributes, `&` encoded exactly once); 33 fail with the sanitizer replaced by identity. **Owner-owed:** (1)
