@@ -118,8 +118,14 @@ export function verifyInternalAuthHeaders(
     return { sub: userId, email, enterpriseRole: role, issuedAt };
 }
 
-// Per-process (see replayCache.ts). A nonce only needs remembering for as long
-// as its timestamp would still pass the window check.
+export interface NonceCache {
+    claim(key: string, expiresAt: number, now?: number): boolean | Promise<boolean>;
+}
+
+// Per-process default (see replayCache.ts). server.ts passes the Redis-backed
+// cache from sharedReplayCache.ts instead, which this file can't import. A nonce
+// only needs remembering for as long as its timestamp would still pass the
+// window check.
 const usedNonces = createReplayCache();
 
 /**
@@ -128,16 +134,17 @@ const usedNonces = createReplayCache();
  * request would see its own nonce as a replay. The nonce is claimed only after
  * the signature verifies, so unsigned traffic cannot fill the cache.
  */
-export function authenticateInternalRequest(
+export async function authenticateInternalRequest(
     headers: HeaderSource,
     request: InternalAuthRequest,
     now: number = Date.now(),
-): InternalIdentity | null {
+    nonces: NonceCache = usedNonces,
+): Promise<InternalIdentity | null> {
     const identity = verifyInternalAuthHeaders(headers, request, now);
     if (!identity) return null;
     if (
         identity.nonce !== undefined &&
-        !usedNonces.claim(identity.nonce, identity.issuedAt + INTERNAL_AUTH_MAX_SKEW_MS, now)
+        !(await nonces.claim(identity.nonce, identity.issuedAt + INTERNAL_AUTH_MAX_SKEW_MS, now))
     ) {
         return null;
     }

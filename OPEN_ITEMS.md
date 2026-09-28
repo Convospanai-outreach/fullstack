@@ -5878,6 +5878,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   enforcing. **Follow-ups:** 130 of 165 `route.ts` files that read JSON still have no schema; apps/web's
   duplicate `rendering.ts` (GrapesEditor preview is `sandbox=""` srcDoc, so no script runs there) still uses
   the hand-rolled tokenizer.
+- **OPEN-277 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+  roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
+  nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
+  New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
+  in Redis with `SET replay:<namespace>:<key> 1 PX <rest of window> NX`, so the first process to claim a key
+  wins. With no Redis, a client that isn't ready, or a Redis error, it falls back to the per-process cache
+  alone (today's behavior) instead of rejecting requests. `authenticateInternalRequest` is now async and
+  takes the cache to claim in; `server.ts` passes the shared one. `internalAuth.ts` still can't import
+  Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
+  second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
+  not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 275
+  files / 1672 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
+  without it this changes nothing. **Follow-up:** the `@fastify/rate-limit` backstop (OPEN-274) is
+  still per-process. Its built-in Redis store either fails open or 500s every request when Redis errors,
+  so it needs a store with a local fallback.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

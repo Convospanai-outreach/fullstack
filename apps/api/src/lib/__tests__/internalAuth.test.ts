@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "crypto";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     authenticateInternalRequest,
     internalAuthPath,
@@ -118,29 +118,37 @@ describe("authenticateInternalRequest (single-use nonce)", () => {
         process.env["NEXTAUTH_SECRET"] = originalSecret;
     });
 
-    it("accepts a v2 header set once and rejects the replay", () => {
+    it("accepts a v2 header set once and rejects the replay", async () => {
         const headers = v2Headers();
-        expect(authenticateInternalRequest(headers, REQ, NOW)?.sub).toBe("user-1");
-        expect(authenticateInternalRequest(headers, REQ, NOW + 1000)).toBeNull();
+        expect((await authenticateInternalRequest(headers, REQ, NOW))?.sub).toBe("user-1");
+        expect(await authenticateInternalRequest(headers, REQ, NOW + 1000)).toBeNull();
     });
 
-    it("leaves the verify-only function repeatable (auth.ts/admin.ts re-check after the adapter claimed)", () => {
+    it("leaves the verify-only function repeatable (auth.ts/admin.ts re-check after the adapter claimed)", async () => {
         const headers = v2Headers();
-        expect(authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
+        expect(await authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
         expect(verifyInternalAuthHeaders(headers, REQ, NOW)).not.toBeNull();
     });
 
-    it("only claims a nonce after its signature verifies, so unsigned traffic cannot burn it", () => {
+    it("only claims a nonce after its signature verifies, so unsigned traffic cannot burn it", async () => {
         const nonce = randomUUID();
         const forged = { ...v2Headers({ nonce }), "x-craftmyfunnel-auth-signature-v2": "00".repeat(32) };
-        expect(authenticateInternalRequest(forged, REQ, NOW)).toBeNull();
-        expect(authenticateInternalRequest(v2Headers({ nonce }), REQ, NOW)?.sub).toBe("user-1");
+        expect(await authenticateInternalRequest(forged, REQ, NOW)).toBeNull();
+        expect((await authenticateInternalRequest(v2Headers({ nonce }), REQ, NOW))?.sub).toBe("user-1");
     });
 
-    it("does not track legacy requests (no nonce to claim)", () => {
+    it("does not track legacy requests (no nonce to claim)", async () => {
         const headers = legacyHeaders();
-        expect(authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
-        expect(authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
+        expect(await authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
+        expect(await authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
+    });
+
+    it("claims the nonce in the cache it is given (server.ts passes the Redis-backed one)", async () => {
+        const headers = v2Headers();
+        const nonces = { claim: vi.fn().mockResolvedValue(false) };
+
+        expect(await authenticateInternalRequest(headers, REQ, NOW, nonces)).toBeNull();
+        expect(nonces.claim).toHaveBeenCalledWith(headers["x-craftmyfunnel-auth-nonce"], NOW + 5 * 60 * 1000, NOW);
     });
 });
 

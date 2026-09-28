@@ -5,14 +5,14 @@ import { v4 as uuidv4 } from "uuid";
 import { SentinelService } from "@/modules/audit/SentinelService";
 import { DbFactory } from "@/lib/dbFactory";
 import * as cryptoNode from "crypto";
-import { createReplayCache } from "@/lib/replayCache";
+import { createSharedReplayCache } from "@/lib/sharedReplayCache";
 
 const REPLAY_WINDOW_MS = 5 * 60 * 1000;
 
 // The caller sends no nonce, but the signature covers body + timestamp, so it
 // is unique per legitimate request and serves as one (roadmap 3.5 / S-16).
-// Per-process only - see replayCache.ts.
-const seenSignatures = createReplayCache();
+// Shared across api processes while Redis is up - see sharedReplayCache.ts.
+const seenSignatures = createSharedReplayCache("scraper-ingest");
 
 export async function POST(req: Request) {
     try {
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
         // Keyed on the decoded bytes, not the raw header: Node's hex decoder accepts
         // upper case and ignores trailing junk, so many header strings verify alike.
-        if (!seenSignatures.claim(providedHashBuffer.toString("hex"), requestTime + REPLAY_WINDOW_MS)) {
+        if (!(await seenSignatures.claim(providedHashBuffer.toString("hex"), requestTime + REPLAY_WINDOW_MS))) {
             return NextResponse.json({ error: "Unauthorized: Replayed request" }, { status: 401 });
         }
 
