@@ -167,4 +167,12 @@ describe("createReplayCache", () => {
         expect(cache.claim("b", 10_000, 0)).toBe(false);
         expect(cache.claim("a", 10_000, 0)).toBe(true);
     });
+
+    it("at the cap, drops an expired entry sitting behind a live one before evicting anything live", () => {
+        const cache = createReplayCache(2);
+        expect(cache.claim("live", 100_000, 0)).toBe(true);
+        expect(cache.claim("expired", 1_000, 0)).toBe(true); // inserted later, expires first
+        expect(cache.claim("new", 100_000, 2_000)).toBe(true);
+        expect(cache.claim("live", 100_000, 2_000)).toBe(false); // still remembered
+    });
 });

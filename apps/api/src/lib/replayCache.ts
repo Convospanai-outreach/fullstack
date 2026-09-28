@@ -14,9 +14,12 @@ export interface ReplayCache {
 }
 
 export function createReplayCache(maxEntries = 100_000): ReplayCache {
-    // Map iteration is insertion order, which is roughly expiry order because
-    // callers derive expiresAt from a timestamp that must be close to "now".
+    // Map iteration is insertion order, which is only roughly expiry order:
+    // callers derive expiresAt from a caller-supplied timestamp that may sit
+    // anywhere in the skew window, so an expired entry can be queued behind a
+    // live one and outlive the cheap head-of-queue sweep below.
     const entries = new Map<string, number>();
+    let lastFullSweep = -Infinity;
 
     return {
         claim(key, expiresAt, now = Date.now()) {
@@ -29,8 +32,18 @@ export function createReplayCache(maxEntries = 100_000): ReplayCache {
             if (existing !== undefined && existing > now) return false;
             entries.delete(key);
 
-            // Bounded memory: under a flood, drop the oldest entry rather than
-            // failing every request closed.
+            // At the cap, drop every expired entry before evicting a live one. At
+            // most once a second, so a flood can't turn each claim into a full scan.
+            if (entries.size >= maxEntries && now - lastFullSweep >= 1000) {
+                lastFullSweep = now;
+                for (const [storedKey, storedExpiry] of entries) {
+                    if (storedExpiry <= now) entries.delete(storedKey);
+                }
+            }
+
+            // Bounded memory: when the cap is still full of live entries (a flood of
+            // validly signed requests), drop the oldest rather than failing every
+            // request closed.
             if (entries.size >= maxEntries) {
                 const oldest = entries.keys().next().value;
                 if (oldest !== undefined) entries.delete(oldest);
