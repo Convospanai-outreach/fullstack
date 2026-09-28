@@ -5888,7 +5888,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   and pinning `sha-30a40e7`. Also owed: a container memory limit (+ optional swapfile) on both VMs, so an
   OOM restarts the container instead of hanging the host. Reverted wholesale so `:latest` is safe again; re-land with the sanitizer lazy-loaded (dynamic
   import on first sanitize) and a memory ceiling assertion in the CI image-boot job.
-- **OPEN-277 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+
+- **OPEN-277 (Fixed — CI now fails a boot-memory regression before it reaches the 1 GB api-main host):**
+  follow-up to the #579 incident (OPEN-270 REVERTED note). CI's `API Image Boot (/health)` job booted the
+  image on a large runner with no memory limit, so #579's jsdom-at-boot (~371 MiB vs ~254-274 MiB) passed
+  CI and then OOM-hung the production host. Now `api-boot` and `worker-boot` run with `--memory=640m
+  --memory-swap=640m` (mirroring the VMs' `mem_limit: 640m`), and a new step fails the job if `api-boot`
+  exceeds `API_BOOT_MEM_BUDGET_MIB` (330) after `/health` and the worker pass. It logs both containers'
+  usage (the worker's usage is reported, not enforced, until it has a baseline). The cap alone would not
+  have caught #579: 371 MiB fits in 640m, and it was the host that ran out. Tested by extracting the step
+  from ci.yml and running it with a stubbed `docker stats`: 274.5MiB passes; 371MiB and 0.35GiB fail with
+  the budget error. **Follow-ups:** set a worker budget once CI shows its baseline; re-land 3.3 with the
+  sanitizer lazy-loaded (it must pass this budget).
+- **OPEN-278 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
@@ -5899,8 +5911,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
   second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
   not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
-  rejects a request another process already claimed (verified to fail on the old route). apps/api 275
-  files / 1672 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 271
+  files / 1625 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
   without it this changes nothing. **Follow-up:** the `@fastify/rate-limit` backstop (OPEN-274) is
   still per-process. Its built-in Redis store either fails open or 500s every request when Redis errors,
   so it needs a store with a local fallback.
