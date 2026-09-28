@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `db0f236` (2026-09-28, ~05:05 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; prod is back (see STEP 1).
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `76a5af1` (2026-09-28, ~05:15 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; prod is back (see STEP 1). #588 then added a boot-memory budget to CI.
 
 ---
 
@@ -8,7 +8,7 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. main is at db0f236. Everything below went through "Register Docker Images to GHCR" ->
+work. main is at 76a5af1. Everything below went through "Register Docker Images to GHCR" ->
 "Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it; the revert's
 deploy (run #315, 04:42 UTC) passed its health check. Start with:
   git checkout main && git pull
@@ -31,9 +31,12 @@ MERGED IN THIS BATCH (ledger entries in OPEN_ITEMS.md)
   entries before evicting, NonRetryableJobError dead-letters 3xx webhook deliveries.
 - #579 OPEN-270 (roadmap 3.3): REVERTED by #586. It had the DOMPurify landing sanitizer, worker
   CSP, parseBody + zod on hot routes, lead whatsappConsentAt as an ISO datetime.
+- #588 OPEN-277 (after the incident): "API Image Boot" now runs api-boot and worker-boot with
+  --memory=640m (like the VMs) and fails if api-boot uses more than API_BOOT_MEM_BUDGET_MIB (330)
+  after /health.
 
 OPEN PRS
-- #587 (draft) OPEN-277, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
+- #587 (draft) OPEN-278, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
   are also claimed in Redis (SET NX PX), so a replay sent to another api process is caught; it
   falls back to the per-process cache when there is no Redis. CI green, main merged in. The owner
   decides the merge and must confirm REDIS_URL is set on api-main (without it nothing changes).
@@ -45,8 +48,9 @@ OOM kill at 03:40:34 (host kernel log, see the OPEN-270 note). The api node proc
 ~371 MB, vs ~254 MB on sha-30a40e7) ran on a 954 MB host with no swap and no container memory
 limit. The ~120 MB extra is jsdom from isomorphic-dompurify, loaded at boot because loadRoutes
 imports every route. The owner rebooted, switched the VM compose image to ${IMAGE_TAG:-latest},
-pinned sha-30a40e7, and merged #586. Still owner-owed: a container memory limit (and optionally a
-swapfile) on both VMs, so an OOM restarts the container instead of hanging the host.
+pinned sha-30a40e7, and merged #586. OPEN-277 says the VMs now run with mem_limit: 640m; confirm
+it on both hosts (a swapfile is optional), so an OOM restarts the container instead of hanging
+the host.
 
 STEP 2 - Owner actions (need the owner's credentials or decisions; do them WITH the owner)
 a) Confirm REDIS_URL on api-main before merging #587.
@@ -60,11 +64,11 @@ e) After 3.3 re-lands (follow-up 1): cd workers/landing-pages && wrangler deploy
    report-uri before the worker CSP goes enforcing.
 
 STEP 3 - Follow-ups (ask the owner which to take; one PR each, smallest safe diff)
-1. Re-land roadmap 3.3 (#579, OPEN-270). The plan in the OPEN-270 note is to lazy-load the
-   sanitizer (dynamic import on first sanitize) and add a memory ceiling assertion to the CI
-   "API Image Boot" job. Caveat: the public page API sanitizes on every request, so lazy-loading
-   moves the ~120 MB to the first public page view. It fits only with the container memory limit
-   and headroom in place; otherwise sanitize once at publish time and serve the stored HTML.
+1. Re-land roadmap 3.3 (#579, OPEN-270) with the sanitizer lazy-loaded (dynamic import on first
+   sanitize); it must pass #588's 330 MiB boot budget. Caveat: the budget only covers boot. The
+   public page API sanitizes on every request, so lazy-loading moves the ~120 MB to the first
+   public page view. That fits under the 640m container limit, but if the host is short on
+   memory, sanitize once at publish time and serve the stored HTML instead.
 2. Baseline migration for the six Landing* tables (LandingCampaign, LandingAsset,
    LandingWireframeOption, LandingPage, LandingLead, LandingEvent). They exist in prod only from
    an old prisma db push; no migration creates them (see
