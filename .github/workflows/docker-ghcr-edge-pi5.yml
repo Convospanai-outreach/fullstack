@@ -1,0 +1,79 @@
+name: Register Edge Pi5 Image to GHCR
+
+# Kept out of docker-ghcr.yml on purpose: deploy-oracle.yml waits for that
+# workflow to finish, and this QEMU arm64 build can take well over an hour on
+# a cold cache (it held up the f35cc9a API deploy by ~85 minutes). Nothing
+# deploys this image automatically.
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/edge-fastapi/**"
+      - ".github/workflows/docker-ghcr-edge-pi5.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME_LOWER: ""
+
+jobs:
+  build-and-push-edge-pi5:
+    # Raspberry Pi 5 (arm64) image: drops torch/sentence-transformers/onnxruntime,
+    # keeps Presidio + llama-cpp-python built for the Pi's CPU. See
+    # apps/edge-fastapi/README.md for the manual buildx command this mirrors.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase IMAGE_NAME
+        run: |
+          echo "IMAGE_NAME_LOWER=$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Extract metadata (tags, labels) for Edge FastAPI Pi5
+        id: meta-edge-pi5
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/edge-fastapi
+          flavor: |
+            suffix=-pi5,onlatest=true
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push Edge FastAPI Pi5 image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./apps/edge-fastapi
+          file: ./apps/edge-fastapi/Dockerfile
+          platforms: linux/arm64
+          push: true
+          build-args: |
+            REQUIREMENTS_FILE=requirements.pi.txt
+            FORCE_CMAKE=1
+            CMAKE_ARGS=-DGGML_NATIVE=OFF -DGGML_OPENMP=ON
+          tags: ${{ steps.meta-edge-pi5.outputs.tags }}
+          labels: ${{ steps.meta-edge-pi5.outputs.labels }}
+          cache-from: type=gha,scope=edge-pi5
+          cache-to: type=gha,mode=max,scope=edge-pi5

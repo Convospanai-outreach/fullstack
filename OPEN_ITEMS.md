@@ -5929,6 +5929,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   published pages get `scriptHash`; (3) note `frame-ancestors 'none'` breaks customers who iframe their own
   landing page elsewhere.
 
+- **OPEN-279 (Fixed — the Raspberry Pi 5 image build no longer holds up the Oracle API deploy):**
+  `deploy-oracle.yml` runs on `workflow_run` of "Register Docker Images to GHCR", so it waited for every job in
+  `docker-ghcr.yml`, including `build-and-push-edge-pi5` (a QEMU arm64 build of apps/edge-fastapi). On
+  2026-09-28 that job took ~85 minutes on a cold cache (normally ~30 s), holding up the #590 (f35cc9a) deploy
+  although the API image was pushed at 14:19Z. The Pi5 job now lives in `docker-ghcr-edge-pi5.yml` with the
+  same build config, triggered only by `apps/edge-fastapi/**` or its own file (its only build inputs), and
+  without `continue-on-error`, so a failed Pi build now shows red instead of passing silently; it can no longer
+  block a deploy. Regression test `scripts/ci/deploy-trigger-workflows.test.mjs` (run in the API Strict
+  Typecheck job) fails if any workflow that triggers the deploy runs a QEMU/arm64 step; it fails against
+  main's `docker-ghcr.yml` and passes with this change. **Follow-up:** the x86 edge-fastapi image (optional,
+  `continue-on-error`) still builds after the API image inside `build-and-push`, so it still delays the deploy
+  when its cache is cold.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
