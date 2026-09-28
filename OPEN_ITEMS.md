@@ -5889,6 +5889,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   OOM restarts the container instead of hanging the host. Reverted wholesale so `:latest` is safe again; re-land with the sanitizer lazy-loaded (dynamic
   import on first sanitize) and a memory ceiling assertion in the CI image-boot job.
 
+- **OPEN-277 (Fixed — CI now fails a boot-memory regression before it reaches the 1 GB api-main host):**
+  follow-up to the #579 incident (OPEN-270 REVERTED note). CI's `API Image Boot (/health)` job booted the
+  image on a large runner with no memory limit, so #579's jsdom-at-boot (~371 MiB vs ~254-274 MiB) passed
+  CI and then OOM-hung the production host. Now `api-boot` and `worker-boot` run with `--memory=640m
+  --memory-swap=640m` (mirroring the VMs' `mem_limit: 640m`), and a new step fails the job if `api-boot`
+  exceeds `API_BOOT_MEM_BUDGET_MIB` (330) after `/health` and the worker pass. It logs both containers'
+  usage (the worker's usage is reported, not enforced, until it has a baseline). The cap alone would not
+  have caught #579: 371 MiB fits in 640m, and it was the host that ran out. Tested by extracting the step
+  from ci.yml and running it with a stubbed `docker stats`: 274.5MiB passes; 371MiB and 0.35GiB fail with
+  the budget error. **Follow-ups:** set a worker budget once CI shows its baseline; re-land 3.3 with the
+  sanitizer lazy-loaded (it must pass this budget).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
