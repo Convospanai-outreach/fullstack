@@ -5705,7 +5705,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   IP between the two; closing it needs an undici dispatcher with a validated/pinned lookup; (2) once #577
   lands, consolidate this and the webhook fetch into one guarded-fetch helper; (3) the guard's error text
   says "Webhook URL…" in the ingest context too. apps/web's `ingestUrl` is a simulation that never
-  fetches, so it is unaffected.
+  fetches, so it is unaffected. **Follow-up fix (CodeAnt on #580):** the guard's `dns.lookup` takes no
+  signal, so a resolver that never answered could hold a hop past the 15s deadline; each hop's guard is
+  now raced against that same deadline (test: a never-answering lookup ends in a `TimeoutError`).
 
 - **OPEN-272 (Fixed — code merged-inert until `SENTRY_DSN` is set; DSN provisioning owner-owed):** Sentry + AI
   agent tracing in apps/api (B-09 follow-up). apps/api (api-main + api-worker) had no Sentry at all.

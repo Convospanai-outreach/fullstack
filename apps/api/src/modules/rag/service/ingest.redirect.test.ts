@@ -147,4 +147,20 @@ describe("IngestService.ingestUrl redirect handling (OPEN-273)", () => {
         await expect(ingestService.ingestUrl(`http://127.0.0.1:${big.port}/huge`, "kb-1")).rejects.toThrow("exceeds 5242880 bytes");
         expect(vectorStore.addDocument).not.toHaveBeenCalled();
     });
+
+    it("gives up when the guard's DNS lookup outlasts the fetch deadline", async () => {
+        // dns.lookup takes no signal; a resolver that never answers must still
+        // end at the deadline. The 15s deadline is shortened to keep the test fast.
+        const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+        const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockImplementationOnce(() => realTimeout(50));
+        (lookup as Mock).mockReturnValueOnce(new Promise(() => {}));
+
+        try {
+            await expect(ingestService.ingestUrl("http://slow-dns.example/page", "kb-1"))
+                .rejects.toMatchObject({ name: "TimeoutError" });
+        } finally {
+            timeoutSpy.mockRestore();
+        }
+        expect(vectorStore.addDocument).not.toHaveBeenCalled();
+    });
 });
