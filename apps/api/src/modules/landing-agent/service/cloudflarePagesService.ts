@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { getLandingRenderPayload } from "../rendering";
@@ -26,11 +25,10 @@ function getCloudflareConfig() {
 // Vanilla-JS port of PublishedLandingRenderer.tsx's tracking/submit logic (page_view
 // on load, form_start on first field focus, POST to /:slug/lead on submit, cta_click
 // + redirect to /:slug/thank-you on success) - keep behavior identical to that
-// component, this isn't a redesign. Returns the script's text content only - its
-// sha256 goes into the worker's CSP (see publishPageToCloudflare), so the hash
-// must be taken over exactly the string placed between <script> and </script>.
+// component, this isn't a redesign.
 function buildLeadFormScript(slug: string): string {
     return `
+<script>
 (function () {
   var slug = ${JSON.stringify(slug)};
   var sessionId = (crypto.randomUUID ? crypto.randomUUID() : "sess-" + Date.now() + "-" + Math.random().toString(36).slice(2));
@@ -96,7 +94,7 @@ function buildLeadFormScript(slug: string): string {
       });
   });
 })();
-`;
+</script>`;
 }
 
 function buildLeadFormMarkup(): string {
@@ -118,7 +116,7 @@ function buildLeadFormMarkup(): string {
 </section>`;
 }
 
-function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string }): string {
+function buildFullDocument(input: { title?: string | null; css: string; html: string; slug: string }): string {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -130,7 +128,7 @@ function buildFullDocument(input: { title?: string | null; css: string; html: st
 <body class="la-page">
 ${input.html}
 ${buildLeadFormMarkup()}
-<script>${input.script}</script>
+${buildLeadFormScript(input.slug)}
 </body>
 </html>`;
 }
@@ -152,18 +150,14 @@ class CloudflarePagesService {
             }
 
             const payload = getLandingRenderPayload(page.renderedJson);
-            const script = buildLeadFormScript(page.slug);
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script });
-            // CSP source for the one inline script the worker is expected to run
-            // (workers/landing-pages reads it back from this KV entry).
-            const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, slug: page.slug });
 
             const res = await fetch(
                 `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/storage/kv/namespaces/${config.namespaceId}/values/page:${encodeURIComponent(page.slug)}`,
                 {
                     method: "PUT",
                     headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ html, teamId: page.campaign.teamId, scriptHash }),
+                    body: JSON.stringify({ html, teamId: page.campaign.teamId }),
                 }
             );
 
