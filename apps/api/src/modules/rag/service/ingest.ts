@@ -16,10 +16,16 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
  */
 async function fetchPublicPage(rawUrl: string): Promise<string> {
     const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    // The guard's dns.lookup takes no signal, so each hop's guard is raced
+    // against the same deadline.
+    const deadline = new Promise<never>((_, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+    deadline.catch(() => {});
     let url = rawUrl;
 
     for (let hops = 0; ; hops++) {
-        await assertSafeWebhookUrl(url);
+        await Promise.race([assertSafeWebhookUrl(url), deadline]);
 
         const response = await fetch(url, {
             headers: { "User-Agent": "CraftMyFunnel-Bot/1.0" },
