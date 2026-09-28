@@ -117,4 +117,23 @@ describe("/billing/verify", () => {
         expect(body).toMatchObject({ status: "ok", alreadyCredited: true });
         expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
+
+    // roadmap 3.3 (S-10): a non-string signature used to crash Buffer.from()
+    // into an unhandled 500 instead of a 400.
+    it("400s a non-string signature before the HMAC/Razorpay lookup", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ ...signedBody("order_1", "pay_1"), razorpay_signature: 12345 }) as any);
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).code).toBe("VALIDATION_ERROR");
+        expect(mockOrdersFetch).not.toHaveBeenCalled();
+    });
+
+    it("keeps the existing 400 for a missing field", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ razorpay_order_id: "order_1" }) as any);
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).error).toBe("Missing payment verification fields");
+    });
 });

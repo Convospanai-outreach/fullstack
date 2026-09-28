@@ -167,4 +167,16 @@ describe("/billing/checkout", () => {
         expect(response.status).toBe(400);
         expect(mockCreateOrder).not.toHaveBeenCalled();
     });
+
+    // roadmap 3.3 (S-10): a non-string priceId used to throw on
+    // `priceId.includes(...)` and come back as a 500.
+    it("400s a non-string priceId instead of crashing", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ priceId: 42, country: "US" }) as any);
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).code).toBe("VALIDATION_ERROR");
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+        expect(mockCreateOrder).not.toHaveBeenCalled();
+    });
 });

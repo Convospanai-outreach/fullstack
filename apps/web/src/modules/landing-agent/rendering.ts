@@ -165,6 +165,19 @@ function escapeHtml(value: unknown): string {
         .replace(/'/g, "&#39;");
 }
 
+// For attribute values copied out of raw HTML: they are already HTML-encoded
+// source text (the public page JSON arrives DOMPurify-serialized, e.g.
+// `?a=1&amp;b=2`), so existing character references pass through once instead
+// of becoming `&amp;amp;`. Bare `&` and quote/angle characters are still escaped.
+function escapeRawAttributeValue(value: string): string {
+    return value
+        .replace(/&(?!(?:[a-zA-Z][a-zA-Z0-9]{1,31}|#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6});)/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 function escapeAttribute(value: unknown): string {
     return escapeHtml(value).replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80);
 }
@@ -290,7 +303,7 @@ function sanitizeTag(tagName: string, isClosing: boolean, rawAttrs: string): str
                 return "";
             }
 
-            attrs.push(`${attrName}="${escapeHtml(rawValue)}"`);
+            attrs.push(`${attrName}="${escapeRawAttributeValue(rawValue)}"`);
             return "";
         }
     );
