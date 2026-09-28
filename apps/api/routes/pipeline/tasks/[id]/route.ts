@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentContextFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { parseBody } from '@/lib/validation/parseBody';
-import { z } from 'zod';
-
-// Task.status / Task.priority are String columns documented as TODO|DONE and
-// LOW|MEDIUM|HIGH; any string used to be written through. An unparseable
-// dueDate used to reach Prisma as Invalid Date and fail as a 500.
-const patchTaskSchema = z.object({
-    status: z.enum(['TODO', 'DONE']).optional(),
-    title: z.string().max(500).optional(),
-    description: z.string().max(5000).optional(),
-    priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
-    dueDate: z.string().refine((v) => !Number.isNaN(new Date(v).getTime()), 'Invalid date').optional(),
-});
 
 export async function PATCH(
     req: NextRequest,
@@ -26,9 +13,8 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const parsed = await parseBody(req, patchTaskSchema);
-        if (!parsed.ok) return parsed.response;
-        const { status, title, description, priority, dueDate } = parsed.data;
+        const body = await req.json();
+        const { status, title, description, priority, dueDate } = body;
 
         // Verify task belongs to user's team
         const existingTask = await prisma.task.findFirst({
