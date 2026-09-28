@@ -79,7 +79,7 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         await cloudflarePagesService.publishPageToCloudflare("page-1");
 
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)];
+        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)];
         expect(scripts).toHaveLength(1);
         const expected = `sha256-${createHash("sha256").update(scripts[0]![1]!, "utf8").digest("base64")}`;
         expect(body.scriptHash).toBe(expected);
