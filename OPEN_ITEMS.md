@@ -5903,6 +5903,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   371MiB and 0.35GiB fail with the budget error. **Follow-ups:** set a worker budget (baseline 170 MiB); re-land 3.3 with sanitize-html
   (+7 MiB measured) instead of isomorphic-dompurify (it must pass this budget).
 
+- **OPEN-278 (Fixed — re-land of OPEN-270 / roadmap 3.3 with sanitize-html; worker deploy + backfill owner-owed):**
+  re-lands everything #579 shipped (see the OPEN-270 bullet: worker `frame-ancestors 'none'` + XFO + Report-Only
+  CSP with the publish-time `scriptHash`, `getPublicPage` returning cleaned html, `parseBody` + zod on the 7 hot
+  routes + apps/web's campaigns PATCH, apps/web's attribute-entity pass-through) with one change: the landing
+  sanitizer is `sanitize-html@2.17.7` (htmlparser2, no jsdom) instead of `isomorphic-dompurify`, per the owner's
+  decision (not lazy-loading, as OPEN-270's note suggested). Same tag/attr allow-lists; svg, math, template,
+  iframe/object/embed, noscript, title etc. dropped with their content (`nonTextTags`); one `transformTags['*']`
+  keeps the old rules (isSafeLink-only href/src, class-token filter, no raw `rel`, `target` normalised +
+  `rel="noopener noreferrer"` on `_blank`, empty values dropped) plus a curated DOM-clobbering id denylist
+  (DOMPurify dropped any id `in document || in form`; this keeps the commonly-clobbered subset);
+  `allowedSchemes` http/https/mailto/tel as a second check. Output differences vs DOMPurify: void elements
+  serialize as `<img ... />`/`<br />`; `<`/`>` are encoded inside attribute values; named entities like
+  `&nbsp;`/`&copy;` come out as the literal characters. Attribute `&` is still `&amp;`, so apps/web's
+  pass-through fix is still needed and its test gained the exact sanitize-html shape. **Memory** (local boot,
+  `node --import tsx server.ts`, NODE_ENV=production, 5 interleaved runs, no Postgres — routes register, `/health`
+  answers 503): post-GC heapUsed origin/main 116.5 MiB, this branch 119.4 MiB (+2.9), #579 144.0 MiB (+27.5);
+  median RSS 326.0 / 323.4 / 375.6 MiB (Windows working set, noisy); jsdom not in the module cache on this
+  branch (it is on #579), and nothing in apps/api imports jsdom/dompurify (jsdom stays a vitest-only dev dep).
+  Tests: #579's suites pass (XSS payloads adapted only for ` />` void serialization), plus sanitize-html cases
+  (uppercase/split tags, comments, whitespace/mixed-case/vbscript schemes, svg/math content dropped, `<>` in
+  attributes, `&` encoded exactly once); 33 fail with the sanitizer replaced by identity. **Owner-owed:** (1)
+  `wrangler deploy` of `workers/landing-pages`; (2) re-run `src/scripts/backfill-cloudflare-landing-pages.ts` so
+  published pages get `scriptHash`; (3) note `frame-ancestors 'none'` breaks customers who iframe their own
+  landing page elsewhere.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

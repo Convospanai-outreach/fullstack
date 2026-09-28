@@ -6,6 +6,17 @@ import { prisma } from "@/lib/db";
 import { computeGstExclusive } from "@/lib/gst";
 import { resolveBillingCurrency, resolveGateway } from "@/modules/billing/service/gatewaySelector";
 import { createSubscriptionCheckoutSession } from "@/modules/billing/service/stripeSubscriptionGateway";
+import { parseBody } from "@/lib/validation/parseBody";
+import { z } from "zod";
+
+// Types only - the presence/business checks below keep their existing messages.
+// A non-string priceId used to crash `priceId.includes` into a 500.
+const checkoutSchema = z.object({
+    planId: z.string().max(64).nullish(),
+    priceId: z.string().max(128).nullish(),
+    country: z.string().max(64).nullish(),
+    state: z.string().max(64).nullish(),
+});
 
 // Amounts are in the currency's smallest unit (e.g. cents), matching Plan.monthlyPrice.
 const PRICING_TIERS: Record<string, number> = {
@@ -35,7 +46,9 @@ export async function POST(req: Request) {
 
         await authorizeRole(userId, teamId, TeamRole.ADMIN);
 
-        const body = await req.json();
+        const parsed = await parseBody(req, checkoutSchema);
+        if (!parsed.ok) return parsed.response;
+        const body = parsed.data;
         const { priceId, planId, state } = body;
         // Normalized so "in"/"In" is recognized as India for GST purposes, not
         // silently treated as a non-India zero-rated export.

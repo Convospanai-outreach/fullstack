@@ -4,6 +4,15 @@ import { billingService } from "@/modules/billing/service/billingService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { computeGstExclusive } from "@/lib/gst";
+import { parseBody } from "@/lib/validation/parseBody";
+import { z } from "zod";
+
+// Types only - the presence/tier checks below keep their existing messages.
+const topupSchema = z.object({
+    tierId: z.string().max(32).nullish(),
+    country: z.string().max(64).nullish(),
+    state: z.string().max(64).optional(),
+});
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -11,7 +20,9 @@ export async function POST(req: NextRequest) {
 
     await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
 
-    const body = await req.json();
+    const parsed = await parseBody(req, topupSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const { tierId, state } = body;
     // Normalized so "in"/"In" is recognized as India for GST purposes, not
     // silently treated as a non-India zero-rated export.
