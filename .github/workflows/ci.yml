@@ -448,12 +448,13 @@ jobs:
 
     - name: Require the api container to boot within its memory budget
       env:
-        # api-main runs ~254-274 MiB in production on a 954 MB host that also runs
-        # Caddy, fail2ban and Docker. #579 pushed it to ~371 MiB (jsdom loaded at
-        # boot) and the host OOM-hung (see the OPEN-270 REVERTED note); the 640m
-        # container cap alone would not have caught that. Raise this only together
-        # with a matching host-capacity check.
-        API_BOOT_MEM_BUDGET_MIB: "330"
+        # This job's idle api-boot baseline is ~200 MiB (production runs ~254-274 MiB
+        # with live traffic on a 954 MB host that also runs Caddy, fail2ban and
+        # Docker). #579's jsdom-at-boot added ~66 MiB and the host OOM-hung (see the
+        # OPEN-270 REVERTED note); the 640m container cap alone would not have caught
+        # that. The budget sits ~40 MiB over the baseline so a regression of that size
+        # fails here. Raise it only together with a matching host-capacity check.
+        API_BOOT_MEM_BUDGET_MIB: "240"
       run: |
         to_mib() {
           awk -v v="$1" 'BEGIN {
