@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Verify Identity/Integrity
-        const isValid = IdentityService.verifyWebhook(body, signature, secret);
+        const isValid = IdentityService.verifyWebhook(body, signature, secret, req.headers.get("X-Timestamp"));
 
         if (!isValid) {
             logger.warn("[Webhook Ingress] Invalid Signature");

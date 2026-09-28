@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
-import { streamingCsvResponse } from "@/lib/csvStream";
+import { CSV_FORMULA_PREFIX, streamingCsvResponse } from "@/lib/csvStream";
 
 const EXPORT_BATCH_SIZE = 1000;
 
@@ -51,7 +51,9 @@ export async function GET(_req: NextRequest) {
                     Created: l.createdAt.toISOString(),
                 }));
                 // header:false - the column header is emitted once by the helper.
-                yield Papa.unparse(rows, { header: false, columns: COLUMNS as unknown as string[], newline: "\n" });
+                // escapeFormulae gets our regex: Papa's default (`^[...].*$`) misses
+                // multi-line cells such as "=1+1\nx".
+                yield Papa.unparse(rows, { header: false, columns: COLUMNS as unknown as string[], newline: "\n", escapeFormulae: CSV_FORMULA_PREFIX });
 
                 if (batch.length < EXPORT_BATCH_SIZE) break;
                 cursorId = batch[batch.length - 1]!.id;

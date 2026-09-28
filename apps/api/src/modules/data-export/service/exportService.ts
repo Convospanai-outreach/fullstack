@@ -1,3 +1,4 @@
+import { neutralizeCsvFormula } from "@/lib/csvStream";
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 const isServer = typeof window === "undefined";
@@ -6,8 +7,8 @@ function toCsv(rows: Record<string, any>[]): string {
     if (!rows.length) return "";
     const headers = Object.keys(rows[0] ?? {});
     const escape = (value: any) => {
-        const str = value == null ? "" : String(value);
-        if (str.includes(",") || str.includes("\"") || str.includes("\n")) {
+        const str = neutralizeCsvFormula(value == null ? "" : String(value));
+        if (str.includes(",") || str.includes("\"") || str.includes("\n") || str.includes("\r")) {
             return `"${str.replace(/\"/g, "\"\"")}"`;
         }
         return str;

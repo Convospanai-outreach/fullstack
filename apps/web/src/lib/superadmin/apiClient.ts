@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { buildInternalAuthHeaders } from "@/lib/internalAuthHeaders";
 
 const INTERNAL_API_ORIGIN =
     process.env["API_INTERNAL_ORIGIN"] ||
@@ -9,21 +9,18 @@ const INTERNAL_API_ORIGIN =
 // apps/api's checkAdmin() (apps/api/src/lib/admin.ts) only understands a NextAuth
 // session or this exact HMAC header scheme, and that gate is intentionally not
 // being touched for the new standalone superadmin login.
-function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }): HeadersInit {
+function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }, url: URL): HeadersInit {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) throw new Error("NEXTAUTH_SECRET is not configured");
 
-    const timestamp = String(Date.now());
-    const payload = `v1.${timestamp}.${user.id}.${user.email}.${user.enterpriseRole}`;
-    const signature = createHmac("sha256", secret).update(payload).digest("hex");
-
-    return {
-        "x-craftmyfunnel-user-id": user.id,
-        "x-craftmyfunnel-user-email": user.email,
-        "x-craftmyfunnel-user-role": user.enterpriseRole,
-        "x-craftmyfunnel-auth-ts": timestamp,
-        "x-craftmyfunnel-auth-signature": signature,
-    };
+    return buildInternalAuthHeaders({
+        secret,
+        userId: user.id,
+        email: user.email,
+        role: user.enterpriseRole,
+        method: "GET",
+        path: url.pathname,
+    });
 }
 
 export async function fetchSuperAdminOverview(
@@ -34,7 +31,7 @@ export async function fetchSuperAdminOverview(
     url.searchParams.set("range", range);
 
     const res = await fetch(url, {
-        headers: signInternalAdminHeaders(user),
+        headers: signInternalAdminHeaders(user, url),
         cache: "no-store",
     });
     const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
@@ -50,7 +47,7 @@ export async function fetchSuperAdminUserDetail(
     url.searchParams.set("range", range);
 
     const res = await fetch(url, {
-        headers: signInternalAdminHeaders(actor),
+        headers: signInternalAdminHeaders(actor, url),
         cache: "no-store",
     });
     const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));

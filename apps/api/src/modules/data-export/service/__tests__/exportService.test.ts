@@ -54,6 +54,25 @@ describe("exportService", () => {
             expect(csv).toContain("\"Acme, Inc.\"");
         });
 
+        it("neutralizes formula-triggering cells (roadmap 3.5 / S-14)", async () => {
+            (prisma.lead.findMany as any).mockResolvedValue([
+                {
+                    id: "lead-1",
+                    fullName: "=HYPERLINK(\"http://evil.test\")",
+                    email: "@evil",
+                    company: "+1",
+                    jobTitle: "\r=2",
+                    status: "-3",
+                    intentScore: 0.8,
+                    createdAt: "2026-01-01T00:00:00.000Z",
+                },
+            ]);
+
+            const row = (await exportService.generateCsv("leads", "team-1")).split("\n").slice(1).join("\n");
+
+            expect(row).toBe("lead-1,\"'=HYPERLINK(\"\"http://evil.test\"\")\",'@evil,'+1,\"'\r=2\",'-3,0.8,2026-01-01T00:00:00.000Z");
+        });
+
         it("queries campaigns scoped to the team when entityType is campaigns", async () => {
             (prisma.campaign.findMany as any).mockResolvedValue([
                 { id: "c1", name: "Q1 Outreach", status: "active", targetCount: 100, completedCount: 40, createdAt: "2026-01-01" },

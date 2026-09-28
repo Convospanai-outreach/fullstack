@@ -53,6 +53,33 @@ describe("GET /analytics/export", () => {
         expect(lines[1]).toContain("Q1");
     });
 
+    it("neutralizes formula-triggering cells, including multi-line ones Papa's default regex misses (roadmap 3.5 / S-14)", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        mockPrisma.lead.findMany.mockResolvedValue([
+            {
+                id: "l1",
+                fullName: "=1+1\nx",
+                email: "@evil",
+                company: "-cmd",
+                status: "+NEW",
+                value: -5,
+                wonAt: null,
+                createdAt: new Date("2026-01-01T00:00:00.000Z"),
+                campaign: { name: "\t=2" },
+            },
+        ]);
+
+        const text = await (await GET(makeRequest())).text();
+
+        expect(text).toContain(`"'=1+1\nx"`);
+        expect(text).toContain(`"'@evil"`);
+        expect(text).toContain(`"'-cmd"`);
+        expect(text).toContain(`"'+NEW"`);
+        expect(text).toContain(`"'\t=2"`);
+        // Numbers are ours, not caller text - left as numbers.
+        expect(text).toContain(",-5,");
+    });
+
     it("rejects a caller with no team before querying any leads", async () => {
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: null });
 

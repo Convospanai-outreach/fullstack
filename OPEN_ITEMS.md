@@ -5795,36 +5795,58 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   this change). **Assumption:** roadmap.md is not in the repo, so 3.7's
   image scope was inferred.
 
-- **OPEN-270 (Fixed — worker deploy + report-uri owner-owed; 130 JSON routes still unvalidated):** roadmap.md
-  item 3.3 (S-09, S-10). **S-09:** landing-page HTML was cleaned by a hand-rolled tokenizer
-  (`apps/api/src/modules/landing-agent/rendering.ts`), the Cloudflare worker served it with no CSP/XFO, and
-  `/p/[slug]` renders the raw `renderedJson` on the app's own origin via apps/web's *duplicate* copy of that
-  tokenizer. Now: `sanitizeLandingHtml` is `isomorphic-dompurify@2.35.0` (reuses the lock's existing jsdom
-  27.4.0) with the same tag/attr allow-lists, `FORBID_TAGS: svg, math`, and hooks that keep the old extra
-  rules (isSafeLink-only href/src so no `data:`/`javascript:`, filtered class tokens, no raw `rel`,
-  `target` normalised + `rel="noopener noreferrer"`). The public-page API (`getPublicPage`) now returns
-  `renderedJson.html` DOMPurify-cleaned, so `/p/[slug]` gets it too without adding jsdom to Next (apps/web's
-  copy no longer re-escapes existing entities in attribute values, which would have turned DOMPurify's
-  `?a=1&amp;b=2` into a broken `&amp;amp;` on UTM links/CDN image URLs). The worker
-  (`workers/landing-pages/src/index.ts`) enforces `frame-ancestors 'none'` + `X-Frame-Options: DENY` on the
-  page and thank-you responses and sends the rest as `Content-Security-Policy-Report-Only`, allowing only the
-  lead-form inline script by a sha256 that `cloudflarePagesService` computes at publish time and stores in
-  the KV entry (`scriptHash`). Verified in Chromium through the real worker handler: the page's own script
-  runs with zero report-only violations; an injected inline script is reported. **S-10:** new
-  `apps/api/src/lib/validation/parseBody.ts` (400 `{error, code: VALIDATION_ERROR, details}` with zod field
-  errors, 400 on malformed JSON) and migrated `campaigns/[id]` PATCH (`status` constrained to
-  draft|active|paused|completed|scheduled), `billing/checkout`, `billing/topup`, `billing/verify`,
-  `leads/[id]` PATCH, `pipeline/leads/[leadId]` PATCH, `pipeline/tasks/[id]` PATCH; also the same `status`
-  check on apps/web's own `PATCH /api/campaigns/[id]` (the one the dashboard actually hits). Tests:
-  `rendering.test.ts` (XSS payloads + legit page), `handlers.publicPage.test.ts`,
-  `cloudflarePagesService.test.ts` (hash), `landingPagesWorker.test.ts`, `parseBody.test.ts`, the 7 route
-  tests, `apps/web/tests/unit/campaign-patch-status-validation.test.ts`,
-  `apps/web/tests/unit/landing-agent-attr-entities.test.ts` — 22 new cases fail with the fixes reverted. **Owner-owed:** (1) `wrangler deploy` of `workers/landing-pages` (no workflow deploys it);
-  (2) re-run `src/scripts/backfill-cloudflare-landing-pages.ts` so already-published pages get `scriptHash`
-  (until then they report their own script); (3) optional `report-uri` endpoint before flipping the CSP to
-  enforcing. **Follow-ups:** 130 of 165 `route.ts` files that read JSON still have no schema; apps/web's
-  duplicate `rendering.ts` (GrapesEditor preview is `sandbox=""` srcDoc, so no script runs there) still uses
-  the hand-rolled tokenizer.
+- **OPEN-269 (Fixed — S-13..S-16 hardening; legacy-HMAC removal + in-memory caches are follow-ups):**
+  roadmap.md item 3.5 (S-13..S-16). All four findings re-verified against `main` 80f0f552; all still open.
+  - **S-13 internal HMAC.** Signature covered only `v1.ts.userId.email.role`, so a captured header set
+    replayed against any route for 5 min. Verifier was copied three times (`server.ts`, `src/lib/auth.ts`,
+    `src/lib/admin.ts`), and one request can pass through all three. Now: one verifier,
+    `apps/api/src/lib/internalAuth.ts`. The web signer (`apps/web/src/lib/internalAuthHeaders.ts`, used by
+    `/api/proxy` and the superadmin client) still sends the **unchanged v1 signature**, so an old api build
+    keeps working across the separate Render/Oracle deploys. It adds `x-craftmyfunnel-auth-nonce` and
+    `x-craftmyfunnel-auth-signature-v2`, an HMAC over a JSON array (not a dot-join, because email and path
+    are user-influenced) of ts, nonce, method, pathname, userId, email and role. The api accepts both
+    formats. When either v2 header is present, v2 must verify, with no fallback to v1. The Fastify adapter
+    verifies once per request and claims the nonce as single-use. Headers that fail there (including
+    replays) are dropped before the handler, so the verify-only checks in auth.ts/admin.ts can't accept them.
+  - **S-16.** scraper-ingest gets a replay cache keyed on the *decoded* signature (the caller sends no
+    nonce; Node's hex decoder accepts upper case and trailing junk). The removed log line printed the first
+    8 chars of the **expected** hash, i.e. part of the valid signature. In ingress, `X-Timestamp` is now
+    optional-but-verified: when present, the signature is over `${JSON.stringify(body)}.${ts}` and the
+    timestamp must be within 5 min. When absent, the old body-only check still applies.
+  - **S-15.** Outbound webhooks use `redirect: "manual"`, and a 3xx response is a delivery failure.
+  - **S-14.** Formula prefixes (`= + - @ \t \r`) are neutralized in every export found: leads,
+    analytics, data-export, admin client-errors, admin agent-audit (now quoted too), and the browser-built
+    admin audit-log and ROI exports. Papa's default `escapeFormulae` regex misses multi-line cells, so an
+    explicit one is passed. `/api/upload/csv` is capped at 10 MiB, the same as apps/api's
+    `MAX_CSV_UPLOAD_BYTES`. The cap is checked on both Content-Length and bytes actually read, and
+    overflow returns 413.
+  Tests: `apps/api` `src/lib/__tests__/internalAuth.test.ts` covers both formats, no downgrade and
+  replay. `webhookService.redirect.test.ts` uses real local servers for 302→internal and
+  302→169.254.169.254. There are also new cases in the scraper-ingest, ingress and five export tests.
+  `apps/web/tests/unit/internal-auth-signing.test.ts` checks the real new signer against a verbatim copy
+  of the old api verifier and against the new one. `upload-csv-size-cap.test.ts` and
+  `csv-formula-injection.test.ts` cover the web cap and exports. Each test fails with its fix reverted.
+  The adapter's header-dropping in `server.ts` has no unit test (importing server.ts boots the server).
+  **S-13 is not fully closed until follow-up (1):** while v1 is accepted, a captured header set can
+  still be replayed as v1 (v2 headers stripped) for 5 min — inherent to the deploy-gap requirement.
+  **Owner-owed:** no env vars. (a) Confirm the external scraper re-signs retries with a fresh
+  `X-Timestamp`: an identical retry (same body + timestamp, including after a 500) now gets 401
+  "Replayed request". (b) Ingress callers only gain replay protection if told the opt-in format —
+  `X-Timestamp` = epoch ms, `X-Compliance-Hash` = HMAC-SHA256(`WEBHOOK_SECRET`,
+  `${JSON.stringify(body)}.${ts}`). (c) Watch api logs for unexpected 401s after deploy: a path that a
+  proxy re-encodes between web and api (e.g. Go/Caddy turning `|` into `%7C`) fails v2 closed.
+  **Follow-ups:** (1) drop v1 acceptance in `internalAuth.ts` once the web build with this change is
+  live on Render and a rollback to a pre-change web build is ruled out; (2) make ingress `X-Timestamp`
+  required once callers send it; (3) move the in-memory replay caches to Redis (roadmap 3.1 / I-07),
+  since they are per-process today; (4) **RAG `ingestUrl` still follows redirects after the same SSRF
+  guard and returns the body to the team** (a readable SSRF, worse than S-15); (5) `/api/proxy`
+  buffers request bodies uncapped (`req.arrayBuffer()`) before `/api/upload/csv` sees them;
+  (6) agent-audit CSV joins rows with a literal `"\\n"` (pre-existing bug, not fixed here).
+  **CodeAnt review fixes:** the client-errors CSV export now neutralizes and quotes `userId` (it comes
+  from the anonymous intake body); a JSON upload's 10 MiB cap applies to the CSV inside it, not the JSON
+  envelope; at its cap the replay cache drops every expired entry before evicting a live one; a webhook
+  delivery that gets a 3xx is dead-lettered at once (`NonRetryableJobError`) instead of retried.
+  Follow-up (4) is done (OPEN-273).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

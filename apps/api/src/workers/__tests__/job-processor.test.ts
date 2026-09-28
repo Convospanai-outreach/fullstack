@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, Mock } from "vitest";
 import { worker } from "../job-processor";
 import { prisma } from "@/lib/db";
-import { JobClaimLostError, JobQueue } from "@/lib/queue";
+import { JobClaimLostError, JobQueue, NonRetryableJobError } from "@/lib/queue";
 import { handleGmailHistorySync } from "../handlers/gmail-history-sync-worker";
 import { executeCampaign } from "../handlers/campaign-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
@@ -29,6 +29,7 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/queue", () => ({
     JobClaimLostError: class JobClaimLostError extends Error {},
+    NonRetryableJobError: class NonRetryableJobError extends Error {},
     JobQueue: {
         complete: vi.fn(),
         fail: vi.fn(),
@@ -144,8 +145,23 @@ describe("job-processor", () => {
 
         await expect(worker.performJob({ jobId: "job-1", version: 2 })).rejects.toThrow("Sync failed");
 
-        expect(JobQueue.fail).toHaveBeenCalledWith("job-1", 2, "Sync failed");
+        expect(JobQueue.fail).toHaveBeenCalledWith("job-1", 2, "Sync failed", true);
         expect(JobQueue.defer).not.toHaveBeenCalled();
+    });
+
+    it("fails a NonRetryableJobError without a retry", async () => {
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce({
+            id: "job-1",
+            status: "running",
+            version: 2,
+            type: "INBOX_SYNC",
+            payload: { teamId: "t1", mailboxId: "m1", notificationHistoryId: "123" },
+        });
+        (handleGmailHistorySync as Mock).mockRejectedValueOnce(new NonRetryableJobError("permanent"));
+
+        await expect(worker.performJob({ jobId: "job-1", version: 2 })).rejects.toThrow("permanent");
+
+        expect(JobQueue.fail).toHaveBeenCalledWith("job-1", 2, "permanent", false);
     });
 
     it("defers lease contention without completing the job or consuming normal failure accounting", async () => {

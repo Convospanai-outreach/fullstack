@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { JobClaim, JobClaimLostError, JobPayload, JobQueue } from "@/lib/queue";
+import { JobClaim, JobClaimLostError, JobPayload, JobQueue, NonRetryableJobError } from "@/lib/queue";
 import { executeCampaign } from "./handlers/campaign-worker";
 import { handleLeadEnrichment } from "./handlers/enrichment-worker";
 import { handleEmailSend } from "./handlers/email-worker";
@@ -295,7 +295,7 @@ export const worker = {
                 throw error;
             }
             captureException(error);
-            await JobQueue.fail(claim.jobId, claim.version, message);
+            await JobQueue.fail(claim.jobId, claim.version, message, !(error instanceof NonRetryableJobError));
             throw error;
         }
 

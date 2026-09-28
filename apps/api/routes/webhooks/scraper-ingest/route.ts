@@ -5,6 +5,14 @@ import { v4 as uuidv4 } from "uuid";
 import { SentinelService } from "@/modules/audit/SentinelService";
 import { DbFactory } from "@/lib/dbFactory";
 import * as cryptoNode from "crypto";
+import { createReplayCache } from "@/lib/replayCache";
+
+const REPLAY_WINDOW_MS = 5 * 60 * 1000;
+
+// The caller sends no nonce, but the signature covers body + timestamp, so it
+// is unique per legitimate request and serves as one (roadmap 3.5 / S-16).
+// Per-process only - see replayCache.ts.
+const seenSignatures = createReplayCache();
 
 export async function POST(req: Request) {
     try {
@@ -28,7 +36,7 @@ export async function POST(req: Request) {
 
         // Prevent Replay (allow 5 minute window)
         const requestTime = parseInt(timestamp, 10);
-        if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > 5 * 60 * 1000) {
+        if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > REPLAY_WINDOW_MS) {
             return NextResponse.json({ error: "Unauthorized: Timestamp limit exceeded" }, { status: 401 });
         }
 
@@ -44,9 +52,16 @@ export async function POST(req: Request) {
             providedHashBuffer.length !== expectedHashBuffer.length ||
             !cryptoNode.timingSafeEqual(providedHashBuffer, expectedHashBuffer)
         ) {
-            // Log attempt for audit
-            console.error(`[Security] HMAC Mismatch for scraper webhook. Expected prefix: ${expectedHash.substring(0, 8)}`);
+            // Log attempt for audit. Never log any part of the expected hash: it is
+            // the valid signature for this body + timestamp.
+            console.error("[Security] HMAC Mismatch for scraper webhook");
             return NextResponse.json({ error: "Unauthorized: Invalid Compliance Hash" }, { status: 401 });
+        }
+
+        // Keyed on the decoded bytes, not the raw header: Node's hex decoder accepts
+        // upper case and ignores trailing junk, so many header strings verify alike.
+        if (!seenSignatures.claim(providedHashBuffer.toString("hex"), requestTime + REPLAY_WINDOW_MS)) {
+            return NextResponse.json({ error: "Unauthorized: Replayed request" }, { status: 401 });
         }
 
         // 2. Sentinel Audit (Data Quality & Health)
