@@ -68,45 +68,4 @@ describe("PATCH /api/campaigns/[id]", () => {
         expect(CampaignService.addLeadsToCampaign).not.toHaveBeenCalled();
         expect(response.status).toBe(404);
     });
-
-    // roadmap 3.3 (S-10): any `status` string used to be written straight into
-    // Campaign.status.
-    it("rejects an arbitrary status with a 400 and field errors, without writing", async () => {
-        const response = await PATCH(patchRequest({ status: "hacked" }), { params: Promise.resolve({ id: "campaign-1" }) });
-
-        expect(response.status).toBe(400);
-        const json = await response.json();
-        expect(json.code).toBe("VALIDATION_ERROR");
-        expect(json.details.fieldErrors.status).toBeDefined();
-        expect(prisma.campaign.update).not.toHaveBeenCalled();
-    });
-
-    it("still writes a real status and name", async () => {
-        const response = await PATCH(
-            patchRequest({ status: "completed", name: "Q4" }),
-            { params: Promise.resolve({ id: "campaign-1" }) }
-        );
-
-        expect(response.status).toBe(200);
-        expect(prisma.campaign.update).toHaveBeenCalledWith({
-            where: { id: "campaign-1" },
-            data: { name: "Q4", status: "completed" },
-        });
-    });
-
-    it("rejects a non-integer targetCount instead of letting Prisma 500", async () => {
-        const response = await PATCH(patchRequest({ targetCount: 1.5 }), { params: Promise.resolve({ id: "campaign-1" }) });
-
-        expect(response.status).toBe(400);
-        expect(prisma.campaign.update).not.toHaveBeenCalled();
-    });
-
-    it("returns 400 (not 500) for a malformed JSON body", async () => {
-        const response = await PATCH(
-            new Request("http://localhost:3001/api/campaigns/campaign-1", { method: "PATCH", body: "{not json" }),
-            { params: Promise.resolve({ id: "campaign-1" }) }
-        );
-
-        expect(response.status).toBe(400);
-    });
 });

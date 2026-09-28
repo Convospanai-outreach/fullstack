@@ -5848,7 +5848,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   delivery that gets a 3xx is dead-lettered at once (`NonRetryableJobError`) instead of retried.
   Follow-up (4) is done (OPEN-273).
 
-- **OPEN-270 (Fixed — worker deploy + report-uri owner-owed; 130 JSON routes still unvalidated):** roadmap.md
+- **OPEN-270 (REVERTED 2026-09-28 — see note at end of bullet; originally: Fixed — worker deploy + report-uri owner-owed; 130 JSON routes still unvalidated):** roadmap.md
   item 3.3 (S-09, S-10). **S-09:** landing-page HTML was cleaned by a hand-rolled tokenizer
   (`apps/api/src/modules/landing-agent/rendering.ts`), the Cloudflare worker served it with no CSP/XFO, and
   `/p/[slug]` renders the raw `renderedJson` on the app's own origin via apps/web's *duplicate* copy of that
@@ -5878,6 +5878,16 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   enforcing. **Follow-ups:** 130 of 165 `route.ts` files that read JSON still have no schema; apps/web's
   duplicate `rendering.ts` (GrapesEditor preview is `sandbox=""` srcDoc, so no script runs there) still uses
   the hand-rolled tokenizer.
+  **REVERTED 2026-09-28:** the first deploy of #579 (`sha-361c977`) left the api-main VM unresponsive (SSH
+  step hung after `Container api-main Started`, Cloudflare 522 on api.craftmyfunnel.live; api-worker took the
+  same image fine). **Cause confirmed from the host kernel log:** a global OOM at 03:40:34Z killed the api-main
+  `node` (uid 1000, anon-rss ~371 MB) on a 954 MB host with **no swap** and **no container memory limit**, so the
+  host thrashed unresponsive from 02:08Z until the kill. The same container on `sha-30a40e7` sits at ~254 MB; the
+  ~120 MB delta matches jsdom (via `isomorphic-dompurify`) loaded at boot because the route loader imports
+  rendering.ts. The owner recovered by rebooting, switching the VM compose `image:` to `${IMAGE_TAG:-latest}`
+  and pinning `sha-30a40e7`. Also owed: a container memory limit (+ optional swapfile) on both VMs, so an
+  OOM restarts the container instead of hanging the host. Reverted wholesale so `:latest` is safe again; re-land with the sanitizer lazy-loaded (dynamic
+  import on first sanitize) and a memory ceiling assertion in the CI image-boot job.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
