@@ -179,6 +179,18 @@ jobs:
         NEXTAUTH_URL: http://localhost:3000
         REDIS_URL: "redis://localhost:6379"
 
+    # Tests that live next to their route/service under src/ (roadmap I-14).
+    # Unit Tests above only runs tests/unit, so these never ran in CI.
+    - name: Colocated Tests
+      working-directory: apps/web
+      run: npm run test:colocated
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        NEXTAUTH_SECRET: ci-secret-not-real
+        NEXTAUTH_URL: http://localhost:3000
+        REDIS_URL: "redis://localhost:6379"
+
     - name: Coverage Gate
       working-directory: apps/web
       run: npm run test:coverage
@@ -248,6 +260,13 @@ jobs:
     - name: Install dependencies
       run: npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps
 
+    # Same allowlisted high/critical gate the web jobs run. Run inside a workspace
+    # folder, `npm audit` only covers that workspace's tree, so the web jobs never
+    # covered dependencies that only apps/api uses.
+    - name: Security Audit
+      working-directory: apps/api
+      run: node ../../scripts/audit-with-allowlist.mjs
+
     - name: Generate Prisma Client
       working-directory: apps/api
       run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
@@ -302,9 +321,172 @@ jobs:
       continue-on-error: true
       run: docker build -t craftmyfunnel-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
 
+  # Builds the production API image and boots it the way the Oracle VMs do
+  # (NODE_ENV=production, its own user, the same read-only CA bind mount), once
+  # with the api command and once with the worker command, against a migrated
+  # Postgres. GET /health must return 200, and the worker must finish a full
+  # maintenance pass and render a PDF with Chromium, all as a non-root user. An
+  # image that builds but can't start fails here, not on deploy.
+  api-image-boot:
+    name: API Image Boot (/health)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: craftmyfunnel_boot_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build API image
+      run: docker build -t craftmyfunnel-api-boot -f apps/api/Dockerfile .
+
+    - name: Migrate, then boot the api and worker containers
+      run: |
+        # Mounted the way deploy/oracle/docker-compose.*.yml mounts it: read-only,
+        # root-owned, mode 644 (docs/deployment/oracle-vm-deployment.md).
+        mkdir boot-config
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout /dev/null -days 1 \
+          -subj "/CN=api-image-boot" -out boot-config/prod-ca-2021.crt
+        sudo chown root:root boot-config/prod-ca-2021.crt
+        sudo chmod 644 boot-config/prod-ca-2021.crt
+        mount="$PWD/boot-config/prod-ca-2021.crt:/app/prod-ca-2021.crt:ro"
+
+        # Throwaway values: the boot-time secret check rejects the samples.
+        cat > boot.env <<EOF
+        DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci
+        DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel_boot_ci
+        NEXTAUTH_SECRET=$(openssl rand -hex 32)
+        ENCRYPTION_KEY=$(openssl rand -hex 32)
+        CRON_SECRET=$(openssl rand -hex 16)
+        EOF
+
+        # Migrate first, as deploy-oracle.yml does, so the worker's queries hit real
+        # tables. Production migrates from the deploy runner, not from this image, so
+        # this setup runs as root rather than making it part of what the job tests.
+        docker run --rm --network host --env-file boot.env --user root craftmyfunnel-api-boot \
+          npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
+
+        docker run -d --name api-boot --network host --env-file boot.env -v "$mount" \
+          craftmyfunnel-api-boot
+        # Same command as deploy/oracle/docker-compose.worker.yml.
+        docker run -d --name worker-boot --network host --env-file boot.env -v "$mount" \
+          craftmyfunnel-api-boot node ../../node_modules/tsx/dist/cli.mjs src/workers/start-workers.ts
+
+    - name: Require GET /health to return 200
+      run: |
+        for attempt in $(seq 1 60); do
+          code=$(curl -s --max-time 5 -o health.json -w '%{http_code}' http://127.0.0.1:3001/health || true)
+          if [ "$code" = "200" ]; then
+            cat health.json
+            exit 0
+          fi
+          if [ "$(docker inspect -f '{{.State.Running}}' api-boot)" != "true" ]; then
+            echo "::error::The API container exited before /health returned 200."
+            exit 1
+          fi
+          sleep 2
+        done
+        echo "::error::/health did not return 200 within 120s (last status: ${code})."
+        exit 1
+
+    - name: Require a full worker pass without errors
+      run: |
+        # The loop's first pass runs every maintenance task against the database and
+        # ends with the retention sweep's dry run. A failing task logs
+        # "[Worker] Loop error" and cuts the pass short.
+        for attempt in $(seq 1 60); do
+          logs=$(docker logs worker-boot 2>&1)
+          if grep -q "Loop error" <<< "$logs"; then
+            echo "::error::The worker loop failed."
+            grep "Loop error" <<< "$logs" | head -n 5
+            exit 1
+          fi
+          if grep -q "\[Retention\]" <<< "$logs"; then
+            # Give the sweep's remaining tables a moment to log.
+            sleep 3
+            logs=$(docker logs worker-boot 2>&1)
+            # No migration creates the Landing* tables (production got them from an
+            # earlier out-of-band `prisma db push`; see migration
+            # 20260916100000_campaign_landing_icp), so this fresh database lacks
+            # LandingEvent. Only that exact failure is let through.
+            known_gap='LandingEvent sweep failed.*does not exist'
+            if grep -E "Loop error|sweep failed" <<< "$logs" | grep -Ev "$known_gap"; then
+              echo "::error::The worker's first pass logged an error."
+              exit 1
+            fi
+            if grep -qE "$known_gap" <<< "$logs"; then
+              echo "::warning::LandingEvent is missing from the migrated CI database: no migration creates the Landing* tables."
+            fi
+            exit 0
+          fi
+          if [ "$(docker inspect -f '{{.State.Running}}' worker-boot)" != "true" ]; then
+            echo "::error::The worker container exited during its first pass."
+            exit 1
+          fi
+          sleep 2
+        done
+        echo "::error::The worker did not finish its first pass within 120s."
+        exit 1
+
+    - name: Require non-root processes that can read the CA mount
+      run: |
+        for container in api-boot worker-boot; do
+          uid=$(docker exec "$container" id -u)
+          echo "${container} runs as uid ${uid}"
+          test "$uid" != "0"
+          docker exec "$container" test -r /app/prod-ca-2021.crt
+        done
+
+    - name: Require Chromium to render a PDF in the worker
+      run: |
+        # Same launch args as invoicePdfRenderer.ts, which only runs in the worker.
+        docker exec worker-boot node -e '
+          require("puppeteer")
+            .launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] })
+            .then(async (browser) => {
+              const page = await browser.newPage();
+              await page.setContent("<p>api-image-boot</p>");
+              const pdf = await page.pdf();
+              await browser.close();
+              if (!pdf.length) throw new Error("Chromium returned an empty PDF");
+              console.log(`Rendered a ${pdf.length}-byte PDF as uid ${process.getuid()}`);
+            })
+            .catch((error) => {
+              console.error(error);
+              process.exit(1);
+            });
+        '
+
+    - name: Container logs
+      if: always()
+      run: |
+        for container in api-boot worker-boot; do
+          echo "::group::${container}"
+          docker logs "$container" 2>&1 | tail -n 200 || true
+          echo "::endgroup::"
+        done
+
+    - name: Remove containers
+      if: always()
+      run: docker rm -f api-boot worker-boot > /dev/null 2>&1 || true
+
   ci-gate:
     name: CI Gate
-    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke]
+    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke, api-image-boot]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -326,6 +508,10 @@ jobs:
           fi
           if [ "${{ needs.docker-smoke.result }}" != "success" ]; then
             echo "::error::Docker Build Smoke did not complete successfully."
+            exit 1
+          fi
+          if [ "${{ needs.api-image-boot.result }}" != "success" ]; then
+            echo "::error::API Image Boot did not complete successfully."
             exit 1
           fi
         fi
