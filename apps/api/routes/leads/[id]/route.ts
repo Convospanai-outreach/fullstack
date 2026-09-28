@@ -4,6 +4,34 @@ import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
+import { parseBody } from "@/lib/validation/parseBody";
+import { z } from "zod";
+
+// Value types for the PATCH allowlist below, matching the Lead columns. Unknown
+// keys are stripped (they were already ignored by the allowlist); wrong types
+// used to reach Prisma and come back as a 500.
+const optionalText = z.string().max(2000).nullish();
+const patchLeadSchema = z.object({
+    fullName: optionalText,
+    email: optionalText,
+    phone: optionalText,
+    linkedIn: optionalText,
+    company: optionalText,
+    domain: optionalText,
+    jobTitle: optionalText,
+    location: optionalText,
+    status: z.string().min(1).max(64).optional(),
+    tags: z.array(z.string().max(200)).optional(),
+    crmId: optionalText,
+    value: z.number().nullish(),
+    consentObtained: z.boolean().optional(),
+    whatsappConsent: z.boolean().optional(),
+    whatsappConsentAt: z.iso.datetime({ offset: true }).nullish(),
+    whatsappConsentBy: optionalText,
+    whatsappNumber: optionalText,
+    preferredMeetingType: optionalText,
+    meetingLocation: optionalText,
+});
 
 async function requireLeadContext(id: string, requiredRole: TeamRole) {
     const { teamId, userId } = await getCurrentContext();
@@ -43,7 +71,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     try {
         const { id } = await params;
         const { lead: existingLead, teamId } = await requireLeadContext(id, TeamRole.MEMBER);
-        const body = await req.json();
+        const parsed = await parseBody(req, patchLeadSchema);
+        if (!parsed.ok) return parsed.response;
+        const body = parsed.data;
 
         // STRICT ALLOWLIST: Only user-editable fields are permitted.
         // System-managed fields (pipelineState, intentScore, leadScore, isEnriched,

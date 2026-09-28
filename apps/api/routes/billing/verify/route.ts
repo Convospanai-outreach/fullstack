@@ -6,6 +6,17 @@ import { addCredits } from "@/lib/credits";
 import { razorpay, isRazorpayConfigured } from "@/lib/razorpay";
 import { OutboxService } from "@/lib/outboxService";
 import { createInvoice, resolveTax } from "../../webhooks/razorpay/route";
+import { parseBody } from "@/lib/validation/parseBody";
+import { z } from "zod";
+
+// Strings only, never trimmed/transformed (they feed the HMAC check verbatim).
+// A non-string (number, array, object) used to reach Buffer.from / the Razorpay
+// SDK / Prisma and fail as a 500 instead of a 400.
+const verifySchema = z.object({
+    razorpay_order_id: z.string().max(128).nullish(),
+    razorpay_payment_id: z.string().max(128).nullish(),
+    razorpay_signature: z.string().max(256).nullish(),
+});
 
 // Client-side companion to the /webhooks/razorpay path: Razorpay Checkout's
 // `handler` callback only proves the browser saw a success screen, so credits
@@ -24,8 +35,9 @@ export async function POST(req: NextRequest) {
     }
     const keySecret = process.env["RAZORPAY_KEY_SECRET"]!;
 
-    const body = await req.json();
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
+    const parsed = await parseBody(req, verifySchema);
+    if (!parsed.ok) return parsed.response;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = parsed.data;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return NextResponse.json({ error: "Missing payment verification fields" }, { status: 400 });
     }

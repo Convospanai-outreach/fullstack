@@ -65,4 +65,19 @@ describe("PATCH /pipeline/tasks/[id]", () => {
             data: { status: "DONE" },
         });
     });
+
+    // roadmap 3.3 (S-10): any status/priority string was written through, and an
+    // unparseable dueDate reached Prisma as Invalid Date.
+    it("400s an unknown status or an invalid dueDate without writing", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockPrisma.task.findFirst.mockResolvedValue({ id: "task-1", teamId: "team-1", lead: null });
+        mockPrisma.task.updateMany.mockResolvedValue({ count: 1 });
+
+        const badStatus = await PATCH(patchRequest({ status: "ARCHIVED" }), ctx("task-1"));
+        const badDate = await PATCH(patchRequest({ dueDate: "not-a-date" }), ctx("task-1"));
+
+        expect(badStatus.status).toBe(400);
+        expect(badDate.status).toBe(400);
+        expect(mockPrisma.task.updateMany).not.toHaveBeenCalled();
+    });
 });

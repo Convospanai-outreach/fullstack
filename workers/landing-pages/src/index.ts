@@ -9,6 +9,31 @@ export interface Env {
 interface StoredPage {
 	html: string;
 	teamId: string;
+	// sha256 CSP source of the page's one inline script, written by
+	// cloudflarePagesService.ts. Absent on pages pushed before it existed.
+	scriptHash?: string;
+}
+
+// Clickjacking protection is enforced (nothing legitimately frames these pages).
+// The rest of the policy ships Report-Only because customer HTML/CSS varies
+// (external images, @import'd fonts): it only allows the page's own inline
+// script by hash, so it can be switched to enforcing once reports are clean.
+function securityHeaders(scriptHash?: string): Record<string, string> {
+	return {
+		"Content-Security-Policy": "frame-ancestors 'none'",
+		"X-Frame-Options": "DENY",
+		"Content-Security-Policy-Report-Only": [
+			"default-src 'self'",
+			`script-src ${scriptHash ? `'${scriptHash}'` : "'none'"}`,
+			"style-src 'self' 'unsafe-inline' https:",
+			"img-src 'self' https: data:",
+			"font-src 'self' https: data:",
+			"connect-src 'self'",
+			"form-action 'self'",
+			"base-uri 'none'",
+			"object-src 'none'",
+		].join("; "),
+	};
 }
 
 const THANK_YOU_HTML = `<!doctype html>
@@ -100,7 +125,9 @@ export default {
 			return proxyToApi(env, request, `/landing-agent/public/${slug}/event`);
 		}
 		if (segments[1] === "thank-you" && request.method === "GET") {
-			return new Response(THANK_YOU_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+			return new Response(THANK_YOU_HTML, {
+				headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
+			});
 		}
 
 		if (request.method !== "GET") {
@@ -118,7 +145,11 @@ export default {
 		}
 
 		return new Response(stored.html, {
-			headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=60" },
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+				"Cache-Control": "public, max-age=60",
+				...securityHeaders(stored.scriptHash),
+			},
 		});
 	},
 };

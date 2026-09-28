@@ -140,4 +140,25 @@ describe("/billing/topup", () => {
 
         expect(calls).toEqual(["createTopUpOrder", "team.update"]);
     });
+
+    // roadmap 3.3 (S-10): an unguarded req.json() let malformed JSON escape as
+    // an unhandled error (500) rather than a 400.
+    it("400s a malformed JSON body", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(
+            new Request("http://localhost/billing/topup", { method: "POST", body: "{tierId:" }) as any
+        );
+
+        expect(response.status).toBe(400);
+        expect(mockCreateTopUpOrder).not.toHaveBeenCalled();
+    });
+
+    it("400s a non-string tierId", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ tierId: ["starter"], country: "US" }) as any);
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).code).toBe("VALIDATION_ERROR");
+        expect(mockCreateTopUpOrder).not.toHaveBeenCalled();
+    });
 });
