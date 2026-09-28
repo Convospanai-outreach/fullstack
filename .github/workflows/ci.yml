@@ -380,10 +380,14 @@ jobs:
         docker run --rm --network host --env-file boot.env --user root craftmyfunnel-api-boot \
           npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
 
+        # --memory mirrors the Oracle VMs' container limit (mem_limit: 640m), so an
+        # out-of-memory kill fails this job instead of a production host.
         docker run -d --name api-boot --network host --env-file boot.env -v "$mount" \
+          --memory=640m --memory-swap=640m \
           craftmyfunnel-api-boot
         # Same command as deploy/oracle/docker-compose.worker.yml.
         docker run -d --name worker-boot --network host --env-file boot.env -v "$mount" \
+          --memory=640m --memory-swap=640m \
           craftmyfunnel-api-boot node ../../node_modules/tsx/dist/cli.mjs src/workers/start-workers.ts
 
     - name: Require GET /health to return 200
@@ -441,6 +445,36 @@ jobs:
         done
         echo "::error::The worker did not finish its first pass within 120s."
         exit 1
+
+    - name: Require the api container to boot within its memory budget
+      env:
+        # api-main runs ~254-274 MiB in production on a 954 MB host that also runs
+        # Caddy, fail2ban and Docker. #579 pushed it to ~371 MiB (jsdom loaded at
+        # boot) and the host OOM-hung (see the OPEN-270 REVERTED note); the 640m
+        # container cap alone would not have caught that. Raise this only together
+        # with a matching host-capacity check.
+        API_BOOT_MEM_BUDGET_MIB: "330"
+      run: |
+        to_mib() {
+          awk -v v="$1" 'BEGIN {
+            n = v + 0; u = v; sub(/^[0-9.]+/, "", u)
+            if (u == "GiB") n *= 1024; else if (u == "KiB") n /= 1024; else if (u == "B") n /= 1048576
+            printf "%d", n
+          }'
+        }
+        mem_of() { docker stats --no-stream --format '{{.MemUsage}}' "$1" | awk '{print $1}'; }
+        # Let post-boot allocation settle after /health and the worker pass.
+        sleep 10
+        for container in api-boot worker-boot; do
+          usage=$(mem_of "$container")
+          echo "${container}: ${usage} ($(to_mib "$usage") MiB)"
+        done
+        api_mib=$(to_mib "$(mem_of api-boot)")
+        if [ "$api_mib" -gt "$API_BOOT_MEM_BUDGET_MIB" ]; then
+          echo "::error::api-boot uses ${api_mib} MiB after boot, over the ${API_BOOT_MEM_BUDGET_MIB} MiB budget. A new boot-time dependency may not fit the 1 GB api-main host."
+          exit 1
+        fi
+        echo "api-boot is within budget (${api_mib}/${API_BOOT_MEM_BUDGET_MIB} MiB)."
 
     - name: Require non-root processes that can read the CA mount
       run: |
