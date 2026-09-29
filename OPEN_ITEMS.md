@@ -5919,6 +5919,74 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   still per-process. Its built-in Redis store either fails open or 500s every request when Redis errors,
   so it needs a store with a local fallback.
 
+- **OPEN-278 (Fixed — re-land of OPEN-270 / roadmap 3.3 with sanitize-html; worker deploy + backfill owner-owed):**
+  re-lands everything #579 shipped (see the OPEN-270 bullet: worker `frame-ancestors 'none'` + XFO + Report-Only
+  CSP with the publish-time `scriptHash`, `getPublicPage` returning cleaned html, `parseBody` + zod on the 7 hot
+  routes + apps/web's campaigns PATCH, apps/web's attribute-entity pass-through) with one change: the landing
+  sanitizer is `sanitize-html@2.17.7` (htmlparser2, no jsdom) instead of `isomorphic-dompurify`, per the owner's
+  decision (not lazy-loading, as OPEN-270's note suggested). Same tag/attr allow-lists; svg, math, template,
+  iframe/object/embed, noscript, title etc. dropped with their content (`nonTextTags`); one `transformTags['*']`
+  keeps the old rules (isSafeLink-only href/src, class-token filter, no raw `rel`, `target` normalised +
+  `rel="noopener noreferrer"` on `_blank`, empty values dropped) plus a curated DOM-clobbering id denylist
+  (DOMPurify dropped any id `in document || in form`; this keeps the commonly-clobbered subset);
+  `allowedSchemes` http/https/mailto/tel as a second check. Output differences vs DOMPurify: void elements
+  serialize as `<img ... />`/`<br />`; `<`/`>` are encoded inside attribute values; named entities like
+  `&nbsp;`/`&copy;` come out as the literal characters. Attribute `&` is still `&amp;`, so apps/web's
+  pass-through fix is still needed and its test gained the exact sanitize-html shape. **Memory** (local boot,
+  `node --import tsx server.ts`, NODE_ENV=production, 5 interleaved runs, no Postgres — routes register, `/health`
+  answers 503): post-GC heapUsed origin/main 116.5 MiB, this branch 119.4 MiB (+2.9), #579 144.0 MiB (+27.5);
+  median RSS 326.0 / 323.4 / 375.6 MiB (Windows working set, noisy); jsdom not in the module cache on this
+  branch (it is on #579), and nothing in apps/api imports jsdom/dompurify (jsdom stays a vitest-only dev dep).
+  CI `API Image Boot` on #590: api-boot 204.4 MiB (main's CI baseline 200.5, budget 240).
+  Tests: #579's suites pass (XSS payloads adapted only for ` />` void serialization), plus sanitize-html cases
+  (uppercase/split tags, comments, whitespace/mixed-case/vbscript schemes, svg/math content dropped, `<>` in
+  attributes, `&` encoded exactly once); 33 fail with the sanitizer replaced by identity. **Owner-owed:** (1)
+  `wrangler deploy` of `workers/landing-pages`; (2) re-run `src/scripts/backfill-cloudflare-landing-pages.ts` so
+  published pages get `scriptHash`; (3) note `frame-ancestors 'none'` breaks customers who iframe their own
+  landing page elsewhere.
+
+- **OPEN-279 (Fixed — the Raspberry Pi 5 image build no longer holds up the Oracle API deploy):**
+  `deploy-oracle.yml` runs on `workflow_run` of "Register Docker Images to GHCR", so it waited for every job in
+  `docker-ghcr.yml`, including `build-and-push-edge-pi5` (a QEMU arm64 build of apps/edge-fastapi). On
+  2026-09-28 that job took ~85 minutes on a cold cache (normally ~30 s), holding up the #590 (f35cc9a) deploy
+  although the API image was pushed at 14:19Z. The Pi5 job now lives in `docker-ghcr-edge-pi5.yml` with the
+  same build config, triggered only by `apps/edge-fastapi/**` or its own file (its only build inputs), and
+  without `continue-on-error`, so a failed Pi build now shows red instead of passing silently; it can no longer
+  block a deploy. Regression test `scripts/ci/deploy-trigger-workflows.test.mjs` (run in the API Strict
+  Typecheck job) fails if any workflow that triggers the deploy runs a QEMU/arm64 step; it fails against
+  main's `docker-ghcr.yml` and passes with this change. **Follow-up:** the x86 edge-fastapi image (optional,
+  `continue-on-error`) still builds after the API image inside `build-and-push`, so it still delays the deploy
+  when its cache is cold.
+
+- **OPEN-281 (Fixed — new ip-address and nodemailer advisories that failed every CI run's `npm audit` gate):**
+  three advisories published 2026-09-28 20:43–21:56Z made `scripts/audit-with-allowlist.mjs` fail on every PR
+  (first seen on #592) and would fail main's next CI run: GHSA-rpw4-54j3-4h4q and GHSA-2vr4-cq9g-pvrc
+  (`ip-address` <= 10.5.0 misclassifies link-local and NAT64 IPv6 ranges, a possible SSRF classifier bypass;
+  reached via `socks` and `geoip-lite`, pinned by the root override) and GHSA-6vj9-mwq6-2f5v (`nodemailer`
+  < 10.0.2, the process-global DNS cache reuses TLS `servername` across transports, a cross-tenant SMTP
+  credential disclosure; apps/api and apps/web used 9.1.1). The `ip-address` override goes to 10.5.1, and
+  `nodemailer` goes to ^10.0.2 (resolves 10.0.12) in apps/api, apps/web and the root override. nodemailer 10's
+  only breaking change is Node >= 20 (we run 22). It ships its own types, which have no `nodemailer.Transporter`
+  namespace, so both `smtpClient.ts` files import `type Transporter`; `@types/nodemailer` is removed as now
+  unused. The lockfile is main's plus only these entries (no npm dev-flag churn). Evidence: the audit gate exits 1
+  on main's lockfile with exactly these three advisories and 0 on this branch, in both apps/api and apps/web. Both
+  `smtpClient.ts` files typecheck against 10.0.12 (the same check passes on 9.1.1 before the change, and fails
+  on 10.0.12 without it). An ESM runtime smoke with v10 shows the B-07 timeouts applied, a fast ESOCKET on a
+  closed port, and `sendMail` working.
+
+- **OPEN-280 (Fixed — the x86 edge-fastapi image no longer delays the Oracle API deploy; OPEN-279 follow-up):**
+  after OPEN-279 the x86 edge-fastapi image (optional, `continue-on-error`) still built inside
+  `docker-ghcr.yml`'s `build-and-push` job after the API image, so `deploy-oracle.yml` (on `workflow_run` of
+  that workflow) still waited for it. Both edge images now build in one workflow, `docker-ghcr-edge.yml`
+  (renamed from `docker-ghcr-edge-pi5.yml`), as jobs `build-and-push-edge` (x86) and
+  `build-and-push-edge-pi5`. It runs only when `apps/edge-fastapi/**` or its own file changes. `docker-ghcr.yml`
+  no longer builds edge or triggers on `apps/edge-fastapi/**`, so an edge-only change no longer rebuilds web/api
+  and redeploys the VMs. The x86 build drops `continue-on-error` (a failure now shows red) and gets its own GHA
+  cache scope (`edge-x86`) instead of sharing the default scope with web/api. Nothing pulls the published edge
+  images (`docker-compose.edge.yml` builds from source). `scripts/ci/deploy-trigger-workflows.test.mjs` now also
+  fails if a deploy-trigger workflow builds from `apps/edge-fastapi`. It fails against main's `docker-ghcr.yml`
+  and passes with this change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

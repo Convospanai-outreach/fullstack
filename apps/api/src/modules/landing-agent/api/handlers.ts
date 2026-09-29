@@ -13,6 +13,7 @@ import {
     selectWireframeSchema,
 } from "../schemas";
 import { landingAgentService } from "../service";
+import { sanitizeRenderedJsonHtml } from "../rendering";
 
 type ParamContext = { params?: Promise<Record<string, string>> };
 
@@ -270,7 +271,7 @@ export async function getPublicPage(req: Request, ctx?: ParamContext) {
             slug: page.slug,
             title: page.title,
             version: page.version,
-            renderedJson: page.renderedJson,
+            renderedJson: sanitizeRenderedJsonHtml(page.renderedJson),
             campaignId: page.campaignId,
         });
     } catch (error) {
