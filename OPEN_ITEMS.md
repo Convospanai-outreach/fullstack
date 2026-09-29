@@ -5988,6 +5988,26 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   deployment (the owner's objective): Mautic isn't deployed, and narrowing it to Cloudflare ranges in the current
   Caddy template would untrust Caddy itself and break HTTPS detection.
 
+- **OPEN-283 (Fixed — Mautic on AWS: CloudFormation stack replaces the undeployed Oracle-era compose; closes S-17's MAUTIC_TRUSTED_PROXIES):**
+  the owner's objective is to host Mautic on AWS (eu-north-1, Free plan credits). `deploy/aws/mautic/mautic.yaml` is one
+  t4g.small AL2023 instance running Docker Compose (Caddy 2.11.4, MySQL 8.4.11, Mautic 7.2.1 web/cron/worker) in its own
+  VPC. Only Cloudflare reaches it (security group: tcp 443 from the 15 Cloudflare IPv4 ranges, no SSH; admin through SSM
+  Session Manager). All state is on a separate encrypted, retained EBS volume with daily DLM snapshots kept 7 days. The
+  instance requires IMDSv2 with hop limit 1, so containers can't use the instance role. The EIP is pre-bound to an ENI and
+  the data volume attaches through `Instance.Volumes`, because both must exist before the CreationPolicy signal.
+  Secrets: `AdminSecret` is generated; `ExternalSecret` (Resend key, Cloudflare origin cert/key) is filled in by the owner
+  and read at runtime by the instance role; the DB passwords are generated on first boot and kept on the data volume. There
+  are none in parameters, metadata or user data. Proxy chain (the S-17 fix): Caddy trusts the Cloudflare ranges and
+  overwrites `X-Forwarded-For` with `{client_ip}`, and Mautic's `trusted_proxies` is only the compose subnet
+  (`172.28.0.0/24`), never `0.0.0.0/0`. Mautic config (API + Basic auth, Resend SMTP DSN, trusted hosts/proxies) is set
+  through `MAUTIC_CONFIG_PARAMETERS`. The budget alert excludes credits. `docker-compose.mautic.yml` and
+  `docker/mautic/Caddyfile` (never deployed, `MAUTIC_TRUSTED_PROXIES: 0.0.0.0/0`) are removed.
+  Regression test `scripts/ci/mautic-template.test.mjs` (new CI step): its S-17 test fails on main because of the old
+  compose file. The other tests pin Cloudflare-only ingress matching Caddy's trusted ranges, Mautic trusting only the
+  compose subnet, IMDSv2, encryption, Retain policies, no secret parameters, and `bash -n` of the embedded scripts.
+  cfn-lint is clean and shellcheck is clean. **Not deployed:** the AWS account isn't activated yet (`OptInRequired`),
+  so there has been no service-side validation or pricing check; the owner deploys by following `deploy/aws/mautic/README.md`.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
