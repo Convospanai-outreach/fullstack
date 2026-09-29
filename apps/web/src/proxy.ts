@@ -456,7 +456,10 @@ async function appProxy(req: NextRequest) {
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    response.headers.set('X-XSS-Protection', '1; mode=block');
+    // '0' turns off the legacy XSS auditor: `1; mode=block` can itself be abused to
+    // leak or break page content, and modern browsers ignore it anyway; the CSP below
+    // is the XSS control (roadmap S-17).
+    response.headers.set('X-XSS-Protection', '0');
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
     
     // Strict-Transport-Security (Only for production HTTPS)
