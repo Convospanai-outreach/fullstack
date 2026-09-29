@@ -48,13 +48,15 @@ aws cloudformation deploy --region eu-north-1 --stack-name mautic \
   --parameter-overrides ImageId="$AMI" AdminEmail=<you> AlertEmail=<you> MailerFromEmail=<sender>
 ```
 
+On the **first** deploy, add `--disable-rollback`. If first boot fails, the instance then stays up so you can debug it over Session Manager (`/var/log/cfn-init.log`, `sudo docker compose -f /opt/mautic/compose.yaml logs`). A rollback would leave the stack in `ROLLBACK_COMPLETE`, which has to be deleted before you can retry. It would also leave the retained data volume and both secrets behind; delete those by hand if you start over.
+
 Stack creation waits up to 25 minutes, until first boot has installed Mautic. After that, Mautic runs but can't be reached yet: Caddy stays stopped until the origin certificate is in place.
 
 The AMI is a parameter on purpose. A new AMI replaces the instance, and that replacement fails while the data volume is still attached to the old instance. So patch in place instead (`sudo dnf upgrade`), and change `ImageId` only as a planned move.
 
 ## After the stack is up
 
-1. **Fill in `ExternalSecret`** (the `ExternalSecretArn` output). Its keys are `resend_api_key`, `cloudflare_origin_cert` and `cloudflare_origin_key`. Use the console's key/value editor, or:
+1. **Fill in `ExternalSecret`** (the `ExternalSecretArn` output). Its keys are `resend_api_key`, `cloudflare_origin_cert` and `cloudflare_origin_key`. Use this command for the certificate and key: the console's key/value editor can strip the PEM line breaks, and Caddy then fails to start. The editor is fine for changing `resend_api_key` alone.
    ```sh
    jq -n --arg resend "$RESEND_KEY" --rawfile cert origin.pem --rawfile key origin.key \
      '{resend_api_key: $resend, cloudflare_origin_cert: $cert, cloudflare_origin_key: $key}' > external.json
