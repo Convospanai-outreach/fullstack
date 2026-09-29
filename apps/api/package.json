@@ -48,7 +48,7 @@
         "mailparser": "^3.9.28",
         "next": "^16.2.11",
         "next-auth": "^4.24.14",
-        "nodemailer": "^9.0.1",
+        "nodemailer": "^10.0.2",
         "openai": "^6.16.0",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",
@@ -76,7 +76,7 @@
         "fastify": "^5.8.5",
         "fast-uri": "4.1.1",
         "js-yaml": "4.3.2",
-        "nodemailer": "^9.0.1",
+        "nodemailer": "^10.0.2",
         "sharp": "0.35.4",
         "@hono/node-server": "^2.0.5",
         "hono": "^4.12.27"
@@ -84,7 +84,6 @@
     "devDependencies": {
         "@types/mailparser": "^3.4.6",
         "@types/node": "^20.0.0",
-        "@types/nodemailer": "^7.0.11",
         "@types/papaparse": "^5.5.2",
         "@types/pg": "^8.15.6",
         "@types/sanitize-html": "^2.16.1",
