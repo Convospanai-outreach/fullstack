@@ -4,6 +4,10 @@ import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
+// Campaign.status is a free-form String column; these are the values the app
+// actually writes (same list as apps/api routes/campaigns/[id]).
+const CAMPAIGN_STATUSES = new Set(["draft", "active", "paused", "completed", "scheduled"]);
+
 async function getCampaignContext(id: string, requiredRole: TeamRole) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) {
@@ -70,7 +74,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (typeof body.description === "string" || body.description === null) {
                 allowedUpdates["description"] = body.description;
             }
-            if (typeof body.status === "string") allowedUpdates["status"] = body.status;
+            if (typeof body.status === "string") {
+                if (!CAMPAIGN_STATUSES.has(body.status)) {
+                    return NextResponse.json({ error: "Invalid campaign status" }, { status: 400 });
+                }
+                allowedUpdates["status"] = body.status;
+            }
             if (typeof body.targetCount === "number") allowedUpdates["targetCount"] = body.targetCount;
             if (typeof body.completedCount === "number") allowedUpdates["completedCount"] = body.completedCount;
 

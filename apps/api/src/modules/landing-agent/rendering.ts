@@ -1,3 +1,5 @@
+import sanitizeHtml from "sanitize-html";
+
 export interface LandingRenderPayload {
     html: string;
     css: string;
@@ -129,8 +131,7 @@ const FALLBACK_HTML = `
 // A <style> element is an HTML "raw text" element: the browser's tokenizer exits
 // style-parsing mode purely on seeing the literal case-insensitive sequence
 // "</style" (whitespace is never allowed between "</" and the tag name, so no
-// other variant terminates it - same rule sanitizeLandingHtml's RAW_TEXT_TAGS
-// scanner relies on). Since `css` is embedded directly into a static
+// other variant terminates it). Since `css` is embedded directly into a static
 // <style>...</style> block when Cloudflare serves a published page
 // (cloudflarePagesService.ts's buildFullDocument does raw string interpolation,
 // not a DOM API), a "</style" substring inside untrusted `css` breaks out of the
@@ -229,131 +230,92 @@ function isSafeLink(value: string): boolean {
     return false;
 }
 
-// Elements whose content browsers tokenize as raw text (not markup) up to their
-// literal closing tag - script/style/iframe/object/embed. Content is skipped
-// verbatim rather than matched/removed with a regex, which is what makes a
-// nested payload like "<scr<script>ipt>" harmless: it's never re-interpreted
-// as markup once we're inside one of these elements, so there's nothing for a
-// broken-apart tag to reform. This intentionally replaces a chained
-// String.replace() tag-stripper, which only ever inspects the input in a fixed
-// number of passes and can't soundly track "am I currently inside a raw-text
-// element" the way this scan does.
-const RAW_TEXT_TAGS = new Set(["script", "style", "iframe", "object", "embed"]);
+// Landing HTML is untrusted (AI output + editor saves) and is served both on the
+// Cloudflare worker and on the app's own origin via /p/[slug], so it goes through
+// a real HTML parser (sanitize-html over htmlparser2) rather than a hand-rolled
+// tokenizer, and is re-serialized from the parse tree: every attribute value is
+// quoted and `&<>"` are re-encoded, so nothing in the output reads back as
+// markup. (sanitize-html, not DOMPurify: DOMPurify needs jsdom on the server,
+// which added ~66 MiB at boot and OOM-hung api-main - see OPEN-270/OPEN-278.)
+// The allow-lists above are unchanged. svg/math and the other raw-text or
+// foreign-content containers are dropped together with their content. The
+// attribute transform keeps the old sanitizer's extra rules - only isSafeLink
+// URLs (so no data: images or javascript:), filtered class tokens, no raw rel,
+// target normalised with rel="noopener noreferrer" on _blank - plus a
+// DOM-clobbering guard for ids.
+const DROP_WITH_CONTENT_TAGS = [
+    "script", "style", "textarea", "option", "xmp", "noscript", "title",
+    "svg", "math", "template", "iframe", "object", "embed", "noembed", "noframes",
+];
 
-const TAG_START_PATTERN = /^<(\/?)([a-zA-Z0-9-]+)/;
-const ATTR_PATTERN = /([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+// ids that would shadow a document or <form> property a script reads (DOM
+// clobbering), which matters on the app's own origin (/p/[slug]). DOMPurify
+// dropped any id `in document || in form`; this is the commonly-clobbered subset.
+const CLOBBERING_IDS = new Set([
+    "cookie", "location", "domain", "URL", "documentURI", "baseURI", "referrer", "origin",
+    "body", "head", "documentElement", "defaultView", "currentScript", "activeElement",
+    "forms", "images", "links", "scripts", "anchors", "embeds", "plugins", "all", "children",
+    "title", "readyState", "implementation", "attributes", "ownerDocument", "parentNode",
+    "firstChild", "lastChild", "childNodes", "nodeName", "nodeType", "textContent", "innerHTML",
+    "createElement", "getElementById", "getElementsByName", "getElementsByTagName",
+    "querySelector", "querySelectorAll", "write", "writeln", "open", "close", "evaluate",
+    "appendChild", "insertBefore", "removeChild", "replaceChild", "cloneNode", "contains",
+    "addEventListener", "removeEventListener", "dispatchEvent",
+    "action", "method", "target", "elements", "submit", "reset", "length", "name",
+]);
 
-function sanitizeTag(tagName: string, isClosing: boolean, rawAttrs: string): string {
-    if (!ALLOWED_HTML_TAGS.has(tagName)) {
-        return "";
-    }
-    if (isClosing) {
-        return `</${tagName}>`;
-    }
-
-    const attrs: string[] = [];
-    rawAttrs.replace(
-        ATTR_PATTERN,
-        (_full: string, rawAttrName: string, doubleQuoted?: string, singleQuoted?: string, unquoted?: string) => {
-            const attrName = rawAttrName.toLowerCase();
-            if (attrName.startsWith("on") || attrName === "style") {
-                return "";
-            }
-            if (!ALLOWED_HTML_ATTRS.has(attrName)) {
-                return "";
-            }
-
-            const rawValue = String(doubleQuoted ?? singleQuoted ?? unquoted ?? "").trim();
-            if (!rawValue) {
-                return "";
-            }
-
-            if ((attrName === "href" || attrName === "src") && !isSafeLink(rawValue)) {
-                return "";
-            }
-            if (attrName === "class") {
-                const safeClass = sanitizeClassTokens(rawValue);
-                if (!safeClass) return "";
-                attrs.push(`class="${safeClass}"`);
-                return "";
-            }
-            if (attrName === "target") {
-                const safeTarget = rawValue === "_blank" ? "_blank" : "_self";
-                attrs.push(`target="${safeTarget}"`);
-                if (safeTarget === "_blank") {
-                    attrs.push(`rel="noopener noreferrer"`);
-                }
-                return "";
-            }
-            if (attrName === "rel") {
-                // rel is controlled when target="_blank"; ignore direct raw rel to avoid spoofing.
-                return "";
-            }
-
-            attrs.push(`${attrName}="${escapeHtml(rawValue)}"`);
-            return "";
+// Runs on every tag (allowed or not) before sanitize-html's own attribute
+// allow-list; values arrive entity-decoded, so `jav&#x61;script:` is caught here.
+function sanitizeLandingAttributes(attribs: sanitizeHtml.Attributes): sanitizeHtml.Attributes {
+    const out: sanitizeHtml.Attributes = {};
+    for (const [rawName, rawValue] of Object.entries(attribs)) {
+        const attrName = rawName.toLowerCase();
+        const value = rawValue.trim();
+        if (!value || attrName === "rel") continue;
+        if ((attrName === "href" || attrName === "src") && !isSafeLink(value)) continue;
+        if (attrName === "id" && CLOBBERING_IDS.has(value)) continue;
+        if (attrName === "class") {
+            const safeClass = sanitizeClassTokens(value);
+            if (safeClass) out[attrName] = safeClass;
+            continue;
         }
-    );
-
-    return `<${tagName}${attrs.length ? ` ${attrs.join(" ")}` : ""}>`;
+        if (attrName === "target") {
+            out[attrName] = value === "_blank" ? "_blank" : "_self";
+            if (out[attrName] === "_blank") out["rel"] = "noopener noreferrer";
+            continue;
+        }
+        out[attrName] = value;
+    }
+    return out;
 }
 
+const LANDING_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+    allowedTags: [...ALLOWED_HTML_TAGS],
+    allowedAttributes: { "*": [...ALLOWED_HTML_ATTRS] },
+    // Defense in depth: sanitizeLandingAttributes has already applied isSafeLink.
+    allowedSchemes: ["http", "https", "mailto", "tel"],
+    nonTextTags: DROP_WITH_CONTENT_TAGS,
+    transformTags: {
+        "*": (tagName, attribs) => ({ tagName, attribs: sanitizeLandingAttributes(attribs) }),
+    },
+};
+
 function sanitizeLandingHtml(rawHtml: string): string {
-    const lower = rawHtml.toLowerCase();
-    let output = "";
-    let i = 0;
-    const n = rawHtml.length;
+    return sanitizeHtml(rawHtml, LANDING_SANITIZE_OPTIONS);
+}
 
-    while (i < n) {
-        if (rawHtml[i] !== "<") {
-            output += rawHtml[i];
-            i += 1;
-            continue;
-        }
-
-        if (rawHtml.startsWith("<!--", i)) {
-            const end = rawHtml.indexOf("-->", i + 4);
-            i = end === -1 ? n : end + 3;
-            continue;
-        }
-
-        const tagToken = TAG_START_PATTERN.exec(rawHtml.slice(i));
-        if (!tagToken) {
-            output += "<";
-            i += 1;
-            continue;
-        }
-
-        const isClosing = tagToken[1] === "/";
-        const tagName = tagToken[2]!.toLowerCase();
-        const tagEnd = rawHtml.indexOf(">", i);
-        if (tagEnd === -1) {
-            // Unterminated tag - drop the remainder rather than risk misparsing it.
-            i = n;
-            continue;
-        }
-
-        if (!isClosing && RAW_TEXT_TAGS.has(tagName)) {
-            // Skip this raw-text element's content up to (and including) its literal
-            // closing tag - see RAW_TEXT_TAGS above for why this must be a literal
-            // substring search rather than a regex match.
-            const closeToken = `</${tagName}`;
-            const closeIndex = lower.indexOf(closeToken, tagEnd + 1);
-            if (closeIndex === -1) {
-                i = n;
-            } else {
-                const closeTagEnd = rawHtml.indexOf(">", closeIndex);
-                i = closeTagEnd === -1 ? n : closeTagEnd + 1;
-            }
-            continue;
-        }
-
-        const rawAttrs = rawHtml.slice(i + 1 + (isClosing ? 1 : 0) + tagName.length, tagEnd);
-        output += sanitizeTag(tagName, isClosing, rawAttrs);
-        i = tagEnd + 1;
+// For the public page JSON that apps/web's /p/[slug] renders on the app's own
+// origin: clean the raw `html` field here so that path gets the same parser-based
+// sanitizer as the Cloudflare one (apps/web still runs its own copy on top).
+export function sanitizeRenderedJsonHtml(renderedJson: unknown): unknown {
+    if (!renderedJson || typeof renderedJson !== "object" || Array.isArray(renderedJson)) {
+        return renderedJson;
     }
-
-    return output;
+    const data = renderedJson as Record<string, unknown>;
+    if (typeof data["html"] !== "string") {
+        return renderedJson;
+    }
+    return { ...data, html: sanitizeLandingHtml(data["html"]) };
 }
 
 function normalizeSections(value: unknown): LandingPageSectionLike[] {

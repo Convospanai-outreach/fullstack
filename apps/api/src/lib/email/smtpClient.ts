@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 export interface SmtpConfig {
     host: string;
@@ -24,7 +24,7 @@ export interface SendMailResult {
     error?: string;
 }
 
-export function createSmtpTransport(config: SmtpConfig): nodemailer.Transporter {
+export function createSmtpTransport(config: SmtpConfig): Transporter {
     return nodemailer.createTransport({
         host: config.host,
         port: config.port,

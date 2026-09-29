@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
@@ -60,6 +61,29 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(body.teamId).toBe("team-1");
         expect(body.html).toContain("Hello");
         expect(body.html).toContain("la-lead-form");
+    });
+
+    // S-09 (roadmap 3.3): the worker's CSP allows exactly this inline script by
+    // hash, so the stored hash must match the served <script> text byte for byte.
+    it("stores the sha256 CSP hash of the document's inline lead-form script", async () => {
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "my-campaign",
+            title: "My Campaign",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+        });
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)];
+        expect(scripts).toHaveLength(1);
+        const expected = `sha256-${createHash("sha256").update(scripts[0]![1]!, "utf8").digest("base64")}`;
+        expect(body.scriptHash).toBe(expected);
+        expect(scripts[0]![1]).toContain('var slug = "my-campaign"');
     });
 
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {

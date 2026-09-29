@@ -260,6 +260,9 @@ jobs:
     - name: Install dependencies
       run: npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps
 
+    - name: Keep slow image builds out of the deploy trigger
+      run: node --test scripts/ci/deploy-trigger-workflows.test.mjs
+
     # Same allowlisted high/critical gate the web jobs run. Run inside a workspace
     # folder, `npm audit` only covers that workspace's tree, so the web jobs never
     # covered dependencies that only apps/api uses.

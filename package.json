@@ -41,7 +41,7 @@
     "hono": "^4.12.34",
     "form-data": "^4.0.6",
     "fastify": "^5.8.5",
-    "nodemailer": "^9.0.1",
+    "nodemailer": "^10.0.2",
     "next": "16.3.4",
     "esbuild": "0.28.1",
     "postcss": "8.5.25",
@@ -50,7 +50,7 @@
     "ws": "8.21.0",
     "fast-uri": "4.1.1",
     "find-my-way": "9.7.0",
-    "ip-address": "10.4.0",
+    "ip-address": "10.5.1",
     "socket.io-parser": "4.2.7",
     "valibot": "1.4.2",
     "sharp": "0.35.4",
@@ -77,6 +77,7 @@
   "devDependencies": {
     "@emnapi/core": "1.11.1",
     "@emnapi/runtime": "1.11.1",
-    "@vitest/coverage-v8": "^4.1.8"
+    "@vitest/coverage-v8": "^4.1.8",
+    "js-yaml": "4.3.2"
   }
 }
