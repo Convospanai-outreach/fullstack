@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `8a5fff1` (2026-09-28, ~06:05 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; prod is back (see STEP 1). #588 and #589 then added a boot-memory budget to CI.
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `1bc2826` (2026-09-29, ~09:40 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; #590 re-landed it with sanitize-html (see STEP 1). #588 and #589 added a boot-memory budget to CI, and #591-#593 followed.
 
 ---
 
@@ -8,9 +8,9 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. main is at 8a5fff1. Everything below went through "Register Docker Images to GHCR" ->
-"Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it; the revert's
-deploy (run #315, 04:42 UTC) passed its health check. Start with:
+work. main is at 1bc2826. Everything below went through "Register Docker Images to GHCR" ->
+"Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it (the revert's
+deploy, run #315, passed its health check) and #590 re-landed it without jsdom. Start with:
   git checkout main && git pull
   npm ci
   npx prisma generate --schema apps/api/prisma/schema.prisma   (only if api tests can't find the Prisma client)
@@ -29,20 +29,25 @@ MERGED IN THIS BATCH (ledger entries in OPEN_ITEMS.md)
   refusal, CSV formula neutralization, 10 MiB upload cap. Plus CodeAnt fixes: client-errors
   CSV userId, JSON upload cap applies to the CSV not the envelope, replay-cache sweeps expired
   entries before evicting, NonRetryableJobError dead-letters 3xx webhook deliveries.
-- #579 OPEN-270 (roadmap 3.3): REVERTED by #586. It had the DOMPurify landing sanitizer, worker
-  CSP, parseBody + zod on hot routes, lead whatsappConsentAt as an ISO datetime.
+- #579 OPEN-270 (roadmap 3.3): REVERTED by #586, then re-landed by #590 (OPEN-278) with
+  sanitize-html instead of isomorphic-dompurify: landing sanitizer, worker CSP, parseBody + zod on
+  the hot routes, lead whatsappConsentAt as an ISO datetime. CI api-boot 204.4 MiB (budget 240).
 - #588 + #589 OPEN-277 (after the incident): "API Image Boot" now runs api-boot and worker-boot
   with --memory=640m (like the VMs) and fails if api-boot uses more than API_BOOT_MEM_BUDGET_MIB
   (240; the CI baseline is ~200 MiB, and #579 added ~66 MiB there) after /health.
+- #591 + #592 OPEN-279/280: both edge-fastapi images build in docker-ghcr-edge.yml, only on
+  apps/edge-fastapi/** changes, so they no longer hold up or trigger the Oracle deploy.
+- #593 OPEN-281: ip-address 10.5.1 and nodemailer ^10.0.2 for three new advisories that failed
+  the npm audit gate.
 
 OPEN PRS
-- #587 (draft) OPEN-278, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
+- #587 (draft) OPEN-282, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
   are also claimed in Redis (SET NX PX), so a replay sent to another api process is caught; it
   falls back to the per-process cache when there is no Redis. CI green, main merged in. The owner
   decides the merge and must confirm REDIS_URL is set on api-main (without it nothing changes).
 - #585 (draft): this handoff doc.
 
-STEP 1 - The #579 outage (resolved; context for re-landing 3.3)
+STEP 1 - The #579 outage (resolved)
 Deploy run 36368134525 (361c977) recreated api-main at 02:08 UTC and the host hung until a global
 OOM kill at 03:40:34 (host kernel log, see the OPEN-270 note). The api node process (anon-rss
 ~371 MB, vs ~254 MB on sha-30a40e7) ran on a 954 MB host with no swap and no container memory
@@ -59,15 +64,14 @@ b) Watch api logs for unexpected 401s on unusual paths: #577's v2 signature bind
 c) Confirm the external scraper signs every retry with a fresh X-Timestamp; an identical
    retry now gets 401 "Replayed request".
 d) Confirm CodeQL alert #46 shows Fixed on main's code-scanning page.
-e) After 3.3 re-lands (follow-up 1): cd workers/landing-pages && wrangler deploy, re-run
-   apps/api/src/scripts/backfill-cloudflare-landing-pages.ts, and optionally add a CSP
-   report-uri before the worker CSP goes enforcing.
+e) 3.3 is live again (#590, OPEN-278): cd workers/landing-pages && wrangler deploy, and re-run
+   apps/api/src/scripts/backfill-cloudflare-landing-pages.ts so published pages get a scriptHash.
+   Note that the worker's frame-ancestors 'none' breaks customers who iframe their own landing
+   page elsewhere. Optionally add a CSP report-uri before the worker CSP goes enforcing.
 
 STEP 3 - Follow-ups (ask the owner which to take; one PR each, smallest safe diff)
-1. Re-land roadmap 3.3 (#579, OPEN-270) with sanitize-html instead of isomorphic-dompurify
-   (+7 MiB measured, per OPEN-277); it must pass the 240 MiB boot budget. Keep the old allow-lists
-   and URL/class/rel/target rules, and re-check the public page API output, since it sanitizes on
-   every request.
+1. Set a worker boot-memory budget in the CI "API Image Boot" job (worker baseline 170 MiB,
+   OPEN-277); only api-boot is enforced today.
 2. Baseline migration for the six Landing* tables (LandingCampaign, LandingAsset,
    LandingWireframeOption, LandingPage, LandingLead, LandingEvent). They exist in prod only from
    an old prisma db push; no migration creates them (see
@@ -88,8 +92,8 @@ STEP 3 - Follow-ups (ask the owner which to take; one PR each, smallest safe dif
    guarded-fetch helper.
 8. API image: Trivy scan (docker-ghcr.yml scans only web), pin node:22-alpine by digest, split
    Chromium out of the api-main image (the worker needs it).
-9. About 130 of 165 apps/api routes that read a JSON body have no schema; #579's parseBody + zod
-   helper comes back when 3.3 re-lands.
+9. About 130 of 165 apps/api routes that read a JSON body have no schema; reuse #590's parseBody
+   + zod helper (apps/api/src/lib/validation/parseBody.ts).
 10. Dead code, owner decides, do not delete unasked: apps/web CreditTopupModal.tsx,
    SettingsPanel.tsx -> settings/BillingSettings.tsx, modules/billing/ui/BillingPage.tsx have no
    importers. Their top-up buttons send only tierId (the API would 400) but are unreachable;
