@@ -6018,6 +6018,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rewriting (`MSYS_NO_PATHCONV=1`). Regression test: `mautic-template.test.mjs` test 7 fails on main's template
   (Budgets resource present) and passes here.
 
+- **OPEN-285 (Fixed — Mautic budget default above expected spend; README MSYS note):** review on #596 (codeant-ai)
+  flagged that `budget.yaml`'s default `MonthlyBudgetUsd` of 15 sat below the stack's own estimate (about $18–20 a
+  month before credits), so the 80% alert would fire every month. The default is now 30; the live `mautic-budget`
+  stack was already deployed with 30. The README now says `export MSYS_NO_PATHCONV=1` rather than "set". Regression:
+  `mautic-template.test.mjs` test 7 now asserts the default is at least 25, which fails on main's 15.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
