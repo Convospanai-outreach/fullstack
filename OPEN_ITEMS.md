@@ -6008,6 +6008,16 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   cfn-lint is clean and shellcheck is clean. **Not deployed:** the AWS account isn't activated yet (`OptInRequired`),
   so there has been no service-side validation or pricing check; the owner deploys by following `deploy/aws/mautic/README.md`.
 
+- **OPEN-284 (Fixed — Mautic stack: the cost budget moves to its own us-east-1 template):** the first deploy attempt of
+  `deploy/aws/mautic/mautic.yaml` (OPEN-283) failed CloudFormation's own validation in eu-north-1:
+  `Template format error: Unrecognized resource types: [AWS::Budgets::Budget]`. cfn-lint doesn't catch Region support,
+  and the account was only activated after #595 merged. The budget (with `IncludeCredit: false`) and its `AlertEmail`
+  / `MonthlyBudgetUsd` parameters move to `deploy/aws/mautic/budget.yaml`, deployed as its own stack in us-east-1; a
+  budget is account-wide anyway. Both templates now pass `validate-template` in their Regions (run as the IAM admin
+  user), and cfn-lint is clean. The README deploy steps add the budget stack and note Git Bash's `/aws/...` path
+  rewriting (`MSYS_NO_PATHCONV=1`). Regression test: `mautic-template.test.mjs` test 7 fails on main's template
+  (Budgets resource present) and passes here.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -45,8 +45,13 @@ AMI=$(aws ssm get-parameter --region eu-north-1 \
 
 aws cloudformation deploy --region eu-north-1 --stack-name mautic \
   --template-file deploy/aws/mautic/mautic.yaml --capabilities CAPABILITY_IAM \
-  --parameter-overrides ImageId="$AMI" AdminEmail=<you> AlertEmail=<you> MailerFromEmail=<sender>
+  --parameter-overrides ImageId="$AMI" AdminEmail=<you> MailerFromEmail=<sender>
+
+# Account-wide cost alert. CloudFormation doesn't offer AWS::Budgets::Budget in eu-north-1.
+aws cloudformation deploy --region us-east-1 --stack-name mautic-budget   --template-file deploy/aws/mautic/budget.yaml --parameter-overrides AlertEmail=<you>
 ```
+
+In Git Bash on Windows, set `MSYS_NO_PATHCONV=1` first, or it rewrites the `/aws/service/...` parameter name into a Windows path.
 
 On the **first** deploy, add `--disable-rollback`. If first boot fails, the instance then stays up so you can debug it over Session Manager (`/var/log/cfn-init.log`, `sudo docker compose -f /opt/mautic/compose.yaml logs`). A rollback would leave the stack in `ROLLBACK_COMPLETE`, which has to be deleted before you can retry. It would also leave the retained data volume and both secrets behind; delete those by hand if you start over.
 
@@ -101,4 +106,4 @@ The AMI is a parameter on purpose. A new AMI replaces the instance, and that rep
   - EBS about $2;
   - snapshots and secrets about $1.
 
-  Check these against the AWS Pricing Calculator. The `CostBudget` alert fires at 80% of `MonthlyBudgetUsd`, measured before credits.
+  Check these against the AWS Pricing Calculator. The budget alert (`budget.yaml`) fires at 80% of `MonthlyBudgetUsd` and on a forecast above 100%, measured before credits.
