@@ -5942,6 +5942,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `continue-on-error`) still builds after the API image inside `build-and-push`, so it still delays the deploy
   when its cache is cold.
 
+- **OPEN-280 (Fixed — the x86 edge-fastapi image no longer delays the Oracle API deploy; OPEN-279 follow-up):**
+  after OPEN-279 the x86 edge-fastapi image (optional, `continue-on-error`) still built inside
+  `docker-ghcr.yml`'s `build-and-push` job after the API image, so `deploy-oracle.yml` (on `workflow_run` of
+  that workflow) still waited for it. Both edge images now build in one workflow, `docker-ghcr-edge.yml`
+  (renamed from `docker-ghcr-edge-pi5.yml`), as jobs `build-and-push-edge` (x86) and
+  `build-and-push-edge-pi5`. It runs only when `apps/edge-fastapi/**` or its own file changes. `docker-ghcr.yml`
+  no longer builds edge or triggers on `apps/edge-fastapi/**`, so an edge-only change no longer rebuilds web/api
+  and redeploys the VMs. The x86 build drops `continue-on-error` (a failure now shows red) and gets its own GHA
+  cache scope (`edge-x86`) instead of sharing the default scope with web/api. Nothing pulls the published edge
+  images (`docker-compose.edge.yml` builds from source). `scripts/ci/deploy-trigger-workflows.test.mjs` now also
+  fails if a deploy-trigger workflow builds from `apps/edge-fastapi`. It fails against main's `docker-ghcr.yml`
+  and passes with this change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

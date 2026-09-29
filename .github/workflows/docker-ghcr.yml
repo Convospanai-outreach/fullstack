@@ -6,7 +6,6 @@ on:
     paths:
       - "apps/web/**"
       - "apps/api/**"
-      - "apps/edge-fastapi/**"
       - "packages/**"
       - ".dockerignore"
       - ".github/workflows/docker-ghcr.yml"
@@ -116,29 +115,6 @@ jobs:
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Extract metadata (tags, labels) for Edge FastAPI
-        if: github.event_name != 'pull_request'
-        id: meta-edge
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/edge-fastapi
-          tags: |
-            type=raw,value=latest
-            type=sha,format=short
-
-      - name: Build and push Edge FastAPI image (optional)
-        if: github.event_name != 'pull_request'
-        continue-on-error: true
-        uses: docker/build-push-action@v7
-        with:
-          context: ./apps/edge-fastapi
-          file: ./apps/edge-fastapi/Dockerfile
-          push: true
-          tags: ${{ steps.meta-edge.outputs.tags }}
-          labels: ${{ steps.meta-edge.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
