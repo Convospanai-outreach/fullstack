@@ -28,8 +28,8 @@ const cfnSchema = yaml.DEFAULT_SCHEMA.extend(
   ),
 );
 
-function loadTemplate() {
-  return yaml.load(fs.readFileSync(templatePath, "utf8"), { schema: cfnSchema });
+function loadTemplate(file = templatePath) {
+  return yaml.load(fs.readFileSync(file, "utf8"), { schema: cfnSchema });
 }
 
 // Content of a file cfn-init writes; plain string or the string inside !Sub.
@@ -105,4 +105,15 @@ test("the embedded shell scripts parse", { skip: process.platform === "win32" &&
     const result = spawnSync("bash", ["-n"], { input: initFile(template, file), encoding: "utf8" });
     assert.equal(result.status, 0, `${file}: ${result.stderr}`);
   }
+});
+
+// CloudFormation rejects AWS::Budgets::Budget in eu-north-1 ("Unrecognized
+// resource types"), so the cost alert is its own us-east-1 stack.
+test("the Mautic stack has no Budgets resource; budget.yaml alerts on gross cost", () => {
+  const regional = Object.values(loadTemplate().Resources).map((r) => r.Type);
+  assert.ok(!regional.includes("AWS::Budgets::Budget"), "mautic.yaml deploys to eu-north-1, where Budgets is unavailable");
+  const budget = loadTemplate(path.join(repoRoot, "deploy/aws/mautic/budget.yaml"));
+  const budgets = Object.values(budget.Resources).filter((r) => r.Type === "AWS::Budgets::Budget");
+  assert.equal(budgets.length, 1);
+  assert.equal(budgets[0].Properties.Budget.CostTypes.IncludeCredit, false);
 });

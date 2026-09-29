@@ -39,10 +39,6 @@ Parameters:
     Type: String
     AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
     Description: Email of the first Mautic admin user.
-  AlertEmail:
-    Type: String
-    AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-    Description: Receives the AWS Budgets cost alerts.
   MailerFromEmail:
     Type: String
     AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
@@ -52,11 +48,6 @@ Parameters:
     Default: CraftMyFunnel
     AllowedPattern: "^[A-Za-z0-9 .&-]{1,64}$"
     Description: Default sender name for Mautic email.
-  MonthlyBudgetUsd:
-    Type: Number
-    Default: 15
-    MinValue: 1
-    Description: Monthly gross cost (before credits) that triggers the budget alerts.
 
 Resources:
   Vpc:
@@ -658,38 +649,6 @@ Resources:
               Times: ["02:00"]
             RetainRule:
               Count: 7
-
-  CostBudget:
-    Type: AWS::Budgets::Budget
-    Metadata:
-      com.aws.cloudformation.Context:
-        why: early warning on credit burn; Free plan pays from credits, so credits are excluded or spend would read ~$0
-        must:
-          - IncludeCredit false
-    Properties:
-      Budget:
-        BudgetType: COST
-        TimeUnit: MONTHLY
-        BudgetLimit:
-          Amount: !Ref MonthlyBudgetUsd
-          Unit: USD
-        CostTypes:
-          IncludeCredit: false
-      NotificationsWithSubscribers:
-        - Notification:
-            NotificationType: ACTUAL
-            ComparisonOperator: GREATER_THAN
-            Threshold: 80
-            ThresholdType: PERCENTAGE
-          Subscribers:
-            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
-        - Notification:
-            NotificationType: FORECASTED
-            ComparisonOperator: GREATER_THAN
-            Threshold: 100
-            ThresholdType: PERCENTAGE
-          Subscribers:
-            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
 
 Outputs:
   MauticUrl:
