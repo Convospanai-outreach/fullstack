@@ -6018,6 +6018,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rewriting (`MSYS_NO_PATHCONV=1`). Regression test: `mautic-template.test.mjs` test 7 fails on main's template
   (Budgets resource present) and passes here.
 
+- **OPEN-286 (Fixed — Mautic dev-stage idle auto-stop, switchable for go-live):** the owner asked for Render-like sleep
+  while Mautic is in development. `mautic.yaml` gains an `AutoStopWhenIdle` parameter (default `true`) and a
+  conditional `IdleStopAlarm`: CloudWatch `NetworkOut` under 250 KB per 5 minutes for 12 periods (1 hour) triggers the
+  EC2 `stop` action. Missing data counts as not breaching, so the alarm resets while stopped. Measured idle is about 12 KB
+  per 5 minutes (SSM agent); CPU was rejected because cron spikes blur it. Stopping saves compute (about $12 of about $19
+  a month); EBS, the EIP and the secrets still bill. There's no wake-on-request: `deploy/aws/mautic/mautic-power.sh
+  start|stop|status` starts the instance and resets the alarm. Setting `AutoStopWhenIdle=false` removes the alarm and
+  must happen before apps/api pushes leads to Mautic. The alarm acts through the `AWSServiceRoleForCloudWatchEvents`
+  service-linked role, which didn't exist in the account; the README creates it once. Regression:
+  `mautic-template.test.mjs` test 8 fails on main's template and passes here; the `bash -n` test covers the script.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

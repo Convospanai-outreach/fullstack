@@ -92,6 +92,34 @@ The AMI is a parameter on purpose. A new AMI replaces the instance, and that rep
 - `curl -k --connect-timeout 5 https://<OriginIp>/` times out, because only Cloudflare can connect.
 - Submit a lead through a landing page. The contact appears in Mautic with the team tag.
 
+## Development: stop when idle
+
+While `AutoStopWhenIdle` is `true` (the default), the stack stops the instance after **an hour with under 250 KB of outbound traffic per 5 minutes**. At idle the server sends about 12 KB every 5 minutes, and any use of the Mautic UI through Cloudflare sends much more. A stopped instance bills no compute, like a sleeping Render service. EBS, the public IPv4 address and the secrets still bill, about $6 a month.
+
+It doesn't wake on a request the way Render does:
+- While it's stopped, `mautic.craftmyfunnel.live` returns a Cloudflare 522.
+- Mautic's cron jobs pause, and catch up after the next start.
+
+Start it yourself, and allow about 2 minutes:
+
+```sh
+bash deploy/aws/mautic/mautic-power.sh start   # or: stop, status
+```
+
+The script uses your AWS CLI sign-in (`AWS_PROFILE`). Stopping runs through the `AWSServiceRoleForCloudWatchEvents` service-linked role. CloudWatch creates it the first time someone makes an EC2-action alarm in the console or CLI, but maybe not from CloudFormation, so create it once if it's missing:
+
+```sh
+aws iam create-service-linked-role --aws-service-name events.amazonaws.com   # "has been taken" = already exists
+```
+
+**Before going live** (before `apps/api` sends leads here), turn auto-stop off. Lead pushes fail while the instance is stopped. This removes the alarm and leaves everything else unchanged:
+
+```sh
+aws cloudformation deploy --region eu-north-1 --stack-name mautic \
+  --template-file deploy/aws/mautic/mautic.yaml --capabilities CAPABILITY_IAM \
+  --parameter-overrides AutoStopWhenIdle=false
+```
+
 ## Operate
 
 - **Shell:** `aws ssm start-session --target <InstanceId>`. The stack lives in `/opt/mautic` and its data in `/srv/mautic`. Use `sudo docker compose -f /opt/mautic/compose.yaml ps` and `… logs mautic_web`.
