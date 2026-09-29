@@ -5942,6 +5942,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `continue-on-error`) still builds after the API image inside `build-and-push`, so it still delays the deploy
   when its cache is cold.
 
+- **OPEN-281 (Fixed — new ip-address and nodemailer advisories that failed every CI run's `npm audit` gate):**
+  three advisories published 2026-09-28 20:43–21:56Z made `scripts/audit-with-allowlist.mjs` fail on every PR
+  (first seen on #592) and would fail main's next CI run: GHSA-rpw4-54j3-4h4q and GHSA-2vr4-cq9g-pvrc
+  (`ip-address` <= 10.5.0 misclassifies link-local and NAT64 IPv6 ranges, a possible SSRF classifier bypass;
+  reached via `socks` and `geoip-lite`, pinned by the root override) and GHSA-6vj9-mwq6-2f5v (`nodemailer`
+  < 10.0.2, the process-global DNS cache reuses TLS `servername` across transports, a cross-tenant SMTP
+  credential disclosure; apps/api and apps/web used 9.1.1). The `ip-address` override goes to 10.5.1, and
+  `nodemailer` goes to ^10.0.2 (resolves 10.0.12) in apps/api, apps/web and the root override. nodemailer 10's
+  only breaking change is Node >= 20 (we run 22). It ships its own types, which have no `nodemailer.Transporter`
+  namespace, so both `smtpClient.ts` files import `type Transporter`; `@types/nodemailer` is removed as now
+  unused. The lockfile is main's plus only these entries (no npm dev-flag churn). Evidence: the audit gate exits 1
+  on main's lockfile with exactly these three advisories and 0 on this branch, in both apps/api and apps/web. Both
+  `smtpClient.ts` files typecheck against 10.0.12 (the same check passes on 9.1.1 before the change, and fails
+  on 10.0.12 without it). An ESM runtime smoke with v10 shows the B-07 timeouts applied, a fast ESOCKET on a
+  closed port, and `sendMail` working.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
