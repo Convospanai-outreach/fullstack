@@ -19,9 +19,11 @@ Parameters:
     Description: Receives the AWS Budgets cost alerts.
   MonthlyBudgetUsd:
     Type: Number
-    Default: 15
+    Default: 30
     MinValue: 1
-    Description: Monthly gross cost (before credits) that triggers the alerts.
+    Description: >-
+      Monthly gross cost (before credits) that triggers the alerts. Keep it above the expected spend (about $20
+      for the Mautic stack) or the 80% alert fires every month.
 
 Resources:
   CostBudget:
