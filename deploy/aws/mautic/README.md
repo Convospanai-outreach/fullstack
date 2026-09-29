@@ -38,6 +38,8 @@ EC2 t4g.small (AL2023, Docker Compose)
 
 ## Deploy
 
+In Git Bash on Windows, run `export MSYS_NO_PATHCONV=1` first, or it rewrites the `/aws/service/...` parameter name below into a Windows path.
+
 ```sh
 AMI=$(aws ssm get-parameter --region eu-north-1 \
   --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64 \
@@ -48,10 +50,9 @@ aws cloudformation deploy --region eu-north-1 --stack-name mautic \
   --parameter-overrides ImageId="$AMI" AdminEmail=<you> MailerFromEmail=<sender>
 
 # Account-wide cost alert. CloudFormation doesn't offer AWS::Budgets::Budget in eu-north-1.
-aws cloudformation deploy --region us-east-1 --stack-name mautic-budget   --template-file deploy/aws/mautic/budget.yaml --parameter-overrides AlertEmail=<you>
+aws cloudformation deploy --region us-east-1 --stack-name mautic-budget \
+  --template-file deploy/aws/mautic/budget.yaml --parameter-overrides AlertEmail=<you>
 ```
-
-In Git Bash on Windows, set `MSYS_NO_PATHCONV=1` first, or it rewrites the `/aws/service/...` parameter name into a Windows path.
 
 On the **first** deploy, add `--disable-rollback`. If first boot fails, the instance then stays up so you can debug it over Session Manager (`/var/log/cfn-init.log`, `sudo docker compose -f /opt/mautic/compose.yaml logs`). A rollback would leave the stack in `ROLLBACK_COMPLETE`, which has to be deleted before you can retry. It would also leave the retained data volume and both secrets behind; delete those by hand if you start over.
 

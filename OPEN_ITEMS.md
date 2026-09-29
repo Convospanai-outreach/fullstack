@@ -6018,6 +6018,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rewriting (`MSYS_NO_PATHCONV=1`). Regression test: `mautic-template.test.mjs` test 7 fails on main's template
   (Budgets resource present) and passes here.
 
+- **OPEN-285 (Fixed — Mautic budget default above expected spend; README MSYS note):** review on #596 (codeant-ai)
+  flagged that `budget.yaml`'s default `MonthlyBudgetUsd` of 15 sat below the stack's own estimate (about $18–20 a
+  month before credits), so the 80% alert would fire every month. The default is now 30; the live `mautic-budget`
+  stack was already deployed with 30. The README now says `export MSYS_NO_PATHCONV=1` rather than "set". Regression:
+  `mautic-template.test.mjs` test 7 now asserts the default is at least 25, which fails on main's 15.
+
 - **OPEN-286 (Fixed — Mautic dev-stage idle auto-stop, switchable for go-live):** the owner asked for Render-like sleep
   while Mautic is in development. `mautic.yaml` gains an `AutoStopWhenIdle` parameter (default `true`) and a
   conditional `IdleStopAlarm`: CloudWatch `NetworkOut` under 250 KB per 5 minutes for 12 periods (1 hour) triggers the

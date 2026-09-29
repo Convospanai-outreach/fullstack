@@ -119,6 +119,8 @@ test("the Mautic stack has no Budgets resource; budget.yaml alerts on gross cost
   const budgets = Object.values(budget.Resources).filter((r) => r.Type === "AWS::Budgets::Budget");
   assert.equal(budgets.length, 1);
   assert.equal(budgets[0].Properties.Budget.CostTypes.IncludeCredit, false);
+  // The stack costs about $20 a month; a lower limit makes the 80% alert fire every month.
+  assert.ok(budget.Parameters.MonthlyBudgetUsd.Default >= 25, "default budget sits above expected spend");
 });
 
 // Development cost saver: the stack stops (never terminates) an idle instance,
