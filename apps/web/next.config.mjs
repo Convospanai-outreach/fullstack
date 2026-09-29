@@ -20,6 +20,8 @@ const nextConfig = {
     output: useStandaloneOutput ? 'standalone' : undefined,
     reactStrictMode: true,
     compress: true,
+    // Don't advertise the framework in an `x-powered-by: Next.js` response header (roadmap S-17).
+    poweredByHeader: false,
     // Three.js / R3F are ESM-only packages — Next.js webpack must transpile them
     // or the 3D canvas will silently fail to load in production.
     transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],

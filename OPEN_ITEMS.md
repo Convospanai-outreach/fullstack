@@ -5971,6 +5971,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   fails if a deploy-trigger workflow builds from `apps/edge-fastapi`. It fails against main's `docker-ghcr.yml`
   and passes with this change.
 
+- **OPEN-282 (Fixed — roadmap 3.6 part 1 (S-17): legacy headers and the unused Socket.IO server; nonce CSP and Mautic proxies deferred):**
+  the live web app sent `x-powered-by: Next.js` and `X-XSS-Protection: 1; mode=block` (checked with curl on
+  craftmyfunnel.live; the API already sends `0` and no `x-powered-by`). `next.config.mjs` now sets
+  `poweredByHeader: false`, and `proxy.ts` sends `X-XSS-Protection: 0` (the legacy auditor is itself abusable;
+  the CSP is the XSS control). S-17's Socket.IO finding (`join_team` trusts a client-sent shared secret) was in
+  `apps/web/server.ts` + `src/lib/socket.ts`, which production never runs: Render's start command is
+  `npm run start:web` → `scripts/start-production.mjs` → `next start` (or Next's standalone `server.js`), nothing
+  calls `emitToTeam`, and no client uses `socket.io-client`. So both files and the `socket.io` dependency are
+  removed rather than given session-cookie auth (the owner chose this), which drops 14 packages from the lockfile
+  and the now-unused root `socket.io-parser` override. The lockfile is main's minus those entries, with no npm
+  dev-flag churn. Regression test `apps/web/tests/unit/security-headers-s17.test.ts`: 3 tests, all failing on
+  main's code (`'1; mode=block'`, `poweredByHeader` null, `socket.io` present) and passing here. The apps/web
+  typecheck shows the identical 97 pre-existing local-env Prisma errors on main and on this branch. **Deferred:**
+  the nonce-based CSP is 3.6 part 2. `MAUTIC_TRUSTED_PROXIES: 0.0.0.0/0` moves into the Mautic-on-AWS
+  deployment (the owner's objective): Mautic isn't deployed, and narrowing it to Cloudflare ranges in the current
+  Caddy template would untrust Caddy itself and break HTTPS detection.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
