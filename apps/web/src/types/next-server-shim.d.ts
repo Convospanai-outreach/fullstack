@@ -28,6 +28,10 @@ declare module "next/server" {
     static json<T = unknown>(body: T, init?: ResponseInit): NextResponse<T>;
     static redirect(url: string | URL, init?: number | ResponseInit): NextResponse;
     static rewrite(url: string | URL, init?: ResponseInit): NextResponse;
-    static next(init?: ResponseInit): NextResponse;
+    // `request.headers` forwards modified request headers to the page (e.g. proxy.ts's CSP nonce).
+    static next(init?: ResponseInit & { request?: { headers?: Headers } }): NextResponse;
   }
+
+  // Opts the calling server component's route into per-request (dynamic) rendering.
+  export function connection(): Promise<void>;
 }

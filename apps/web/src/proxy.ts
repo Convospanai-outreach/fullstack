@@ -25,6 +25,18 @@ import {
     getAgentSkillContent,
 } from './lib/agentSkills';
 
+// Sentry's CSP report endpoint for a DSN (https://<key>@<host>/<projectId>).
+function sentryCspReportUri(dsn: string): string {
+    try {
+        const url = new URL(dsn);
+        const projectId = url.pathname.replace(/^\//, '');
+        if (!url.username || !projectId) return '';
+        return `${url.origin}/api/${projectId}/security/?sentry_key=${url.username}`;
+    } catch {
+        return '';
+    }
+}
+
 async function appProxy(req: NextRequest) {
     const path = req.nextUrl.pathname;
 
@@ -448,25 +460,6 @@ async function appProxy(req: NextRequest) {
         }
     }
 
-    // Apply Correlation ID and Security headers
-    const response = NextResponse.next();
-    response.headers.set('x-correlation-id', correlationId);
-    
-    // === Hardened Security Headers ===
-    response.headers.set('X-Frame-Options', 'DENY');
-    response.headers.set('X-Content-Type-Options', 'nosniff');
-    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    // '0' turns off the legacy XSS auditor: `1; mode=block` can itself be abused to
-    // leak or break page content, and modern browsers ignore it anyway; the CSP below
-    // is the XSS control (roadmap S-17).
-    response.headers.set('X-XSS-Protection', '0');
-    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
-    
-    // Strict-Transport-Security (Only for production HTTPS)
-    if (process.env['NODE_ENV'] === 'production') {
-        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-    }
-
     // === Content Security Policy (Enterprise Grade) ===
     const edgeNodeUri = process.env['EDGE_NODE_URI'] || '';
     const onPremAI = process.env['ON_PREM_AI_ENDPOINT'] || '';
@@ -510,8 +503,10 @@ async function appProxy(req: NextRequest) {
         "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
-        // Connect: Self, Analytics, Razorpay, Sentry ingest, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin} ${sentryIngestOrigin}`,
+        // Connect: Self, Analytics, Razorpay, Sentry ingest, plus Sovereign AI nodes. No
+        // wss://* wildcard: nothing in apps/web opens a WebSocket since the Socket.IO
+        // server was removed (OPEN-282); an edge node is allowed by its own origin above.
+        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com ${edgeNodeUri} ${onPremAI} ${publicApiOrigin} ${sentryIngestOrigin}`,
         // Frames: Google Auth, Razorpay & Cloudflare Turnstile
         "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com",
         // Media/Workers: Stricter constraints
@@ -533,7 +528,51 @@ async function appProxy(req: NextRequest) {
         cspValues[5] += devAdditions; // connect-src
     }
 
+    // Signed-in app pages get a per-request nonce and a strict script policy (roadmap 3.6
+    // part 2). Next reads the nonce from this request's CSP header and attaches it to its
+    // own scripts, which only works on dynamically rendered pages: the signed-in route
+    // layouts call connection() for that. Public/marketing pages stay statically
+    // prerendered and keep the policy above. Report-only for now; enforce once the Sentry
+    // reports are clean. Built before NextResponse.next(), which copies the request
+    // headers at call time.
+    const strictCsp = !isPublic && !path.startsWith("/api");
+    let strictPolicy = '';
+    const requestHeaders = new Headers(req.headers);
+    if (strictCsp) {
+        const nonce = btoa(crypto.randomUUID());
+        const strictValues = [...cspValues];
+        // 'strict-dynamic' trusts scripts loaded by nonce-bearing scripts, so modern browsers
+        // ignore the host list; it stays as the fallback for CSP2-only browsers.
+        strictValues[1] = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com`
+            + (process.env['NODE_ENV'] !== 'production' ? " 'unsafe-eval' localhost:* 127.0.0.1:*" : '');
+        const reportUri = sentryCspReportUri(sentryDsn);
+        if (reportUri) strictValues.push(`report-uri ${reportUri}`);
+        strictPolicy = strictValues.join('; ');
+        requestHeaders.set('x-nonce', nonce);
+        requestHeaders.set('content-security-policy-report-only', strictPolicy);
+    }
+
+    // Apply Correlation ID and Security headers
+    const response = strictCsp ? NextResponse.next({ request: { headers: requestHeaders } }) : NextResponse.next();
+    response.headers.set('x-correlation-id', correlationId);
+
+    // === Hardened Security Headers ===
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // '0' turns off the legacy XSS auditor: `1; mode=block` can itself be abused to
+    // leak or break page content, and modern browsers ignore it anyway; the CSP below
+    // is the XSS control (roadmap S-17).
+    response.headers.set('X-XSS-Protection', '0');
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+
+    // Strict-Transport-Security (Only for production HTTPS)
+    if (process.env['NODE_ENV'] === 'production') {
+        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
     response.headers.set('Content-Security-Policy', cspValues.join('; '));
+    if (strictPolicy) response.headers.set('Content-Security-Policy-Report-Only', strictPolicy);
 
     if (path.startsWith("/api")) {
         const origin = req.headers.get("origin");

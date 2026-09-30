@@ -6051,6 +6051,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   replies carry no In-Reply-To headers; a new IMAP mailbox's first sync can alert once per historical reply; SMTP inbox
   replies skip daily-send accounting.
 
+- **OPEN-288 (Fixed, report-only stage — roadmap 3.6 part 2 (S-17): nonce-based script policy for the signed-in app):**
+  every page sent `script-src 'unsafe-inline' 'unsafe-eval'` and `connect-src wss://*`. A nonce policy needs dynamic
+  rendering, and every page was statically prerendered (static root layout, client-component dashboard layout). Owner
+  decision: strict policy for the signed-in app only; marketing pages stay static and cached. `proxy.ts` now gives each
+  non-public page request a fresh nonce and a `Content-Security-Policy-Report-Only` policy
+  (`'nonce-…' 'strict-dynamic'`, no `unsafe-inline`/`unsafe-eval` in `script-src`) that reports to the Sentry security
+  endpoint derived from `NEXT_PUBLIC_SENTRY_DSN`. The policy is also set as a request header, which is how Next finds
+  the nonce for its own scripts, and it is built before `NextResponse.next()`, which copies request headers at call
+  time (the first draft set them after and the test caught it). `(dashboard)/layout.tsx` is now a server layout that
+  calls `connection()` around the unchanged client shell (`DashboardShell.tsx`); `setup`, `client` and `credits` get
+  the same thin layout. The enforced policy drops `wss://*`: nothing in apps/web opens a WebSocket since OPEN-282.
+  Regression test `tests/unit/security-headers-nonce-csp.test.ts` (4 tests, 3 fail on main). **Next step:** once the
+  Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
+  `Content-Security-Policy` for those pages.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
