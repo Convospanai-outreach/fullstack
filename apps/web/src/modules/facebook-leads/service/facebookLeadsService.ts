@@ -22,10 +22,39 @@ const FACEBOOK_LEAD_SCOPES = [
     "leads_retrieval",
 ];
 
+// Creator funnel "Connect Instagram / Facebook Page" (purpose "social"): the same OAuth flow,
+// asking for posting, comment and messaging permissions instead of leads_retrieval, and
+// writing SocialAccount rows instead of FacebookLeadSource. Names and dependencies checked
+// 2026-09-30 against:
+// - https://developers.facebook.com/docs/permissions
+// - https://developers.facebook.com/documentation/instagram-platform/content-publishing.md
+// - https://developers.facebook.com/documentation/instagram-platform/comment-moderation.md
+// - https://developers.facebook.com/docs/messenger-platform/instagram/get-started
+const FACEBOOK_SOCIAL_SCOPES = [
+    "pages_show_list",
+    "pages_read_engagement",
+    "pages_read_user_content",
+    "pages_manage_metadata", // webhook subscriptions (DMs, comments)
+    "pages_manage_posts",
+    "pages_manage_engagement", // reply to Page comments
+    "pages_messaging",
+    "instagram_basic",
+    "instagram_content_publish",
+    "instagram_manage_comments",
+    "instagram_manage_messages",
+];
+
+// Social calls use the current Graph API version. v21.0 above (Lead Ads) is supported until
+// 2027-01-21 (https://developers.facebook.com/docs/graph-api/changelog/versions, checked 2026-09-30).
+const SOCIAL_GRAPH_BASE_URL = "https://graph.facebook.com/v26.0";
+
+export type FacebookConnectPurpose = "leads" | "social";
+
 type OAuthStatePayload = {
     teamId: string;
     userId: string;
     nextPath?: string;
+    purpose?: FacebookConnectPurpose;
     nonce: string;
     ts: number;
 };
@@ -93,12 +122,24 @@ function verifyState(state: string): OAuthStatePayload {
     return payload;
 }
 
-export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: string; nextPath?: string }): string {
+/** Where a failed callback should send the user: the verified state's nextPath, if any. */
+export function nextPathFromState(state: string | null): string | null {
+    if (!state) return null;
+    try {
+        return verifyState(state).nextPath ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: string; nextPath?: string; purpose?: FacebookConnectPurpose }): string {
     const { appId, redirectUri } = getFacebookConfig();
+    const purpose = input.purpose ?? "leads";
     const state = signState({
         teamId: input.teamId,
         userId: input.userId,
         nextPath: sanitizeRelativePath(input.nextPath),
+        purpose,
         nonce: crypto.randomUUID(),
         ts: Date.now(),
     });
@@ -107,7 +148,7 @@ export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: strin
         client_id: appId,
         redirect_uri: redirectUri,
         state,
-        scope: FACEBOOK_LEAD_SCOPES.join(","),
+        scope: (purpose === "social" ? FACEBOOK_SOCIAL_SCOPES : FACEBOOK_LEAD_SCOPES).join(","),
         response_type: "code",
     });
     return `${FACEBOOK_OAUTH_URL}?${params.toString()}`;
@@ -165,6 +206,11 @@ export async function connectFacebookPages(input: { code: string; state: string 
         throw new Error("No Facebook Pages found for this account. Connect a Page you manage.");
     }
 
+    if (statePayload.purpose === "social") {
+        const accounts = await connectSocialAccounts(statePayload, longLivedJson.access_token, pages);
+        return { pages: accounts, nextPath: statePayload.nextPath, purpose: "social" as const };
+    }
+
     const connected = [];
     for (const page of pages) {
         const encryptedPageAccessToken = await encryptCredential(page.access_token);
@@ -187,5 +233,57 @@ export async function connectFacebookPages(input: { code: string; state: string 
         connected.push(source);
     }
 
-    return { pages: connected, nextPath: statePayload.nextPath };
+    return { pages: connected, nextPath: statePayload.nextPath, purpose: "leads" as const };
+}
+
+async function grantedScopes(userToken: string) {
+    // GET /me/permissions -> { data: [{ permission, status: "granted" | "declined" | "expired" }] }
+    // (https://developers.facebook.com/docs/graph-api/reference/user/permissions/, checked 2026-09-30)
+    const res = await fetch(`${SOCIAL_GRAPH_BASE_URL}/me/permissions?` + new URLSearchParams({ access_token: userToken }));
+    const json: any = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || "Unable to read granted Facebook permissions.");
+    return (json?.data || []).filter((row: any) => row?.status === "granted").map((row: any) => String(row.permission));
+}
+
+// One FACEBOOK_PAGE account per Page, plus an INSTAGRAM account for each Page with a linked
+// Instagram professional account. Instagram calls with Facebook Login use the Page's token.
+async function connectSocialAccounts(state: OAuthStatePayload, userToken: string, pages: Array<{ id: string; name?: string; access_token: string }>) {
+    const scopes = await grantedScopes(userToken);
+    const upsert = async (platform: "FACEBOOK_PAGE" | "INSTAGRAM", externalId: string, handle: string | null, parentExternalId: string | null, token: unknown) => {
+        const data = {
+            handle,
+            parentExternalId,
+            encryptedToken: token as any,
+            scopes,
+            tokenExpiresAt: null,
+            status: "CONNECTED",
+            lastError: null,
+            expiryWarnedAt: null,
+            connectedById: state.userId,
+        };
+        return prisma.socialAccount.upsert({
+            where: { teamId_platform_externalId: { teamId: state.teamId, platform, externalId } },
+            create: { teamId: state.teamId, platform, externalId, ...data },
+            update: data,
+            select: { id: true, platform: true, handle: true },
+        });
+    };
+
+    const accounts = [];
+    for (const page of pages) {
+        const token = await encryptCredential(page.access_token);
+        accounts.push(await upsert("FACEBOOK_PAGE", page.id, page.name ?? null, null, token));
+
+        // GET /{page-id}?fields=instagram_business_account (Instagram API with Facebook Login, get started)
+        const igRes = await fetch(
+            `${SOCIAL_GRAPH_BASE_URL}/${encodeURIComponent(page.id)}?` +
+                new URLSearchParams({ fields: "instagram_business_account{id,username}", access_token: page.access_token })
+        );
+        const igJson: any = await igRes.json();
+        const ig = igRes.ok ? igJson?.instagram_business_account : null;
+        if (ig?.id) {
+            accounts.push(await upsert("INSTAGRAM", String(ig.id), ig.username ? `@${ig.username}` : null, page.id, token));
+        }
+    }
+    return accounts;
 }

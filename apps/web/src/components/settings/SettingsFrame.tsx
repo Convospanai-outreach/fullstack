@@ -3,21 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SETTINGS_GROUPS, matchesPath } from "@/lib/navSections";
+import { useLiveFeatureKeys } from "@/components/dashboard/SectionTabs";
 
 // The one Settings layout: a left sub-nav with five sections. Used by settings/layout.tsx
 // and by the pages that belong to Settings but live outside /settings (governance, billing,
 // profile), so every settings page renders under the same nav.
 export function SettingsFrame({ children }: { children: React.ReactNode }) {
     const pathname = usePathname() ?? "";
+    const liveKeys = useLiveFeatureKeys();
+    // Links tied to a hidden feature show only once it's built and on for the workspace.
+    const groups = SETTINGS_GROUPS.map((group) => ({
+        ...group,
+        links: group.links.filter((link) => !link.feature || liveKeys.has(link.feature)),
+    }));
     // The most specific link wins, so /governance/firewall highlights Firewall, not Trust overview.
-    const activeHref = SETTINGS_GROUPS.flatMap((group) => group.links)
+    const activeHref = groups.flatMap((group) => group.links)
         .filter((link) => matchesPath(link.href, pathname))
         .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
     return (
         <div className="flex flex-col gap-6 md:flex-row">
             <nav aria-label="Settings" className="md:w-52 md:shrink-0 space-y-5">
-                {SETTINGS_GROUPS.map((group) => (
+                {groups.map((group) => (
                     <div key={group.label}>
                         <p className="px-2 pb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{group.label}</p>
                         <div className="space-y-0.5">

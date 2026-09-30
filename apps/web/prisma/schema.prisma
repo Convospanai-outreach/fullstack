@@ -1327,6 +1327,7 @@ model Team {
 
   // Creator funnel: who runs this team's marketing nurture journeys. null = CMF sequences.
   nurtureProvider NurtureOwner?
+  socialAccounts  SocialAccount[]
 
   // WhatsApp Business API ownership, set at setup time. Automated sequence sends
   // require both fields; a team with either unset falls back to human-in-the-loop
@@ -1424,6 +1425,40 @@ model FacebookLeadSource {
 
   @@unique([teamId, pageId])
   @@index([teamId])
+}
+
+enum SocialPlatform {
+  FACEBOOK_PAGE
+  INSTAGRAM
+  LINKEDIN_MEMBER
+  LINKEDIN_ORG
+}
+
+// Creator funnel: a connected social account the team posts from and receives DMs/comments on.
+// Separate from FacebookLeadSource (Lead Ads polling), which is untouched by this flow.
+model SocialAccount {
+  id               String         @id @default(uuid())
+  teamId           String
+  platform         SocialPlatform
+  externalId       String // Page id, Instagram user id, or LinkedIn URN
+  handle           String? // Page name or @username
+  parentExternalId String? // INSTAGRAM: the Facebook Page it's linked through (its token is the Page's)
+  encryptedToken   Json? // credentialVault EncryptedCredential; null once disconnected
+  scopes           String[]       @default([])
+  tokenExpiresAt   DateTime? // null = none reported (long-lived Page tokens don't expire)
+  status           String         @default("CONNECTED") // CONNECTED | NEEDS_RECONNECT | DISCONNECTED
+  lastError        String?        @db.Text
+  lastCheckedAt    DateTime?
+  expiryWarnedAt   DateTime? // when admins were last told the token expires soon
+  connectedById    String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, platform, externalId])
+  @@index([teamId])
+  @@index([status, lastCheckedAt])
 }
 
 // Per-form sync watermark, mirroring MailboxSyncCursor's lock/retry shape so a

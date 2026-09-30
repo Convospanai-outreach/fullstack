@@ -92,6 +92,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         label: "Mailboxes & Integrations",
         links: [
             { label: "Mailboxes", href: "/settings/mailboxes" },
+            { label: "Social accounts", href: "/settings/social", feature: "creator-funnel" },
             ...(PRODUCT_FLAGS.emailFirstBeta ? [] : [{ label: "CRM sync", href: "/settings/crm" }]),
             { label: "Webhooks", href: "/settings/webhooks" },
             { label: "Personality insights", href: "/settings/crystal-knows" },
