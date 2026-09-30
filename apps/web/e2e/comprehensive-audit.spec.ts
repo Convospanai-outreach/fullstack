@@ -69,7 +69,7 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
         '/settings/profile',
         '/profile',
         '/monitoring',
-        '/audit-logs',
+        '/settings/audit',
         '/jobs',
         '/calendar',
         '/automations'
