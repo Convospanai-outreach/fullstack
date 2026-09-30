@@ -6100,6 +6100,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-293 (Fixed — IA phase 4: monthly meeting goal on Home):** Home had no target to measure booked meetings against.
+  - **Schema:** `Team.monthlyMeetingGoal Int?`, set by migration `20261001100000_team_monthly_meeting_goal`. The change
+    only adds a nullable column, with no default and no backfill, and the destructive-migration scan is clean.
+  - **Service:** `meetingGoalService.ts` counts meetings created this local month (`localMonth` in `localDay.ts`, IST).
+    Pace is `goal × dayOfMonth / daysInMonth`, and the shortfall rounds up to whole meetings ("Behind by N").
+  - **Route:** `GET/PUT /dashboard/meeting-goal` (lazy-imported). PUT needs a team member and a whole number from 1 to
+    1000, or null to clear.
+  - **Web:** the `GoalProgress` card sits between Needs you and the KPIs. It shows booked / goal, a pace bar, and
+    "On pace" or "Behind by N", with inline edit, or "Set a monthly meeting goal" when there is no goal. Setup step 8
+    has an optional "How many meetings a month do you want?" field.
+  - **Deploy order:** the card renders nothing if the API route is missing.
+  - **Tests:** pace rounding and last day, the IST month around UTC midnight, February and leap years, service
+    queries, route auth and validation, and `tests/unit/goal-progress.test.tsx`.
+
 - **OPEN-292 (Fixed — IA phase 3: Home opens on "Needs you"; roadmap 3.8):** Home led with charts, and the same meeting
   and draft counts appeared in the KPI row, the workflow rail and the bottom mini-stats.
   - **Shared service:** `apps/api/src/modules/inbox/needsYouService.ts` (`collectNeedsYou`) returns six items, each
