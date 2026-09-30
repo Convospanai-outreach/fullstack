@@ -291,6 +291,13 @@ export function resolveReadiness(featureKey: HiddenFeatureKey, context: Awaited<
                     reason: "There are no saved workflows yet.",
                     action: "Create or import at least one workflow first.",
                 };
+        case "creator-funnel":
+            // Never on by default: a team opts in explicitly while this is being built.
+            return {
+                ready: false,
+                reason: "Early access. Off until your team turns it on.",
+                action: "Turn this on to try the creator funnel as it's built.",
+            };
         default:
             return {
                 ready: false,

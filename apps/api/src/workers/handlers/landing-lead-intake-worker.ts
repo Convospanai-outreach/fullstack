@@ -57,6 +57,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
 
             await scoreNewLead(existing.id);
             await pushToMautic(existing.id, teamId);
+            await advanceCreatorFunnel(existing.id, teamId);
             return { created: false, leadId: existing.id };
         }
     }
@@ -77,7 +78,21 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
 
     await scoreNewLead(createdLead.id);
     await pushToMautic(createdLead.id, teamId);
+    await advanceCreatorFunnel(createdLead.id, teamId);
     return { created: true, leadId: createdLead.id };
+}
+
+// Creator funnel (teams with the flag on): a landing-page opt-in moves the lead to MOFU.
+// Never fails the intake job; the lead is already saved.
+async function advanceCreatorFunnel(leadId: string, teamId: string) {
+    try {
+        const { isCreatorFunnelEnabled } = await import("@/modules/creator-funnel/featureGate");
+        if (!(await isCreatorFunnelEnabled(teamId))) return;
+        const { applyFunnelEvent } = await import("@/modules/creator-funnel/funnelStageService");
+        await applyFunnelEvent(teamId, leadId, "landing_opt_in");
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Creator funnel stage update failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
 }
 
 // Feeds Mautic's funnel view/segmentation for real landing-page captures. One-way
