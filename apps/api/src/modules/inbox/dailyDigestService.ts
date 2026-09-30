@@ -1,60 +1,128 @@
 import { prisma } from "@/lib/db";
-import { DEFAULT_TIMEZONE, localDate, localDayRange, localHour } from "./localDay";
+import { DEFAULT_TIMEZONE, localDate, localDayRange, localHour, localMonth } from "./localDay";
 import { collectNeedsYou, type NeedsYouType } from "./needsYouService";
+import { meetingPace } from "./meetingGoalService";
 import { INBOX_URL } from "./inboundReplyNotifier";
 
 // Daily Action Inbox digest. The worker calls runDailyDigest() once per clock hour; it
 // only sends during the 08:00-08:59 local hour, and DigestLog's unique (userId, sentOn)
 // claim keeps it to one email per user per day across restarts and both worker VMs.
+// Order: what needs you (top 3, deep-linked), meeting-goal pace, one win, yesterday.
 
 export const DIGEST_LOCAL_HOUR = 8;
-const SETTINGS_URL = "https://craftmyfunnel.live/settings/notifications";
+const APP_URL = "https://craftmyfunnel.live";
+const SETTINGS_URL = `${APP_URL}/settings/notifications`;
+const DIGEST_SECTIONS = 3;
+// Reply outcomes (set in the Action Inbox) that count as a win.
+const WINNING_OUTCOMES = ["interested", "meeting_booked"];
+
+// Same labels as Home's Needs you card; one/many build the subject line.
+const NEEDS_YOU_COPY: Record<NeedsYouType, { label: string; one: string; many: string }> = {
+    unread_replies: { label: "Replies to answer", one: "unread reply", many: "unread replies" },
+    approvals: { label: "Waiting for your approval", one: "approval waiting", many: "approvals waiting" },
+    approved_not_sent: { label: "Approved but not sent", one: "approved draft not sent", many: "approved drafts not sent" },
+    stalled_leads: { label: "Leads gone quiet", one: "stalled lead", many: "stalled leads" },
+    mailbox_issues: { label: "Mailboxes to reconnect", one: "mailbox to reconnect", many: "mailboxes to reconnect" },
+    meetings_today: { label: "Meetings today", one: "meeting today", many: "meetings today" },
+};
+
+type DigestEntry = { title: string; detail: string | null; href: string; at: Date | null };
 
 export type DigestData = {
     recipientName: string | null;
-    unreadReplies: { count: number; top: { leadName: string; snippet: string }[] };
-    stalledLeads: { count: number; top: string[] };
-    meetingsToday: { count: number; top: { title: string; startTime: Date }[] };
+    /** The most urgent non-empty Needs you items, in Home's order. hrefs are app paths. */
+    needsYou: { type: NeedsYouType; count: number; href: string; top: DigestEntry[] }[];
+    /** One line per team with a monthly meeting goal. teamName is set only for multi-team users. */
+    goals: { teamName: string | null; goal: number; booked: number; behindBy: number }[];
+    win: string | null;
     yesterday: { emailsSent: number; replies: number; meetingsBooked: number };
 };
+
+async function collectGoals(teamIds: string[], now: Date): Promise<DigestData["goals"]> {
+    const teams = await prisma.team.findMany({
+        where: { id: { in: teamIds }, monthlyMeetingGoal: { not: null } },
+        select: { id: true, name: true, monthlyMeetingGoal: true },
+    });
+    const month = localMonth(now);
+    return Promise.all(
+        teams.map(async (team) => {
+            const goal = team.monthlyMeetingGoal!;
+            const booked = await prisma.meeting.count({ where: { teamId: team.id, createdAt: { gte: month.start, lt: month.end } } });
+            const { behindBy } = meetingPace(goal, booked, month.dayOfMonth, month.daysInMonth);
+            return { teamName: teamIds.length > 1 ? team.name : null, goal, booked, behindBy };
+        })
+    );
+}
+
+function leadLabel(lead: { fullName: string | null; email: string | null; company: string | null } | null | undefined) {
+    const name = lead?.fullName || lead?.email;
+    if (!name) return null;
+    return lead?.company ? `${name} (${lead.company})` : name;
+}
+
+// Yesterday's best news: a booked meeting, else a reply the rep marked as interested.
+async function collectWin(teamIds: string[], yesterday: { start: Date; end: Date }) {
+    const lead = { select: { fullName: true, email: true, company: true } };
+    const meeting = await prisma.meeting.findFirst({
+        where: { teamId: { in: teamIds }, createdAt: { gte: yesterday.start, lt: yesterday.end } },
+        orderBy: { createdAt: "desc" },
+        select: { title: true, lead },
+    });
+    if (meeting) {
+        const who = leadLabel(meeting.lead);
+        return who ? `Meeting booked with ${who}` : `Meeting booked: ${meeting.title}`;
+    }
+
+    const reply = await prisma.message.findFirst({
+        where: {
+            direction: "INBOUND",
+            createdAt: { gte: yesterday.start, lt: yesterday.end },
+            lead: { teamId: { in: teamIds }, replyOutcome: { in: WINNING_OUTCOMES } },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { lead },
+    });
+    const who = leadLabel(reply?.lead);
+    return who ? `${who} replied and is interested` : null;
+}
 
 export async function collectDigestData(teamIds: string[], recipientName: string | null, now = new Date()): Promise<DigestData> {
     const yesterday = localDayRange(now, -1);
     const inTeams = { in: teamIds };
 
-    const [needsYou, emailsSent, replies, meetingsBooked] = await Promise.all([
+    const [needsYou, goals, win, emailsSent, replies, meetingsBooked] = await Promise.all([
         collectNeedsYou(teamIds, now),
+        collectGoals(teamIds, now),
+        collectWin(teamIds, yesterday),
         prisma.email.count({ where: { campaign: { teamId: inTeams }, createdAt: { gte: yesterday.start, lt: yesterday.end } } }),
         prisma.message.count({
             where: { direction: "INBOUND", lead: { teamId: inTeams }, createdAt: { gte: yesterday.start, lt: yesterday.end } },
         }),
         prisma.meeting.count({ where: { teamId: inTeams, createdAt: { gte: yesterday.start, lt: yesterday.end } } }),
     ]);
-    const item = (type: NeedsYouType) => needsYou.find((entry) => entry.type === type)!;
-    const unread = item("unread_replies");
-    const stalled = item("stalled_leads");
-    const meetings = item("meetings_today");
 
     return {
         recipientName,
-        unreadReplies: {
-            count: unread.count,
-            top: unread.top.map((reply) => ({ leadName: reply.title, snippet: reply.detail ?? "" })),
-        },
-        stalledLeads: { count: stalled.count, top: stalled.top.map((nudge) => nudge.title) },
-        meetingsToday: {
-            count: meetings.count,
-            top: meetings.top.map((meeting) => ({ title: meeting.title, startTime: new Date(meeting.at!) })),
-        },
+        needsYou: needsYou
+            .filter((item) => item.count > 0)
+            .slice(0, DIGEST_SECTIONS)
+            .map((item) => ({
+                type: item.type,
+                count: item.count,
+                href: item.href,
+                top: item.top.map((entry) => ({ title: entry.title, detail: entry.detail, href: entry.href, at: entry.at ? new Date(entry.at) : null })),
+            })),
+        goals,
+        win,
         yesterday: { emailsSent, replies, meetingsBooked },
     };
 }
 
+// A goal line alone doesn't justify an email; something has to need you or have happened.
 export function isDigestEmpty(data: DigestData) {
     return (
-        data.unreadReplies.count === 0 &&
-        data.stalledLeads.count === 0 &&
-        data.meetingsToday.count === 0 &&
+        data.needsYou.length === 0 &&
+        !data.win &&
         data.yesterday.emailsSent === 0 &&
         data.yesterday.replies === 0 &&
         data.yesterday.meetingsBooked === 0
@@ -74,39 +142,43 @@ function plural(count: number, one: string, many: string) {
     return `${count} ${count === 1 ? one : many}`;
 }
 
-// Pure: every lead-, nudge- and meeting-supplied string is escaped here, since all of it
-// is ultimately attacker-influenced (reply bodies, lead names, meeting titles).
+function goalLine(goal: DigestData["goals"][number]) {
+    const pace = goal.behindBy === 0 ? "On pace" : `Behind by ${goal.behindBy}`;
+    const prefix = goal.teamName ? `${goal.teamName}: ` : "";
+    return `${prefix}${goal.booked} of ${goal.goal} meetings booked this month. ${pace}.`;
+}
+
+// Pure: every lead-, nudge-, meeting- and team-supplied string is escaped here, since most
+// of it is ultimately attacker-influenced (reply bodies, lead names, meeting titles).
 export function renderDigestEmail(data: DigestData, timeZone = DEFAULT_TIMEZONE) {
     const time = new Intl.DateTimeFormat("en-IN", { timeZone, hour: "numeric", minute: "2-digit" });
-    const headline = [
-        data.unreadReplies.count ? plural(data.unreadReplies.count, "unread reply", "unread replies") : null,
-        data.stalledLeads.count ? plural(data.stalledLeads.count, "stalled lead", "stalled leads") : null,
-        data.meetingsToday.count ? plural(data.meetingsToday.count, "meeting today", "meetings today") : null,
-    ].filter(Boolean);
+    const entryTitle = (type: NeedsYouType, entry: DigestEntry) =>
+        type === "meetings_today" && entry.at ? `${time.format(entry.at)} · ${entry.title}` : entry.title;
+    const headline = data.needsYou.map((item) => plural(item.count, NEEDS_YOU_COPY[item.type].one, NEEDS_YOU_COPY[item.type].many));
     const subject = headline.length ? `Today: ${headline.join(", ")}` : "Your daily CraftMyFunnel summary";
 
-    const section = (title: string, count: number, items: string[]) =>
-        count === 0
-            ? ""
-            : `<tr><td style="padding:16px 0 0">
-<p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0f172a">${escapeHtml(title)} (${count})</p>
-${items.map((item) => `<p style="margin:0 0 8px;font-size:14px;line-height:1.45;color:#334155">${item}</p>`).join("\n")}
+    const block = (title: string, body: string) => `<tr><td style="padding:16px 0 0">
+<p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0f172a">${title}</p>
+${body}
 </td></tr>`;
+    const line = (html: string) => `<p style="margin:0 0 8px;font-size:14px;line-height:1.45;color:#334155">${html}</p>`;
+    const link = (href: string, html: string) => `<a href="${escapeHtml(APP_URL + href)}" style="color:#4f46e5;text-decoration:none">${html}</a>`;
 
-    const replies = section(
-        "Unread replies",
-        data.unreadReplies.count,
-        data.unreadReplies.top.map((reply) => `<strong>${escapeHtml(reply.leadName)}</strong>: ${escapeHtml(reply.snippet)}`)
-    );
-    const stalled = section("Stalled leads", data.stalledLeads.count, data.stalledLeads.top.map((suggestion) => escapeHtml(suggestion)));
-    const meetings = section(
-        "Meetings today",
-        data.meetingsToday.count,
-        data.meetingsToday.top.map((meeting) => `${escapeHtml(time.format(meeting.startTime))} &middot; ${escapeHtml(meeting.title)}`)
-    );
+    const needsYouHtml = data.needsYou
+        .map((item) => {
+            const entries = item.top.map((entry) =>
+                line(`${link(entry.href, `<strong>${escapeHtml(entryTitle(item.type, entry))}</strong>`)}${entry.detail ? `: ${escapeHtml(entry.detail)}` : ""}`)
+            );
+            if (item.count > item.top.length) entries.push(line(link(item.href, `See all ${item.count}`)));
+            return block(`${escapeHtml(NEEDS_YOU_COPY[item.type].label)} (${item.count})`, entries.join("\n"));
+        })
+        .join("\n");
+    const goalsHtml = data.goals.length ? block("Monthly meeting goal", data.goals.map((goal) => line(escapeHtml(goalLine(goal)))).join("\n")) : "";
+    const winHtml = data.win ? block("Yesterday&#39;s win", line(escapeHtml(data.win))) : "";
     const y = data.yesterday;
     const yesterdayLine = `${plural(y.emailsSent, "email", "emails")} sent &middot; ${plural(y.replies, "reply", "replies")} &middot; ${plural(y.meetingsBooked, "meeting", "meetings")} booked`;
     const greeting = data.recipientName ? `Good morning, ${escapeHtml(data.recipientName)}.` : "Good morning.";
+    const intro = data.needsYou.length ? "Here is what needs you today." : "Nothing is waiting on you today.";
 
     const html = `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
@@ -115,11 +187,11 @@ ${items.map((item) => `<p style="margin:0 0 8px;font-size:14px;line-height:1.45;
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:24px">
 <tr><td>
 <p style="margin:0 0 4px;font-size:18px;font-weight:600;color:#0f172a">${greeting}</p>
-<p style="margin:0;font-size:14px;color:#475569">Here is what needs you today.</p>
+<p style="margin:0;font-size:14px;color:#475569">${intro}</p>
 </td></tr>
-${replies}
-${stalled}
-${meetings}
+${needsYouHtml}
+${goalsHtml}
+${winHtml}
 <tr><td style="padding:16px 0 0">
 <p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#0f172a">Yesterday</p>
 <p style="margin:0;font-size:14px;color:#334155">${yesterdayLine}</p>
@@ -132,14 +204,17 @@ ${meetings}
 </td></tr></table>
 </body></html>`;
 
-    const textSection = (title: string, count: number, items: string[]) =>
-        count === 0 ? [] : [`${title} (${count})`, ...items.map((item) => `- ${item}`), ""];
     const text = [
         data.recipientName ? `Good morning, ${data.recipientName}.` : "Good morning.",
         "",
-        ...textSection("Unread replies", data.unreadReplies.count, data.unreadReplies.top.map((r) => `${r.leadName}: ${r.snippet}`)),
-        ...textSection("Stalled leads", data.stalledLeads.count, data.stalledLeads.top),
-        ...textSection("Meetings today", data.meetingsToday.count, data.meetingsToday.top.map((m) => `${time.format(m.startTime)} ${m.title}`)),
+        ...data.needsYou.flatMap((item) => [
+            `${NEEDS_YOU_COPY[item.type].label} (${item.count})`,
+            ...item.top.map((entry) => `- ${entryTitle(item.type, entry)}${entry.detail ? `: ${entry.detail}` : ""} ${APP_URL}${entry.href}`),
+            "",
+        ]),
+        ...data.goals.map(goalLine),
+        ...(data.goals.length ? [""] : []),
+        ...(data.win ? [`Yesterday's win: ${data.win}`, ""] : []),
         `Yesterday: ${plural(y.emailsSent, "email", "emails")} sent, ${plural(y.replies, "reply", "replies")}, ${plural(y.meetingsBooked, "meeting", "meetings")} booked`,
         "",
         `Open your inbox: ${INBOX_URL}`,
