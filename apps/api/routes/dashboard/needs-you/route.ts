@@ -9,6 +9,9 @@ export async function GET(req: NextRequest) {
         const { userId, teamId } = await getCurrentContextFromRequest(req);
         if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+        const { markActiveDay } = await import("@/lib/analytics/productEvents");
+        void markActiveDay(userId, teamId);
+
         const { collectNeedsYou } = await import("@/modules/inbox/needsYouService");
         return NextResponse.json({ needsYou: await collectNeedsYou([teamId]) });
     } catch (error) {

@@ -17,7 +17,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const { id } = await params;
         const { markReplyOutcome } = await import("@/modules/inbox/actionInboxService");
-        return NextResponse.json(await markReplyOutcome(teamId, id, parsed.data.outcome));
+        const result = await markReplyOutcome(teamId, id, parsed.data.outcome);
+
+        const { markFirstPositiveReply } = await import("@/lib/analytics/productEvents");
+        void markFirstPositiveReply(teamId, userId, parsed.data.outcome);
+        return NextResponse.json(result);
     } catch (error) {
         return handleAPIError(error);
     }

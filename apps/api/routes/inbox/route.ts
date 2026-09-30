@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
         const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1", 10) || 1);
         const limit = Math.min(50, Math.max(1, Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20));
 
+        const { markActiveDay } = await import("@/lib/analytics/productEvents");
+        void markActiveDay(userId, teamId);
+
         const { getInbox } = await import("@/modules/inbox/actionInboxService");
         return NextResponse.json(await getInbox(teamId, { page, limit }));
     } catch (error) {
