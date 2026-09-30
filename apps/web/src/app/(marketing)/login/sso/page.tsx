@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Shield, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { postLoginPath } from "@/lib/postLoginPath";
 
 export default function SsoLoginPage() {
     const [email, setEmail] = useState("");
@@ -44,7 +45,7 @@ export default function SsoLoginPage() {
             const csrfRes = await fetch("/api/auth/csrf");
             const { csrfToken } = await csrfRes.json();
 
-            const body = new URLSearchParams({ csrfToken, callbackUrl: "/dashboard", json: "true" });
+            const body = new URLSearchParams({ csrfToken, callbackUrl: postLoginPath(), json: "true" });
             const signinRes = await fetch(
                 `/api/auth/signin/oidc?teamId=${encodeURIComponent(data.teamId)}&login_hint=${encodeURIComponent(email)}`,
                 {

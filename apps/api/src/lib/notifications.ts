@@ -6,6 +6,9 @@ const resend = process.env["RESEND_API_KEY"] ? new Resend(process.env["RESEND_AP
 
 export type NotificationType = "CAMPAIGN" | "LEAD" | "SYSTEM" | "BILLING";
 
+// System sender for notification emails (also used by the daily digest).
+export const SYSTEM_EMAIL_FROM = "CraftMyFunnel <contact.us@craftmyfunnel.live>";
+
 export class NotificationDispatcher {
     static async send(userId: string, type: NotificationType, title: string, message: string, meta?: any) {
         try {
@@ -52,7 +55,7 @@ export class NotificationDispatcher {
 
                 if (shouldSendEmail) {
                     await resend.emails.send({
-                        from: 'CraftMyFunnel <contact.us@craftmyfunnel.live>',
+                        from: SYSTEM_EMAIL_FROM,
                         to: user.email,
                         subject: `[CraftMyFunnel] ${title}`,
                         html: `<p>${message}</p>`

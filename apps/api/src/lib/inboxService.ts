@@ -1,20 +1,5 @@
 import { prisma } from "@/lib/prisma";
 
-export interface Thread {
-    id: string; // This is the leadId
-    leadId: string;
-    leadName: string;
-    leadDetails: {
-        email: string | null;
-        company: string | null;
-        jobTitle: string | null;
-    };
-    lastMessage: string | null;
-    lastMessageAt: Date | null;
-    unreadCount: number;
-    platform?: string;
-}
-
 export interface Message {
     id: string;
     threadId: string;
@@ -24,71 +9,6 @@ export interface Message {
 }
 
 export class InboxService {
-
-    // Fetch threads for a specific team (leads with messages)
-    static async getThreads(teamId: string, filters: { status?: string, platform?: string, search?: string } = {}): Promise<Thread[]> {
-        const where: any = {
-            teamId: teamId,
-            OR: [
-                { status: "replied" },
-                { status: "contacted" },
-                { messages: { some: {} } }
-            ]
-        };
-
-        if (filters.platform) {
-            if (filters.platform === "LINKEDIN") where.linkedIn = { not: null };
-            if (filters.platform === "EMAIL") where.linkedIn = null;
-        }
-
-        if (filters.status === "UNREAD") {
-            where.messages = { some: { isRead: false, direction: 'INBOUND' } };
-        }
-
-        if (filters.search) {
-            where.OR = [
-                { fullName: { contains: filters.search, mode: 'insensitive' } },
-                { company: { contains: filters.search, mode: 'insensitive' } }
-            ];
-        }
-
-        const leads = await prisma.lead.findMany({
-            where,
-            include: {
-                messages: {
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
-                },
-                _count: {
-                    select: {
-                        messages: { where: { isRead: false, direction: 'INBOUND' } }
-                    }
-                }
-            },
-            orderBy: {
-                updatedAt: 'desc'
-            }
-        });
-
-        // Map to Thread interface
-        return leads.map(lead => {
-            const lastMsg = lead.messages[0];
-            return {
-                id: lead.id,
-                leadId: lead.id,
-                leadName: lead.fullName || "Unknown Lead",
-                leadDetails: {
-                    email: lead.email,
-                    company: lead.company,
-                    jobTitle: lead.jobTitle
-                },
-                lastMessage: lastMsg ? lastMsg.content : null,
-                lastMessageAt: lastMsg ? lastMsg.createdAt : null,
-                unreadCount: lead._count.messages,
-                platform: "EMAIL" // Default to email as schema doesn't strictly enforce per-thread platform yet
-            };
-        });
-    }
 
     static async markAsRead(leadId: string) {
         return await prisma.message.updateMany({

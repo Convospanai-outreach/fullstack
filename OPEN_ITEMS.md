@@ -6035,6 +6035,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   service-linked role, which didn't exist in the account; the README creates it once. Regression:
   `mautic-template.test.mjs` test 8 fails on main's template and passes here; the `bash -n` test covers the script.
 
+- **OPEN-287 (Fixed — Action Inbox + daily digest, #599):** users had no single place to see what needs them:
+  `(dashboard)/inbox` only redirected to `/approvals`, replies had no UI, and replies/meetings/stalls triggered no
+  notifications. New team-scoped `GET /inbox`, `/inbox/counts`, `/inbox/thread/:leadId` and
+  `POST /inbox/replies/:id/{read,reply,mark}`. Replies send from the mailbox that sent the original email through that
+  provider's own send function (never falling back to another mailbox), respect SuppressionEntry and guardrails, and
+  persist an Email row so reply sync still matches the lead's next answer. Marking an outcome saves `Lead.replyOutcome`
+  and explicitly stops the lead's sequence enrollments for all four outcomes: sequences otherwise stop only through
+  `exitReason(lead)`, and a lead moved to LOST would have had its pre-scheduled runs send again (control test in
+  `sequenceService.stopEnrollments.test.ts`). `/inbox` is the post-login landing behind
+  `NEXT_PUBLIC_ACTION_INBOX_ENABLED` (build-time inlined). Reply/meeting alerts go through NotificationDispatcher (one
+  per lead per 6h); an hourly worker tick sends the 08:00 IST digest, idempotent via `DigestLog`. Migration
+  `20260930100000_action_inbox_and_digest` (additive) was applied with Web Prisma Migrate before merge, since Render
+  can deploy apps/web ahead of the Oracle `migrate deploy`. Known gaps left: Gmail replies store the subject only; inbox
+  replies carry no In-Reply-To headers; a new IMAP mailbox's first sync can alert once per historical reply; SMTP inbox
+  replies skip daily-send accounting.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

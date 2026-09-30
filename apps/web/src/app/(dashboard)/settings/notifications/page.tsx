@@ -15,6 +15,7 @@ export default function NotificationsPage() {
         emailGlobal: true,
         emailCampaign: true,
         emailLeads: true,
+        digestEnabled: true,
         inAppGlobal: true
     });
 
@@ -24,6 +25,7 @@ export default function NotificationsPage() {
                 emailGlobal: settings.notifications.emailGlobal,
                 emailCampaign: settings.notifications.emailCampaign,
                 emailLeads: settings.notifications.emailLeads,
+                digestEnabled: settings.notifications.digestEnabled ?? true,
                 inAppGlobal: settings.notifications.inAppGlobal
             });
         }
@@ -73,6 +75,12 @@ export default function NotificationsPage() {
                             desc="When a new lead is enriched or replies"
                             checked={toggles.emailLeads}
                             onChange={(v) => handleToggle("emailLeads", v)}
+                        />
+                        <Toggle
+                            label="Daily Digest"
+                            desc="A morning summary of unread replies, stalled leads, and today's meetings"
+                            checked={toggles.digestEnabled}
+                            onChange={(v) => handleToggle("digestEnabled", v)}
                         />
                     </div>
                 </div>
