@@ -14,10 +14,10 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
     const tabs = [
         { name: "Sovereign Firewall", href: "/governance/firewall", icon: Shield },
         { name: "Compliance Overview", href: "/governance", icon: ClipboardList },
-        { name: "Audit Logs", href: "/governance/audit", icon: ClipboardList },
-        { name: "Guardrail Policy", href: "/governance/guardrails", icon: Lock },
+        { name: "Audit Logs", href: "/settings/audit", icon: ClipboardList },
+        { name: "Guardrail Policy", href: "/settings/guardrails", icon: Lock },
         { name: "Access Control", href: "/governance/access", icon: Users },
-        { name: "Security Keys", href: "/governance/keys", icon: Fingerprint },
+        { name: "Security Keys", href: "/settings/keys", icon: Fingerprint },
     ];
 
     return (

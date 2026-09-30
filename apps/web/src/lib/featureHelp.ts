@@ -128,16 +128,16 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
     },
     "audit-logs": {
         label: "Audit Logs",
-        href: "/audit-logs",
-        pathPrefixes: ["/audit-logs"],
+        href: "/settings/audit",
+        pathPrefixes: ["/settings/audit"],
         blurb: "A chronological record of system activity and automation history.",
         whenToUse: "Use this to trace exactly what happened and when, e.g. after an unexpected result.",
     },
     "team": {
         label: "Team",
-        href: "/team",
-        pathPrefixes: ["/team"],
-        blurb: "Invite teammates, assign roles, and set team-wide policy.",
+        href: "/settings/team",
+        pathPrefixes: ["/settings/team"],
+        blurb: "Invite teammates and assign roles.",
         whenToUse: "Use this to add a new teammate or change someone's permissions.",
     },
     "billing": {
@@ -149,11 +149,11 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
     },
     "crm-bridge": {
         label: "CRM Bridge",
-        href: "/crm",
-        pathPrefixes: ["/crm"],
-        blurb: "A preview of syncing with Salesforce/HubSpot/Pipedrive — currently a placeholder, not yet functional.",
-        whenToUse: "Nothing to do here yet — connect/sync actions just show an \"in development\" message.",
-        overlapNote: "Not a working alternative to Leads. Leads is your real, live contact database; CRM Bridge doesn't sync anything yet.",
+        href: "/settings/crm",
+        pathPrefixes: ["/settings/crm"],
+        blurb: "Save your HubSpot, Salesforce or Pipedrive access token and map lead fields to CRM fields.",
+        whenToUse: "Use this to set up a CRM connection and its field mapping.",
+        overlapNote: "Leads is your contact database; this page only configures the CRM connection.",
     },
     "settings": {
         label: "Settings",

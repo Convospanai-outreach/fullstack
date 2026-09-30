@@ -273,7 +273,7 @@ export default function GovernancePage() {
                     </div>
                     <p className="text-[10px] text-muted-foreground">Review AI decisions before they are executed.</p>
                     <Link
-                        href="/settings/hitl"
+                        href="/approvals"
                         className="block text-center py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-all"
                     >
                         View Intercepts
