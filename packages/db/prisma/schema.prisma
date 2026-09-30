@@ -1136,6 +1136,9 @@ model NotificationSettings {
   emailLeads    Boolean  @default(true)
   inAppGlobal   Boolean  @default(true)
   digestEnabled Boolean  @default(true) // daily Action Inbox digest email (see dailyDigestService.ts)
+  // Slack incoming-webhook URL for hot-reply alerts, encrypted (credentialVault EncryptedCredential); null = off.
+  // Never returned by settings reads (omitted in settingsService.getSettings).
+  slackWebhook  Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

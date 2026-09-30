@@ -9,9 +9,11 @@ const mockDb: any = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
+vi.mock("../slackAlert", async (importOriginal) => ({ ...(await importOriginal<object>()), sendSlackAlerts: vi.fn() }));
 
 import { onInboundReply, onMeetingCreated } from "../inboundReplyNotifier";
 import { NotificationDispatcher } from "@/lib/notifications";
+import { sendSlackAlerts } from "../slackAlert";
 
 const createdAt = new Date("2026-09-30T08:00:00Z");
 const reply = (overrides: any = {}) => ({ id: "msg-1", leadId: "lead-1", sentimentScore: null, emailEventId: "event-1", createdAt, ...overrides });
@@ -34,7 +36,16 @@ describe("onInboundReply", () => {
         expect(type).toBe("LEAD");
         expect(title).toBe("New reply from Asha <b>Rao</b>");
         expect(message).not.toContain("Asha");
-        expect(message).toContain("https://craftmyfunnel.live/inbox");
+        expect(message).toContain("https://craftmyfunnel.live/inbox?reply=msg-1");
+    });
+
+    it("pushes the same recipients to Slack with lead text escaped and an exact-thread link", async () => {
+        await onInboundReply(reply());
+
+        expect(sendSlackAlerts).toHaveBeenCalledWith(
+            ["user-1", "user-2"],
+            "*New reply from Asha &lt;b&gt;Rao&lt;/b&gt;*  <https://craftmyfunnel.live/inbox?reply=msg-1|Open the thread>"
+        );
     });
 
     it("alerts only the mailbox's assigned rep when that rep is an active member", async () => {
@@ -49,6 +60,7 @@ describe("onInboundReply", () => {
     it("skips clearly negative replies but alerts on unscored and positive ones", async () => {
         await onInboundReply(reply({ sentimentScore: 0.1 }));
         expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+        expect(sendSlackAlerts).not.toHaveBeenCalled();
 
         await onInboundReply(reply({ sentimentScore: 0.3 }));
         expect(NotificationDispatcher.send).toHaveBeenCalled();

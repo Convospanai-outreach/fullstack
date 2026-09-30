@@ -14,6 +14,11 @@ const MIN_ALERT_SENTIMENT = 0.3;
 // only ever used as a plain-text subject / in-app string.
 const ALERT_MESSAGE = `Open your Action Inbox to read and respond: ${INBOX_URL}`;
 
+// Reply alerts link to the exact thread. The message id is a server-generated uuid, URL-encoded.
+function threadUrl(messageId: string) {
+    return `${INBOX_URL}?reply=${encodeURIComponent(messageId)}`;
+}
+
 function plainTitle(value: string) {
     return value.replace(/[\r\n]+/g, " ").trim().slice(0, 120);
 }
@@ -78,9 +83,13 @@ async function notifyInboundReply(message: InboundReply) {
 
     const { NotificationDispatcher } = await import("@/lib/notifications");
     const title = plainTitle(`New reply from ${lead.fullName || lead.email || "a lead"}`);
+    const url = threadUrl(message.id);
     for (const userId of recipients) {
-        await NotificationDispatcher.send(userId, "LEAD", title, ALERT_MESSAGE, { leadId: message.leadId, messageId: message.id });
+        await NotificationDispatcher.send(userId, "LEAD", title, `Open the thread to read and respond: ${url}`, { leadId: message.leadId, messageId: message.id });
     }
+
+    const { sendSlackAlerts, slackEscape } = await import("./slackAlert");
+    await sendSlackAlerts(recipients, `*${slackEscape(title)}*  <${url}|Open the thread>`);
 }
 
 type CreatedMeeting = { id: string; teamId: string; title: string; leadId: string | null };

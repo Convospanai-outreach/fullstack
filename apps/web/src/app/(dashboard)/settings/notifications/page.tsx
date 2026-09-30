@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
+import { toast } from "sonner";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
@@ -78,7 +79,7 @@ export default function NotificationsPage() {
                         />
                         <Toggle
                             label="Daily Digest"
-                            desc="A morning summary of unread replies, stalled leads, and today's meetings"
+                            desc="Each morning: what needs you, your meeting goal pace, and yesterday's results"
                             checked={toggles.digestEnabled}
                             onChange={(v) => handleToggle("digestEnabled", v)}
                         />
@@ -96,7 +97,82 @@ export default function NotificationsPage() {
                         onChange={(v) => handleToggle("inAppGlobal", v)}
                     />
                 </div>
+
+                <SlackAlerts />
             </GlassCard>
+        </div>
+    );
+}
+
+// Optional Slack push for new replies. The webhook URL is stored encrypted and never shown again.
+function SlackAlerts() {
+    const url = getBrowserApiUrl("/settings/notifications/slack");
+    const { data, mutate: refresh } = useSWR<{ connected: boolean }>(url, fetcher);
+    const [webhook, setWebhook] = useState("");
+    const [saving, setSaving] = useState(false);
+
+    const save = async (value: string | null) => {
+        setSaving(true);
+        try {
+            const res = await fetch(url, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: value }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => null);
+                toast.error(body?.error || "Use a Slack incoming-webhook URL that starts with https://hooks.slack.com/services/");
+                return;
+            }
+            await refresh(await res.json(), { revalidate: false });
+            setWebhook("");
+            toast.success(value ? "Slack connected. We posted a test message to the channel." : "Slack alerts turned off.");
+        } catch {
+            toast.error("Couldn't save. Try again.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="border-t border-border pt-8">
+            <h3 className="text-lg font-semibold text-foreground mb-1">Slack</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+                Get a Slack message when a lead replies, with a link to the thread.{" "}
+                <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    How to get a webhook URL
+                </a>
+            </p>
+            {data?.connected ? (
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground">Connected</span>
+                    <button type="button" disabled={saving} onClick={() => save(null)} className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
+                        Turn off
+                    </button>
+                </div>
+            ) : (
+                <form
+                    className="flex flex-col gap-2 sm:flex-row"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void save(webhook.trim());
+                    }}
+                >
+                    <label htmlFor="slack-webhook" className="sr-only">Slack webhook URL</label>
+                    <input
+                        id="slack-webhook"
+                        type="url"
+                        autoComplete="off"
+                        placeholder="https://hooks.slack.com/services/..."
+                        value={webhook}
+                        onChange={(event) => setWebhook(event.target.value)}
+                        className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                    />
+                    <button type="submit" disabled={saving || !webhook.trim()} className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">
+                        {saving ? "Connecting..." : "Connect"}
+                    </button>
+                </form>
+            )}
         </div>
     );
 }
