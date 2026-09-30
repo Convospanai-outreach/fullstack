@@ -11,6 +11,9 @@ export const REPLY_OUTCOMES = ["interested", "not_interested", "meeting_booked",
 export type ReplyOutcome = (typeof REPLY_OUTCOMES)[number];
 
 const SNIPPET_LENGTH = 200;
+// Tags the Email rows sendReply() writes, so the thread doesn't show them twice (their
+// OUTBOUND Message row already carries the rep's plain text).
+const INBOX_REPLY_KEY_PREFIX = "inbox_reply_";
 const UPCOMING_MEETING_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 // Inbound content can be raw HTML (IMAP falls back to parsed.html), so strip it before
@@ -149,16 +152,40 @@ export async function getThread(teamId: string, leadId: string) {
     });
     if (!lead) throw new APIError("Lead not found", 404, "LEAD_NOT_FOUND");
 
-    const messages = await prisma.message.findMany({
-        where: { leadId, status: { not: "draft" } },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, direction: true, platform: true, sender: true, content: true, isRead: true, sentimentScore: true, createdAt: true },
-    });
+    // Campaign/sequence sends only write Email rows (no Message), so the rep's own outbound
+    // emails come from there; Message holds the inbound replies and inbox-sent replies.
+    const [messages, emails] = await Promise.all([
+        prisma.message.findMany({
+            where: { leadId, status: { not: "draft" } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, direction: true, platform: true, sender: true, content: true, isRead: true, sentimentScore: true, createdAt: true },
+        }),
+        prisma.email.findMany({
+            where: {
+                leadId,
+                campaign: { teamId },
+                OR: [{ idempotencyKey: null }, { NOT: { idempotencyKey: { startsWith: INBOX_REPLY_KEY_PREFIX } } }],
+            },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, body: true, createdAt: true, mailbox: { select: { displayName: true, email: true } } },
+        }),
+    ]);
 
-    return {
-        lead,
-        messages: messages.map(({ content, ...message }) => ({ ...message, text: toPlainText(content) })),
-    };
+    const timeline = [
+        ...messages.map(({ content, ...message }) => ({ ...message, text: toPlainText(content) })),
+        ...emails.map((email) => ({
+            id: `email-${email.id}`,
+            direction: "OUTBOUND",
+            platform: "EMAIL",
+            sender: email.mailbox?.displayName || email.mailbox?.email || null,
+            isRead: true,
+            sentimentScore: null,
+            createdAt: email.createdAt,
+            text: toPlainText(email.body),
+        })),
+    ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    return { lead, messages: timeline };
 }
 
 export async function markReplyRead(teamId: string, messageId: string) {
@@ -261,6 +288,7 @@ export async function sendReply(input: { teamId: string; userId: string; message
             status: "sent",
             deliveryProvider: outcome.deliveryProvider,
             trackingId,
+            idempotencyKey: `${INBOX_REPLY_KEY_PREFIX}${trackingId}`,
             ...(outcome.messageId ? { providerId: outcome.messageId } : {}),
             ...(outcome.threadId ? { threadId: outcome.threadId } : {}),
         },

@@ -5,7 +5,7 @@ const mockDb: any = vi.hoisted(() => ({
     overseerNudge: { findMany: vi.fn(), count: vi.fn() },
     meeting: { findMany: vi.fn(), count: vi.fn() },
     lead: { findFirst: vi.fn(), update: vi.fn() },
-    email: { findFirst: vi.fn(), create: vi.fn() },
+    email: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
 }));
@@ -132,17 +132,40 @@ describe("getThread", () => {
         expect(mockDb.message.findMany).not.toHaveBeenCalled();
     });
 
-    it("returns both directions as plain text, excluding drafts", async () => {
+    it("merges the team's sent campaign emails with reply messages in time order, as plain text", async () => {
         mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });
         mockDb.message.findMany.mockResolvedValue([
-            { id: "m1", direction: "OUTBOUND", content: "Hello" },
-            { id: "m2", direction: "INBOUND", content: "<div>Thanks<br>Asha</div>" },
+            { id: "m2", direction: "INBOUND", content: "<div>Thanks<br>Asha</div>", createdAt: new Date("2026-09-29T10:00:00Z") },
+            { id: "m3", direction: "OUTBOUND", content: "Tuesday works", createdAt: new Date("2026-09-29T11:00:00Z") },
+        ]);
+        mockDb.email.findMany.mockResolvedValue([
+            { id: "e1", body: "<p>Hi Asha, quick question</p>", createdAt: new Date("2026-09-28T09:00:00Z"), mailbox: { displayName: "Priya", email: "priya@x.test" } },
         ]);
 
         const thread = await getThread("team-a", "lead-1");
 
         expect(mockDb.message.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { leadId: "lead-1", status: { not: "draft" } } }));
-        expect(thread.messages.map((m: any) => m.text)).toEqual(["Hello", "Thanks\nAsha"]);
+        expect(thread.messages.map((m: any) => [m.id, m.direction, m.sender ?? null, m.text])).toEqual([
+            ["email-e1", "OUTBOUND", "Priya", "Hi Asha, quick question"],
+            ["m2", "INBOUND", null, "Thanks\nAsha"],
+            ["m3", "OUTBOUND", null, "Tuesday works"],
+        ]);
+    });
+
+    it("scopes sent emails to the team and skips the Email rows written by inbox replies (their Message is shown)", async () => {
+        mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+        mockDb.message.findMany.mockResolvedValue([]);
+        mockDb.email.findMany.mockResolvedValue([]);
+
+        await getThread("team-a", "lead-1");
+
+        expect(mockDb.email.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: {
+                leadId: "lead-1",
+                campaign: { teamId: "team-a" },
+                OR: [{ idempotencyKey: null }, { NOT: { idempotencyKey: { startsWith: "inbox_reply_" } } }],
+            },
+        }));
     });
 });
 
@@ -217,7 +240,14 @@ describe("sendReply", () => {
             html: "&lt;b&gt;Tuesday&lt;/b&gt; works.<br>Talk then",
         });
         expect(mockDb.email.create).toHaveBeenCalledWith({
-            data: expect.objectContaining({ leadId: "lead-1", campaignId: "campaign-1", mailboxId: "mailbox-1", providerId: "<gm-1>", threadId: "thread-9" }),
+            data: expect.objectContaining({
+                leadId: "lead-1",
+                campaignId: "campaign-1",
+                mailboxId: "mailbox-1",
+                providerId: "<gm-1>",
+                threadId: "thread-9",
+                idempotencyKey: expect.stringMatching(/^inbox_reply_/),
+            }),
         });
         expect(mockDb.message.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ leadId: "lead-1", direction: "OUTBOUND", platform: "EMAIL", status: "sent", sender: "Rep" }),
