@@ -6100,6 +6100,27 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-295 (Fixed — IA phase 6: hot-reply alerts link to the thread; optional Slack push):** reply alerts linked to
+  the inbox root, and email and in-app were the only channels.
+  - **Exact thread:** the reply alert (email and in-app) now links to `/inbox?reply=<messageId>`. Meeting alerts are
+    unchanged.
+  - **Slack:** optional, per user. `NotificationSettings.slackWebhook Json?` (migration
+    `20261001110000_notification_slack_webhook`; additive, destructive scan clean) holds the URL encrypted with
+    `credentialVault`.
+    - `PUT /settings/notifications/slack` accepts only `https://hooks.slack.com/services/...`, posts a test message
+      first, and stores the URL only if Slack accepts it. `null` turns it off.
+    - `GET` returns `{ connected }` only. `settingsService.getSettings` omits the column, so `/settings` and
+      `/settings/notifications` never return it.
+    - Posts refuse redirects, time out after 5s, and escape `&`, `<` and `>`, so lead text can't form links or
+      `<!channel>` mentions. Failures are logged and never block reply ingestion.
+  - **WhatsApp: not built.** The spec allows it only on an existing WABA send path plus an approved utility template.
+    Neither exists for this: WABA credentials are the customer team's own (for messaging leads), there is no user
+    phone number or user opt-in field, `TemplateGuard`/`ConsentService` are lead-facing, and no utility template for
+    internal alerts is registered.
+  - **Tests:** the notifier (thread link, Slack text escaping, recipients), `slackAlert` (host allowlist, no
+    redirects, encrypted storage, test-post gating, failure isolation), and the route (auth, validation, never
+    returning the URL).
+
 - **OPEN-294 (Fixed — IA phase 5: digest leads with what needs you, then goal pace, a win, yesterday):** the daily
   digest listed replies, stalled leads and meetings, and linked everything to the inbox root.
   - **Needs you:** the three most urgent non-empty items from `collectNeedsYou`, in Home's order and with Home's

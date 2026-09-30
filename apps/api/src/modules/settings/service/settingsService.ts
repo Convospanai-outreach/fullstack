@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 
+// The encrypted Slack webhook never leaves the server; /settings/notifications/slack reports whether one is set.
+const NOTIFICATIONS_READ = { omit: { slackWebhook: true } } as const;
+
 class SettingsService {
     /**
      * Get settings for a user (or default if null)
@@ -7,7 +10,7 @@ class SettingsService {
     async getSettings(userId: string) {
         let settings = await prisma.settings.findUnique({
             where: { userId },
-            include: { notifications: true }
+            include: { notifications: NOTIFICATIONS_READ }
         });
 
         if (!settings) {
@@ -21,7 +24,7 @@ class SettingsService {
                         }
                     }
                 },
-                include: { notifications: true }
+                include: { notifications: NOTIFICATIONS_READ }
             });
         } else if (!settings.notifications) {
             // Heal: Create notifications if settings exist but relation is missing
@@ -29,7 +32,8 @@ class SettingsService {
                 data: {
                     settingsId: settings.id,
                     userId
-                }
+                },
+                ...NOTIFICATIONS_READ
             });
             settings.notifications = notifs;
         }
