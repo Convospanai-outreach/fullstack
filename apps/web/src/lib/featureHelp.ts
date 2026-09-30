@@ -243,6 +243,9 @@ const HIDDEN_FEATURE_HELP_TEXT: Record<HiddenFeatureKey, { whenToUse: string; ov
         whenToUse: "Only for multi-language/international campaign prep — not general template editing.",
         overlapNote: "Self-labeled \"Experimental / Internal Preview\" in the product — specifically for localizing a campaign's language and narrative, not a general-purpose writing tool.",
     },
+    "creator-funnel": {
+        whenToUse: "For creators and brands selling a course, product or call from Instagram and Facebook. Early access: parts appear as they're built.",
+    },
     "workflows": {
         whenToUse: "Prefer the main Automations page in your sidebar — this is a near-duplicate.",
         overlapNote: "Manages the identical data as Automations (same underlying records). Automations is the one in your primary nav.",

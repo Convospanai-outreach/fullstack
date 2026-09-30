@@ -13,6 +13,22 @@ enum Region {
   EU
 }
 
+// Creator funnel (flag `creator-funnel`): where a lead or asset sits in the funnel.
+// Transitions only move forward unless forced (creator-funnel/funnelStageService.ts).
+enum FunnelStage {
+  TOFU
+  MOFU
+  BOFU
+  POST
+}
+
+// Which system sends a lead's marketing nurture. One sender per lead at a time
+// (creator-funnel/nurtureProvider.ts).
+enum NurtureOwner {
+  CMF
+  MAUTIC
+}
+
 model Lead {
   id         String   @id @default(uuid())
   fullName   String?
@@ -51,6 +67,10 @@ model Lead {
   // nurture email for a lead already in this app's own sequence pipeline)
   mauticContactId String?
   mauticSyncedAt  DateTime?
+
+  // Creator funnel: stage (null = not in a creator funnel) and the system that owns its nurture.
+  funnelStage  FunnelStage?
+  nurtureOwner NurtureOwner?
 
   // Lead Intent Scoring (Weighted Algorithm)
   intentScore      Float?    @default(0.0) // 0.0 - 1.0 weighted intent score
@@ -422,6 +442,7 @@ model LandingPage {
   slug         String          @unique
   title        String?
   status       String          @default("draft")
+  funnelStage  FunnelStage? // creator funnel: lead magnet (TOFU/MOFU), sales page (BOFU), etc.
   version      Int             @default(1)
   editorState  Json?
   renderedJson Json
@@ -905,6 +926,7 @@ model CampaignSequence {
   status            String   @default("DRAFT")
   timezone          String   @default("UTC")
   senderMailboxIds  String[] @default([])
+  funnelStage       FunnelStage? // creator funnel: the stage this sequence nurtures
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1302,6 +1324,9 @@ model Team {
   // never customized, so readiness-gated defaults are computed at read time (see
   // hiddenFeaturesReadiness.ts); a JSON string[] = the team's explicit choice.
   enabledFeatures Json?
+
+  // Creator funnel: who runs this team's marketing nurture journeys. null = CMF sequences.
+  nurtureProvider NurtureOwner?
 
   // WhatsApp Business API ownership, set at setup time. Automated sequence sends
   // require both fields; a team with either unset falls back to human-in-the-loop

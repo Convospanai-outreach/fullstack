@@ -6100,6 +6100,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-298 (Fixed — creator funnel phase 1: funnel stages, nurture seam, one-sender lock):** foundation for the
+  creator funnel (Instagram/Facebook to landing page to nurture to checkout). Everything is behind the per-team
+  `creator-funnel` hidden feature: off by default and early access, with no pages yet.
+  - **Schema:** migration `20261002100000_creator_funnel_stage` is additive: enums `FunnelStage` (TOFU/MOFU/BOFU/POST)
+    and `NurtureOwner` (CMF/MAUTIC); nullable `Lead.funnelStage`, `Lead.nurtureOwner`, `CampaignSequence.funnelStage`,
+    `LandingPage.funnelStage` and `Team.nurtureProvider` (null = CMf). `Playbook` gets no stage because it describes a
+    whole funnel. The destructive scan is clean.
+  - **Stages:** `creator-funnel/funnelStageService.ts` has named events (social first touch to TOFU, landing opt-in to
+    MOFU, checkout started or call booked to BOFU, payment to POST). Moves are forward-only unless forced, and a
+    conditional update means concurrent moves can't both win. Each change is logged to the existing `LeadActivity`
+    (channel `funnel`, type `stage_change`), so there is no new event table.
+  - **Mautic:** `mauticService.tagFunnelStage` sets a `stage-<x>` tag and removes the others (the `-` prefix, per the
+    Mautic contacts API docs, checked 2026-09-30). It is skipped without error when Mautic isn't configured or the lead
+    was never pushed, and it is segmentation only: the `mauticContactId` comment ("Mautic never sends nurture") still
+    holds.
+  - **Nurture seam:** `nurtureProvider.ts` has `enroll`/`stop`/`status`. `CmfSequenceProvider` (the default) creates a
+    single-lead `SequenceEnrollment` with the same step allowlist as the web enroller. `MauticJourneyProvider` is a
+    stub that throws "not set up yet". The provider is chosen per team (`Team.nurtureProvider`).
+  - **One-sender lock:** `enrollInNurture` stops the other provider first, and enrolls nothing if that stop fails.
+    `stopNurture` clears the owner. Replies already exit CMf sequences, which pauses nurture during a 1:1 thread.
+  - **Live hook:** a landing-page opt-in moves the lead to MOFU, only for flagged teams, and never fails the intake job.
+  - **Web:** `creator-funnel` is registered as a hidden feature (Settings, Features). It is never on by readiness
+    default and is marked unbuilt until the calendar ships.
+  - **Tests:** transitions (forward, skip-forward, no backward unless forced, unchanged, concurrent, cross-team), the
+    flag gate, the Mautic no-op / not-pushed / tag-swap / error paths, the providers (enroll, unsupported step, lock
+    both directions, stop, status, stub), and the intake hook (flag on, flag off, failure isolation).
+
 - **OPEN-297 (Fixed — IA: sign-in lands on Home):** sign-in landed on /inbox behind `NEXT_PUBLIC_ACTION_INBOX_ENABLED`.
   Now that Home leads with Needs you (OPEN-292), `postLoginPath()` always returns `/dashboard` and the flag is gone
   (code, test and `.env.example`). An explicit `redirect_url`/`callbackUrl` still wins. A leftover value for the old

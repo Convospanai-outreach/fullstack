@@ -9,6 +9,7 @@ export type HiddenFeatureKey =
     | "agents"
     | "caller"
     | "command-center"
+    | "creator-funnel"
     | "crystal-knows"
     | "csv-ingestion"
     | "edge"
@@ -35,11 +36,19 @@ export interface HiddenFeatureDefinition {
     built: boolean;
 }
 
-const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set([]);
+// creator-funnel: pages land in later phases (content calendar first).
+const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set<HiddenFeatureKey>(["creator-funnel"]);
 
 type HiddenFeatureBase = Omit<HiddenFeatureDefinition, "built">;
 
 const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
+    "creator-funnel": {
+        key: "creator-funnel",
+        label: "Creator funnel",
+        description: "Instagram and Facebook posts and DMs into landing pages, nurture and checkout, with a content calendar.",
+        openPath: "/content/calendar",
+        pathPrefixes: ["/content/calendar"],
+    },
     "agents": {
         key: "agents",
         label: "AI agents",
@@ -261,6 +270,7 @@ export type HiddenFeatureCategory = "Outreach" | "Automation" | "Account" | "Adm
 
 export const HIDDEN_FEATURE_CATEGORY_BY_KEY: Record<HiddenFeatureKey, HiddenFeatureCategory> = {
     "playbooks": "Outreach",
+    "creator-funnel": "Outreach",
     "hunter-email-finder": "Outreach",
     "crystal-knows": "Outreach",
     "csv-ingestion": "Outreach",

@@ -19,8 +19,13 @@ vi.mock("@/modules/scoring", () => ({
     },
 }));
 
+vi.mock("@/modules/creator-funnel/featureGate", () => ({ isCreatorFunnelEnabled: vi.fn().mockResolvedValue(false) }));
+vi.mock("@/modules/creator-funnel/funnelStageService", () => ({ applyFunnelEvent: vi.fn() }));
+
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
+import { isCreatorFunnelEnabled } from "@/modules/creator-funnel/featureGate";
+import { applyFunnelEvent } from "@/modules/creator-funnel/funnelStageService";
 import { handleLandingLeadIntake } from "../landing-lead-intake-worker";
 
 describe("landing-lead-intake-worker", () => {
@@ -165,5 +170,49 @@ describe("landing-lead-intake-worker", () => {
         const result = await handleLandingLeadIntake({ landingLeadId: "ll-3", teamId: "team-1" } as any);
 
         expect(result).toEqual({ created: true, leadId: "lead-3" });
+    });
+
+    describe("creator funnel", () => {
+        const optIn = () => {
+            (prisma.landingLead.findFirst as any).mockResolvedValue({
+                id: "ll-5",
+                teamId: "team-1",
+                email: null,
+                name: "Asha",
+                phone: null,
+                company: null,
+                title: null,
+                campaign: { linkedCampaignId: null },
+            });
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-5" });
+            (leadScoringService.scoreAndPersist as any).mockResolvedValue(undefined);
+        };
+
+        it("moves the lead to MOFU on opt-in when the team has the creator funnel on", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(true);
+
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+
+            expect(isCreatorFunnelEnabled).toHaveBeenCalledWith("team-1");
+            expect(applyFunnelEvent).toHaveBeenCalledWith("team-1", "lead-5", "landing_opt_in");
+        });
+
+        it("leaves the stage alone for teams without the flag", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(false);
+
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+
+            expect(applyFunnelEvent).not.toHaveBeenCalled();
+        });
+
+        it("never fails the intake when the stage update throws", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(true);
+            (applyFunnelEvent as any).mockRejectedValue(new Error("db down"));
+
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-5" });
+        });
     });
 });
