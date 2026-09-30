@@ -257,6 +257,17 @@ export class WorkerManager {
             const { sweepFirstCampaignSends } = await import("@/lib/analytics/productEvents");
             const activated = await sweepFirstCampaignSends();
             if (activated > 0) console.log(`[Worker] Activation events: ${activated} team(s) sent their first campaign email.`);
+
+            // Creator funnel: daily Meta token check per connected social account (socialTokenHealth.ts).
+            try {
+                const { checkSocialTokens } = await import("@/modules/creator-funnel/socialTokenHealth");
+                const tokens = await checkSocialTokens(new Date(now));
+                if (tokens.needsReconnect > 0 || tokens.warned > 0) {
+                    console.log(`[Worker] Social tokens: ${tokens.needsReconnect} need reconnecting, ${tokens.warned} expiring soon.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Social token check failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
         }
 
         // Log-table retention (roadmap 3.2 / I-08). Dry run unless

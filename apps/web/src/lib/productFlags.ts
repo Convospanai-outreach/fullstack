@@ -36,8 +36,7 @@ export interface HiddenFeatureDefinition {
     built: boolean;
 }
 
-// creator-funnel: pages land in later phases (content calendar first).
-const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set<HiddenFeatureKey>(["creator-funnel"]);
+const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set([]);
 
 type HiddenFeatureBase = Omit<HiddenFeatureDefinition, "built">;
 
@@ -46,8 +45,8 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
         key: "creator-funnel",
         label: "Creator funnel",
         description: "Instagram and Facebook posts and DMs into landing pages, nurture and checkout, with a content calendar.",
-        openPath: "/content/calendar",
-        pathPrefixes: ["/content/calendar"],
+        openPath: "/settings/social",
+        pathPrefixes: ["/settings/social", "/content/calendar"],
     },
     "agents": {
         key: "agents",

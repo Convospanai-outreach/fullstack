@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectFacebookPages } from "@/modules/facebook-leads/service/facebookLeadsService";
+import { connectFacebookPages, nextPathFromState } from "@/modules/facebook-leads/service/facebookLeadsService";
 
 export const dynamic = "force-dynamic";
 
@@ -8,15 +8,17 @@ export async function GET(req: NextRequest) {
     const state = req.nextUrl.searchParams.get("state");
     const error = req.nextUrl.searchParams.get("error");
     const baseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || req.nextUrl.origin;
+    // Failures return to the page that started the connect (verified state), else /settings/crm.
+    const failurePath = nextPathFromState(state) || "/settings/crm";
 
     if (error) {
         return NextResponse.redirect(
-            new URL(`/settings/crm?connected=false&error=${encodeURIComponent(error)}`, baseUrl)
+            new URL(`${failurePath}?connected=false&error=${encodeURIComponent(error)}`, baseUrl)
         );
     }
     if (!code || !state) {
         return NextResponse.redirect(
-            new URL("/settings/crm?connected=false&error=missing_oauth_code", baseUrl)
+            new URL(`${failurePath}?connected=false&error=missing_oauth_code`, baseUrl)
         );
     }
 
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
     } catch (err: any) {
         const message = err?.message || "oauth_failed";
         return NextResponse.redirect(
-            new URL(`/settings/crm?connected=false&error=${encodeURIComponent(message)}`, baseUrl)
+            new URL(`${failurePath}?connected=false&error=${encodeURIComponent(message)}`, baseUrl)
         );
     }
 }

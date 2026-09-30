@@ -6100,6 +6100,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-300 (Open — Lead Ads code pins Graph API v21.0, supported until 2027-01-21):**
+  `apps/web/src/modules/facebook-leads/service/facebookLeadsService.ts` (`GRAPH_API_VERSION`) and the apps/api Lead Ads
+  poller call v21.0, which Meta supports until 2027-01-21 (https://developers.facebook.com/docs/graph-api/changelog/versions,
+  checked 2026-09-30; latest is v26.0). Move Lead Ads to a current version and retest the poll before then.
+  Creator-funnel social calls already use v26.0.
+
+- **OPEN-299 (Fixed — creator funnel phase 2: social account connections):** teams can connect Facebook Pages and
+  their linked Instagram professional accounts. This is behind `creator-funnel`.
+  - **Schema:** migration `20261002110000_social_accounts` adds a `SocialPlatform` enum and a `SocialAccount` table
+    (additive). The table has unique `(teamId, platform, externalId)`, a token encrypted with the same `credentialVault`
+    as `encryptedPageAccessToken`, granted scopes, status (CONNECTED / NEEDS_RECONNECT / DISCONNECTED), expiry, and
+    `parentExternalId` (an Instagram account's Page).
+  - **OAuth (extended, not forked):** the Meta connect flow now carries a signed `purpose`. `social` asks for Page
+    posting, comment and messaging permissions and the Instagram publish/comment/message permissions instead of
+    `leads_retrieval`. It writes one `FACEBOOK_PAGE` row per Page, plus an `INSTAGRAM` row when
+    `GET /{page-id}?fields=instagram_business_account` returns one, and stores the granted scopes from
+    `/me/permissions`. The Lead Ads path is unchanged.
+    - The start route allows `purpose=social` only for teams with the flag on.
+    - Failed callbacks now return to the page that started the flow (from the verified state) instead of always
+      going to `/settings/crm`.
+  - **Token health:** `socialTokenHealth.ts` runs once a day per account from the hourly worker tick. It calls
+    `debug_token` with an app token. An invalid token moves the account to NEEDS_RECONNECT and notifies admins; an
+    expiry within 7 days warns once. It is skipped without `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` in the API's env.
+  - **API:** `GET /social/accounts` never selects the token. `DELETE /social/accounts/:id` (admin only) wipes the token
+    and marks the account DISCONNECTED. Both return 404 while the flag is off.
+  - **Web:** Settings > Mailboxes & Integrations > **Social accounts** (`/settings/social`). The link shows only while
+    `creator-funnel` is on (`SettingsFrame` now filters links by feature), and the page includes the "Allow access to
+    messages" instruction.
+  - **Docs:** `docs/meta-app-review.md` covers each permission's use, the screencast script, test-user steps, and
+    what to submit in which phase. Every Meta permission, endpoint and limit is cited with its URL and check date
+    (2026-09-30) in code comments.
+  - **Tests:** the social scopes, SocialAccount writes (Page and linked Instagram, Page without Instagram, no Lead Ads
+    write), the verified nextPath, the start route (default purpose, flag gate, admin only), the token check (no
+    creds, query and app token, invalid, unreadable, expiry warned once, Meta unreachable), and the routes (401/404,
+    token never selected, team-scoped admin disconnect).
+
 - **OPEN-298 (Fixed — creator funnel phase 1: funnel stages, nurture seam, one-sender lock):** foundation for the
   creator funnel (Instagram/Facebook to landing page to nurture to checkout). Everything is behind the per-team
   `creator-funnel` hidden feature: off by default and early access, with no pages yet.
