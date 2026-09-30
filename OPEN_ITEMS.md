@@ -6100,6 +6100,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-294 (Fixed — IA phase 5: digest leads with what needs you, then goal pace, a win, yesterday):** the daily
+  digest listed replies, stalled leads and meetings, and linked everything to the inbox root.
+  - **Needs you:** the three most urgent non-empty items from `collectNeedsYou`, in Home's order and with Home's
+    labels. Each entry links to the exact item (for example `/inbox?reply=<id>` or `/leads/<id>`), with "See all N" when
+    there are more. The subject line lists the same three.
+  - **Goal pace:** "4 of 10 meetings booked this month. Behind by 2." (or "On pace") for each team with a goal. The
+    team is named only for users in more than one team.
+  - **One win:** yesterday's most recent booked meeting, or else an inbound reply from a lead marked interested or
+    meeting booked.
+  - **Unchanged:** HTML escaping of every lead-, meeting- and team-supplied string, the 08:00 IST window, the DigestLog
+    claim, `digestEnabled`/`emailGlobal`, and the empty-skip (a goal line alone does not send an email).
+  - **Tests:** ordering, deep links, escaping, the top-3 cap, goal pace and team naming, win selection, and emptiness.
+
 - **OPEN-293 (Fixed — IA phase 4: monthly meeting goal on Home):** Home had no target to measure booked meetings against.
   - **Schema:** `Team.monthlyMeetingGoal Int?`, set by migration `20261001100000_team_monthly_meeting_goal`. The change
     only adds a nullable column, with no default and no backfill, and the destructive-migration scan is clean.
