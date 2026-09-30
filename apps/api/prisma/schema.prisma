@@ -1257,6 +1257,9 @@ model Team {
   name             String
   // Meetings the team wants booked per month; null until set. Home shows pace against it.
   monthlyMeetingGoal Int?
+  // Product-analytics milestones (lib/analytics/productEvents.ts): set once, atomically, when the event fires.
+  firstCampaignSentAt  DateTime?
+  firstPositiveReplyAt DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   credits          Int                 @default(100)
@@ -1629,6 +1632,7 @@ model User {
   address             String?
   role                String             @default("user") // Legacy
   enterpriseRole      UserRole           @default(SALES_USER) // Enterprise RBAC
+  lastActiveDay       DateTime?          @db.Date // IST day of the last session_active_day event (productEvents.ts)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   settings            Settings?

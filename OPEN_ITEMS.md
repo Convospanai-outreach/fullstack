@@ -6100,6 +6100,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-296 (Fixed — IA phase 7: four retention events to PostHog from apps/api):** product analytics were
+  browser-only (posthog-js), so activation, the aha reply, active days and booked meetings weren't measured.
+  - **Emitter:** `apps/api/src/lib/analytics/productEvents.ts` uses `posthog-node` (lazy-loaded, `captureImmediate`).
+    It does nothing unless `POSTHOG_API_KEY` is set (`POSTHOG_HOST` defaults to `https://us.i.posthog.com`), and every
+    call swallows its own errors. Distinct id is the user id (the team as a fallback); `team_id` is on every event.
+  - **Once-only claims:** migration `20261001120000_analytics_milestones` (additive, destructive scan clean) adds
+    `Team.firstCampaignSentAt`, `Team.firstPositiveReplyAt` and `User.lastActiveDay`. Each "once" event fires only when
+    a conditional update (still null / not today) claims it, so it can't repeat across restarts or both VMs.
+  - **Events:**
+    - `activation_first_campaign_sent`: hourly worker sweep (after the digest tick) for teams whose first email the
+      provider accepted (`Email.providerId` set). The campaign send path is untouched. The event is stamped with that
+      email's time and attributed to the campaign owner, so teams that sent before this shipped are recorded once,
+      accurately, over the first few hourly sweeps (100 teams per sweep).
+    - `aha_first_positive_reply`: the first time the team marks a reply interested or meeting booked in the Action
+      Inbox. Inbound replies aren't sentiment-scored at ingestion, so the rep's mark is the reliable signal.
+    - `session_active_day`: at most once per user per IST day, when Home (Needs you) or the Action Inbox loads.
+    - `meeting_booked`: every meeting created through `POST /meetings`.
+  - **Ops:** add `POSTHOG_API_KEY` (the same project key as the web's `NEXT_PUBLIC_POSTHOG_KEY`) to both Oracle VMs'
+    `.env`. Until then nothing is sent and nothing is claimed, so no milestone is used up; the first sweep after the
+    key is added records past activations with their original timestamps.
+  - **Tests:** `productEvents.test.ts` (no-key no-op, once-per-day claim, first-positive-reply claim, meeting
+    fallback actor, activation sweep and timestamp, failure isolation) and the mark-outcome route.
+
 - **OPEN-295 (Fixed — IA phase 6: hot-reply alerts link to the thread; optional Slack push):** reply alerts linked to
   the inbox root, and email and in-app were the only channels.
   - **Exact thread:** the reply alert (email and in-app) now links to `/inbox?reply=<messageId>`. Meeting alerts are

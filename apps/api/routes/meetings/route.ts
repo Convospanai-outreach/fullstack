@@ -80,6 +80,8 @@ export async function POST(_req: NextRequest) {
 
         const { onMeetingCreated } = await import("@/modules/inbox/inboundReplyNotifier");
         void onMeetingCreated(meeting, userId);
+        const { trackMeetingBooked } = await import("@/lib/analytics/productEvents");
+        void trackMeetingBooked(teamId, userId, meeting.id);
 
         return successResponse(meeting);
     } catch (error) {

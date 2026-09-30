@@ -252,6 +252,11 @@ export class WorkerManager {
             } catch (error) {
                 console.error(`[Worker] Daily digest failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
             }
+
+            // activation_first_campaign_sent (productEvents.ts); never throws.
+            const { sweepFirstCampaignSends } = await import("@/lib/analytics/productEvents");
+            const activated = await sweepFirstCampaignSends();
+            if (activated > 0) console.log(`[Worker] Activation events: ${activated} team(s) sent their first campaign email.`);
         }
 
         // Log-table retention (roadmap 3.2 / I-08). Dry run unless
