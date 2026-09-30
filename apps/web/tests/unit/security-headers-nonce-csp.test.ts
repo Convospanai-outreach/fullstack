@@ -9,6 +9,10 @@ vi.mock("next-auth/jwt", () => ({ getToken }));
 const connection = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<object>()), connection }));
 
+// The layout test only needs connection(); loading the real client shell would pull the whole
+// dashboard chrome into this suite (and into coverage) without exercising it.
+vi.mock("@/app/(dashboard)/DashboardShell", () => ({ default: ({ children }: { children: unknown }) => children }));
+
 import { proxy } from "@/proxy";
 
 // Roadmap 3.6 part 2 (S-17): signed-in app pages get a per-request nonce and a strict
