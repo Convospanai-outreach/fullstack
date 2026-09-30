@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: vi.fn() }));
 vi.mock("@/lib/permissions", () => ({ checkTeamPermission: vi.fn(), TeamRole: { ADMIN: "admin" } }));
@@ -12,7 +11,8 @@ import { checkTeamPermission } from "@/lib/permissions";
 import { resolveEnabledFeatureKeys } from "@/lib/hiddenFeaturesReadiness";
 import { buildFacebookLeadsAuthUrl } from "@/modules/facebook-leads/service/facebookLeadsService";
 
-const start = (query = "") => GET(new NextRequest(`http://localhost:3000/api/integrations/facebook/oauth/start${query}`));
+// The route only reads req.nextUrl.
+const start = (query = "") => GET({ nextUrl: new URL(`http://localhost:3000/api/integrations/facebook/oauth/start${query}`) } as any);
 
 describe("GET /api/integrations/facebook/oauth/start", () => {
     beforeEach(() => {
