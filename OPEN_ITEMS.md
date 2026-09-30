@@ -6050,6 +6050,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   can deploy apps/web ahead of the Oracle `migrate deploy`. Known gaps left: Gmail replies store the subject only; inbox
   replies carry no In-Reply-To headers; a new IMAP mailbox's first sync can alert once per historical reply; SMTP inbox
   replies skip daily-send accounting.
+- **OPEN-289 (Fixed — new brace-expansion, fast-uri and ip-address advisories failed the `npm audit` gate on main):**
+  main's CI after #599 failed only in `scripts/audit-with-allowlist.mjs` (Web Build and API Strict Typecheck), on
+  seven newly published advisories: GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p and GHSA-q2hr-2g5m-vwhr (`brace-expansion`
+  recursion/quadratic DoS), GHSA-hrr3-gc8f-f4qj and GHSA-jvvf-x445-j334 (`fast-uri` host-case normalization and
+  mailto header injection), and GHSA-j6r3-76f7-8jcv and GHSA-h3mg-xc3c-68pw (`ip-address` <= 10.7.0 cross-family
+  subnet checks and an unbounded parse diagnostic). The lockfile moves within each package's existing major:
+  `brace-expansion` 1.1.21 / 2.1.7 / 5.0.12, `fast-uri` 3.1.8 / 4.1.5, and `ip-address` 10.7.2. The root
+  `ip-address` override goes to 10.7.2. The `fast-uri` pins (root, apps/api, apps/web) go to 4.1.5 and apps/api's
+  `brace-expansion` pin to 1.1.21, to keep the stated floors honest (npm keeps locked entries that satisfy their ranges,
+  so those pins weren't what resolved them). The lockfile entries were edited in place: none of the three packages
+  has dependencies. `npm update` was not used, because it re-resolved geoip-lite to a nested `ip-address@5.9.4`, which
+  is also vulnerable. Evidence: the gate exits 0 from the root, apps/api and apps/web after `npm ci`; apps/api strict
+  `tsc` is clean, and the inbox and server vitest suites pass (62).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
