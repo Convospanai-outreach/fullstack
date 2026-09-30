@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -214,9 +214,11 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
 }
 
 export default function InboxPage() {
-    // ?tab=approvals deep-links here; /approvals redirects to it.
+    // ?tab=approvals deep-links here; /approvals redirects to it. ?reply=<id> opens that thread.
     const router = useRouter();
-    const tab: Tab = useSearchParams()?.get("tab") === "approvals" ? "approvals" : "replies";
+    const searchParams = useSearchParams();
+    const tab: Tab = searchParams?.get("tab") === "approvals" ? "approvals" : "replies";
+    const replyParam = searchParams?.get("reply") ?? null;
     const setTab = (next: Tab) => router.replace(next === "approvals" ? "/inbox?tab=approvals" : "/inbox");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [olderReplies, setOlderReplies] = useState<InboxReply[]>([]);
@@ -245,6 +247,13 @@ export default function InboxPage() {
             // Non-critical: the reply stays bold until the next refresh.
         }
     };
+
+    // Open the deep-linked reply once the first page loads (it's recent, so it's on page 1).
+    useEffect(() => {
+        if (!replyParam || selectedId) return;
+        const target = data?.replies.items.find((r) => r.id === replyParam);
+        if (target) void selectReply(target);
+    }, [data, replyParam]);
 
     const loadMore = async () => {
         if (!data) return;

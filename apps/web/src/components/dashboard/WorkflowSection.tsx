@@ -27,8 +27,8 @@ function getCurrentStep(w: WorkflowData): 1 | 2 | 3 | 4 {
 const STEPS = [
   { number: 1, title: 'Import leads', status: (w: WorkflowData) => w.leadsImported ? `${w.leadsCount} imported` : 'Not started' },
   { number: 2, title: 'Generate drafts', status: (w: WorkflowData) => w.draftsGenerated ? `${w.draftsCount} drafts` : 'Waiting' },
-  { number: 3, title: 'Review follow-ups', status: (w: WorkflowData) => w.followUpsReviewed ? `${w.followUpsCount} reviewed` : 'Waiting' },
-  { number: 4, title: 'Send drafts', status: (w: WorkflowData) => `${w.pendingSendCount} pending` },
+  { number: 3, title: 'Review follow-ups', status: (w: WorkflowData) => w.followUpsReviewed ? 'Done' : 'Waiting' },
+  { number: 4, title: 'Send drafts', status: (w: WorkflowData) => w.pendingSendCount > 0 ? 'In progress' : 'Waiting' },
 ];
 
 function StepNode({ step, current, done }: { step: number; current: boolean; done: boolean }) {
@@ -99,20 +99,19 @@ function StepDetailCard({ workflow, currentStep }: StepDetailCardProps) {
       primaryHref: '/campaigns/new',
     },
     3: {
-      title: `Review ${workflow.followUpsCount} pending draft approvals`,
+      title: 'Review pending draft approvals',
       desc: 'Check AI-suggested draft emails before they go out. Edit tone or approve directly.',
       primaryLabel: 'Review approvals →',
       primaryHref: '/inbox?tab=approvals',
       secondaryLabel: 'Skip for now',
     },
     4: {
-      title: `Send ${workflow.pendingSendCount} queued drafts`,
+      title: 'Send queued drafts',
       desc: 'Review and send queued email drafts. Once approved, emails move to the outbound queue.',
       primaryLabel: 'Open approvals →',
       primaryHref: '/inbox?tab=approvals',
-      secondaryLabel: `View all ${workflow.draftsCount} drafts`,
+      secondaryLabel: 'View all drafts',
       secondaryHref: '/inbox?tab=approvals',
-      badge: `~${Math.ceil(workflow.pendingSendCount * 1)} min`,
     },
   };
 

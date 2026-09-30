@@ -6100,6 +6100,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-292 (Fixed — IA phase 3: Home opens on "Needs you"; roadmap 3.8):** Home led with charts, and the same meeting
+  and draft counts appeared in the KPI row, the workflow rail and the bottom mini-stats.
+  - **Shared service:** `apps/api/src/modules/inbox/needsYouService.ts` (`collectNeedsYou`) returns six items, each
+    with a count, the top 3 entries and a link to act on them: unread replies (linking to the exact thread via
+    `/inbox?reply=<id>`), pending approvals, approved-but-unsent drafts, stalled-lead nudges, mailboxes needing
+    reconnect, and today's meetings in IST. Approved-but-unsent means Email status `queued`, the approval flow's
+    status; campaign `QUEUED` is not counted.
+  - **Digest:** `collectDigestData` now takes replies, nudges and today's meetings from the same service, so the
+    digest and Home can't drift. `GET /dashboard/needs-you` (lazy-imported) serves Home for the current team.
+  - **Home order:** error banner, then Needs you, then KPIs, then trend and recent leads, then the setup banner and
+    workflow rail only while `setupPercent` < 100, then the activity feed. Approvals get an inline Approve, which
+    uses the existing `/api/approvals/:id`.
+  - **Repeated numbers removed:** the meetings and pending-send mini-stats, the workflow rail's approval and queued
+    counts, and the KPI "N Dispatch Ready" pill.
+  - **Deploy order:** Needs you renders nothing if the API route is missing, so Render shipping before Oracle is safe.
+  - **Tests:** the service (scoping, IST bounds, top-3 cap, deep links), the route (auth, team scope), updated digest
+    mocks, and `tests/unit/needs-you.test.tsx`, which renders all-clear, partial, full and API-unavailable states.
 
 
 - **OPEN-288 (Fixed, report-only stage — roadmap 3.6 part 2 (S-17): nonce-based script policy for the signed-in app):**
