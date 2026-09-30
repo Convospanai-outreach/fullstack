@@ -1252,6 +1252,8 @@ model OverseerSignal {
 model Team {
   id               String              @id @default(uuid())
   name             String
+  // Meetings the team wants booked per month; null until set. Home shows pace against it.
+  monthlyMeetingGoal Int?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   credits          Int                 @default(100)

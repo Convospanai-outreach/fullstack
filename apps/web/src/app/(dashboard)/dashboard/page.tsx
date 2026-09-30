@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { SetupBanner } from "@/components/dashboard/SetupBanner";
 import { NeedsYou } from "@/components/dashboard/NeedsYou";
+import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { KPIRow } from "@/components/dashboard/KPIRow";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
 import { BottomGrid } from "@/components/dashboard/BottomGrid";
@@ -120,6 +121,9 @@ export default function DashboardPage() {
 
       {/* Needs you — what's waiting on the user, one click from acting */}
       <NeedsYou hasLeads={(data?.kpis.activeLeads ?? 0) > 0} />
+
+      {/* Monthly meeting goal — booked vs goal, and whether the team is on pace */}
+      <GoalProgress />
 
       {/* KPI row — always visible, north-star metrics */}
       <KPIRow data={data?.kpis ?? null} loading={loading} error={error} />

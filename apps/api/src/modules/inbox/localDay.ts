@@ -45,3 +45,16 @@ export function localDayRange(date: Date, dayOffset = 0, timeZone = DEFAULT_TIME
         end: new Date(endGuess - offsetMs(new Date(endGuess), timeZone)),
     };
 }
+
+// [start, end) of the local calendar month containing `date`, plus where `date` falls in it.
+export function localMonth(date: Date, timeZone = DEFAULT_TIMEZONE) {
+    const p = localParts(date, timeZone);
+    const startGuess = Date.UTC(p.year, p.month - 1, 1);
+    const endGuess = Date.UTC(p.year, p.month, 1);
+    return {
+        start: new Date(startGuess - offsetMs(new Date(startGuess), timeZone)),
+        end: new Date(endGuess - offsetMs(new Date(endGuess), timeZone)),
+        dayOfMonth: p.day,
+        daysInMonth: new Date(Date.UTC(p.year, p.month, 0)).getUTCDate(),
+    };
+}
