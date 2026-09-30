@@ -75,7 +75,7 @@ export default function EdgeRuntimePage() {
                         On-Prem Edge Runtime
                     </div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-                        Edge Runtime
+                        Private edge server
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         Local inference endpoint used as a fallback/offload target for on-prem hardware.

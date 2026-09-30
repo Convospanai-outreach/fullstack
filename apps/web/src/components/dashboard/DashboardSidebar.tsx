@@ -6,246 +6,106 @@
  * Changes from previous version:
  * - Width reduced: w-64 (256px) → w-48 (192px), matching Linear/Vercel proportions
  * - Added workspace switcher between logo and nav (Vercel pattern)
- * - Restructured nav groups per new information architecture
+ * - One entry per concept (lib/navSections.ts): Home, Inbox, Leads, Campaigns, Pipeline,
+ *   Content, Reports, then Settings. Each section's pages are tabs (SectionTabs), not entries.
+ * - Admin console only for platform admins (the role /admin itself requires)
+ * - Labs (flagged/beta tools) live in the Tools hub and ⌘K, not the sidebar
  * - Identity consolidated to single row at footer — single source of truth
- * - Plan badge in identity row instead of separate progress bar (removed)
- * - Section labels: 10px/uppercase/weight-500/text-white/20
  * - Nav items: 12.5px/weight-400, 32px height, Lucide 14px icons
- * - Active: bg-blue-500/12 text-blue-400 | Hover: bg-white/4 text-white/70
- * - CRM Bridge hidden when PRODUCT_FLAGS.emailFirstBeta is true
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   Inbox,
   LayoutDashboard,
   Megaphone,
-  Activity,
   Settings,
-  CreditCard,
   BarChart2,
-  ShieldCheck,
   MoreHorizontal,
   Users,
-  Wrench,
   X,
   GitBranch,
-  Calendar,
   FileText,
-  Target,
-  Layout,
-  Zap,
   Lock,
-  Gauge,
-  ClipboardList,
-  Building2,
-  UploadCloud,
-  AtSign,
-  Linkedin,
-  Phone,
-  MessageCircle,
-  BookOpen,
-  Workflow,
-  Store,
-  Library,
-  Fingerprint,
-  Plus,
-  Minus,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
-import { HIDDEN_FEATURES, PRODUCT_FLAGS, type HiddenFeatureKey } from "@/lib/productFlags";
+import { PRODUCT_FLAGS } from "@/lib/productFlags";
+import { NAV_SECTIONS, SETTINGS_PREFIXES, isLinkActive, matchesPath } from "@/lib/navSections";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-}
-
-interface NavGroup {
-  label?: string;
-  items: NavItem[];
-}
-
-type ToolStatus = { key: HiddenFeatureKey; built: boolean; enabled: boolean };
-
-// Icons/labels for HIDDEN_FEATURES keys that get promoted into the main funnel
-// groups below, once live (built + enabled), instead of only living behind /tools.
-const PROMOTED_FEATURE_ICONS: Partial<Record<HiddenFeatureKey, React.ComponentType<{ className?: string }>>> = {
-  "csv-ingestion": UploadCloud,
-  "hunter-email-finder": AtSign,
-  "linkedin-runner": Linkedin,
-  "caller": Phone,
-  "whatsapp": MessageCircle,
-  "playbooks": BookOpen,
-  "workflows": Workflow,
-  "marketplace": Store,
-  "knowledge": Library,
-  "crystal-knows": Fingerprint,
+const SECTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  home: LayoutDashboard,
+  inbox: Inbox,
+  leads: Users,
+  campaigns: Megaphone,
+  pipeline: GitBranch,
+  content: FileText,
+  reports: BarChart2,
 };
 
-// Keys with no place on the funnel spine — they stay behind /tools only.
-const TOOLS_ONLY_FEATURE_KEYS: HiddenFeatureKey[] = [
-  "agents",
-  "command-center",
-  "edge",
-  "jobs",
-  "runtime",
-  "scraper-bridge",
-  "sovereign",
-  "studio",
-];
-
-function promotedItem(key: HiddenFeatureKey, liveKeys: Set<HiddenFeatureKey>): NavItem | null {
-  if (!liveKeys.has(key)) return null;
-  const feature = HIDDEN_FEATURES[key];
-  const Icon = PROMOTED_FEATURE_ICONS[key];
-  if (!feature || !Icon) return null;
-  return { href: feature.openPath, label: feature.label, icon: Icon };
-}
-
-// Nav grouped by what the user is trying to accomplish (mirrors the lead
-// funnel: COLD -> WARM -> HOT -> COORDINATING -> MEETING_CONFIRMED -> CLOSED_*
-// from lib/crm/leadStageTransitions.ts), not by feature area. Items with no
-// funnel stage (settings/ops) live in their own group at the bottom, out of
-// the goal-oriented groups. `liveKeys` are HIDDEN_FEATURES keys that are both
-// built and enabled for this workspace — see /api/settings/hidden-features.
-const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number, inboxBadge: number): NavGroup[] => {
-  const settings: NavItem[] = [
-    { href: '/settings/team', label: 'Team', icon: Building2 },
-    { href: '/billing', label: 'Billing', icon: CreditCard },
-  ];
-
-  // CRM sync — hidden when emailFirstBeta is true
-  if (!PRODUCT_FLAGS.emailFirstBeta) {
-    settings.push({ href: '/settings/crm', label: 'CRM Bridge', icon: Activity });
-  }
-
-  settings.push(
-    { href: '/settings', label: 'Settings', icon: Settings },
-    { href: '/admin', label: 'Admin', icon: Lock },
-    { href: '/monitoring', label: 'Monitoring', icon: Gauge },
-  );
-
-  for (const key of TOOLS_ONLY_FEATURE_KEYS) {
-    const feature = HIDDEN_FEATURES[key];
-    if (feature && liveKeys.has(key)) {
-      settings.push({ href: feature.openPath, label: feature.label, icon: Wrench });
-    }
-  }
-
-  return [
-    {
-      items: [
-        { href: '/inbox', label: 'Inbox', icon: Inbox, badge: inboxBadge },
-        { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      ],
-    },
-    {
-      label: 'Build my list',
-      items: [
-        { href: '/leads', label: 'Leads', icon: Users },
-        { href: '/accounts', label: 'Accounts', icon: Building2 },
-        { href: '/icp-builder', label: 'ICP Builder', icon: Target },
-        { href: '/templates', label: 'Templates', icon: FileText },
-        { href: '/landing-agent/new', label: 'Landing Pages', icon: Layout },
-        promotedItem('csv-ingestion', liveKeys),
-        promotedItem('hunter-email-finder', liveKeys),
-        promotedItem('crystal-knows', liveKeys),
-        promotedItem('knowledge', liveKeys),
-      ].filter((item): item is NavItem => item !== null),
-    },
-    {
-      label: 'Reach out',
-      items: [
-        { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-        { href: '/automations', label: 'Automations', icon: Zap },
-        promotedItem('workflows', liveKeys),
-        promotedItem('linkedin-runner', liveKeys),
-        promotedItem('caller', liveKeys),
-        promotedItem('whatsapp', liveKeys),
-        promotedItem('playbooks', liveKeys),
-      ].filter((item): item is NavItem => item !== null),
-    },
-    {
-      label: 'Work my replies',
-      items: [
-        { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-        { href: '/calendar', label: 'Calendar', icon: Calendar },
-        { href: '/approvals', label: 'Approvals', icon: ShieldCheck, badge: approvalsBadge },
-        { href: '/intel', label: 'Intel', icon: Activity },
-      ],
-    },
-    {
-      label: 'Close & measure',
-      items: [
-        { href: '/analytics/roi', label: 'Analytics', icon: BarChart2 },
-        { href: '/governance', label: 'Governance', icon: ShieldCheck },
-        { href: '/settings/audit', label: 'Audit Logs', icon: ClipboardList },
-        promotedItem('marketplace', liveKeys),
-      ].filter((item): item is NavItem => item !== null),
-    },
-    {
-      label: 'Settings',
-      items: settings,
-    },
-  ];
-};
-
-const TOOLS_LINK_COUNT = TOOLS_ONLY_FEATURE_KEYS.length;
-
-const COLLAPSED_GROUPS_STORAGE_KEY = "cmf.sidebar.collapsedGroups";
+// Same roles app/(dashboard)/admin/page.tsx requires.
+const PLATFORM_ADMIN_ROLES = ["SUPER_ADMIN", "SYSTEM_ADMIN"];
 
 interface DashboardSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+function NavEntry({
+  href,
+  label,
+  icon: Icon,
+  active,
+  badge,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  active: boolean;
+  badge?: number | undefined;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`
+        flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
+        transition-colors duration-150
+        ${active
+          ? 'bg-primary/10 text-primary'
+          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+        }
+      `}
+    >
+      <Icon className="w-[14px] h-[14px] flex-shrink-0" />
+      <span className="flex-1">{label}</span>
+      {!!badge && badge > 0 && (
+        <span className="text-[9.5px] border border-border rounded px-1 text-muted-foreground">
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const { data: session } = useSession();
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-
-  // Restore per-group collapse state after mount only, so SSR/first paint always
-  // renders fully expanded (matches the server-rendered markup, avoiding a hydration
-  // mismatch) — the sidebar then springs to the remembered layout a frame later.
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY);
-      if (raw) setCollapsedGroups(JSON.parse(raw));
-    } catch {
-      // ignore malformed/inaccessible storage
-    }
-  }, []);
-
-  const toggleGroup = (label: string) => {
-    setCollapsedGroups((prev) => {
-      const next = { ...prev, [label]: !prev[label] };
-      try {
-        window.localStorage.setItem(COLLAPSED_GROUPS_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  };
 
   const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher, { refreshInterval: 30000 });
-  const pendingActionCount = approvals?.requests?.length ?? 0;
   const { data: inboxCounts } = useSWR<{ unreadReplies?: number }>("/api/proxy/inbox/counts", fetcher, { refreshInterval: 60000 });
-  const unreadReplyCount = inboxCounts?.unreadReplies ?? 0;
-  const { data: toolsData } = useSWR<{ features: ToolStatus[] }>("/api/settings/hidden-features", fetcher);
-  const liveFeatureKeys = new Set<HiddenFeatureKey>(
-    (toolsData?.features ?? []).filter((f) => f.built && f.enabled).map((f) => f.key)
-  );
-  const navGroups = buildNavGroups(liveFeatureKeys, pendingActionCount, unreadReplyCount);
+  // One combined badge: unread replies plus approvals waiting on you (both live in Inbox).
+  const inboxBadge = (inboxCounts?.unreadReplies ?? 0) + (approvals?.requests?.length ?? 0);
+
+  const isPlatformAdmin = PLATFORM_ADMIN_ROLES.includes(session?.user?.enterpriseRole ?? '');
   const userName = session?.user?.name ?? 'User';
   const userInitials = userName
     .split(' ')
@@ -299,92 +159,41 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           <WorkspaceSwitcher />
         </div>
 
-        {/* Nav groups */}
-        <nav className="flex-1 overflow-y-auto px-2 pb-2">
-          {navGroups.map((group, gi) => {
-            const isCollapsed = !!(group.label && collapsedGroups[group.label]);
-
-            return (
-            <div key={gi} className={gi > 0 ? 'mt-1' : ''}>
-              {group.label && (
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.label as string)}
-                  className="w-full flex items-center justify-between gap-2 pt-4 pb-1 px-2 group/toggle"
-                  aria-expanded={!isCollapsed}
-                >
-                  <span className="text-[10px] uppercase font-medium tracking-wide text-muted-foreground">
-                    {group.label}
-                  </span>
-                  <span
-                    className={`
-                      flex items-center justify-center w-3.5 h-3.5 rounded-full flex-shrink-0
-                      text-muted-foreground group-hover/toggle:text-foreground
-                      shadow-[0_0_5px_1px_rgba(59,130,246,0.45)]
-                      transition-colors duration-150
-                    `}
-                  >
-                    {isCollapsed ? <Plus className="w-2.5 h-2.5" /> : <Minus className="w-2.5 h-2.5" />}
-                  </span>
-                </button>
-              )}
-              {!isCollapsed && (
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive =
-                    pathname === item.href || pathname?.startsWith(`${item.href}/`);
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className={`
-                        flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
-                        transition-colors duration-150
-                        ${isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                        }
-                      `}
-                    >
-                      <Icon className="w-[14px] h-[14px] flex-shrink-0" />
-                      <span className="flex-1">{item.label}</span>
-                      {!!item.badge && item.badge > 0 && (
-                        <span className="text-[9.5px] border border-border rounded px-1 text-muted-foreground">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-              )}
-            </div>
-            );
-          })}
-
-          {/* Tools — discovery surface for the remaining feature areas with no funnel-stage home */}
-          <div className="mt-1 pt-4 border-t border-border">
-            <Link
-              href="/tools"
+        {/* Sections */}
+        <nav className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
+          {NAV_SECTIONS.map((section) => (
+            <NavEntry
+              key={section.key}
+              href={section.tabs[0]!.href}
+              label={section.label}
+              icon={SECTION_ICONS[section.key] ?? LayoutDashboard}
+              active={section.tabs.some((tab) => isLinkActive(tab, pathname))}
+              badge={section.key === 'inbox' ? inboxBadge : undefined}
               onClick={onClose}
-              className={`
-                flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
-                transition-colors duration-150
-                ${pathname?.startsWith('/tools')
-                  ? 'bg-blue-500/12 text-blue-400'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                }
-              `}
-            >
-              <Wrench className="w-[14px] h-[14px] flex-shrink-0" />
-              <span className="flex-1">Tools</span>
-              <span className="text-[9.5px] text-muted-foreground">{TOOLS_LINK_COUNT}</span>
-            </Link>
-          </div>
+            />
+          ))}
         </nav>
+
+        <div className="px-2 pb-2 space-y-0.5">
+          <NavEntry
+            href="/settings"
+            label="Settings"
+            icon={Settings}
+            active={SETTINGS_PREFIXES.some((prefix) => matchesPath(prefix, pathname))}
+            onClick={onClose}
+          />
+          {isPlatformAdmin && (
+            <div className="rounded-md border border-dashed border-warning/40">
+              <NavEntry
+                href="/admin"
+                label="Admin console"
+                icon={Lock}
+                active={matchesPath('/admin', pathname) || matchesPath('/superadmin', pathname)}
+                onClick={onClose}
+              />
+            </div>
+          )}
+        </div>
 
         {/* User identity row — single source of truth. Links to /profile, which
             previously had no way to be reached from the dashboard chrome at all. */}

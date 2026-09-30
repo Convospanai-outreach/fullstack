@@ -51,8 +51,8 @@ export default function ToolsHubPage() {
     return (
         <div className="space-y-6">
             <SectionHeader
-                title="Tools"
-                subtitle="Every feature surface in one searchable place — jump straight to what you need."
+                title="Labs"
+                subtitle="Beta and advanced tools in one searchable place, with which ones are turned on for your workspace."
             />
 
             <div className="relative max-w-md">

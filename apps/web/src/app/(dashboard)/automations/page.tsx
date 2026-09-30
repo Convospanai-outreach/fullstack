@@ -78,7 +78,7 @@ export default function AutomationsPage() {
             <div className="flex justify-between items-center">
                 <SectionHeader title="Automations" subtitle="Manage your event-based workflows" />
                 <div className="flex space-x-3">
-                    <Link href="/approvals" className="px-4 py-2 bg-warning/10 text-warning border border-warning/20 rounded-lg hover:bg-warning/20 transition-colors">
+                    <Link href="/inbox?tab=approvals" className="px-4 py-2 bg-warning/10 text-warning border border-warning/20 rounded-lg hover:bg-warning/20 transition-colors">
                         Approvals Queue
                     </Link>
                     <Link href="/workflows" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
