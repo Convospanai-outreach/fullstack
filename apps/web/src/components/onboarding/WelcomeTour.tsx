@@ -34,7 +34,7 @@ const TOUR_STEPS = [
         position: "right",
     },
     {
-        target: "a[href='/team']",
+        target: "a[href='/settings/team']",
         content: "Account: Team, Billing, and Settings — everything about your workspace itself, not your outreach.",
         position: "right",
     },

@@ -84,7 +84,7 @@ export default function GovernancePage() {
                         </div>
                     </div>
                     <Link
-                        href="/governance/audit"
+                        href="/settings/audit"
                         className="bg-muted text-foreground px-6 py-2.5 rounded-xl font-bold hover:bg-accent transition border border-border"
                     >
                         View Audit Log

@@ -119,13 +119,13 @@ function promotedItem(key: HiddenFeatureKey, liveKeys: Set<HiddenFeatureKey>): N
 // built and enabled for this workspace — see /api/settings/hidden-features.
 const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number, inboxBadge: number): NavGroup[] => {
   const settings: NavItem[] = [
-    { href: '/team', label: 'Team', icon: Building2 },
+    { href: '/settings/team', label: 'Team', icon: Building2 },
     { href: '/billing', label: 'Billing', icon: CreditCard },
   ];
 
   // CRM sync — hidden when emailFirstBeta is true
   if (!PRODUCT_FLAGS.emailFirstBeta) {
-    settings.push({ href: '/crm', label: 'CRM Bridge', icon: Activity });
+    settings.push({ href: '/settings/crm', label: 'CRM Bridge', icon: Activity });
   }
 
   settings.push(
@@ -188,7 +188,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number,
       items: [
         { href: '/analytics/roi', label: 'Analytics', icon: BarChart2 },
         { href: '/governance', label: 'Governance', icon: ShieldCheck },
-        { href: '/audit-logs', label: 'Audit Logs', icon: ClipboardList },
+        { href: '/settings/audit', label: 'Audit Logs', icon: ClipboardList },
         promotedItem('marketplace', liveKeys),
       ].filter((item): item is NavItem => item !== null),
     },

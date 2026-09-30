@@ -108,7 +108,7 @@ export function Omnibox() {
         { name: "Intel", href: "/intel", icon: Activity },
         { name: "Governance", href: "/governance", icon: ShieldCheck },
         { name: "Billing", href: "/billing", icon: CreditCard },
-        { name: "CRM", href: "/crm", icon: Activity },
+        { name: "CRM", href: "/settings/crm", icon: Activity },
         { name: "Tools", href: "/tools", icon: Wrench },
     ];
     const staticTools = Object.values(HIDDEN_FEATURES)

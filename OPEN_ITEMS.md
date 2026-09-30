@@ -6063,6 +6063,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   has dependencies. `npm update` was not used, because it re-resolved geoip-lite to a nested `ip-address@5.9.4`, which
   is also vulnerable. Evidence: the gate exits 0 from the root, apps/api and apps/web after `npm ci`; apps/api strict
   `tsc` is clean, and the inbox and server vitest suites pass (62).
+- **OPEN-290 (Fixed — IA phase 1: one home per concept via redirects; roadmap 3.8):** several dashboard concepts had two
+  or three pages. `next.config.mjs` now has temporary (307) `redirects()` to one canonical page each. Every pair was
+  compared first, both the page and its API route:
+  - **Audit, guardrails, keys:** `/audit-logs` and `/governance/audit` go to `/settings/audit`, `/governance/guardrails`
+    to `/settings/guardrails`, and `/governance/keys` to `/settings/keys`. The /settings pages are the complete ones:
+    key revocation, allowlist/regex rules, and the trace drill-down.
+  - **Approvals:** `/automations/approvals`, `/settings/approvals` and `/settings/hitl` go to `/approvals`. All read the
+    same `ApprovalRequest` queue. No approval-rules page exists; the only rule is `requiresApprovalForCampaign` in
+    `/settings/governance`.
+  - **Team, CRM, settings:** `/team` goes to `/settings/team`; its two policy fields are also editable in
+    `/settings/governance`. `/crm`, a preview page, goes to `/settings/crm`, the real CRM configuration. `/dashboard/settings`
+    had no page and now goes to `/settings`.
+  - **Kept, not duplicates:** `/admin/audit` (platform-wide, for SUPER/SYSTEM_ADMIN), and `/settings/governance` (the
+    OrganizationPolicy editor) versus `/governance` (a stats overview).
+  - **Links:** internal links, the sidebar, the Omnibox, GovernanceLayout tabs, the WelcomeTour selector and featureHelp
+    now point at the canonical pages. The CRM help copy was rewritten to what the page does.
+  - **Deletions:** no page was deleted; the orphans are listed in the PR.
+  - **Test:** `tests/unit/ia-redirects.test.ts` checks that every redirect is temporary, lands on an existing page, and
+    needs one hop.
 
 - **OPEN-288 (Fixed, report-only stage — roadmap 3.6 part 2 (S-17): nonce-based script policy for the signed-in app):**
   every page sent `script-src 'unsafe-inline' 'unsafe-eval'` and `connect-src wss://*`. A nonce policy needs dynamic
