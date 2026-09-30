@@ -6100,6 +6100,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-297 (Fixed — IA: sign-in lands on Home):** sign-in landed on /inbox behind `NEXT_PUBLIC_ACTION_INBOX_ENABLED`.
+  Now that Home leads with Needs you (OPEN-292), `postLoginPath()` always returns `/dashboard` and the flag is gone
+  (code, test and `.env.example`). An explicit `redirect_url`/`callbackUrl` still wins. A leftover value for the old
+  variable in Render's env is now unused and can be deleted.
+
 - **OPEN-296 (Fixed — IA phase 7: four retention events to PostHog from apps/api):** product analytics were
   browser-only (posthog-js), so activation, the aha reply, active days and booked meetings weren't measured.
   - **Emitter:** `apps/api/src/lib/analytics/productEvents.ts` uses `posthog-node` (lazy-loaded, `captureImmediate`).
