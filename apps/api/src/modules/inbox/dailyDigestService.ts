@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { DEFAULT_TIMEZONE, localDate, localDayRange, localHour } from "./localDay";
-import { toSnippet } from "./actionInboxService";
+import { collectNeedsYou, type NeedsYouType } from "./needsYouService";
 import { INBOX_URL } from "./inboundReplyNotifier";
 
 // Daily Action Inbox digest. The worker calls runDailyDigest() once per clock hour; it
@@ -9,7 +9,6 @@ import { INBOX_URL } from "./inboundReplyNotifier";
 
 export const DIGEST_LOCAL_HOUR = 8;
 const SETTINGS_URL = "https://craftmyfunnel.live/settings/notifications";
-const TOP_N = 3;
 
 export type DigestData = {
     recipientName: string | null;
@@ -20,49 +19,33 @@ export type DigestData = {
 };
 
 export async function collectDigestData(teamIds: string[], recipientName: string | null, now = new Date()): Promise<DigestData> {
-    const today = localDayRange(now, 0);
     const yesterday = localDayRange(now, -1);
     const inTeams = { in: teamIds };
-    const unreadWhere = { direction: "INBOUND", isRead: false, lead: { teamId: inTeams } };
 
-    const [unreadCount, unreadTop, nudgeCount, nudgeTop, meetingsToday, emailsSent, replies, meetingsBooked] = await Promise.all([
-        prisma.message.count({ where: unreadWhere }),
-        prisma.message.findMany({
-            where: unreadWhere,
-            orderBy: { createdAt: "desc" },
-            take: TOP_N,
-            select: { content: true, lead: { select: { fullName: true, email: true } } },
-        }),
-        prisma.overseerNudge.count({ where: { teamId: inTeams, status: "OPEN" } }),
-        prisma.overseerNudge.findMany({
-            where: { teamId: inTeams, status: "OPEN" },
-            orderBy: { createdAt: "desc" },
-            take: TOP_N,
-            select: { suggestion: true },
-        }),
-        prisma.meeting.findMany({
-            where: { teamId: inTeams, startTime: { gte: today.start, lt: today.end } },
-            orderBy: { startTime: "asc" },
-            select: { title: true, startTime: true },
-        }),
+    const [needsYou, emailsSent, replies, meetingsBooked] = await Promise.all([
+        collectNeedsYou(teamIds, now),
         prisma.email.count({ where: { campaign: { teamId: inTeams }, createdAt: { gte: yesterday.start, lt: yesterday.end } } }),
         prisma.message.count({
             where: { direction: "INBOUND", lead: { teamId: inTeams }, createdAt: { gte: yesterday.start, lt: yesterday.end } },
         }),
         prisma.meeting.count({ where: { teamId: inTeams, createdAt: { gte: yesterday.start, lt: yesterday.end } } }),
     ]);
+    const item = (type: NeedsYouType) => needsYou.find((entry) => entry.type === type)!;
+    const unread = item("unread_replies");
+    const stalled = item("stalled_leads");
+    const meetings = item("meetings_today");
 
     return {
         recipientName,
         unreadReplies: {
-            count: unreadCount,
-            top: unreadTop.map((reply) => ({
-                leadName: reply.lead.fullName || reply.lead.email || "Unknown lead",
-                snippet: toSnippet(reply.content),
-            })),
+            count: unread.count,
+            top: unread.top.map((reply) => ({ leadName: reply.title, snippet: reply.detail ?? "" })),
         },
-        stalledLeads: { count: nudgeCount, top: nudgeTop.map((nudge) => nudge.suggestion) },
-        meetingsToday: { count: meetingsToday.length, top: meetingsToday.slice(0, TOP_N) },
+        stalledLeads: { count: stalled.count, top: stalled.top.map((nudge) => nudge.title) },
+        meetingsToday: {
+            count: meetings.count,
+            top: meetings.top.map((meeting) => ({ title: meeting.title, startTime: new Date(meeting.at!) })),
+        },
         yesterday: { emailsSent, replies, meetingsBooked },
     };
 }

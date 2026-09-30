@@ -6,7 +6,9 @@ const mockDb: any = vi.hoisted(() => ({
     message: { count: vi.fn(), findMany: vi.fn() },
     overseerNudge: { count: vi.fn(), findMany: vi.fn() },
     meeting: { findMany: vi.fn(), count: vi.fn() },
-    email: { count: vi.fn() },
+    email: { count: vi.fn(), findMany: vi.fn() },
+    approvalRequest: { count: vi.fn(), findMany: vi.fn() },
+    connectedMailbox: { count: vi.fn(), findMany: vi.fn() },
 }));
 const sendEmail = vi.hoisted(() => vi.fn());
 
@@ -37,12 +39,17 @@ function emptyData(overrides: Partial<DigestData> = {}): DigestData {
 
 function stubCounts({ unread = 0 } = {}) {
     mockDb.message.count.mockResolvedValue(unread);
-    mockDb.message.findMany.mockResolvedValue(unread ? [{ content: "<p>Yes, let's talk</p>", lead: { fullName: "Asha", email: null } }] : []);
+    mockDb.message.findMany.mockResolvedValue(unread ? [{ id: "msg-1", content: "<p>Yes, let's talk</p>", createdAt: new Date(), lead: { fullName: "Asha", email: null } }] : []);
     mockDb.overseerNudge.count.mockResolvedValue(0);
     mockDb.overseerNudge.findMany.mockResolvedValue([]);
     mockDb.meeting.findMany.mockResolvedValue([]);
     mockDb.meeting.count.mockResolvedValue(0);
     mockDb.email.count.mockResolvedValue(0);
+    mockDb.email.findMany.mockResolvedValue([]);
+    mockDb.approvalRequest.count.mockResolvedValue(0);
+    mockDb.approvalRequest.findMany.mockResolvedValue([]);
+    mockDb.connectedMailbox.count.mockResolvedValue(0);
+    mockDb.connectedMailbox.findMany.mockResolvedValue([]);
 }
 
 const user = (overrides: any = {}) => ({
