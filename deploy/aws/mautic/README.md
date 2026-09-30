@@ -38,6 +38,8 @@ EC2 t4g.small (AL2023, Docker Compose)
 
 ## Deploy
 
+In Git Bash on Windows, run `export MSYS_NO_PATHCONV=1` first, or it rewrites the `/aws/service/...` parameter name below into a Windows path.
+
 ```sh
 AMI=$(aws ssm get-parameter --region eu-north-1 \
   --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64 \
@@ -48,10 +50,9 @@ aws cloudformation deploy --region eu-north-1 --stack-name mautic \
   --parameter-overrides ImageId="$AMI" AdminEmail=<you> MailerFromEmail=<sender>
 
 # Account-wide cost alert. CloudFormation doesn't offer AWS::Budgets::Budget in eu-north-1.
-aws cloudformation deploy --region us-east-1 --stack-name mautic-budget   --template-file deploy/aws/mautic/budget.yaml --parameter-overrides AlertEmail=<you>
+aws cloudformation deploy --region us-east-1 --stack-name mautic-budget \
+  --template-file deploy/aws/mautic/budget.yaml --parameter-overrides AlertEmail=<you>
 ```
-
-In Git Bash on Windows, run `export MSYS_NO_PATHCONV=1` first, or it rewrites the `/aws/service/...` parameter name into a Windows path.
 
 On the **first** deploy, add `--disable-rollback`. If first boot fails, the instance then stays up so you can debug it over Session Manager (`/var/log/cfn-init.log`, `sudo docker compose -f /opt/mautic/compose.yaml logs`). A rollback would leave the stack in `ROLLBACK_COMPLETE`, which has to be deleted before you can retry. It would also leave the retained data volume and both secrets behind; delete those by hand if you start over.
 
@@ -91,6 +92,34 @@ The AMI is a parameter on purpose. A new AMI replaces the instance, and that rep
 - `curl -sI https://mautic.craftmyfunnel.live/s/login` returns `200`.
 - `curl -k --connect-timeout 5 https://<OriginIp>/` times out, because only Cloudflare can connect.
 - Submit a lead through a landing page. The contact appears in Mautic with the team tag.
+
+## Development: stop when idle
+
+While `AutoStopWhenIdle` is `true` (the default), the stack stops the instance after **an hour with under 250 KB of outbound traffic per 5 minutes**. At idle the server sends about 12 KB every 5 minutes, and any use of the Mautic UI through Cloudflare sends much more. A stopped instance bills no compute, like a sleeping Render service. EBS, the public IPv4 address and the secrets still bill, about $6 a month.
+
+It doesn't wake on a request the way Render does:
+- While it's stopped, `mautic.craftmyfunnel.live` returns a Cloudflare 522.
+- Mautic's cron jobs pause, and catch up after the next start.
+
+Start it yourself, and allow about 2 minutes:
+
+```sh
+bash deploy/aws/mautic/mautic-power.sh start   # or: stop, status
+```
+
+The script uses your AWS CLI sign-in (`AWS_PROFILE`). Stopping runs through the `AWSServiceRoleForCloudWatchEvents` service-linked role. CloudWatch creates it the first time someone makes an EC2-action alarm in the console or CLI, but maybe not from CloudFormation, so create it once if it's missing:
+
+```sh
+aws iam create-service-linked-role --aws-service-name events.amazonaws.com   # "has been taken" = already exists
+```
+
+**Before going live** (before `apps/api` sends leads here), turn auto-stop off. Lead pushes fail while the instance is stopped. This removes the alarm and leaves everything else unchanged:
+
+```sh
+aws cloudformation deploy --region eu-north-1 --stack-name mautic \
+  --template-file deploy/aws/mautic/mautic.yaml --capabilities CAPABILITY_IAM \
+  --parameter-overrides AutoStopWhenIdle=false
+```
 
 ## Operate
 

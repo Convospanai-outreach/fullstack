@@ -15,7 +15,8 @@ const repoRoot = path.resolve(import.meta.dirname, "../..");
 const templatePath = path.join(repoRoot, "deploy/aws/mautic/mautic.yaml");
 
 // js-yaml rejects CloudFormation's short-form tags (!Ref, !Sub, ...) by default.
-const intrinsics = ["Base64", "Cidr", "FindInMap", "GetAtt", "GetAZs", "ImportValue", "Join", "Select", "Split", "Sub", "Ref"];
+const intrinsics = ["Base64", "Cidr", "FindInMap", "GetAtt", "GetAZs", "ImportValue", "Join", "Select", "Split", "Sub", "Ref",
+  "Equals", "If", "Not", "And", "Or", "Condition"];
 const cfnSchema = yaml.DEFAULT_SCHEMA.extend(
   intrinsics.flatMap((name) =>
     ["scalar", "sequence", "mapping"].map(
@@ -105,6 +106,8 @@ test("the embedded shell scripts parse", { skip: process.platform === "win32" &&
     const result = spawnSync("bash", ["-n"], { input: initFile(template, file), encoding: "utf8" });
     assert.equal(result.status, 0, `${file}: ${result.stderr}`);
   }
+  const power = spawnSync("bash", ["-n", path.join(repoRoot, "deploy/aws/mautic/mautic-power.sh")], { encoding: "utf8" });
+  assert.equal(power.status, 0, `mautic-power.sh: ${power.stderr}`);
 });
 
 // CloudFormation rejects AWS::Budgets::Budget in eu-north-1 ("Unrecognized
@@ -118,4 +121,23 @@ test("the Mautic stack has no Budgets resource; budget.yaml alerts on gross cost
   assert.equal(budgets[0].Properties.Budget.CostTypes.IncludeCredit, false);
   // The stack costs about $20 a month; a lower limit makes the 80% alert fire every month.
   assert.ok(budget.Parameters.MonthlyBudgetUsd.Default >= 25, "default budget sits above expected spend");
+});
+
+// Development cost saver: the stack stops (never terminates) an idle instance,
+// behind one switch that turns it off when Mautic goes live.
+test("idle auto-stop is switchable, stops on low outbound traffic, and matches mautic-power.sh", () => {
+  const { Parameters, Conditions, Resources } = loadTemplate();
+  assert.deepEqual(Parameters.AutoStopWhenIdle.AllowedValues, ["true", "false"]);
+  assert.deepEqual(Conditions.AutoStop, { "Fn::Equals": [{ Ref: "AutoStopWhenIdle" }, "true"] });
+  const alarm = Resources.IdleStopAlarm;
+  assert.equal(alarm.Condition, "AutoStop");
+  assert.equal(alarm.Properties.MetricName, "NetworkOut");
+  assert.equal(alarm.Properties.ComparisonOperator, "LessThanThreshold");
+  assert.equal(alarm.Properties.TreatMissingData, "notBreaching");
+  assert.deepEqual(alarm.Properties.AlarmActions, [{ "Fn::Sub": "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:stop" }]);
+  const script = fs.readFileSync(path.join(repoRoot, "deploy/aws/mautic/mautic-power.sh"), "utf8");
+  for (const id of ["Instance", "IdleStopAlarm"]) {
+    assert.ok(Resources[id], `${id} exists`);
+    assert.match(script, new RegExp(`resource ${id}[ )]|LogicalResourceId=='${id}'`), `mautic-power.sh looks up ${id}`);
+  }
 });

@@ -48,6 +48,16 @@ Parameters:
     Default: CraftMyFunnel
     AllowedPattern: "^[A-Za-z0-9 .&-]{1,64}$"
     Description: Default sender name for Mautic email.
+  AutoStopWhenIdle:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Development cost saver - stop the instance after an hour without real traffic (start it again with
+      mautic-power.sh). Set to false once apps/api depends on Mautic.
+
+Conditions:
+  AutoStop: !Equals [!Ref AutoStopWhenIdle, "true"]
 
 Resources:
   Vpc:
@@ -610,6 +620,36 @@ Resources:
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
 
+  IdleStopAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: AutoStop
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          dev-stage cost saver, Render-style sleep: stopped instance bills no compute (EBS, EIP, secrets still bill);
+          idle = NetworkOut; measured idle ~12 KB/5 min (SSM agent), any UI use through Cloudflare is far more;
+          CPU rejected - cron spikes blur it. No wake-on-request: start with mautic-power.sh
+        must:
+          - AutoStopWhenIdle=false before apps/api sends leads here; while stopped, lead pushes and Cloudflare requests fail
+          - stop action runs via service-linked role AWSServiceRoleForCloudWatchEvents (README creates it once)
+          - missing data notBreaching, so the alarm resets while stopped and can fire again after the next start
+        mutable: free-to-tune
+    Properties:
+      AlarmDescription: !Sub Stops the ${AWS::StackName} Mautic instance after 1 hour with under 250 KB outbound per 5 minutes - development cost saver
+      Namespace: AWS/EC2
+      MetricName: NetworkOut
+      Dimensions:
+        - { Name: InstanceId, Value: !Ref Instance }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 12
+      DatapointsToAlarm: 12
+      Threshold: 250000
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Sub arn:${AWS::Partition}:automate:${AWS::Region}:ec2:stop
+
   SnapshotRole:
     Type: AWS::IAM::Role
     Properties:
@@ -658,6 +698,9 @@ Outputs:
     Value: !Ref ElasticIp
   InstanceId:
     Value: !Ref Instance
+  PowerCommand:
+    Description: Start, stop or check the instance (development auto-stop).
+    Value: bash deploy/aws/mautic/mautic-power.sh start|stop|status
   SessionCommand:
     Description: Shell on the instance through Session Manager (no SSH).
     Value: !Sub aws ssm start-session --target ${Instance} --region ${AWS::Region}
