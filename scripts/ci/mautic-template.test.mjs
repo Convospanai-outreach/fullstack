@@ -138,6 +138,6 @@ test("idle auto-stop is switchable, stops on low outbound traffic, and matches m
   const script = fs.readFileSync(path.join(repoRoot, "deploy/aws/mautic/mautic-power.sh"), "utf8");
   for (const id of ["Instance", "IdleStopAlarm"]) {
     assert.ok(Resources[id], `${id} exists`);
-    assert.match(script, new RegExp(`resource ${id}[ )]`), `mautic-power.sh looks up ${id}`);
+    assert.match(script, new RegExp(`resource ${id}[ )]|LogicalResourceId=='${id}'`), `mautic-power.sh looks up ${id}`);
   }
 });

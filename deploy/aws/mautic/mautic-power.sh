@@ -21,7 +21,11 @@ resource() {
     --query StackResourceDetail.PhysicalResourceId --output text
 }
 INSTANCE=$(resource Instance)
-ALARM=$(resource IdleStopAlarm 2>/dev/null || true)
+# Empty only when the stack has no IdleStopAlarm (AutoStopWhenIdle=false);
+# any other failure stops the script.
+ALARM=$("$AWS" cloudformation describe-stack-resources --stack-name "$STACK" \
+  --query "StackResources[?LogicalResourceId=='IdleStopAlarm'].PhysicalResourceId" --output text)
+if [ "$ALARM" = "None" ]; then ALARM=""; fi
 
 state() {
   "$AWS" ec2 describe-instances --instance-ids "$INSTANCE" \
