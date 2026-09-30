@@ -17,8 +17,9 @@ describe("IA redirects", async () => {
     it("land on a page that exists, in one hop", () => {
         const sources = new Set(redirects.map((r) => r.source));
         for (const r of redirects) {
-            expect(existsSync(path.join(DASHBOARD, r.destination, "page.tsx")), r.destination).toBe(true);
-            expect(sources.has(r.destination), `${r.source} -> ${r.destination} chains`).toBe(false);
+            const destinationPath = r.destination.split("?")[0]!;
+            expect(existsSync(path.join(DASHBOARD, destinationPath, "page.tsx")), r.destination).toBe(true);
+            expect(sources.has(destinationPath), `${r.source} -> ${r.destination} chains`).toBe(false);
             expect(r.source.startsWith("/api")).toBe(false);
         }
     });

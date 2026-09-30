@@ -6082,6 +6082,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Deletions:** no page was deleted; the orphans are listed in the PR.
   - **Test:** `tests/unit/ia-redirects.test.ts` checks that every redirect is temporary, lands on an existing page, and
     needs one hop.
+- **OPEN-291 (Fixed — IA phase 2: one sidebar entry per concept, tabs, one Settings layout, 4-item header; roadmap 3.8):**
+  the sidebar had 25+ entries in six groups, including Admin and Monitoring shown to every member.
+  - **Sidebar and tabs:** `lib/navSections.ts` is the single source for the sidebar and `SectionTabs`. The sidebar has
+    seven sections (Home, Inbox, Leads, Campaigns, Pipeline, Content, Reports) plus Settings. Each section's pages
+    render as tabs above the page, from the dashboard shell. Flag-gated tabs appear only when the feature is live.
+  - **Admin console:** a single "Admin console" entry, shown only to SUPER/SYSTEM_ADMIN, the roles `/admin` requires.
+  - **Inbox:** tabs are Replies | Approvals. `/approvals` and the phase 1 approval redirects now go to
+    `/inbox?tab=approvals`. The Approvals tab shows the stalled nudges; meetings live in Calendar.
+  - **Settings:** `SettingsFrame` is one five-section Settings menu, used by `/settings/*`, `/governance/*`, `/billing`
+    and `/profile`. `GovernanceLayout` no longer draws its own tab bar; it titles pages from the menu.
+  - **Header:** ⌘K, notifications, and one Help menu (page guide, Help center, Labs, theme). The connection status
+    shows only when unhealthy, including when the status check itself fails. The Tools menu and the hard-coded
+    "Manual mode" badge are removed.
+  - **Labels:** user-facing labels were renamed to plain words (Buyer signals, Reports, Trust overview, Workspace
+    policies, Data residency, …). Routes are unchanged. ⌘K lists every former sidebar destination. The WelcomeTour
+    follows the new sidebar.
+  - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
+    to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+
 
 - **OPEN-288 (Fixed, report-only stage — roadmap 3.6 part 2 (S-17): nonce-based script policy for the signed-in app):**
   every page sent `script-src 'unsafe-inline' 'unsafe-eval'` and `connect-src wss://*`. A nonce policy needs dynamic

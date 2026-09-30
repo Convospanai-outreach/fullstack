@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ChevronDown, Search, UserPlus, Users } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import LeadsSelectionGrid from "@/components/leads/LeadsSelectionGrid";
+import { FindEmailsButton } from "@/components/leads/FindEmailsButton";
 
 const PIPELINE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED", "CLOSED_WON", "CLOSED_LOST"];
 
@@ -93,6 +94,8 @@ export default async function LeadsPage({
                     >
                         Import CSV
                     </Link>
+
+                    <FindEmailsButton />
 
                     <Link href="/leads/new" id="add-lead-btn">
                         <button className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 px-4 text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-2">

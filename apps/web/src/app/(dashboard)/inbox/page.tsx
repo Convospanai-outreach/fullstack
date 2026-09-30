@@ -1,19 +1,20 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
-import { CalendarClock, CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { StalledNudgeList } from "@/components/overseer/StalledNudgeList";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import ApprovalsPage from "../approvals/page";
 
 interface InboxReply {
     id: string;
@@ -50,7 +51,7 @@ interface ThreadResponse {
     messages: { id: string; direction: string; sender: string | null; text: string; createdAt: string }[];
 }
 
-type Tab = "replies" | "stalled" | "meetings";
+type Tab = "replies" | "approvals";
 
 const PAGE_SIZE = 20;
 
@@ -213,18 +214,20 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
 }
 
 export default function InboxPage() {
-    const [tab, setTab] = useState<Tab>("replies");
+    // ?tab=approvals deep-links here; /approvals redirects to it.
+    const router = useRouter();
+    const tab: Tab = useSearchParams()?.get("tab") === "approvals" ? "approvals" : "replies";
+    const setTab = (next: Tab) => router.replace(next === "approvals" ? "/inbox?tab=approvals" : "/inbox");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [olderReplies, setOlderReplies] = useState<InboxReply[]>([]);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [stalledCount, setStalledCount] = useState<number | null>(null);
     const { data, error, mutate } = useSWR<InboxResponse>(getBrowserApiUrl(`/inbox?page=1&limit=${PAGE_SIZE}`), fetcher);
+    const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher);
 
     const firstPage = data?.replies.items ?? [];
     const replies = [...firstPage, ...olderReplies.filter((r) => !firstPage.some((f) => f.id === r.id))];
     const selected = replies.find((r) => r.id === selectedId) ?? null;
     const hasMore = !!data && replies.length < data.replies.total;
-    const onStalledCount = useCallback((count: number) => setStalledCount(count), []);
 
     const refresh = () => {
         setOlderReplies([]);
@@ -258,24 +261,24 @@ export default function InboxPage() {
     };
 
     const counts = data?.counts;
-    const meetings = data?.meetings ?? [];
 
     return (
         <div className="space-y-6 max-w-6xl">
-            <SectionHeader title="Inbox" subtitle="Replies, stalled leads, and upcoming meetings: everything that needs you today." />
+            <SectionHeader title="Inbox" subtitle="Replies to answer and actions waiting for your approval." />
 
             <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
                 <TabsList>
                     <TabsTrigger value="replies">Replies ({counts?.unreadReplies ?? 0})</TabsTrigger>
-                    <TabsTrigger value="stalled">Stalled ({stalledCount ?? counts?.openNudges ?? 0})</TabsTrigger>
-                    <TabsTrigger value="meetings">Meetings ({meetings.length})</TabsTrigger>
+                    <TabsTrigger value="approvals">Approvals ({approvals?.requests?.length ?? 0})</TabsTrigger>
                 </TabsList>
             </Tabs>
 
-            {error && (
+            {tab === "approvals" && <ApprovalsPage />}
+
+            {tab === "replies" && error && (
                 <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load your inbox: {error.message}</GlassCard>
             )}
-            {!data && !error && <div className="text-muted-foreground">Loading inbox...</div>}
+            {tab === "replies" && !data && !error && <div className="text-muted-foreground">Loading inbox...</div>}
 
             {data && tab === "replies" && (
                 replies.length === 0 ? (
@@ -326,37 +329,6 @@ export default function InboxPage() {
                                 Select a reply to read the conversation and respond.
                             </GlassCard>
                         )}
-                    </div>
-                )
-            )}
-
-            {data && tab === "stalled" && (
-                <>
-                    <StalledNudgeList onCountChange={onStalledCount} />
-                    {stalledCount === 0 && <AllClear />}
-                </>
-            )}
-
-            {data && tab === "meetings" && (
-                meetings.length === 0 ? (
-                    <AllClear />
-                ) : (
-                    <div className="grid gap-3">
-                        {meetings.map((meeting) => (
-                            <GlassCard key={meeting.id} className="flex items-center gap-4 p-5">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-                                    <CalendarClock className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate font-medium text-foreground">{meeting.title}</p>
-                                    <p className="truncate text-sm text-muted-foreground">
-                                        {[meeting.lead?.fullName, meeting.lead?.company].filter(Boolean).join(" · ") || "No lead attached"}
-                                    </p>
-                                </div>
-                                <p className="shrink-0 text-sm text-foreground">{format(new Date(meeting.startTime), "EEE d MMM, h:mm a")}</p>
-                            </GlassCard>
-                        ))}
-                        <Link href="/calendar" className="text-sm text-primary hover:underline">Open calendar</Link>
                     </div>
                 )
             )}

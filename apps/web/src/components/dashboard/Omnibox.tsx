@@ -99,17 +99,31 @@ export function Omnibox() {
         { label: "Knowledge Base", icon: Database, color: "text-amber-400", href: "/knowledge" },
     ];
 
-    // Static pages + tools — jump-to navigation, no network round-trip needed.
+    // Static pages + tools — jump-to navigation, no network round-trip needed. Covers every
+    // page that had its own sidebar entry before the one-entry-per-section sidebar.
     const staticPages = [
-        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Leads", href: "/leads", icon: Users },
-        { name: "Campaigns", href: "/campaigns", icon: Megaphone },
+        { name: "Home", href: "/dashboard", icon: LayoutDashboard },
         { name: "Inbox", href: "/inbox", icon: Inbox },
-        { name: "Intel", href: "/intel", icon: Activity },
-        { name: "Governance", href: "/governance", icon: ShieldCheck },
+        { name: "Approvals", href: "/inbox?tab=approvals", icon: ShieldCheck },
+        { name: "Leads", href: "/leads", icon: Users },
+        { name: "Accounts", href: "/accounts", icon: Users },
+        { name: "Ideal customer", href: "/icp-builder", icon: Users },
+        { name: "Campaigns", href: "/campaigns", icon: Megaphone },
+        { name: "Automations", href: "/automations", icon: Zap },
+        { name: "Pipeline", href: "/pipeline", icon: Activity },
+        { name: "Calendar", href: "/calendar", icon: Activity },
+        { name: "Templates", href: "/templates", icon: Database },
+        { name: "Landing pages", href: "/landing-agent/new", icon: Database },
+        { name: "Reports", href: "/analytics/roi", icon: Activity },
+        { name: "Buyer signals", href: "/intel", icon: Activity },
+        { name: "Trust overview", href: "/governance", icon: ShieldCheck },
+        { name: "Audit log", href: "/settings/audit", icon: ShieldCheck },
+        { name: "Team", href: "/settings/team", icon: Users },
         { name: "Billing", href: "/billing", icon: CreditCard },
-        { name: "CRM", href: "/settings/crm", icon: Activity },
-        { name: "Tools", href: "/tools", icon: Wrench },
+        { name: "CRM sync", href: "/settings/crm", icon: Activity },
+        { name: "Settings", href: "/settings", icon: Wrench },
+        { name: "Monitoring", href: "/monitoring", icon: Activity },
+        { name: "Labs", href: "/tools", icon: Wrench },
     ];
     const staticTools = Object.values(HIDDEN_FEATURES)
         .filter((f) => f.built)

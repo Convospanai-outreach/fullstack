@@ -12,6 +12,7 @@
  * - Updated: main content margin-top now fixed mt-12 (48px header, no banner offset)
  * - Updated: sidebar offset updated to lg:pl-48 (192px, matching new sidebar width)
  * - Kept: Omnibox, ConnectionStatusBar
+ * - Added: SectionTabs above every page (the current sidebar section's pages as tabs)
  * - Removed: clerk-sync auth gate - proxy.ts's own session check (token-based,
  *   provider-agnostic) already covers unauthenticated access; the extra gate
  *   here only ever guarded a Clerk-specific async-webhook race.
@@ -21,6 +22,7 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Omnibox } from "@/components/dashboard/Omnibox";
+import { SectionTabs } from "@/components/dashboard/SectionTabs";
 import WelcomeTour from "@/components/onboarding/WelcomeTour";
 
 export default function DashboardShell({
@@ -56,6 +58,7 @@ export default function DashboardShell({
                     </div>
 
                     <div className="relative z-10">
+                        <SectionTabs />
                         {children}
                     </div>
                 </main>

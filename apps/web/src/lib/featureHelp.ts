@@ -20,11 +20,11 @@ interface NavHelpEntry {
 
 // The ~21 real, always-visible nav destinations (sidebar + approvals/inbox).
 // Grounded in each page's actual subtitle/content, not guessed — see OPEN-83
-// follow-up work. Hidden/gated features (Tools menu) are handled separately
+// follow-up work. Hidden/gated features (Labs) are handled separately
 // below via HIDDEN_FEATURES so their copy isn't duplicated in two places.
 const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
     "dashboard": {
-        label: "Dashboard",
+        label: "Home",
         href: "/dashboard",
         pathPrefixes: ["/dashboard"],
         blurb: "Your home base: meetings booked, active leads, and drafts waiting on you, plus where you are in the outreach workflow.",
@@ -59,23 +59,23 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         whenToUse: "Check here before your day starts, or to confirm a meeting actually landed.",
     },
     "intel": {
-        label: "Intel",
+        label: "Buyer signals",
         href: "/intel",
         pathPrefixes: ["/intel"],
         blurb: "A live feed of buying-intent signals — which companies and industries are showing interest right now, and how strong that signal is.",
         whenToUse: "Use this to spot which accounts are heating up before they show up as hot leads.",
-        overlapNote: "Not the same as Analytics — Intel is a real-time signal feed about who's interested; Analytics is after-the-fact performance reporting.",
+        overlapNote: "Not the same as the other Reports tabs — Buyer signals is a real-time feed about who's interested; ROI, Journey and AI are after-the-fact performance reporting.",
     },
     "analytics-roi": {
-        label: "Analytics",
+        label: "Reports",
         href: "/analytics/roi",
         pathPrefixes: ["/analytics"],
         blurb: "Revenue, funnel conversion, and campaign performance over a selected time window, with a CSV export.",
         whenToUse: "Use this to answer \"is this working\" and to report results.",
-        overlapNote: "Different from Intel (live signals) and Governance's activity chart (security/compliance events, not revenue).",
+        overlapNote: "Different from Buyer signals (live signals) and the Trust overview's activity chart (security/compliance events, not revenue).",
     },
     "governance": {
-        label: "Governance",
+        label: "Trust overview",
         href: "/governance",
         pathPrefixes: ["/governance"],
         blurb: "Your security and compliance posture — active guardrails, policy violations, and audit event volume.",
@@ -87,10 +87,10 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         pathPrefixes: ["/templates"],
         blurb: "Reusable email/message templates you save and reuse across campaigns.",
         whenToUse: "Use this to store a message you'll send again, or edit one you've already saved.",
-        overlapNote: "Templates store finished messages. Playbooks (Tools menu) store a whole multi-step outreach strategy. Studio (Tools menu) is for localizing a campaign's language for international markets, not everyday template editing.",
+        overlapNote: "Templates store finished messages. Playbooks (Content) store a whole multi-step outreach strategy. Content studio (Labs) is for localizing a campaign's language for international markets, not everyday template editing.",
     },
     "icp-builder": {
-        label: "ICP Builder",
+        label: "Ideal customer",
         href: "/icp-builder",
         pathPrefixes: ["/icp-builder"],
         blurb: "Answer a few questions about your ideal customer and get an AI-generated targeting profile: keywords, a boolean search string, and a persona hook.",
@@ -109,7 +109,7 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         pathPrefixes: ["/automations"],
         blurb: "Your event-based automation rules (\"when X happens, do Y\") — turn them on or off, and jump into the visual builder.",
         whenToUse: "Use this as your main list for reviewing and toggling automations on or off.",
-        overlapNote: "Automations and the Tools menu's \"Workflows\" both manage the same underlying records. Automations is the one in your main nav — treat Workflows as redundant with it.",
+        overlapNote: "Automations and \"Workflows\" (both under Campaigns) manage the same underlying records. Treat Workflows as redundant with Automations.",
     },
     "admin": {
         label: "Admin",
@@ -124,7 +124,7 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         pathPrefixes: ["/monitoring"],
         blurb: "Real-time infrastructure health — is the system itself up and running correctly.",
         whenToUse: "Check here if something in the app seems broken or slow, to see if it's an infra issue.",
-        overlapNote: "About server/infra health, not your background jobs (Jobs, Tools menu) or orchestrated agent runs (Command Center, Tools menu).",
+        overlapNote: "About server/infra health, not your background jobs (Background jobs, in Labs) or orchestrated agent runs (Agent runs, in Labs).",
     },
     "audit-logs": {
         label: "Audit Logs",
@@ -148,7 +148,7 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         whenToUse: "Use this to upgrade your plan, buy credits, or download an invoice.",
     },
     "crm-bridge": {
-        label: "CRM Bridge",
+        label: "CRM sync",
         href: "/settings/crm",
         pathPrefixes: ["/settings/crm"],
         blurb: "Save your HubSpot, Salesforce or Pipedrive access token and map lead fields to CRM fields.",
@@ -164,25 +164,25 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
     },
     "approvals-inbox": {
         label: "Approvals",
-        href: "/approvals",
+        href: "/inbox?tab=approvals",
         pathPrefixes: ["/approvals"],
         blurb: "Sensitive actions (like an AI-drafted email) that are waiting on your sign-off before they go out.",
         whenToUse: "Check here whenever something needs a human okay before it happens.",
-        overlapNote: "Replies from leads live in the Inbox, not here. Stalled-lead nudges show in both places.",
+        overlapNote: "This is the Approvals tab of the Inbox; lead replies are on the Replies tab.",
     },
     "action-inbox": {
         label: "Inbox",
         href: "/inbox",
         pathPrefixes: ["/inbox"],
-        blurb: "Lead replies, stalled-lead nudges, and upcoming meetings in one place, so you can see what needs you today.",
-        whenToUse: "Start your day here: answer replies, mark each one's outcome, and act on stalled leads.",
+        blurb: "Lead replies and actions waiting for your approval (with stalled-lead nudges) in one place.",
+        whenToUse: "Answer replies, mark each one's outcome, and approve or reject what's waiting on you.",
     },
     "tools": {
-        label: "Tools",
+        label: "Labs",
         href: "/tools",
         pathPrefixes: ["/tools"],
-        blurb: "A searchable hub for every extra feature in the app, showing which ones are actually turned on for your workspace.",
-        whenToUse: "Use this (or the grid icon in the header) to discover a feature you haven't tried yet.",
+        blurb: "A searchable hub for beta and advanced tools, showing which ones are actually turned on for your workspace.",
+        whenToUse: "Open it from the Help menu or ⌘K to discover a tool you haven't tried yet.",
     },
 };
 

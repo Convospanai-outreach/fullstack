@@ -7,19 +7,19 @@
  * - Removed: user identity widget (avatar, name, plan badge) — lives in sidebar footer
  * - Removed: bannerOffset prop — setup banner is now inline in page content, not fixed
  * - Removed: Ask AI button, QuickActions, separate identity widget
- * - Added: Mode badge ("Manual mode") with pulse indicator
  * - Added: Single search trigger (⌘K → Omnibox) — replaces dual search surfaces
- * - Kept: Mobile hamburger, notification bell, help icon
+ * - Four items: ⌘K search, connection status (only when unhealthy), notification bell,
+ *   one Help menu (page guide, help center, Labs, theme)
+ * - Removed: Tools menu (Labs lives in the Help menu and ⌘K) and the static "Manual mode"
+ *   badge, which had no mode source behind it
+ * - Kept: Mobile hamburger
  * - Height: h-12 (48px), border-b border-border
  */
 
-import { Menu, Search, HelpCircle } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
-import { ToolsMenu } from "@/components/dashboard/ToolsMenu";
 import { WorkspaceHelpPanel } from "@/components/dashboard/WorkspaceHelpPanel";
-import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
-import Link from "next/link";
 
 interface DashboardHeaderProps {
   onToggleSidebar: () => void;
@@ -52,38 +52,14 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
         <kbd className="ml-auto text-[10px] bg-muted rounded px-1.5 hidden sm:inline">⌘K</kbd>
       </button>
 
-      {/* Right zone: status pill + mode badge + bell + help */}
+      {/* Right zone: status (only when unhealthy) + bell + help */}
       <div className="ml-auto flex items-center gap-2">
-        {/* Docked Connection Status */}
-        <ConnectionStatusBar inline />
+        <ConnectionStatusBar inline onlyWhenUnhealthy />
 
-        {/* Tools discovery menu — grouped/gated feature surfaces */}
-        <ToolsMenu />
-
-        {/* Contextual "what is this page" guide */}
-        <WorkspaceHelpPanel />
-
-        {/* Mode badge */}
-        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
-                        text-success bg-success/8 border border-success/18">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          Manual mode
-        </div>
-
-        {/* Theme toggle */}
-        <ThemeToggle />
-
-        {/* Notification bell */}
         <NotificationBell />
 
-        {/* Help */}
-        <Link
-          href="/help"
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          aria-label="Help"
-        >
-          <HelpCircle className="w-4 h-4" />
-        </Link>
+        {/* Page guide, help center, Labs and theme */}
+        <WorkspaceHelpPanel />
       </div>
     </header>
   );

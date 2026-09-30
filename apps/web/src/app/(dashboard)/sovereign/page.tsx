@@ -25,7 +25,7 @@ export default function SovereignControlsPage() {
                         Data Sovereignty & Security
                     </div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-                        Sovereign Controls
+                        Data residency
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         HMAC-SHA256 blind indexing, cryptographic tenant scoping, and zero-data-retention AI governance.
