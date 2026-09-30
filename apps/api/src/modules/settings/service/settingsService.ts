@@ -65,10 +65,10 @@ class SettingsService {
         }
 
         // Explicit allowlist - see updateSettings for why `data` must not be passed through raw.
-        const { emailGlobal, emailCampaign, emailLeads, inAppGlobal } = data ?? {};
+        const { emailGlobal, emailCampaign, emailLeads, inAppGlobal, digestEnabled } = data ?? {};
         return prisma.notificationSettings.update({
             where: { settingsId: settings.id },
-            data: { emailGlobal, emailCampaign, emailLeads, inAppGlobal }
+            data: { emailGlobal, emailCampaign, emailLeads, inAppGlobal, digestEnabled }
         });
     }
 }

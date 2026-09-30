@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
+import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 import type { EmailAttachment } from "./emailAttachment";
 
 const db = prisma;
@@ -1426,8 +1427,9 @@ async function createInboundCampaignEvent(input: {
 
     const isBounce = /mailer-daemon|postmaster/i.test(from) || /delivery status notification|undeliver|delivery failed|returned mail/i.test(subject);
     const type: GmailInboundEventType = isBounce ? "BOUNCE" : "REPLY_RECEIVED";
+    let inboundMessage: { id: string; leadId: string; sentimentScore: number | null; emailEventId: string | null; createdAt: Date } | undefined;
     try {
-        return await db.$transaction(async (tx) => {
+        const result = await db.$transaction(async (tx) => {
             await assertGmailMailboxLeaseInTransaction(tx, lease);
             const inReplyTo = headerValue(message, "In-Reply-To");
             const references = headerValue(message, "References") || "";
@@ -1509,7 +1511,7 @@ async function createInboundCampaignEvent(input: {
                 return "bounce" as const;
             }
 
-            await tx.message.create({
+            inboundMessage = await tx.message.create({
                 data: {
                     leadId: matchedEmail.leadId,
                     content: subject || "Reply detected",
@@ -1536,6 +1538,8 @@ async function createInboundCampaignEvent(input: {
             });
             return "reply" as const;
         });
+        if (result === "reply" && inboundMessage) void onInboundReply(inboundMessage);
+        return result;
     } catch (error: any) {
         if (isEmailEventUniqueDuplicate(error)) {
             return waitForCompletedInboundEventAfterConflict({

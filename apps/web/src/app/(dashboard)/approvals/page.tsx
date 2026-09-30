@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { toast } from "sonner";
-import { Check, AlertCircle, Clock, Lightbulb, X } from "lucide-react";
+import { Check, AlertCircle, Clock } from "lucide-react";
 import { getExpiryState, formatTimeLeft } from "@/lib/approvalExpiry";
+import { StalledNudgeList } from "@/components/overseer/StalledNudgeList";
 
 interface ApprovalRequest {
     id: string;
@@ -30,15 +31,6 @@ interface ApprovalRequest {
     };
     createdAt: string;
     autoDenyAt?: string | null;
-}
-
-interface OverseerNudge {
-    id: string;
-    stage: string;
-    stallDays: number;
-    nudgeType: string;
-    suggestion: string;
-    createdAt: string;
 }
 
 function BreakerPill({ state }: { state: string | null }) {
@@ -104,14 +96,12 @@ function ExpiryBadge({ autoDenyAt }: { autoDenyAt?: string | null }) {
 
 export default function ApprovalsPage() {
     const [requests, setRequests] = useState<ApprovalRequest[]>([]);
-    const [nudges, setNudges] = useState<OverseerNudge[]>([]);
     const [breakerState, setBreakerState] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
 
     useEffect(() => {
         fetchRequests();
-        fetchNudges();
         fetchBreakerState();
     }, []);
 
@@ -142,35 +132,6 @@ export default function ApprovalsPage() {
             toast.error("Failed to load requests");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchNudges = async () => {
-        try {
-            const res = await fetch("/api/overseer/nudges");
-            const data = await res.json();
-            if (data.nudges) {
-                setNudges(data.nudges);
-            }
-        } catch (err) {
-            console.error("Failed to load overseer nudges", err);
-        }
-    };
-
-    const handleNudgeAction = async (id: string, action: "ACTED" | "DISMISSED") => {
-        setProcessing(id);
-        try {
-            const res = await fetch(`/api/overseer/nudges/${id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action })
-            });
-            if (!res.ok) throw new Error("Action failed");
-            setNudges(current => current.filter(n => n.id !== id));
-        } catch (err) {
-            toast.error("Failed to update nudge");
-        } finally {
-            setProcessing(null);
         }
     };
 
@@ -285,50 +246,14 @@ export default function ApprovalsPage() {
                 </div>
             )}
 
-            {nudges.length > 0 && (
-                <div className="space-y-4">
+            <StalledNudgeList
+                header={
                     <SectionHeader
                         title="Stalled Funnel Nudges"
                         subtitle="Overseer-flagged sequence enrollments that have gone quiet — advisory only, nothing here executes automatically."
                     />
-                    <div className="grid gap-4">
-                        {nudges.map((nudge) => (
-                            <GlassCard key={nudge.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                                <div className="flex gap-4 items-start">
-                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 border border-primary/30">
-                                        <Lightbulb className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h4 className="font-bold text-foreground text-lg">{formatAction(nudge.nudgeType)}</h4>
-                                            <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs border border-border">
-                                                {nudge.stage} · stalled {nudge.stallDays.toFixed(1)}d
-                                            </span>
-                                        </div>
-                                        <p className="text-muted-foreground text-sm">{nudge.suggestion}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 w-full md:w-auto">
-                                    <button
-                                        disabled={!!processing}
-                                        onClick={() => handleNudgeAction(nudge.id, "DISMISSED")}
-                                        className="flex-1 md:flex-none px-4 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
-                                    >
-                                        <X className="w-4 h-4" /> Dismiss
-                                    </button>
-                                    <button
-                                        disabled={!!processing}
-                                        onClick={() => handleNudgeAction(nudge.id, "ACTED")}
-                                        className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
-                                    >
-                                        <Check className="w-4 h-4" /> Mark Acted
-                                    </button>
-                                </div>
-                            </GlassCard>
-                        ))}
-                    </div>
-                </div>
-            )}
+                }
+            />
         </div>
     );
 }

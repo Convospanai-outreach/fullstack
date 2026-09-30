@@ -49,6 +49,7 @@ export class WorkerManager {
     private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastRetentionTick: number = 0;
     private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastDigestHourSlot: number | null = null;
 
     async start() {
         if (this.isRunning) return;
@@ -232,6 +233,25 @@ export class WorkerManager {
                 console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
             }
             this.lastShadowSignalReconcileTick = now;
+        }
+
+        // Daily Action Inbox digest: once per clock hour (keyed on the hour itself rather than
+        // an interval, which drifts and could skip the one hour that matters). The service
+        // only sends during 08:00-08:59 local and is idempotent via DigestLog.
+        // Marked done before running and never rethrown, so a failure can't retry every loop
+        // or starve the retention sweep below.
+        const hourSlot = Math.floor(now / (60 * 60 * 1000));
+        if (hourSlot !== this.lastDigestHourSlot) {
+            this.lastDigestHourSlot = hourSlot;
+            try {
+                const { runDailyDigest } = await import("@/modules/inbox/dailyDigestService");
+                const result = await runDailyDigest(new Date(now));
+                if (result.sent > 0 || result.failed > 0) {
+                    console.log(`[Worker] Daily digest: sent ${result.sent}, failed ${result.failed}, skipped ${result.skippedEmpty} empty.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Daily digest failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
         }
 
         // Log-table retention (roadmap 3.2 / I-08). Dry run unless

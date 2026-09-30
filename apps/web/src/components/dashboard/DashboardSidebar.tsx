@@ -21,6 +21,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
+  Inbox,
   LayoutDashboard,
   Megaphone,
   Activity,
@@ -116,7 +117,7 @@ function promotedItem(key: HiddenFeatureKey, liveKeys: Set<HiddenFeatureKey>): N
 // funnel stage (settings/ops) live in their own group at the bottom, out of
 // the goal-oriented groups. `liveKeys` are HIDDEN_FEATURES keys that are both
 // built and enabled for this workspace — see /api/settings/hidden-features.
-const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number): NavGroup[] => {
+const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number, inboxBadge: number): NavGroup[] => {
   const settings: NavItem[] = [
     { href: '/team', label: 'Team', icon: Building2 },
     { href: '/billing', label: 'Billing', icon: CreditCard },
@@ -143,6 +144,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
   return [
     {
       items: [
+        { href: '/inbox', label: 'Inbox', icon: Inbox, badge: inboxBadge },
         { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       ],
     },
@@ -177,7 +179,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
       items: [
         { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
         { href: '/calendar', label: 'Calendar', icon: Calendar },
-        { href: '/approvals', label: 'Approvals & Inbox', icon: ShieldCheck, badge: approvalsBadge },
+        { href: '/approvals', label: 'Approvals', icon: ShieldCheck, badge: approvalsBadge },
         { href: '/intel', label: 'Intel', icon: Activity },
       ],
     },
@@ -237,11 +239,13 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
   const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher, { refreshInterval: 30000 });
   const pendingActionCount = approvals?.requests?.length ?? 0;
+  const { data: inboxCounts } = useSWR<{ unreadReplies?: number }>("/api/proxy/inbox/counts", fetcher, { refreshInterval: 60000 });
+  const unreadReplyCount = inboxCounts?.unreadReplies ?? 0;
   const { data: toolsData } = useSWR<{ features: ToolStatus[] }>("/api/settings/hidden-features", fetcher);
   const liveFeatureKeys = new Set<HiddenFeatureKey>(
     (toolsData?.features ?? []).filter((f) => f.built && f.enabled).map((f) => f.key)
   );
-  const navGroups = buildNavGroups(liveFeatureKeys, pendingActionCount);
+  const navGroups = buildNavGroups(liveFeatureKeys, pendingActionCount, unreadReplyCount);
   const userName = session?.user?.name ?? 'User';
   const userInitials = userName
     .split(' ')

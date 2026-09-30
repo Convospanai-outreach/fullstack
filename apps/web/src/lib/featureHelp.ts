@@ -163,12 +163,19 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
         whenToUse: "Use this for anything account or workspace configuration related.",
     },
     "approvals-inbox": {
-        label: "Approvals & Inbox",
+        label: "Approvals",
         href: "/approvals",
-        pathPrefixes: ["/approvals", "/inbox"],
+        pathPrefixes: ["/approvals"],
         blurb: "Sensitive actions (like an AI-drafted email) that are waiting on your sign-off before they go out.",
         whenToUse: "Check here whenever something needs a human okay before it happens.",
-        overlapNote: "Inbox and Approvals are the same page — /inbox just redirects here.",
+        overlapNote: "Replies from leads live in the Inbox, not here. Stalled-lead nudges show in both places.",
+    },
+    "action-inbox": {
+        label: "Inbox",
+        href: "/inbox",
+        pathPrefixes: ["/inbox"],
+        blurb: "Lead replies, stalled-lead nudges, and upcoming meetings in one place, so you can see what needs you today.",
+        whenToUse: "Start your day here: answer replies, mark each one's outcome, and act on stalled leads.",
     },
     "tools": {
         label: "Tools",

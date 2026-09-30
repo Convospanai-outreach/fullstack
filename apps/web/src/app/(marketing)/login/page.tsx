@@ -4,10 +4,11 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { postLoginPath } from "@/lib/postLoginPath";
 
 function getRedirectUrl() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("redirect_url") || params.get("callbackUrl") || "/dashboard";
+    return params.get("redirect_url") || params.get("callbackUrl") || postLoginPath();
 }
 
 function LoginForm() {

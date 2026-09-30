@@ -76,6 +76,11 @@ model Lead {
   // ICP fit (0-100), scored against the campaign's ICP when a lead is attached to a campaign
   icpFitScore Int?
 
+  // Outcome a rep marked on this lead's reply in the Action Inbox: interested,
+  // not_interested, meeting_booked, wrong_person. Separate from status because no
+  // existing status value represents wrong_person.
+  replyOutcome String?
+
   emails              Email[]
   emailEvents         EmailEvent[]
   suppressionEntries  SuppressionEntry[]
@@ -1130,10 +1135,24 @@ model NotificationSettings {
   emailCampaign Boolean  @default(true)
   emailLeads    Boolean  @default(true)
   inAppGlobal   Boolean  @default(true)
+  digestEnabled Boolean  @default(true) // daily Action Inbox digest email (see dailyDigestService.ts)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   settings Settings @relation(fields: [settingsId], references: [id])
+}
+
+// One row per user per local calendar day the daily Action Inbox digest was sent.
+// The unique constraint is the idempotency claim: the digest worker inserts first
+// and only sends if the insert won.
+model DigestLog {
+  id        String   @id @default(uuid())
+  userId    String
+  sentOn    DateTime @db.Date
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sentOn])
 }
 
 model Notification {
@@ -1637,6 +1656,7 @@ model User {
   // every team's data doesn't ride on the same auth path as tenant logins.
   superAdminCredential SuperAdminCredential?
   superAdminAuditLogs  SuperAdminAuditLog[]
+  digestLogs           DigestLog[]
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
