@@ -4,6 +4,7 @@ import { EmailService } from "@/lib/emailService";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { hashPassword, registerSchema } from "@/lib/passwordAuth";
+import { allowForEmail, clientIpFromRequest, isBreachedPassword, looksLikeBot, verifyTurnstile } from "@/lib/botCheck";
 
 export async function POST(req: NextRequest) {
     const limited = await applyRateLimit(req, RATE_LIMITS.REGISTRATION, "register");
@@ -16,11 +17,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
+    const raw = (body ?? {}) as Record<string, unknown>;
+    // Honeypot filled or form submitted faster than a person could: answer as if it
+    // worked so the bot learns nothing, and create nothing.
+    if (looksLikeBot(raw)) {
+        return NextResponse.json({ success: true, emailSent: true }, { status: 201 });
+    }
+    if (!(await verifyTurnstile(raw["turnstileToken"], clientIpFromRequest(req)))) {
+        return NextResponse.json({ error: "Bot check failed. Please refresh and try again." }, { status: 400 });
+    }
+
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
     }
     const { email, password, firstName, lastName, phone, company } = parsed.data;
+
+    if (!(await allowForEmail(email, "register", 5, 60 * 60 * 1000))) {
+        return NextResponse.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
+    }
+    if (password.toLowerCase().includes(email.split("@")[0]!.toLowerCase()) && email.split("@")[0]!.length >= 4) {
+        return NextResponse.json({ error: "Password must not contain your email address." }, { status: 400 });
+    }
+    if (await isBreachedPassword(password)) {
+        return NextResponse.json(
+            { error: "That password has appeared in a known data breach. Please choose a different one." },
+            { status: 400 }
+        );
+    }
 
     if (await isSsoEnforcedForEmail(email)) {
         return NextResponse.json(

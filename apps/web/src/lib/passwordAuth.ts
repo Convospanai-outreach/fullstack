@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { provisionUserTeam } from "@/lib/passwordOnboarding";
+import { allowForEmail } from "@/lib/botCheck";
 
 export const PASSWORD_MIN_LENGTH = 10;
 // bcrypt silently ignores everything past 72 bytes, so longer passwords would
@@ -17,6 +18,7 @@ export const AUTH_ERROR_SSO_REQUIRED = "SSO_REQUIRED";
 export const AUTH_ERROR_RATE_LIMITED = "RATE_LIMITED";
 
 const LOGIN_ATTEMPT_LIMIT = { windowMs: 15 * 60 * 1000, maxRequests: 10 };
+const EMAIL_ATTEMPT_LIMIT = { windowMs: 15 * 60 * 1000, maxRequests: 30 };
 
 export const profileFieldsSchema = z.object({
     firstName: z.string().trim().min(1, "First name is required").max(80),
@@ -72,6 +74,13 @@ export async function authorizeCredentials(
     const { checkRateLimit } = await import("@/lib/rateLimit");
     const limit = await checkRateLimit(`${clientIp(req)}:${email}`, LOGIN_ATTEMPT_LIMIT, "credentials-login");
     if (!limit.allowed) throw new Error(AUTH_ERROR_RATE_LIMITED);
+
+    // The IP above comes from a client-settable header, so also cap guesses per
+    // address across all IPs. Generous enough that it is a ceiling on a distributed
+    // guessing attack, not a way to lock a real user out.
+    if (!(await allowForEmail(email, "credentials-login-email", EMAIL_ATTEMPT_LIMIT.maxRequests, EMAIL_ATTEMPT_LIMIT.windowMs))) {
+        throw new Error(AUTH_ERROR_RATE_LIMITED);
+    }
 
     const user = await prisma.user.findUnique({
         where: { email },

@@ -22,7 +22,7 @@ export default async function CompleteProfilePage({
 
     // Only same-site relative paths, so this can't be turned into an open redirect.
     const { next } = await searchParams;
-    const nextPath = next && next.startsWith("/") && !next.startsWith("//") ? next : postLoginPath();
+    const nextPath = next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : postLoginPath();
     if (user.profileCompletedAt) redirect(nextPath);
 
     const [guessFirst = "", ...rest] = (user.name ?? "").split(" ");

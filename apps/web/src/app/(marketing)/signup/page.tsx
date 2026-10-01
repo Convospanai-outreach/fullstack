@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -29,6 +30,9 @@ function SignupForm() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState<{ emailSent: boolean } | null>(null);
+    const [website, setWebsite] = useState(""); // honeypot: real users never see or fill it
+    const [turnstileToken, setTurnstileToken] = useState("");
+    const startedAt = useRef(Date.now());
 
     const set = (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement>) =>
         setForm({ ...form, [key]: e.target.value });
@@ -41,7 +45,7 @@ function SignupForm() {
             const res = await fetch("/api/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({ ...form, website, turnstileToken, elapsedMs: Date.now() - startedAt.current }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -76,6 +80,17 @@ function SignupForm() {
             <input required aria-label="Phone number" placeholder="Phone number" type="tel" autoComplete="tel" className={inputClass} value={form.phone} onChange={set("phone")} />
             <input required aria-label="Work email" placeholder="Work email" type="email" autoComplete="email" className={inputClass} value={form.email} onChange={set("email")} />
             <input required aria-label="Password" placeholder="Password (min 10 characters)" type="password" minLength={10} maxLength={72} autoComplete="new-password" className={inputClass} value={form.password} onChange={set("password")} />
+            <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                className="absolute left-[-9999px] h-0 w-0 opacity-0"
+            />
+            <TurnstileWidget onToken={setTurnstileToken} />
             {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
             <button
                 type="submit"

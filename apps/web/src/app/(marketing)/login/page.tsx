@@ -16,7 +16,8 @@ function getRedirectUrl() {
 // unlike NextAuth's own redirect it must refuse off-site targets itself.
 function safeRedirectPath() {
     const url = getRedirectUrl();
-    return url.startsWith("/") && !url.startsWith("//") ? url : postLoginPath();
+    // Browsers read "/\host" like "//host", so backslashes are refused too.
+    return url.startsWith("/") && !url.startsWith("//") && !url.includes("\\") ? url : postLoginPath();
 }
 
 const inputClass =

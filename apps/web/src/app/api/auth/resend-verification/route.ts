@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { EmailService } from "@/lib/emailService";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { allowForEmail } from "@/lib/botCheck";
 
 // Always answers 200 so this can't be used to probe which emails are registered.
 export async function POST(req: NextRequest) {
@@ -11,7 +12,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
 
-    if (email) {
+    // Per-address cap so this can't be used to flood someone's inbox with links,
+    // even from rotating IPs. Over the cap still answers 200 (no signal to callers).
+    if (email && (await allowForEmail(email, "resend-verification", 3, 15 * 60 * 1000))) {
         try {
             const user = await prisma.user.findUnique({
                 where: { email },
