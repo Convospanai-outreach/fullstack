@@ -82,6 +82,17 @@ describe("/content routes", () => {
         expect(service.updatePost).toHaveBeenLastCalledWith("team-a", "post-1", { body: "x" });
     });
 
+    it("lets viewers read but not change posts", async () => {
+        (checkTeamPermission as any).mockResolvedValue(false);
+        expect((await GET(new NextRequest(`${BASE}/posts?from=2026-10-01T00:00:00Z&to=2026-11-01T00:00:00Z`))).status).toBe(200);
+        expect((await POST(json(`${BASE}/posts`, "POST", { funnelStage: "TOFU" }))).status).toBe(403);
+        expect((await PATCH(json(`${BASE}/posts/post-1`, "PATCH", { body: "x" }), params())).status).toBe(403);
+        expect((await SUBMIT(new NextRequest(`${BASE}/posts/post-1/submit`, { method: "POST" }), params())).status).toBe(403);
+        expect(service.createPost).not.toHaveBeenCalled();
+        expect(service.updatePost).not.toHaveBeenCalled();
+        expect(service.submitPost).not.toHaveBeenCalled();
+    });
+
     it("maps the service's errors to their status", async () => {
         service.submitPost.mockRejectedValue(new ContentPostError(400, "Pick a time first."));
         const res = await SUBMIT(new NextRequest(`${BASE}/posts/post-1/submit`, { method: "POST" }), params());

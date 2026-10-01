@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { resolveEnabledFeatureKeys } from "@/lib/hiddenFeaturesReadiness";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { uploadPublicFile } from "@/lib/supabaseStorage";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
         if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!(await resolveEnabledFeatureKeys(teamId)).has("creator-funnel")) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const form = await req.formData();

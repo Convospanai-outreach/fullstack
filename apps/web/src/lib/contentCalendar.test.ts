@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 // A zone with DST, set before any Date is built so the helpers see it.
+const originalTz = process.env['TZ'];
 process.env['TZ'] = "America/New_York";
+afterAll(() => {
+    if (originalTz === undefined) delete process.env['TZ'];
+    else process.env['TZ'] = originalTz;
+});
 
 import { addDays, dayKey, fromLocalInput, moveToDay, stageMix, toLocalInput, viewRange, visibleDays } from "./contentCalendar";
 

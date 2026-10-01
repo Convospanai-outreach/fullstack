@@ -289,7 +289,7 @@ export async function submitPost(teamId: string, postId: string, userId: string)
                     subject: await approvalSubject(tx, post.id, scheduledAt, post.timezone),
                     recipient: post.targets.map((t) => `${t.socialAccount.handle || "Account"} (${PLATFORM_LABEL[t.socialAccount.platform]})`).join(", "),
                     body: post.body,
-                    mediaCount: post.mediaUrls.length,
+                    mediaUrls: post.mediaUrls,
                 },
             },
         });

@@ -6,7 +6,7 @@ import { contentError, creatorContext, parseWhen, updatePostSchema } from "@/mod
 // review or approved sends it back to draft (see contentPostService.updatePost).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const ctx = await creatorContext(req);
+        const ctx = await creatorContext(req, "write");
         if (ctx instanceof NextResponse) return ctx;
 
         const parsed = await parseBody(req, updatePostSchema);
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const ctx = await creatorContext(req);
+        const ctx = await creatorContext(req, "write");
         if (ctx instanceof NextResponse) return ctx;
 
         const { id } = await params;

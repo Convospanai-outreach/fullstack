@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const ctx = await creatorContext(req);
+        const ctx = await creatorContext(req, "write");
         if (ctx instanceof NextResponse) return ctx;
 
         const parsed = await parseBody(req, createPostSchema);

@@ -20,6 +20,7 @@ interface ApprovalRequest {
         subject?: string;
         body?: string;
         recipient?: string;
+        mediaUrls?: string[]; // CONTENT_POST_PUBLISH: the post's images
         emailId?: string;
         leadId?: string;
         campaignId?: string;
@@ -206,8 +207,15 @@ export default function ApprovalsPage() {
                                                 </div>
                                             )}
                                             {req.payload.body && (
-                                                <div className="text-foreground text-xs leading-relaxed line-clamp-3 bg-background p-2.5 rounded border border-border font-mono whitespace-pre-wrap">
+                                                <div className={`text-foreground text-xs leading-relaxed ${req.actionType === "CONTENT_POST_PUBLISH" ? "" : "line-clamp-3"} bg-background p-2.5 rounded border border-border font-mono whitespace-pre-wrap`}>
                                                     {req.payload.body}
+                                                </div>
+                                            )}
+                                            {req.payload.mediaUrls && req.payload.mediaUrls.length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {req.payload.mediaUrls.map((url) => (
+                                                        <img key={url} src={url} alt="" className="h-16 w-16 rounded border border-border object-cover" />
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

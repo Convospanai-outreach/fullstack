@@ -88,7 +88,9 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
     }, [open, post, defaultWhen, accounts]);
 
     const editable = !post || isEditable(post);
-    const hasInstagram = accounts.some((a) => a.platform === "INSTAGRAM" && accountIds.includes(a.id));
+    // A post can still target an account that was disconnected since; list it so it can be unchecked.
+    const choices = [...accounts, ...(post?.targets.map((t) => t.socialAccount).filter((a) => !accounts.some((x) => x.id === a.id)) ?? [])];
+    const hasInstagram = choices.some((a) => a.platform === "INSTAGRAM" && accountIds.includes(a.id));
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     const upload = async (files: FileList | null) => {
@@ -258,19 +260,21 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
 
                     <div className="space-y-2">
                         <p className="text-sm font-medium text-foreground">Post to</p>
-                        {accounts.length === 0 ? (
+                        {choices.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 No accounts yet. <Link href="/settings/social" className="text-primary hover:underline">Connect Instagram or Facebook</Link>.
                             </p>
                         ) : (
                             <ul className="space-y-1">
-                                {accounts.map((a) => (
+                                {choices.map((a) => (
                                     <li key={a.id}>
                                         <label className="flex items-center gap-2 text-sm">
                                             <input type="checkbox" checked={accountIds.includes(a.id)} onChange={() => toggleAccount(a.id)} />
                                             <span className="text-foreground">{a.handle || PLATFORM_LABEL[a.platform]}</span>
                                             <span className="text-xs text-muted-foreground">{PLATFORM_LABEL[a.platform]}</span>
-                                            {a.status !== "CONNECTED" && <span className="text-xs text-warning">needs reconnecting</span>}
+                                            {a.status !== "CONNECTED" && (
+                                                <span className="text-xs text-warning">{a.status === "DISCONNECTED" ? "disconnected" : "needs reconnecting"}</span>
+                                            )}
                                         </label>
                                     </li>
                                 ))}

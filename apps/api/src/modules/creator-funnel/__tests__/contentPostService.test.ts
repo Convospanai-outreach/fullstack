@@ -220,7 +220,7 @@ describe("contentPostService", () => {
                 status: "PENDING",
                 tier: "QUEUED",
             });
-            expect(request.payload).toMatchObject({ recipient: "@maker (Instagram)", body: "Hello", mediaCount: 1 });
+            expect(request.payload).toMatchObject({ recipient: "@maker (Instagram)", body: "Hello", mediaUrls: [media()] });
             expect(request.payload.subject).toMatch(/^Instagram post, /);
             expect(mockDb.contentPost.updateMany).toHaveBeenCalledWith({
                 where: { id: "post-1", teamId: TEAM, updatedAt: expect.any(Date), status: { in: ["DRAFT", "FAILED"] } },

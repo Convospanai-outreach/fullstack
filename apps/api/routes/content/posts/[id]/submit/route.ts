@@ -4,7 +4,7 @@ import { contentError, creatorContext } from "@/modules/creator-funnel/contentRo
 // Send a post for approval. It shows in Inbox > Approvals; nothing publishes until approved.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const ctx = await creatorContext(req);
+        const ctx = await creatorContext(req, "write");
         if (ctx instanceof NextResponse) return ctx;
 
         const { id } = await params;
