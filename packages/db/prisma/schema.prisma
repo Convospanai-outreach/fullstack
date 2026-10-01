@@ -111,6 +111,7 @@ model Lead {
   team                Team?                @relation(fields: [teamId], references: [id])
   meetings            Meeting[]
   messages            Message[]
+  socialContacts      SocialContact[]
   tasks               Task[]
   generations         Generation[]
 
@@ -1328,6 +1329,7 @@ model Team {
   // Creator funnel: who runs this team's marketing nurture journeys. null = CMF sequences.
   nurtureProvider NurtureOwner?
   socialAccounts  SocialAccount[]
+  socialContacts  SocialContact[]
   contentPosts    ContentPost[]
   contentStageMix Json? // creator funnel: target % per FunnelStage ({TOFU,MOFU,BOFU,POST}); null = 60/30/10/0
 
@@ -1458,10 +1460,35 @@ model SocialAccount {
 
   team           Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
   contentTargets ContentPostTarget[]
+  contacts       SocialContact[]
 
   @@unique([teamId, platform, externalId])
   @@index([teamId])
   @@index([status, lastCheckedAt])
+}
+
+// Creator funnel: a person who messaged a connected account (Instagram DM or Facebook Page
+// message). Each new contact gets its own Lead; their messages are Message rows on that lead.
+// lastInboundAt drives the 24-hour reply window Meta allows.
+model SocialContact {
+  id              String    @id @default(uuid())
+  teamId          String
+  socialAccountId String
+  externalUserId  String // Instagram-scoped id (IGSID) or Page-scoped id (PSID)
+  handle          String? // @username (Instagram), when the profile lookup succeeds
+  name            String?
+  leadId          String
+  lastInboundAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  team          Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, externalUserId])
+  @@index([teamId])
+  @@index([leadId])
 }
 
 // Creator funnel content calendar. A post is written once and goes to one or more connected
@@ -1889,6 +1916,7 @@ model Message {
   isRead         Boolean         @default(false)
   sentimentScore Float? // -1.0 to 1.0
   emailEventId    String?         @unique
+  externalId     String?         @unique // "<socialAccountId>:<Meta message id>" for Instagram/Facebook DMs; dedupes webhook retries
   createdAt      DateTime        @default(now())
   lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   emailEvent     EmailEvent?     @relation(fields: [emailEventId], references: [id], onDelete: SetNull)

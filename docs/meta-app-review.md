@@ -21,7 +21,12 @@ Recheck them right before submitting. Meta renames and splits permissions betwee
 3. **Valid OAuth redirect URI:** the value of `FACEBOOK_LEADS_REDIRECT_URI` (production: `https://craftmyfunnel.live/api/integrations/facebook/oauth/callback`). Both Lead Ads and the creator funnel use this redirect.
 4. **Server environment**
    - apps/web needs `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`; they already exist for Lead Ads.
-   - apps/api (both Oracle VMs) needs the same two values, for the daily token health check.
+   - apps/api (both Oracle VMs) needs the same two values, for the daily token health check. `FACEBOOK_APP_SECRET` also verifies every DM webhook delivery.
+   - apps/api also needs `META_WEBHOOK_VERIFY_TOKEN`: any long random string, entered again in the App Dashboard (step 6).
+6. **Webhooks (for DMs)**
+   - In the App Dashboard, under Webhooks, add a subscription for the **Page** object and one for the **Instagram** object. Both use the callback URL `https://api.craftmyfunnel.live/webhooks/meta-social` and the `META_WEBHOOK_VERIFY_TOKEN` value, and both subscribe to the `messages` field.
+   - The app must be published (Live mode) to receive webhooks: "Your app must be published, regardless of app review status, to receive webhooks." (https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook, checked 2026-10-01)
+   - Connecting a Page in CraftMyFunnel subscribes it with `POST /{page-id}/subscribed_apps?subscribed_fields=messages`. If that fails, the account shows the error under Settings > Social and Reconnect retries it.
 5. **Test setup**
    - An Instagram professional account (Business or Creator) linked to a Facebook Page.
    - That Page managed by a Facebook user who has a role on the app (admin, developer or tester). Until approval, only app-role users can connect.
@@ -71,6 +76,8 @@ Record at 1080p with the UI in English. Show the full Facebook sign-in, includin
 2. Show both arriving in CraftMyFunnel's Inbox, then reply from the Inbox.
 3. Show the replies arriving on the tester's phone or browser.
 
+Showing the sender's name for Facebook Page messages also needs the **Business Asset User Profile Access** feature (https://developers.facebook.com/docs/messenger-platform/identity/user-profile, checked 2026-10-01). Without it, Page conversations appear as "Facebook contact"; everything else works.
+
 ### Comments (instagram_manage_comments, pages_read_user_content, pages_manage_engagement), after Phase 4
 1. Create a keyword trigger: comment "GUIDE" on a post, and it sends a DM with a link.
 2. From the tester account, comment "GUIDE" on the post.
@@ -91,3 +98,4 @@ Give reviewers:
 - **Graph API version.** Social calls use v26.0. The older Lead Ads code uses v21.0, which Meta supports until 2027-01-21; move it before then.
 - **Publishing limit.** Meta's docs disagree on the number (the publishing guide says 100 API-published posts per 24 hours; the `media_publish` and `content_publishing_limit` references say 50), so the publisher reads `quota_usage` and `config.quota_total` from `GET /<IG_ID>/content_publishing_limit` before each Instagram post instead of hard-coding either.
 - **Media hosting.** Instagram fetches media from a public URL at publish time, so post media is served from the creator-funnel storage bucket.
+- **DM reply window.** Meta allows replies for 24 hours after the person's last message (https://developers.facebook.com/documentation/business-messaging/messenger-platform/policy, checked 2026-10-01). The inbox enforces it and doesn't use message tags; the `HUMAN_AGENT` tag would need its own permission. Instagram replies are limited to 1,000 bytes.

@@ -23,6 +23,10 @@ vi.mock("@/modules/governance/service/guardrailService", () => ({
 vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({
     SequenceService: { stopEnrollmentsForLead: vi.fn() },
 }));
+vi.mock("@/modules/creator-funnel/socialInbox", () => ({
+    REPLY_WINDOW_MS: 24 * 60 * 60 * 1000,
+    sendSocialReply: vi.fn(),
+}));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({
     advanceLeadAfterMeetingScheduled: vi.fn(),
     advanceLeadToLost: vi.fn(),
@@ -42,6 +46,7 @@ import { sendViaSmtpMailbox } from "@/modules/email-campaigner/service/smtpConfi
 import { guardrailService } from "@/modules/governance/service/guardrailService";
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { advanceLeadAfterMeetingScheduled, advanceLeadToLost } from "@/lib/crm/leadStageTransitions";
+import { sendSocialReply } from "@/modules/creator-funnel/socialInbox";
 
 function inboundReply(overrides: any = {}) {
     return {
@@ -118,6 +123,21 @@ describe("getInbox", () => {
             isRead: false,
         });
         expect(inbox.replies.total).toBe(1);
+    });
+
+    it("adds the handle and reply-window end for Instagram/Facebook messages only", async () => {
+        const lastInboundAt = new Date("2026-09-30T06:00:00Z");
+        const base = { leadId: "lead-1", content: "hi", isRead: false, sentimentScore: null, createdAt: new Date(), emailEvent: null };
+        const lead = { fullName: null, company: null, email: null, replyOutcome: null, socialContacts: [{ handle: "@asha", lastInboundAt }] };
+        mockDb.message.findMany.mockResolvedValue([
+            { ...base, id: "msg-ig", platform: "INSTAGRAM", lead },
+            { ...base, id: "msg-email", platform: "EMAIL", lead },
+        ]);
+
+        const inbox = await getInbox("team-a", { page: 1, limit: 20 });
+
+        expect(inbox.replies.items[0]).toMatchObject({ platform: "INSTAGRAM", handle: "@asha", replyWindowEndsAt: new Date("2026-10-01T06:00:00Z") });
+        expect(inbox.replies.items[1]).toMatchObject({ platform: "EMAIL", handle: null, replyWindowEndsAt: null });
     });
 });
 
@@ -292,6 +312,16 @@ describe("sendReply", () => {
         await expect(send()).rejects.toMatchObject({ statusCode: 502, code: "GMAIL_SEND_REJECTED" });
         expect(mockDb.email.create).not.toHaveBeenCalled();
         expect(mockDb.message.create).not.toHaveBeenCalled();
+    });
+
+    it("hands Instagram and Facebook replies to the social sender, without touching mailboxes", async () => {
+        mockDb.message.findFirst.mockResolvedValue(inboundReply({ platform: "INSTAGRAM", emailEvent: null }));
+        (sendSocialReply as any).mockResolvedValue({ id: "outbound-ig" });
+
+        await expect(send("See you there")).resolves.toEqual({ id: "outbound-ig" });
+        expect(sendSocialReply).toHaveBeenCalledWith({ teamId: "team-a", userId: "user-1", leadId: "lead-1", replyMessageId: "msg-1", platform: "INSTAGRAM", content: "See you there" });
+        expect(mockDb.connectedMailbox.findFirst).not.toHaveBeenCalled();
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
     });
 
     it("rejects non-email replies", async () => {
