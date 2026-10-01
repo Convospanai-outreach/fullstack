@@ -169,6 +169,12 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                 );
 
                 if (crystalResult.state === "found") {
+                    // Persist reusable guidance so drafts and the lead page never need a live Crystal call.
+                    // Best-effort (returns null on failure) - enrichment still stores the profile without it.
+                    const guidance = await CrystalService.generatePersonalityGuidance(teamId, {
+                        id: crystalResult.profile.id,
+                        objective: "communicate effectively with this person",
+                    });
                     const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichedData: true } });
                     const currentEnrichedData = (current?.enrichedData as Record<string, any>) || {};
                     await prisma.lead.update({
@@ -179,6 +185,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                                 crystalKnows: {
                                     profileId: crystalResult.profile.id,
                                     personalities: crystalResult.profile.personalities ?? null,
+                                    guidance,
                                     receivedAt: new Date().toISOString(),
                                 },
                             },

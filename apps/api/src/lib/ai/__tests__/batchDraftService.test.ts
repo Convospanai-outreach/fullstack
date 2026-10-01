@@ -96,6 +96,21 @@ describe("batchDraftService.submitBatch", () => {
         expect(result).toEqual({ batchId: "db-batch-1", itemCount: 2 });
     });
 
+    it("injects stored Crystal personality guidance per lead and 'None' for leads without it", async () => {
+        mockPrisma.lead.findMany.mockResolvedValue([
+            { id: "lead-1", email: "a@b.com", enrichedData: { crystalKnows: { profileId: "p1", guidance: { prompt: "Be direct and brief." } } } },
+            { id: "lead-2", email: "b@b.com", enrichedData: null },
+        ]);
+        mockBatchesCreate.mockResolvedValue({ id: "msgbatch_123" });
+        mockPrisma.aiDraftBatch.create.mockResolvedValue({ id: "db-batch-1" });
+
+        await submitBatch("campaign-1", "team-1");
+
+        const requests = mockBatchesCreate.mock.calls[0][0].requests;
+        expect(requests[0].params.messages[0].content).toContain("Personality guidance (DISC):\nBe direct and brief.");
+        expect(requests[1].params.messages[0].content).toContain("Personality guidance (DISC):\nNone");
+    });
+
     it("interpolates the campaign's linked ICP criteria into each prompt", async () => {
         mockPrisma.lead.findMany.mockResolvedValue([{ id: "lead-1", email: "a@b.com", fullName: "A" }]);
         mockPrisma.campaign.findUnique.mockResolvedValue({

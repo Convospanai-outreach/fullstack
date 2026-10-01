@@ -743,6 +743,32 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         </GlassCard>
                     )}
 
+                    {/* Personality (DISC) - guidance persisted at enrichment time (Crystal Knows); never fetched live */}
+                    {(lead.enrichedData?.crystalKnows?.guidance?.prompt || lead.enrichedData?.crystalKnows?.guidance?.discType) && (
+                        <GlassCard className="space-y-4 border-purple-500/30">
+                            <div className="flex items-center gap-2 mb-4">
+                                <h3 className="text-lg font-semibold gradient-text">Personality (DISC)</h3>
+                                {lead.enrichedData.crystalKnows.guidance.discType && (
+                                    <Badge variant="success">{lead.enrichedData.crystalKnows.guidance.discType}</Badge>
+                                )}
+                            </div>
+                            <div className="space-y-4 text-sm">
+                                {lead.enrichedData.crystalKnows.guidance.archetype && (
+                                    <div>
+                                        <p className="text-white/60 mb-1">Archetype</p>
+                                        <p className="text-white font-medium">{lead.enrichedData.crystalKnows.guidance.archetype}</p>
+                                    </div>
+                                )}
+                                {lead.enrichedData.crystalKnows.guidance.prompt && (
+                                    <div>
+                                        <p className="text-white/60 mb-1">How to communicate</p>
+                                        <p className="text-white/80 whitespace-pre-line">{lead.enrichedData.crystalKnows.guidance.prompt}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </GlassCard>
+                    )}
+
                     {/* Data Sources - per-field provenance (which source supplied which value, and when) */}
                     {dataSources.length > 0 && (
                         <GlassCard className="space-y-4">

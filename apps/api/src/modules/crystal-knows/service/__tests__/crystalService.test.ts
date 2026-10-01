@@ -133,3 +133,59 @@ describe("CrystalService.generatePersonalityPrompt", () => {
         expect(result).toBeNull();
     });
 });
+
+describe("CrystalService.generatePersonalityGuidance", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubGlobal("fetch", vi.fn());
+    });
+
+    it("returns prompt, DISC type and archetype", async () => {
+        mockGetTeamCrystalApiKey.mockResolvedValue("sk-1");
+        (fetch as any).mockResolvedValue({
+            ok: true,
+            status: 200,
+            json: async () => ({ prompt: "Be direct.", disc_type: "D", archetype: "Driver", guidance: {} }),
+        });
+
+        const result = await CrystalService.generatePersonalityGuidance("team-1", { id: "profile-1" });
+        expect(result).toEqual({ prompt: "Be direct.", discType: "D", archetype: "Driver" });
+    });
+
+    it("returns null when the team has no key or the API fails", async () => {
+        mockGetTeamCrystalApiKey.mockResolvedValueOnce(undefined);
+        expect(await CrystalService.generatePersonalityGuidance("team-1", { id: "p" })).toBeNull();
+        expect(fetch).not.toHaveBeenCalled();
+
+        mockGetTeamCrystalApiKey.mockResolvedValue("sk-1");
+        (fetch as any).mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: "boom" }) });
+        expect(await CrystalService.generatePersonalityGuidance("team-1", { id: "p" })).toBeNull();
+    });
+});
+
+describe("CrystalService.getGuidanceForLead", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubGlobal("fetch", vi.fn());
+    });
+
+    it("returns stored guidance without any Crystal call", async () => {
+        const lead = { enrichedData: { crystalKnows: { profileId: "p", guidance: { prompt: "Stored." } } } };
+        expect(await CrystalService.getGuidanceForLead("team-1", lead, "obj")).toBe("Stored.");
+        expect(mockGetTeamCrystalApiKey).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a live generate_prompt call for leads without stored guidance", async () => {
+        mockGetTeamCrystalApiKey.mockResolvedValue("sk-1");
+        (fetch as any).mockResolvedValue({ ok: true, status: 200, json: async () => ({ prompt: "Live." }) });
+        const lead = { enrichedData: { crystalKnows: { profileId: "p" } } };
+        expect(await CrystalService.getGuidanceForLead("team-1", lead, "obj")).toBe("Live.");
+    });
+
+    it("returns empty when there is no Crystal data or no team", async () => {
+        expect(await CrystalService.getGuidanceForLead("team-1", { enrichedData: {} }, "obj")).toBe("");
+        const lead = { enrichedData: { crystalKnows: { guidance: { prompt: "Stored." } } } };
+        expect(await CrystalService.getGuidanceForLead(undefined, lead, "obj")).toBe("");
+    });
+});
