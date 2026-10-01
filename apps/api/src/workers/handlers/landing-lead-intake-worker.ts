@@ -30,6 +30,24 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     const email = landingLead.email?.trim().toLowerCase() || undefined;
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
 
+    // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
+    // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
+    if (landingLead.socialToken) {
+        let mergedLeadId: string | null = null;
+        try {
+            const { mergeSignupIntoSocialLead } = await import("@/modules/creator-funnel/socialLinkMerge");
+            mergedLeadId = await mergeSignupIntoSocialLead(landingLead, campaignId);
+        } catch (error) {
+            logger.warn(`[LandingLeadIntake] Social link merge failed for ${landingLeadId}: ${error instanceof Error ? error.message : error}`);
+        }
+        if (mergedLeadId) {
+            await scoreNewLead(mergedLeadId);
+            await pushToMautic(mergedLeadId, teamId);
+            await advanceCreatorFunnel(mergedLeadId, teamId);
+            return { created: false, leadId: mergedLeadId, merged: true };
+        }
+    }
+
     if (email) {
         const existing = await prisma.lead.findFirst({
             where: { email, teamId },

@@ -650,6 +650,7 @@ export const landingAgentService = {
             utmTerm?: string;
             utmContent?: string;
             referrer?: string;
+            socialToken?: string;
         };
         ipAddress?: string;
         userAgent?: string;
@@ -679,6 +680,7 @@ export const landingAgentService = {
                     utmTerm: input.payload.utmTerm,
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
+                    socialToken: input.payload.socialToken,
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },

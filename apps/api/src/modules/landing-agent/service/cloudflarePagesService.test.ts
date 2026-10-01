@@ -84,6 +84,8 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         const expected = `sha256-${createHash("sha256").update(scripts[0]![1]!, "utf8").digest("base64")}`;
         expect(body.scriptHash).toBe(expected);
         expect(scripts[0]![1]).toContain('var slug = "my-campaign"');
+        // Creator funnel: the auto-reply link's ?t= goes along with the sign-up.
+        expect(scripts[0]![1]).toContain('socialToken: url.searchParams.get("t") || undefined');
     });
 
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {

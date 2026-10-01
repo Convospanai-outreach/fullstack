@@ -83,6 +83,7 @@ function buildLeadFormScript(slug: string): string {
         utmTerm: url.searchParams.get("utm_term") || undefined,
         utmContent: url.searchParams.get("utm_content") || undefined,
         referrer: document.referrer || undefined,
+        socialToken: url.searchParams.get("t") || undefined,
       }),
     })
       .then(function (res) {

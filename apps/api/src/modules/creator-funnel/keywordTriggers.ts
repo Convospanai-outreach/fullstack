@@ -3,6 +3,7 @@ import { decryptCredential, type EncryptedCredential } from "@/lib/security/cred
 import { GraphError, graphCall, graphPostJson } from "./metaGraph";
 import {
     ACCOUNT_PLATFORM_FOR_OBJECT,
+    INSTAGRAM_TEXT_MAX_BYTES,
     MESSAGE_PLATFORM,
     REPLY_WINDOW_MS,
     findOrCreateContact,
@@ -286,12 +287,22 @@ function missingScopes(granted: string[], needed: string[]) {
     return needed.filter((scope) => !granted.includes(scope));
 }
 
-async function replyText(row: ReplyRow) {
+// The link carries a signed token naming this auto-reply (linkToken.ts), so a sign-up on the page
+// merges into the person's lead (landing-lead-intake-worker). If signing isn't possible the
+// plain link still goes out; the sign-up then just becomes its own lead.
+async function replyText(row: ReplyRow, now: Date) {
     const { replyText: text, landingPageId } = row.trigger;
     if (!landingPageId) return text;
     const page = await prisma.landingPage.findFirst({ where: { id: landingPageId, teamId: row.teamId, status: "published" }, select: { slug: true } });
     if (!page) return null;
-    return `${text}\n\n${WEB_BASE_URL}/p/${encodeURIComponent(page.slug)}`;
+    let query = "";
+    try {
+        const { signLinkToken } = await import("./linkToken");
+        query = `?t=${signLinkToken(row.id, now)}`;
+    } catch (error) {
+        console.error("[KeywordTriggers] Link signing failed; sending the plain link:", errorText(error));
+    }
+    return `${text}\n\n${WEB_BASE_URL}/p/${encodeURIComponent(page.slug)}${query}`;
 }
 
 function errorText(error: unknown) {
@@ -319,8 +330,11 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     if (missing.length) return fail(`Reconnect the account and allow: ${missing.join(", ")}.`);
     const token = await pageTokenFor(account);
     if (!token) return fail("The Facebook Page this account uses isn't connected.");
-    const text = await replyText(row);
+    const text = await replyText(row, now);
     if (text === null) return fail("The landing page this auto-reply links to isn't published.");
+    if (platform === "INSTAGRAM" && Buffer.byteLength(text, "utf8") > INSTAGRAM_TEXT_MAX_BYTES) {
+        return fail("The message and link are over Instagram's 1,000-byte limit. Shorten the message.");
+    }
 
     // At most once: SENDING right before the one call that sends it. A row left in SENDING
     // (crash mid-call) is never sent again.

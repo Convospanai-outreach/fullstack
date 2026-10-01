@@ -6100,6 +6100,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-308 (Fixed — creator funnel phase 4c: auto-reply link sign-ups merge into the same lead):** the
+  landing page link in a keyword auto-reply now carries `?t=<token>`. A sign-up through it is added to the lead
+  the auto-reply went to, instead of becoming a second lead.
+  - **Token (`linkToken.ts`):** HMAC-SHA256 with `NEXTAUTH_SECRET` (domain-separated) over the `KeywordTriggerReply`
+    id and an expiry. It lasts 72 hours and is about 70 characters. It names the auto-reply, not the lead, because
+    a commenter's lead is only created after the DM is sent. If signing fails, the plain link goes out.
+  - **Forwarding:** the web `/p/<slug>` renderer and the Cloudflare edge form script both send `t` as `socialToken`.
+    It is stored on the new nullable `LandingLead.socialToken` column (migration
+    `20261005120000_landing_lead_social_token`, guarded with IF EXISTS like other Landing* changes). Pages
+    already published to Cloudflare keep the old script until they are republished.
+  - **Merge (`socialLinkMerge.ts`, run by `landing-lead-intake-worker`):** the merge only runs when all of these
+    hold, otherwise the sign-up takes the old create-or-update-by-email path:
+    - the token checks out;
+    - it hadn't expired when the person signed up;
+    - the auto-reply and its lead belong to the page's team.
+
+    The merge fills only the lead's empty fields. It sets a name only when the lead is unnamed or still called by
+    its @handle. Then it moves the lead to MOFU (`landing_opt_in`). It never replaces an email the lead already
+    has, and never adds an email another lead in the team has (case-insensitive). The update is conditional on
+    the email it read.
+  - **Limit:** a forwarded link can attach a friend's email to the original lead within the 72 hours. Only the
+    first email sticks; any later different email falls back to a new lead.
+  - **Instagram:** a reply whose text plus link is over 1,000 bytes fails with a clear error instead of sending.
+  - **Deferred:** the WhatsApp consent checkbox is deferred to Phase 5 (playbook), per the user's decision on
+    2026-10-01.
+
 - **OPEN-307 (Fixed — creator funnel phase 4b: keyword auto-replies on comments and DMs):** a comment or DM containing
   one of an active trigger's keywords gets an automatic DM, and comments can also get a public reply. Behind
   `creator-funnel`.
