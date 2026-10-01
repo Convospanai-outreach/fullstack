@@ -6120,7 +6120,13 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Schema:** migration `20261006120000_checkout_funnel_hooks`, additive:
     - `Product`: delivery and cart-abandon settings, plus `automationsActive` (default false) and who/when.
     - `Order`: `leadId` (FK, SetNull), delivery status/error/time, and `abandonHandledAt`.
+  - **Razorpay checkout orders:** `/webhooks/razorpay` now finds the order by the Razorpay order id it was created
+    with (`Order.gatewaySessionId`) and requires the captured amount to match. It no longer relies on payment notes:
+    Razorpay's docs (checked 2026-10-02) don't say an order's notes reach the payment, and the checkout page sets
+    none. The billing branches of that route are unchanged, but with exact bytes they'll process real events for
+    the first time, so watch the first one.
   - **Note:** stopping nurture (`stopEnrollmentsForLead`) ends every active sequence the lead is in, not only nurture.
+    A delivery that crashed mid-send stays "sending" and is never retried; check the mailbox's Sent folder.
   - **Pre-existing, not fixed:** Stripe's default `successUrl` is `/checkout/<id>/success`, but that page doesn't
     exist, so Stripe buyers land on a 404 after paying.
 
