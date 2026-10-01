@@ -32,4 +32,11 @@ describe("landing-agent public payload schemas", () => {
         });
         expect(bad.success).toBe(false);
     });
+
+    it("keeps the creator funnel link token and caps its length", () => {
+        const ok = landingLeadPayloadSchema.safeParse({ email: "ops@example.com", socialToken: "abc.def" });
+        expect(ok.success && ok.data.socialToken).toBe("abc.def");
+
+        expect(landingLeadPayloadSchema.safeParse({ socialToken: "x".repeat(301) }).success).toBe(false);
+    });
 });

@@ -79,6 +79,7 @@ export const landingLeadPayloadSchema = z.object({
     utmTerm: z.string().max(200).optional(),
     utmContent: z.string().max(200).optional(),
     referrer: z.string().max(2000).optional(),
+    socialToken: z.string().max(300).optional(), // creator funnel ?t= link token, verified by the intake worker
     website: z.string().max(500).optional(), // honeypot
 });
 

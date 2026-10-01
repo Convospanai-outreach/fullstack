@@ -326,12 +326,25 @@ describe("sendPendingAutoReplies", () => {
         expect(graphCall).not.toHaveBeenCalled();
     });
 
-    it("adds the landing page link", async () => {
+    it("adds the landing page link with a signed token naming this auto-reply", async () => {
+        process.env["NEXTAUTH_SECRET"] = "s".repeat(32);
         mockDb.landingPage.findFirst.mockResolvedValue({ slug: "free-guide" });
-        row({}, { landingPageId: "lp-1" });
+        const r = row({}, { landingPageId: "lp-1" });
         await sendPendingAutoReplies(NOW);
         expect(mockDb.landingPage.findFirst).toHaveBeenCalledWith({ where: { id: "lp-1", teamId: "team-a", status: "published" }, select: { slug: true } });
-        expect(JSON.parse(graphCall.mock.calls[0][2].message).text).toBe("Here's the guide\n\nhttps://craftmyfunnel.live/p/free-guide");
+        const text: string = JSON.parse(graphCall.mock.calls[0][2].message).text;
+        const match = text.match(/^Here's the guide\n\nhttps:\/\/craftmyfunnel\.live\/p\/free-guide\?t=([A-Za-z0-9_.-]+)$/);
+        expect(match).toBeTruthy();
+        const { verifyLinkToken } = await import("../linkToken");
+        expect(verifyLinkToken(match![1] as string, NOW)).toBe(r.id);
+    });
+
+    it("refuses to send an Instagram reply that the link pushes past 1,000 bytes", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ slug: "s".repeat(400) });
+        const r = row({}, { landingPageId: "lp-1", replyText: "x".repeat(650) });
+        await sendPendingAutoReplies(NOW);
+        expect(get(r.id)).toMatchObject({ status: "FAILED", lastError: expect.stringContaining("1,000-byte") });
+        expect(graphCall).not.toHaveBeenCalled();
     });
 
     it("posts the public reply once: Instagram with the account's own token, Facebook with the Page token", async () => {

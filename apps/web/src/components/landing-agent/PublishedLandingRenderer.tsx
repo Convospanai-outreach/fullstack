@@ -92,6 +92,9 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                                         utmTerm: url.searchParams.get("utm_term") || undefined,
                                         utmContent: url.searchParams.get("utm_content") || undefined,
                                         referrer: document.referrer || undefined,
+                                        // Creator funnel: the signed ?t= from an auto-reply link, so the
+                                        // sign-up merges into the lead that got it.
+                                        socialToken: url.searchParams.get("t") || undefined,
                                     }),
                                 });
                                 if (!res.ok) {
