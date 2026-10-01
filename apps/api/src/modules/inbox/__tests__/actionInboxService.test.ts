@@ -8,6 +8,7 @@ const mockDb: any = vi.hoisted(() => ({
     email: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
+    replyTracker: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -79,6 +80,31 @@ describe("getInbox", () => {
         mockDb.overseerNudge.count.mockResolvedValue(0);
         mockDb.meeting.findMany.mockResolvedValue([]);
         mockDb.meeting.count.mockResolvedValue(0);
+        mockDb.replyTracker.findMany.mockResolvedValue([]);
+    });
+
+    it("attaches the AI suggestion for each reply, read through the caller's team", async () => {
+        mockDb.message.findMany.mockResolvedValue([{
+            id: "msg-1", leadId: "lead-1", content: "Stop emailing me", platform: "EMAIL", isRead: false, sentimentScore: null,
+            createdAt: new Date(), lead: { fullName: "A", company: null, email: "a@x.test", replyOutcome: null }, emailEvent: null,
+        }, {
+            id: "msg-2", leadId: "lead-2", content: "hello", platform: "EMAIL", isRead: false, sentimentScore: null,
+            createdAt: new Date(), lead: { fullName: "B", company: null, email: "b@x.test", replyOutcome: null }, emailEvent: null,
+        }]);
+        mockDb.replyTracker.findMany.mockResolvedValue([
+            { emailId: "msg-1", aiClassification: "DNC", aiConfidence: 0.95, aiReasoning: "asked to stop", replyDraft: null },
+        ]);
+
+        const inbox = await getInbox("team-a", { page: 1, limit: 20 });
+
+        expect(mockDb.replyTracker.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { emailId: { in: ["msg-1", "msg-2"] }, lead: { teamId: "team-a" } },
+        }));
+        expect(inbox.replies.items[0]!.suggestion).toEqual({
+            classification: "DNC", suggestedOutcome: "not_interested", askedNotToContact: true,
+            confidence: 0.95, reasoning: "asked to stop", suggestedReply: null,
+        });
+        expect(inbox.replies.items[1]!.suggestion).toBeNull();
     });
 
     it("scopes every list to the caller's team and paginates replies newest-first", async () => {

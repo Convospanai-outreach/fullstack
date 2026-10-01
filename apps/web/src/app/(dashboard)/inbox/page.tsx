@@ -33,6 +33,17 @@ interface InboxReply {
     isRead: boolean;
     sentimentScore: number | null;
     createdAt: string;
+    suggestion: ReplySuggestion | null;
+}
+
+// AI suggestion only: nothing is applied until the rep clicks an outcome or sends a reply.
+interface ReplySuggestion {
+    classification: string;
+    suggestedOutcome: string | null;
+    askedNotToContact: boolean;
+    confidence: number;
+    reasoning: string | null;
+    suggestedReply: string | null;
 }
 
 interface InboxMeeting {
@@ -95,6 +106,14 @@ function outcomeLabel(outcome: string | null) {
     return OUTCOMES.find((o) => o.value === outcome)?.label ?? null;
 }
 
+const SUGGESTION_LABELS: Record<string, string> = {
+    INTERESTED: "Looks interested",
+    NOT_INTERESTED: "Looks not interested",
+    OOO: "Out of office",
+    QUESTION: "Asked a question",
+    DNC: "Asked not to be contacted",
+};
+
 function SentimentDot({ score }: { score: number | null }) {
     const tone = score == null ? "bg-muted-foreground/40" : score >= 0.3 ? "bg-success" : score <= -0.3 ? "bg-destructive" : "bg-warning";
     const label = score == null ? "Sentiment not scored" : `Sentiment ${score.toFixed(1)}`;
@@ -156,6 +175,7 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
 
     const lead = thread?.lead;
     const currentOutcome = outcomeLabel(lead?.replyOutcome ?? reply.outcome);
+    const suggestion = reply.suggestion;
 
     return (
         <GlassCard className="p-0 flex flex-col min-h-[520px]">
@@ -194,11 +214,31 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
             </div>
 
             <div className="border-t border-border p-5 space-y-3">
+                {suggestion && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="info">AI suggestion</Badge>
+                            <span className="font-medium text-foreground">{SUGGESTION_LABELS[suggestion.classification] ?? suggestion.classification}</span>
+                            <span className="text-xs text-muted-foreground">{Math.round(suggestion.confidence * 100)}% confident</span>
+                        </div>
+                        {suggestion.askedNotToContact && (
+                            <p className="text-xs text-muted-foreground">They asked not to be contacted. Marking Not interested stops follow-ups. Nothing is marked for you.</p>
+                        )}
+                        {suggestion.reasoning && <p className="text-xs text-muted-foreground">{suggestion.reasoning}</p>}
+                        {suggestion.suggestedReply && reply.platform === "EMAIL" && (
+                            <Button variant="ghost" size="sm" onClick={() => setDraft(suggestion.suggestedReply ?? "")}>
+                                Use suggested reply
+                            </Button>
+                        )}
+                    </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                     {OUTCOMES.map((outcome) => (
                         <Button
                             key={outcome.value}
                             variant={lead?.replyOutcome === outcome.value ? "default" : "outline"}
+                            className={suggestion?.suggestedOutcome === outcome.value && lead?.replyOutcome !== outcome.value ? "ring-2 ring-primary/50" : undefined}
+                            title={suggestion?.suggestedOutcome === outcome.value ? "Suggested by AI" : undefined}
                             size="sm"
                             disabled={!!marking}
                             onClick={() => markOutcome(outcome.value)}
