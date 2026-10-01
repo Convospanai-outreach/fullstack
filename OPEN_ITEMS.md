@@ -6100,6 +6100,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-305 (Open — the reply classifier is never called; wire it into the Action Inbox as suggestions only):**
+  `ReplyAnalyzerAgent` (`apps/api/src/lib/ai/agents/ReplyAnalyzerAgent.ts`, plus a copy in apps/web) labels a reply
+  INTERESTED / NOT_INTERESTED / OOO / QUESTION / DNC, with a confidence score, its reasoning and a suggested reply,
+  and writes them to `ReplyTracker`. Nothing calls it (checked on `c3f59fd9`). Apart from the agent, the only use of
+  `ReplyTracker` is a count in `routes/admin/runtime-overview`. Meanwhile the Action Inbox (OPEN-290..297, #599)
+  only has manual outcomes: `markReplyOutcome` (`modules/inbox/actionInboxService.ts`) sets `Lead.replyOutcome`
+  (interested / not_interested / meeting_booked / wrong_person), moves the lead's stage and stops its sequences.
+  - **Decision (user, 2026-10-01): suggestions only.** Run the classifier when a reply comes in. In the inbox,
+    pre-select the matching outcome and show the confidence, the reasoning and the suggested reply. The rep's
+    existing click is still what applies the outcome. OOO and QUESTION are shown as labels and set no outcome.
+  - **Remove the agent's side effects:** it must not mark leads do-not-contact or write learned memory by itself. A
+    wrong label must never suppress a real prospect or stop a sequence.
+  - Map the two vocabularies in one place. Keep it team-scoped: the reply's lead must belong to the caller's team.
+    Not started.
+
 - **OPEN-304 (Fixed — creator funnel phase 3b: publishing approved posts to Facebook Pages and Instagram):**
   a 1-minute worker tick (`creator-funnel/contentPublisher.ts`) publishes APPROVED posts once their time comes.
   Behind `creator-funnel`.
