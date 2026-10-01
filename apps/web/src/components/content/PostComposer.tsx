@@ -223,6 +223,14 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                         Changing the text, images or accounts sends it back for approval. Moving it to another time doesn&apos;t.
                     </p>
                 )}
+                {post && live.size > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                        <Link href={`/settings/social?trigger=new&post=${encodeURIComponent(post.id)}`} className="font-medium text-primary hover:underline">
+                            Comment keyword &rarr; DM
+                        </Link>
+                        : automatically message people who comment a keyword on this post.
+                    </p>
+                )}
 
                 <fieldset disabled={!editable || busy !== null} className="space-y-5">
                     <div className="space-y-2">

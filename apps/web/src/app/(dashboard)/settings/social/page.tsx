@@ -8,6 +8,7 @@ import { Facebook, Instagram, Linkedin } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { KeywordTriggers } from "@/components/content/KeywordTriggers";
 
 type SocialAccount = {
     id: string;
@@ -132,6 +133,11 @@ export default function SocialAccountsPage() {
                 <p className="text-xs text-muted-foreground">
                     To read Instagram DMs, turn on Instagram Settings &gt; Messages and story replies &gt; Message controls &gt; Connected tools &gt; Allow access to messages.
                 </p>
+            </GlassCard>
+
+            <GlassCard className="p-6 space-y-4">
+                <h2 className="text-base font-semibold text-foreground">Keyword auto-replies</h2>
+                <KeywordTriggers />
             </GlassCard>
         </div>
     );

@@ -34,18 +34,18 @@ export const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const INSTAGRAM_TEXT_MAX_BYTES = 1000;
 const MAX_STORED_TEXT = 5000;
 
-type AccountPlatform = "INSTAGRAM" | "FACEBOOK_PAGE";
+export type AccountPlatform = "INSTAGRAM" | "FACEBOOK_PAGE";
 export type SocialMessagePlatform = "INSTAGRAM" | "FACEBOOK";
 
-const ACCOUNT_PLATFORM_FOR_OBJECT: Record<string, AccountPlatform> = { instagram: "INSTAGRAM", page: "FACEBOOK_PAGE" };
-const MESSAGE_PLATFORM: Record<AccountPlatform, SocialMessagePlatform> = { INSTAGRAM: "INSTAGRAM", FACEBOOK_PAGE: "FACEBOOK" };
+export const ACCOUNT_PLATFORM_FOR_OBJECT: Record<string, AccountPlatform> = { instagram: "INSTAGRAM", page: "FACEBOOK_PAGE" };
+export const MESSAGE_PLATFORM: Record<AccountPlatform, SocialMessagePlatform> = { INSTAGRAM: "INSTAGRAM", FACEBOOK_PAGE: "FACEBOOK" };
 const LEAD_SOURCE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_dm", FACEBOOK_PAGE: "facebook_dm" };
 const MESSAGING_SCOPE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_manage_messages", FACEBOOK_PAGE: "pages_messaging" };
 const PLATFORM_LABEL: Record<AccountPlatform, string> = { INSTAGRAM: "Instagram", FACEBOOK_PAGE: "Facebook" };
 const ATTACHMENT_LABEL: Record<string, string> = { image: "Photo", video: "Video", audio: "Voice message", file: "File" };
 
 type DmEvent =
-    | { kind: "message"; platform: AccountPlatform; accountExternalId: string; senderId: string; mid: string; content: string; sentAt: Date }
+    | { kind: "message"; platform: AccountPlatform; accountExternalId: string; senderId: string; mid: string; content: string; text: string; sentAt: Date }
     | { kind: "deleted"; platform: AccountPlatform; accountExternalId: string; mid: string };
 
 // Lead media URLs are never stored: attachments become a placeholder like "[Photo]".
@@ -85,6 +85,7 @@ export function extractDmEvents(body: any): DmEvent[] {
                 senderId,
                 mid,
                 content: messageContent(message),
+                text: typeof message?.text === "string" ? message.text : "", // what the person typed; keyword triggers match on this only
                 sentAt: Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp) : new Date(),
             });
         }
@@ -92,14 +93,14 @@ export function extractDmEvents(body: any): DmEvent[] {
     return events;
 }
 
-type ReceivingAccount = { id: string; teamId: string; platform: AccountPlatform };
+export type ReceivingAccount = { id: string; teamId: string; platform: AccountPlatform; handle?: string | null };
 
 // Every connected account row for this Instagram account / Page whose team has the creator
 // funnel on. Two teams that both connected the same Page each get their own copy.
-async function receivingAccounts(platform: AccountPlatform, externalId: string): Promise<ReceivingAccount[]> {
+export async function receivingAccounts(platform: AccountPlatform, externalId: string): Promise<ReceivingAccount[]> {
     const accounts = await prisma.socialAccount.findMany({
         where: { platform, externalId, status: "CONNECTED" },
-        select: { id: true, teamId: true, platform: true },
+        select: { id: true, teamId: true, platform: true, handle: true },
     });
     const { isCreatorFunnelEnabled } = await import("./featureGate");
     const enabled: ReceivingAccount[] = [];
@@ -113,18 +114,26 @@ const isUniqueViolation = (error: unknown) => (error as any)?.code === "P2002";
 
 const CONTACT_SELECT = { id: true, leadId: true, name: true, handle: true } as const;
 
-async function findOrCreateContact(account: ReceivingAccount, senderId: string) {
+// `profile` comes from a comment the person made (keyword auto-replies): its lead source, and
+// the @username or name the comment carried.
+export async function findOrCreateContact(
+    account: ReceivingAccount,
+    senderId: string,
+    profile: { source?: string; handle?: string | null; name?: string | null } = {}
+) {
     const where = { socialAccountId_externalUserId: { socialAccountId: account.id, externalUserId: senderId } };
     const existing = await prisma.socialContact.findUnique({ where, select: CONTACT_SELECT });
     if (existing) return { contact: existing, isNew: false };
+    const handle = profile.handle ?? null;
+    const name = profile.name ?? null;
     try {
         const contact = await prisma.$transaction(async (tx) => {
             const lead = await tx.lead.create({
-                data: { teamId: account.teamId, source: LEAD_SOURCE[account.platform], status: "NEW" },
+                data: { teamId: account.teamId, source: profile.source ?? LEAD_SOURCE[account.platform], status: "NEW", ...(name ?? handle ? { fullName: name ?? handle } : {}) },
                 select: { id: true },
             });
             return tx.socialContact.create({
-                data: { teamId: account.teamId, socialAccountId: account.id, externalUserId: senderId, leadId: lead.id },
+                data: { teamId: account.teamId, socialAccountId: account.id, externalUserId: senderId, leadId: lead.id, handle, name },
                 select: CONTACT_SELECT,
             });
         });
@@ -155,8 +164,11 @@ async function storeInbound(account: ReceivingAccount, event: Extract<DmEvent, {
             select: { id: true, leadId: true, createdAt: true },
         });
     } catch (error) {
-        if (isUniqueViolation(error)) return false; // Meta retried a delivery we already stored
-        throw error;
+        if (!isUniqueViolation(error)) throw error;
+        // Meta retried a delivery we already stored. The auto-reply claim is idempotent, so make
+        // sure it was queued (the first attempt may have failed after storing the message).
+        await queueDmAutoReply(account, event, contact.leadId, now);
+        return false;
     }
 
     // The reply window runs from the person's latest message. A timestamp from the future
@@ -179,15 +191,35 @@ async function storeInbound(account: ReceivingAccount, event: Extract<DmEvent, {
 
     const { onInboundReply } = await import("@/modules/inbox/inboundReplyNotifier");
     void onInboundReply({ ...message, sentimentScore: null, emailEventId: null });
+    await queueDmAutoReply(account, event, contact.leadId, now);
     return true;
 }
 
-// Handles one verified webhook delivery. Each event is independent: one failing doesn't stop
-// the rest. Returns how many messages were stored and how many events failed.
+// A keyword auto-reply for this DM, when one of the account's active triggers matches.
+// keywordTriggers.ts only queues it; the worker sends it.
+async function queueDmAutoReply(account: ReceivingAccount, event: Extract<DmEvent, { kind: "message" }>, leadId: string, now: Date) {
+    const { queueDmReply } = await import("./keywordTriggers");
+    if (!event.text.trim()) return;
+    await queueDmReply(account, { mid: event.mid, senderId: event.senderId, text: event.text, leadId }, now);
+}
+
+// Handles one verified webhook delivery: DMs (messaging[]) and comments (changes[]). Each event
+// is independent: one failing doesn't stop the rest. Returns how many messages were stored and
+// how many events failed. Comments are only checked against keyword triggers, not stored.
 export async function ingestMetaWebhook(body: unknown, now = new Date()) {
     const events = extractDmEvents(body);
+    const { extractCommentEvents, queueCommentReplies } = await import("./keywordTriggers");
+    const comments = extractCommentEvents(body);
     let stored = 0;
     let failed = 0;
+    for (const comment of comments) {
+        try {
+            await queueCommentReplies(comment, await receivingAccounts(comment.platform, comment.accountExternalId), now);
+        } catch (error) {
+            failed++;
+            console.error("[MetaSocial] Comment event failed:", error instanceof Error ? error.message : error);
+        }
+    }
     for (const event of events) {
         try {
             const accounts = await receivingAccounts(event.platform, event.accountExternalId);
@@ -206,10 +238,10 @@ export async function ingestMetaWebhook(body: unknown, now = new Date()) {
             console.error("[MetaSocial] Webhook event failed:", error instanceof Error ? error.message : error);
         }
     }
-    return { events: events.length, stored, failed };
+    return { events: events.length + comments.length, stored, failed };
 }
 
-type TokenAccount = {
+export type TokenAccount = {
     teamId: string;
     platform: string;
     parentExternalId: string | null;
@@ -219,7 +251,7 @@ type TokenAccount = {
 
 // DMs use the Page access token for both platforms: a Page's own row, or for Instagram the row
 // of the Page it's linked through (same team, still connected).
-async function pageTokenFor(account: TokenAccount) {
+export async function pageTokenFor(account: TokenAccount) {
     const page =
         account.platform === "FACEBOOK_PAGE"
             ? account
@@ -233,7 +265,7 @@ async function pageTokenFor(account: TokenAccount) {
     return (await decryptCredential(page.encryptedToken as EncryptedCredential).catch(() => undefined)) ?? null;
 }
 
-function plainName(value: unknown, max: number) {
+export function plainName(value: unknown, max: number) {
     return typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "";
 }
 

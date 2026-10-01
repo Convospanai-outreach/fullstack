@@ -1330,6 +1330,7 @@ model Team {
   nurtureProvider NurtureOwner?
   socialAccounts  SocialAccount[]
   socialContacts  SocialContact[]
+  keywordTriggers KeywordTrigger[]
   contentPosts    ContentPost[]
   contentStageMix Json? // creator funnel: target % per FunnelStage ({TOFU,MOFU,BOFU,POST}); null = 60/30/10/0
 
@@ -1461,6 +1462,7 @@ model SocialAccount {
   team           Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
   contentTargets ContentPostTarget[]
   contacts       SocialContact[]
+  keywordTriggers KeywordTrigger[]
 
   @@unique([teamId, platform, externalId])
   @@index([teamId])
@@ -1491,6 +1493,75 @@ model SocialContact {
   @@index([leadId])
 }
 
+// Creator funnel keyword auto-replies: a comment (private reply DM, plus an optional public
+// reply) or a DM that contains one of the keywords gets an automatic reply. Saved inactive;
+// switching one on is the person's approval for it to send on its own.
+enum KeywordTriggerScope {
+  COMMENT
+  DM
+  BOTH
+}
+
+enum KeywordMatch {
+  EXACT
+  CONTAINS
+}
+
+model KeywordTrigger {
+  id                 String              @id @default(uuid())
+  teamId             String
+  socialAccountId    String
+  scope              KeywordTriggerScope @default(COMMENT)
+  keywords           String[]
+  match              KeywordMatch        @default(CONTAINS)
+  contentPostId      String? // only comments on this post (any post when null)
+  replyText          String              @db.Text
+  publicCommentReply String?             @db.Text
+  landingPageId      String? // LandingPage id; no FK (Landing* tables aren't created by migrations)
+  active             Boolean             @default(false)
+  activatedById      String?
+  activatedAt        DateTime?
+  createdById        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  team          Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount         @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  contentPost   ContentPost?          @relation(fields: [contentPostId], references: [id], onDelete: SetNull)
+  replies       KeywordTriggerReply[]
+
+  @@index([teamId])
+  @@index([socialAccountId, active])
+}
+
+// One automatic reply: created by the webhook (PENDING), sent by the worker. The unique
+// (socialAccountId, sourceKey) claim means a comment or DM is answered at most once, even
+// when Meta retries the delivery. Status: PENDING | SENDING | SENT | FAILED | UNCONFIRMED | SKIPPED.
+model KeywordTriggerReply {
+  id              String    @id @default(uuid())
+  teamId          String
+  triggerId       String
+  socialAccountId String
+  sourceKey       String // "comment:<comment id>" or "dm:<message id>"
+  personKey       String // the commenter's or sender's id
+  personHandle    String? // @username (Instagram comments) or name (Facebook comments)
+  commentId       String?
+  leadId          String?
+  status          String    @default("PENDING")
+  publicStatus    String? // the public comment reply, when the trigger has one; same statuses
+  messageId       String? // Meta's id for the sent DM
+  lastError       String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  trigger KeywordTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, sourceKey])
+  @@index([triggerId, personKey, createdAt])
+  @@index([status, createdAt])
+  @@index([socialAccountId, updatedAt])
+}
+
 // Creator funnel content calendar. A post is written once and goes to one or more connected
 // accounts (one ContentPostTarget each). Nothing publishes until the post is APPROVED through
 // an ApprovalRequest (actionType CONTENT_POST_PUBLISH, entityType ContentPost).
@@ -1519,8 +1590,9 @@ model ContentPost {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  team    Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  targets ContentPostTarget[]
+  team            Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  targets         ContentPostTarget[]
+  keywordTriggers KeywordTrigger[]
 
   @@index([teamId, scheduledAt])
   @@index([status, scheduledAt])
