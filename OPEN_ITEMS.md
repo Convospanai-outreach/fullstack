@@ -6134,7 +6134,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       the team `SuppressionEntry` list (reason UNSUBSCRIBE, source INBOX, `createdBy` = the rep), then applies
       not_interested.
       - Any team member can do it, the same as the unsubscribe link. Settings → manual suppression needs ADMIN.
-      - Removing a suppression needs a DB change, because there is no unsuppress route.
+      - Undo is admin-only: Settings → Do-not-contact list (`/settings/suppressions`) lists the team's
+        entries, and admins get a Remove button. `DELETE /email/suppressions?id=` requires ADMIN, is scoped to the
+        team, and writes an audit-log entry (`REMOVE_SUPPRESSION`). Before this, nothing in the UI showed the list.
     - **Billing (user, 2026-10-01):** on for every team, using AI credits per inbound email reply.
     - **Not covered:** WhatsApp and LinkedIn replies.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
