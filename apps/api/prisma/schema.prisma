@@ -506,6 +506,12 @@ model LandingEvent {
   pageVersion   Int?
   ipAddress     String?
   userAgent     String?
+  // UTM of the page URL the event happened on (attribution; creator funnel 6b)
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmTerm       String?
+  utmContent    String?
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -630,6 +636,12 @@ model Order {
   deliveryError    String?
   deliveredAt      DateTime?
   abandonHandledAt DateTime?
+  // UTM of the checkout page URL (attribution; creator funnel 6b)
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmTerm          String?
+  utmContent       String?
 
   team    Team    @relation(fields: [teamId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -1568,6 +1580,7 @@ model KeywordTriggerReply {
   personKey       String // the commenter's or sender's id
   personHandle    String? // @username (Instagram comments) or name (Facebook comments)
   commentId       String?
+  mediaId         String? // the commented post/media id, for per-post attribution (UTM utm_content)
   leadId          String?
   status          String    @default("PENDING")
   publicStatus    String? // the public comment reply, when the trigger has one; same statuses

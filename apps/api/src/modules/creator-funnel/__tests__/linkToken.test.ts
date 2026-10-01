@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { LINK_TOKEN_TTL_MS, signLinkToken, verifyLinkToken } from "../linkToken";
+import { LINK_TOKEN_MAX_LENGTH, LINK_TOKEN_TTL_MS, signLinkToken, verifyLinkToken } from "../linkToken";
 
 const NOW = new Date("2030-01-07T10:00:00Z");
 const REPLY = "3f1c2b8e-1d4a-4c55-9a1e-6c0f6b2d9e10";
@@ -16,7 +16,7 @@ describe("creator funnel link tokens", () => {
     it("round-trips the auto-reply id, URL-safe and short, until it expires", () => {
         const token = signLinkToken(REPLY, NOW);
         expect(token).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{22}$/);
-        expect(token.length).toBeLessThan(110);
+        expect(token.length).toBeLessThanOrEqual(LINK_TOKEN_MAX_LENGTH);
         expect(verifyLinkToken(token, new Date(NOW.getTime() + LINK_TOKEN_TTL_MS - 1000))).toBe(REPLY);
         expect(verifyLinkToken(token, new Date(NOW.getTime() + LINK_TOKEN_TTL_MS + 1000))).toBeNull();
     });

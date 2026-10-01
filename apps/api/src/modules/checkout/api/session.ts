@@ -13,12 +13,18 @@ export async function POST(req: Request) {
             throw new APIError("productId and gateway (STRIPE|RAZORPAY) are required", 400, "VALIDATION_ERROR");
         }
 
+        const utm = (key: string) => (typeof body?.[key] === "string" ? body[key].trim().slice(0, 200) || undefined : undefined);
         const session = await checkoutService.createSession({
             productId,
             gateway,
             customerEmail: typeof body?.customerEmail === "string" ? body.customerEmail : undefined,
             customerName: typeof body?.customerName === "string" ? body.customerName : undefined,
             landingPageSlug: typeof body?.landingPageSlug === "string" ? body.landingPageSlug : undefined,
+            utmSource: utm("utmSource"),
+            utmMedium: utm("utmMedium"),
+            utmCampaign: utm("utmCampaign"),
+            utmTerm: utm("utmTerm"),
+            utmContent: utm("utmContent"),
         });
 
         return successResponse(session, 201);

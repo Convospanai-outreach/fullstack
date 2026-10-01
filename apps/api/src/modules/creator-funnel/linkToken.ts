@@ -8,6 +8,8 @@ import crypto from "crypto";
 // same secret the Stripe Connect and Gmail OAuth states use.
 
 export const LINK_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
+/** Longest token signLinkToken makes for a uuid reply id (for sizing replies before they exist). */
+export const LINK_TOKEN_MAX_LENGTH = 110;
 const DOMAIN = "creator-funnel-link:";
 const SIG_LENGTH = 22; // 132 bits of a base64url HMAC-SHA256
 

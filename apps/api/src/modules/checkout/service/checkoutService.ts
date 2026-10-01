@@ -12,6 +12,12 @@ interface CreateSessionInput {
     landingPageSlug?: string;
     successUrl?: string;
     cancelUrl?: string;
+    // UTM of the checkout page URL (attribution)
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmTerm?: string;
+    utmContent?: string;
 }
 
 class CheckoutService {
@@ -38,6 +44,11 @@ class CheckoutService {
                 currency: product.currency,
                 status: "PENDING",
                 landingPageSlug: input.landingPageSlug,
+                utmSource: input.utmSource,
+                utmMedium: input.utmMedium,
+                utmCampaign: input.utmCampaign,
+                utmTerm: input.utmTerm,
+                utmContent: input.utmContent,
             },
         });
 
