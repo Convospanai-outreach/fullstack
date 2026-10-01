@@ -19,6 +19,7 @@ const patchCampaignSchema = z.object({
     description: z.string().max(1000).nullable().optional(),
     targetCount: z.number().int().nonnegative().optional(),
     completedCount: z.number().int().nonnegative().optional(),
+    draftGenerationMode: z.enum(["REALTIME", "BATCH"]).optional(),
 });
 
 async function requireCampaignContext(id: string, requiredRole: TeamRole) {
@@ -59,7 +60,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { teamId } = await requireCampaignContext(id, TeamRole.MEMBER);
+        const { teamId, campaign } = await requireCampaignContext(id, TeamRole.MEMBER);
         const parsed = await parseBody(req, patchCampaignSchema);
         if (!parsed.ok) return parsed.response;
         const body = parsed.data;
@@ -74,6 +75,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (body.name !== undefined) allowedUpdates.name = body.name;
             if (body.description !== undefined) allowedUpdates.description = body.description;
             if (body.status !== undefined) allowedUpdates.status = body.status;
+            if (body.draftGenerationMode !== undefined) {
+                // BATCH submits once the enrichment counter seeded at campaign start reaches 0, so the mode
+                // can't change after start without stranding in-flight leads.
+                if (campaign.status !== "draft") {
+                    throw new APIError("Draft generation mode can only be changed before the campaign starts", 409, "CONFLICT");
+                }
+                allowedUpdates.draftGenerationMode = body.draftGenerationMode;
+            }
             if (body.targetCount !== undefined) allowedUpdates.targetCount = body.targetCount;
             if (body.completedCount !== undefined) allowedUpdates.completedCount = body.completedCount;
 
