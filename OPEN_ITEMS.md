@@ -6100,6 +6100,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-309 (Fixed — creator funnel phase 6a: checkout hooks):** checkout and payment now move buyers through the
+  funnel. Behind `creator-funnel`. User decisions 2026-10-02: existing leads only at checkout start, a per-product
+  switch is the approval, and the OPEN-306 fix is included for the two checkout webhooks.
+  - **Checkout start** (`checkoutService.createSession`, after the gateway session is saved, never failing checkout):
+    the public checkout's email is unverified, so this acts only on a lead the team already has with that email
+    (case-insensitive). The order is linked to that lead and the lead moves to BOFU.
+  - **Payment** (the `order_captured` job, after the audit log):
+    - The buyer's lead is used, or created from the verified payment. It moves to POST and its nurture stops.
+    - The product's delivery link is emailed from the product's chosen mailbox. The order goes to SENDING right
+      before the one send and is never retried; Resend sends also carry an idempotency key.
+    - The delivery email checks the suppression list, escapes names, and refuses links that aren't https.
+  - **Cart abandon** (5-minute worker tick): an unpaid checkout older than the product's hours (1-168), started after
+    the automations were switched on and at most 7 days old, is claimed once. If the lead hasn't paid for the product
+    since, its current nurture stops and it joins the product's cart-abandon sequence through `NurtureProvider`.
+  - **Approval:** Settings > Payments > a product > Funnel automations. Delivery link, mailbox, sequence and hours
+    are saved switched off. Switching on checks the setup and records who and when; only orders started after that
+    get these emails.
+  - **Schema:** migration `20261006120000_checkout_funnel_hooks`, additive:
+    - `Product`: delivery and cart-abandon settings, plus `automationsActive` (default false) and who/when.
+    - `Order`: `leadId` (FK, SetNull), delivery status/error/time, and `abandonHandledAt`.
+  - **Razorpay checkout orders:** `/webhooks/razorpay` now finds the order by the Razorpay order id it was created
+    with (`Order.gatewaySessionId`) and requires the captured amount to match. It no longer relies on payment notes:
+    Razorpay's docs (checked 2026-10-02) don't say an order's notes reach the payment, and the checkout page sets
+    none. The billing branches of that route are unchanged, but with exact bytes they'll process real events for
+    the first time, so watch the first one.
+  - **Note:** stopping nurture (`stopEnrollmentsForLead`) ends every active sequence the lead is in, not only nurture.
+    A delivery that crashed mid-send stays "sending" and is never retried; check the mailbox's Sent folder.
+  - **Pre-existing, not fixed:** Stripe's default `successUrl` is `/checkout/<id>/success`, but that page doesn't
+    exist, so Stripe buyers land on a 404 after paying.
+
 - **OPEN-308 (Fixed — creator funnel phase 4c: auto-reply link sign-ups merge into the same lead):** the
   landing page link in a keyword auto-reply now carries `?t=<token>`. A sign-up through it is added to the lead
   the auto-reply went to, instead of becoming a second lead.
@@ -6151,7 +6181,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **UI:** Settings > Social > Keyword auto-replies, plus a "Comment keyword → DM" link on live posts in the
     calendar.
 
-- **OPEN-306 (Open — signed JSON webhooks other than Meta DMs get a re-serialized body):**
+- **OPEN-306 (Partly fixed 2026-10-02 — signed JSON webhooks other than Meta DMs get a re-serialized body):**
+  `/webhooks/stripe-connect` and `/webhooks/razorpay` now get the exact bytes (OPEN-309, user sign-off 2026-10-02;
+  handler logic unchanged). Still open: `/webhooks/stripe-billing`, `/webhooks/whatsapp` and `/webhooks/resend`.
   apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
   route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
   `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the

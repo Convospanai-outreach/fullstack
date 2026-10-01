@@ -58,6 +58,7 @@ class CheckoutService {
                 where: { id: order.id },
                 data: { gatewaySessionId: session.sessionId },
             });
+            await checkoutStarted(order.id);
 
             return { orderId: order.id, gateway: "STRIPE" as const, url: session.url };
         }
@@ -78,6 +79,7 @@ class CheckoutService {
             where: { id: order.id },
             data: { gatewaySessionId: rpOrder.id },
         });
+        await checkoutStarted(order.id);
 
         return {
             orderId: order.id,
@@ -87,6 +89,17 @@ class CheckoutService {
             currency: product.currency,
             key: process.env["NEXT_PUBLIC_RAZORPAY_KEY_ID"],
         };
+    }
+}
+
+// Creator funnel (checkoutHooks.ts): the buyer's existing lead moves to BOFU. Runs only once the
+// gateway session exists, and never fails the public checkout.
+async function checkoutStarted(orderId: string) {
+    try {
+        const { onCheckoutStarted } = await import("@/modules/creator-funnel/checkoutHooks");
+        await onCheckoutStarted(orderId);
+    } catch (error) {
+        console.warn(`[Checkout] Creator funnel hook failed for order ${orderId}: ${error instanceof Error ? error.message : error}`);
     }
 }
 

@@ -112,6 +112,7 @@ model Lead {
   meetings            Meeting[]
   messages            Message[]
   socialContacts      SocialContact[]
+  orders              Order[]
   tasks               Task[]
   generations         Generation[]
 
@@ -590,6 +591,16 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Creator funnel automations (checkoutHooks.ts). Nothing sends until someone switches them on;
+  // who and when is recorded as the approval.
+  deliveryUrl              String? // https link emailed to the buyer after payment (course, download)
+  deliveryMailboxId        String? // ConnectedMailbox the delivery email goes from
+  cartAbandonSequenceId    String? // CampaignSequence a lead joins when checkout isn't paid in time
+  cartAbandonHours         Int?
+  automationsActive        Boolean   @default(false)
+  automationsActivatedById String?
+  automationsActivatedAt   DateTime?
+
   team   Team    @relation(fields: [teamId], references: [id])
   orders Order[]
 
@@ -613,12 +624,22 @@ model Order {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // Creator funnel (checkoutHooks.ts): the buyer's lead, the delivery email, and the cart-abandon hand-off.
+  leadId           String?
+  deliveryStatus   String? // SENDING | SENT | FAILED | SKIPPED; SENDING is never retried
+  deliveryError    String?
+  deliveredAt      DateTime?
+  abandonHandledAt DateTime?
+
   team    Team    @relation(fields: [teamId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+  lead    Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@unique([gateway, gatewayPaymentId])
   @@index([teamId])
   @@index([productId])
+  @@index([leadId])
+  @@index([status, abandonHandledAt])
 }
 
 model Job {

@@ -134,10 +134,9 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
         }
 
         case "order_captured": {
-            // No publisher yet — OutboxService.mapEventToJob wires ORDER_CAPTURED
-            // events here ahead of the checkout/order model that will emit them.
-            // Recorded as an audit trail until a real downstream action (sequence
-            // enrollment, course-access grant) is scoped.
+            // Published by the Stripe Connect and Razorpay webhooks once a checkout order is
+            // paid. Recorded as an audit trail, then the creator funnel hooks run for teams
+            // with the flag on (POST stage, stop nurture, delivery email; never throws).
             const teamId = asString(payload.teamId);
             if (!teamId) {
                 throw new Error("order_captured payload is missing teamId");
@@ -150,6 +149,11 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
                 asString((payload as any).orderId) || null,
                 payload
             );
+            const orderId = asString((payload as any).orderId);
+            if (orderId) {
+                const { onOrderCaptured } = await import("@/modules/creator-funnel/checkoutHooks");
+                await onOrderCaptured(teamId, orderId);
+            }
             return { acknowledged: true };
         }
 
