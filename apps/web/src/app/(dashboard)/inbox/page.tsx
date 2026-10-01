@@ -173,6 +173,20 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
         }
     };
 
+    const markDoNotContact = async () => {
+        setMarking("do_not_contact");
+        try {
+            await postJson(`/inbox/replies/${reply.id}/do-not-contact`, {});
+            toast.success("Added to the do-not-contact list and marked not interested. Follow-ups for this lead are stopped.");
+            mutate();
+            onChanged();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to add to the do-not-contact list");
+        } finally {
+            setMarking(null);
+        }
+    };
+
     const lead = thread?.lead;
     const currentOutcome = outcomeLabel(lead?.replyOutcome ?? reply.outcome);
     const suggestion = reply.suggestion;
@@ -222,7 +236,12 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                             <span className="text-xs text-muted-foreground">{Math.round(suggestion.confidence * 100)}% confident</span>
                         </div>
                         {suggestion.askedNotToContact && (
-                            <p className="text-xs text-muted-foreground">They asked not to be contacted. Marking Not interested stops follow-ups. Nothing is marked for you.</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-xs text-muted-foreground">They asked not to be contacted. Nothing is done until you click.</p>
+                                <Button variant="destructive" size="sm" disabled={!!marking} onClick={markDoNotContact}>
+                                    {marking === "do_not_contact" ? "Saving..." : "Do not contact"}
+                                </Button>
+                            </div>
                         )}
                         {suggestion.reasoning && <p className="text-xs text-muted-foreground">{suggestion.reasoning}</p>}
                         {suggestion.suggestedReply && reply.platform === "EMAIL" && (

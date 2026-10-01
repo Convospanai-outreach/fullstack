@@ -6129,6 +6129,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggested outcome and can put the suggested reply in the composer. It never sends.
     - **Dead copy deleted:** `apps/web/src/lib/ai/agents/ReplyAnalyzerAgent.ts` had no callers and still
       auto-DNC'd.
+    - **One-click do not contact:** when a reply is flagged "asked not to be contacted", the inbox shows a "Do not
+      contact" button. `POST /inbox/replies/:id/do-not-contact` → `markReplyDoNotContact` adds the lead's email to
+      the team `SuppressionEntry` list (reason UNSUBSCRIBE, source INBOX, `createdBy` = the rep), then applies
+      not_interested.
+      - Any team member can do it, the same as the unsubscribe link. Settings → manual suppression needs ADMIN.
+      - Removing a suppression needs a DB change, because there is no unsuppress route.
     - **Billing (user, 2026-10-01):** on for every team, using AI credits per inbound email reply.
     - **Not covered:** WhatsApp and LinkedIn replies.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on

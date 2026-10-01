@@ -353,3 +353,18 @@ export async function markReplyOutcome(teamId: string, messageId: string, outcom
     await prisma.message.update({ where: { id: reply.id }, data: { isRead: true } });
     return { leadId, outcome, stoppedEnrollments: stopped };
 }
+
+// The rep's one click for "asked not to be contacted": adds the lead's email to the team
+// suppression list (checked by campaign sends, sequence runs and inbox replies), then
+// applies the not_interested outcome so the lead is closed and its sequences stop.
+export async function markReplyDoNotContact(teamId: string, messageId: string, userId: string) {
+    const reply = await findTeamReply(teamId, messageId);
+    const email = reply.lead.email;
+    if (!email) throw new APIError("Lead has no email address to suppress", 400, "LEAD_EMAIL_MISSING");
+
+    const { recordSuppression } = await import("@/modules/email-campaigner/service/googleMailboxService");
+    await recordSuppression({ teamId, email, reason: "UNSUBSCRIBE", source: "INBOX", leadId: reply.leadId, createdBy: userId });
+
+    const result = await markReplyOutcome(teamId, messageId, "not_interested");
+    return { ...result, suppressed: true };
+}
