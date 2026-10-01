@@ -70,6 +70,7 @@ model Lead {
 
   // Creator funnel: stage (null = not in a creator funnel) and the system that owns its nurture.
   funnelStage  FunnelStage?
+  firstTouchPostId String? // creator funnel: the ContentPost that first brought this lead in (Content ROI attribution)
   nurtureOwner NurtureOwner?
 
   // Lead Intent Scoring (Weighted Algorithm)
@@ -143,6 +144,7 @@ model Lead {
   leadActivities      LeadActivity[]
   leadDataSources     LeadDataSource[]
 
+  @@index([teamId, firstTouchPostId])
   @@index([teamId])
   @@index([email])
   @@index([company])

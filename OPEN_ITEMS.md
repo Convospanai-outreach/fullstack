@@ -6100,6 +6100,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+  answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
+  `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
+  2026-10-02.
+
+- **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
+  (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
+  - **Per published post:**
+    - visits: distinct landing page sessions with `utm_content=<post>`, by event time;
+    - opt-ins: landing sign-ups with that `utm_content`, by sign-up time;
+    - purchases and revenue: paid orders from checkouts started in the window, by currency.
+  - **Order attribution:** the order's own `utm_content` post if it's one of the team's, else the buyer lead's new
+    `Lead.firstTouchPostId`. Each order counts once.
+  - **`firstTouchPostId`** is set once, only to a ContentPost of the same team (`utm_content` is public input). It
+    is written by the keyword auto-reply (the trigger's post or the commented post) and by landing intake on both
+    the merge and normal paths.
+  - **Stage conversion:** of the leads that reached a stage in the window (from `stage_change` activity), the share
+    that also reached the next one. Leads that skip a stage don't inflate it.
+  - **Ranking:** posts are sorted by revenue in the team's main currency.
+  - **Limits:**
+    - a buyer who pays with a different email than they opted in with stays unattributed (shown as a separate line);
+    - data only accumulates from 6b/6c onward (prod had 0 posts, orders and auto-replies on 2026-10-02, so there
+      was no backfill).
+  - **Schema:** migration `20261008120000_lead_first_touch_post`.
+
 - **OPEN-310 (Fixed — creator funnel phase 6b: UTM on outbound links, stored on events and orders):** one helper
   (`apps/api/src/lib/utm.ts`, mirrored in `apps/web/src/lib/utm.ts` with a parity test) adds `utm_source`,
   `utm_medium`, `utm_campaign` and `utm_content`. It never overwrites UTM a link already has, and keeps `?t=` and the
