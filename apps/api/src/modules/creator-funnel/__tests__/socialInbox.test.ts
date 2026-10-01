@@ -9,6 +9,7 @@ const mockDb: any = vi.hoisted(() => ({
     $transaction: vi.fn(),
 }));
 const graphCall = vi.hoisted(() => vi.fn());
+const graphPostJson = vi.hoisted(() => vi.fn());
 const isCreatorFunnelEnabled = vi.hoisted(() => vi.fn());
 const applyFunnelEvent = vi.hoisted(() => vi.fn());
 const onInboundReply = vi.hoisted(() => vi.fn());
@@ -20,7 +21,7 @@ vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
 vi.mock("../funnelStageService", () => ({ applyFunnelEvent }));
 vi.mock("@/modules/inbox/inboundReplyNotifier", () => ({ onInboundReply }));
 vi.mock("@/modules/governance/service/guardrailService", () => ({ guardrailService: { evaluate } }));
-vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall }));
+vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
 
 import { extractDmEvents, fillContactProfile, ingestMetaWebhook, sendSocialReply } from "../socialInbox";
 import { GraphError } from "../metaGraph";
@@ -229,6 +230,7 @@ describe("sendSocialReply", () => {
         mockDb.socialAccount.findFirst.mockResolvedValue({ status: "CONNECTED", encryptedToken: { plain: "page-token" } });
         evaluate.mockResolvedValue({ isSafe: true, violations: [] });
         graphCall.mockResolvedValue({ recipient_id: "igsid-9", message_id: "mid-out" });
+        graphPostJson.mockResolvedValue({ recipient_id: "psid-3", message_id: "mid-fb" });
         mockDb.user.findUnique.mockResolvedValue({ name: "Rep" });
         mockDb.message.create.mockResolvedValue({ id: "outbound-1" });
     });
@@ -253,12 +255,13 @@ describe("sendSocialReply", () => {
         mockDb.socialContact.findFirst.mockResolvedValue(contact({ externalUserId: "psid-3", socialAccount: fbAccount }));
         await reply("Thanks!", "FACEBOOK");
         expect(mockDb.socialAccount.findFirst).not.toHaveBeenCalled();
-        expect(graphCall).toHaveBeenCalledWith(
-            "POST",
+        expect(graphPostJson).toHaveBeenCalledWith(
             "page-1/messages",
-            { recipient: '{"id":"psid-3"}', messaging_type: "RESPONSE", message: '{"text":"Thanks!"}' },
+            { recipient: { id: "psid-3" }, messaging_type: "RESPONSE", message: { text: "Thanks!" } },
             "page-token"
         );
+        expect(graphCall).not.toHaveBeenCalled();
+        expect(mockDb.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ platform: "FACEBOOK", externalId: "acc-fb:mid-fb" }) });
     });
 
     it("refuses once 24 hours have passed since the person's last message", async () => {

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
-import { GraphError, graphCall } from "./metaGraph";
+import { GraphError, graphCall, graphPostJson } from "./metaGraph";
 
 // Creator funnel DMs: Instagram Direct and Facebook Page messages arrive through one Meta
 // webhook (routes/webhooks/meta-social) and land in the Action Inbox as Message rows on a lead.
@@ -16,12 +16,14 @@ import { GraphError, graphCall } from "./metaGraph";
 //   recipient={"id":IGSID}&message={"text":...}; "Message text must be UTF-8 and be 1,000 bytes
 //   or less." https://developers.facebook.com/docs/messenger-platform/instagram/features/send-message
 // - Facebook send: POST /{page-id}/messages with a Page access token and pages_messaging,
-//   messaging_type RESPONSE; the response has recipient_id and message_id. Sent form-encoded
-//   like the Instagram example (the same Send API), with JSON-valued fields.
+//   messaging_type RESPONSE, as a JSON body; the response has recipient_id and message_id.
 //   https://developers.facebook.com/documentation/business-messaging/messenger-platform/send-messages
 // - "Businesses have up to 24 hours to respond to a user." Replies outside that window would
 //   need a message tag (HUMAN_AGENT needs its own permission), so CMf doesn't send them.
 //   https://developers.facebook.com/documentation/business-messaging/messenger-platform/policy
+//   ("Messenger Platform and IG Messaging API policy"). Instagram says the same: "Your app has
+//   24 hours to respond to any message sent from an Instagram user to your app user."
+//   https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/
 // - Profiles: GET /{IGSID}?fields=name,username (consent is set when the person messages the
 //   business) and GET /{PSID}?fields=first_name,last_name (needs Business Asset User Profile
 //   Access), both with the Page token.
@@ -324,14 +326,17 @@ export async function sendSocialReply(
         throw new APIError("The Facebook Page this account uses isn't connected. Reconnect it in Settings to reply.", 409, "PAGE_DISCONNECTED");
     }
 
-    const recipient = JSON.stringify({ id: contact.externalUserId });
-    const message = JSON.stringify({ text: content });
     let result: any;
     try {
+        // Each request in the shape its own doc shows: Instagram form-encoded, Messenger JSON.
         result =
             platform === "INSTAGRAM"
-                ? await graphCall("POST", "me/messages", { recipient, message }, token)
-                : await graphCall("POST", `${encodeURIComponent(account.externalId)}/messages`, { recipient, messaging_type: "RESPONSE", message }, token);
+                ? await graphCall("POST", "me/messages", { recipient: JSON.stringify({ id: contact.externalUserId }), message: JSON.stringify({ text: content }) }, token)
+                : await graphPostJson(
+                      `${encodeURIComponent(account.externalId)}/messages`,
+                      { recipient: { id: contact.externalUserId }, messaging_type: "RESPONSE", message: { text: content } },
+                      token
+                  );
     } catch (error) {
         // Not recorded as sent either way. When Meta didn't answer, it may still have delivered it.
         if (error instanceof GraphError && error.uncertain) {

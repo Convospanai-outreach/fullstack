@@ -12,6 +12,7 @@ async function buildApp() {
     keepRawJsonBody(app);
     const echo = async (request: any) => ({
         raw: request.rawBody ? request.rawBody.toString("utf8") : null,
+        parsed: !Buffer.isBuffer(request.body),
         text: request.body?.entry?.[0]?.messaging?.[0]?.message?.text ?? null,
     });
     app.post("/webhooks/meta-social", echo);
@@ -20,7 +21,7 @@ async function buildApp() {
 }
 
 describe("keepRawJsonBody", () => {
-    it("keeps the exact signed bytes for the Meta webhook path, and still parses the JSON", async () => {
+    it("keeps the exact signed bytes for the Meta webhook path and doesn't parse them before the handler verifies", async () => {
         const app = await buildApp();
         const res = await app.inject({
             method: "POST",
@@ -30,7 +31,7 @@ describe("keepRawJsonBody", () => {
         });
         const body = res.json();
         expect(body.raw).toBe(PAYLOAD);
-        expect(body.text).toBe("café / hi");
+        expect(body.parsed).toBe(false);
 
         const sign = (value: string) => crypto.createHmac("sha256", "secret").update(value).digest("hex");
         expect(sign(body.raw)).toBe(sign(PAYLOAD));
@@ -41,7 +42,16 @@ describe("keepRawJsonBody", () => {
     it("leaves every other JSON route as before (parsed, no raw body)", async () => {
         const app = await buildApp();
         const res = await app.inject({ method: "POST", url: "/other", headers: { "content-type": "application/json" }, payload: PAYLOAD });
-        expect(res.json()).toEqual({ raw: null, text: "café / hi" });
+        expect(res.json()).toEqual({ raw: null, parsed: true, text: "café / hi" });
+    });
+
+    it("hands even empty or invalid bodies on the Meta path to the handler, which rejects unsigned ones first", async () => {
+        const app = await buildApp();
+        for (const payload of ["", "{nope", '{"__proto__":{"x":1}}']) {
+            const res = await app.inject({ method: "POST", url: "/webhooks/meta-social", headers: { "content-type": "application/json" }, payload });
+            expect(res.statusCode).toBe(200);
+            expect(res.json()).toMatchObject({ raw: payload, parsed: false });
+        }
     });
 
     it("keeps Fastify's default rejections for empty, invalid and prototype-poisoned JSON", async () => {
