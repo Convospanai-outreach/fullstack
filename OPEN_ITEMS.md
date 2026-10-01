@@ -6100,6 +6100,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-307 (Fixed — creator funnel phase 4b: keyword auto-replies on comments and DMs):** a comment or DM containing
+  one of an active trigger's keywords gets an automatic DM, and comments can also get a public reply. Behind
+  `creator-funnel`.
+  - **Approval:** triggers are saved switched off. Switching one on checks the account is connected and has the
+    permissions its sends need, and records who switched it on (`activatedById`/`activatedAt`).
+  - **Queue, then send:** the webhook only writes a `KeywordTriggerReply` claim, unique per (account, comment or DM),
+    so Meta's retries never queue twice. A 10-second worker tick (`sendPendingAutoReplies`) does the Graph calls.
+    - Each row moves to SENDING right before its one call; a row Meta didn't confirm is never retried.
+    - One reply per person per trigger per 24h; at most 200 per account per hour (Instagram allows 750 private
+      replies an hour).
+    - Comments older than 7 days are skipped (Meta's private-reply limit).
+  - **Comments:** Instagram `comments` and Page `feed` (comment adds) are read from `changes[]`. The account's own
+    comments, including CMf's public replies, are skipped so a reply can't trigger itself. A trigger can be limited
+    to one published post. Comments aren't stored or shown in the inbox (user decision 2026-10-01).
+  - **Leads:** a commenter becomes a lead only when an auto-reply is sent, keyed by the Instagram/Messenger id Meta
+    returns, so their later DMs land on the same lead (TOFU, source `instagram_comment`/`facebook_comment`). The
+    auto-reply is recorded on the lead's thread.
+  - **Link:** a plain `https://craftmyfunnel.live/p/<slug>` link to a published landing page. The signed link and
+    opt-in merge are phase 4c.
+  - **Connect:** Pages now subscribe to `messages,feed`. Pages connected before this need a Reconnect.
+  - **Schema:** migration `20261004120000_keyword_triggers` adds the `KeywordTrigger` and `KeywordTriggerReply`
+    tables (additive; `landingPageId` has no FK because Landing* tables aren't created by migrations).
+  - **UI:** Settings > Social > Keyword auto-replies, plus a "Comment keyword → DM" link on live posts in the
+    calendar.
+
 - **OPEN-306 (Open — signed JSON webhooks other than Meta DMs get a re-serialized body):**
   apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
   route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over

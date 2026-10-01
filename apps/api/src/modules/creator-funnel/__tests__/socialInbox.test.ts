@@ -14,6 +14,8 @@ const isCreatorFunnelEnabled = vi.hoisted(() => vi.fn());
 const applyFunnelEvent = vi.hoisted(() => vi.fn());
 const onInboundReply = vi.hoisted(() => vi.fn());
 const evaluate = vi.hoisted(() => vi.fn());
+const queueDmReply = vi.hoisted(() => vi.fn());
+const queueCommentReplies = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: vi.fn(async (secret: any) => secret?.plain) }));
@@ -21,6 +23,11 @@ vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
 vi.mock("../funnelStageService", () => ({ applyFunnelEvent }));
 vi.mock("@/modules/inbox/inboundReplyNotifier", () => ({ onInboundReply }));
 vi.mock("@/modules/governance/service/guardrailService", () => ({ guardrailService: { evaluate } }));
+vi.mock("../keywordTriggers", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../keywordTriggers")>()),
+    queueDmReply,
+    queueCommentReplies,
+}));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
 
 import { extractDmEvents, fillContactProfile, ingestMetaWebhook, sendSocialReply } from "../socialInbox";
@@ -92,6 +99,28 @@ describe("ingestMetaWebhook", () => {
         mockDb.socialContact.updateMany.mockResolvedValue({ count: 1 });
         applyFunnelEvent.mockResolvedValue({ changed: true });
         graphCall.mockRejectedValue(new GraphError("no profile", false)); // background profile lookup
+        queueDmReply.mockResolvedValue(false);
+        queueCommentReplies.mockResolvedValue(0);
+    });
+
+    it("checks each DM against keyword triggers, including a retried one (the queue is idempotent)", async () => {
+        await ingestMetaWebhook(igDelivery([dm()]), NOW);
+        expect(queueDmReply).toHaveBeenCalledWith(account, { mid: "mid-1", senderId: "igsid-9", text: "Is the course still open?", leadId: "lead-new" }, NOW);
+
+        mockDb.socialContact.findUnique.mockResolvedValue({ id: "contact-1", leadId: "lead-new", name: null, handle: null });
+        mockDb.message.create.mockRejectedValue(uniqueViolation());
+        await ingestMetaWebhook(igDelivery([dm()]), NOW);
+        expect(queueDmReply).toHaveBeenCalledTimes(2);
+    });
+
+    it("sends comments to the keyword triggers of every receiving account, and counts a failure so Meta retries", async () => {
+        const delivery = { object: "instagram", entry: [{ id: "ig-1", changes: [{ field: "comments", value: { id: "c1", text: "GUIDE", from: { id: "u9", username: "asha" }, media: { id: "m1" } } }] }] };
+        expect(await ingestMetaWebhook(delivery, NOW)).toEqual({ events: 1, stored: 0, failed: 0 });
+        expect(queueCommentReplies).toHaveBeenCalledWith(expect.objectContaining({ commentId: "c1", authorId: "u9" }), [account], NOW);
+        expect(mockDb.message.create).not.toHaveBeenCalled();
+
+        queueCommentReplies.mockRejectedValueOnce(new Error("db down"));
+        expect(await ingestMetaWebhook(delivery, NOW)).toEqual({ events: 1, stored: 0, failed: 1 });
     });
 
     it("creates a lead and contact for a new person, stores the message once, and alerts the team", async () => {
@@ -101,7 +130,7 @@ describe("ingestMetaWebhook", () => {
         expect(mockDb.socialAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { platform: "INSTAGRAM", externalId: "ig-1", status: "CONNECTED" } }));
         expect(mockDb.lead.create).toHaveBeenCalledWith(expect.objectContaining({ data: { teamId: "team-a", source: "instagram_dm", status: "NEW" } }));
         expect(mockDb.socialContact.create).toHaveBeenCalledWith(expect.objectContaining({
-            data: { teamId: "team-a", socialAccountId: "acc-ig", externalUserId: "igsid-9", leadId: "lead-new" },
+            data: { teamId: "team-a", socialAccountId: "acc-ig", externalUserId: "igsid-9", leadId: "lead-new", handle: null, name: null },
         }));
         expect(mockDb.message.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({ leadId: "lead-new", direction: "INBOUND", platform: "INSTAGRAM", content: "Is the course still open?", externalId: "acc-ig:mid-1" }),

@@ -174,7 +174,7 @@ describe("facebookLeadsService", () => {
             const [url, init] = fetchMock.mock.calls[4];
             expect(url).toBe("https://graph.facebook.com/v26.0/page-1/subscribed_apps");
             expect(init.method).toBe("POST");
-            expect(Object.fromEntries(init.body)).toEqual({ subscribed_fields: "messages", access_token: "page-token" });
+            expect(Object.fromEntries(init.body)).toEqual({ subscribed_fields: "messages,feed", access_token: "page-token" });
             expect(mockPrisma.socialAccount.update).not.toHaveBeenCalled();
 
             connect(jsonResponse({ error: { message: "(#200) Permissions error" } }, false));
