@@ -778,6 +778,11 @@ export const landingAgentService = {
         sessionId?: string;
         pageVersion?: number;
         eventData?: unknown;
+        utmSource?: string;
+        utmMedium?: string;
+        utmCampaign?: string;
+        utmTerm?: string;
+        utmContent?: string;
         ipAddress?: string;
         userAgent?: string;
     }) {
@@ -799,6 +804,11 @@ export const landingAgentService = {
                 pageVersion: input.pageVersion ?? page.version,
                 eventName: input.eventName,
                 eventData: sanitizeJson(input.eventData) as Prisma.InputJsonValue | undefined,
+                utmSource: input.utmSource,
+                utmMedium: input.utmMedium,
+                utmCampaign: input.utmCampaign,
+                utmTerm: input.utmTerm,
+                utmContent: input.utmContent,
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

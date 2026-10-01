@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { readUtm } from "@/lib/utm";
 
 const API_BASE = getBrowserApiBase();
 
@@ -69,6 +70,8 @@ export default function CheckoutPage() {
                     gateway,
                     customerEmail: email.trim(),
                     customerName: name.trim() || undefined,
+                    // This page's UTM, so the order can be traced to the post/DM/email (attribution).
+                    ...readUtm(new URL(window.location.href).searchParams),
                 }),
             });
             const data = await res.json().catch(() => ({}));

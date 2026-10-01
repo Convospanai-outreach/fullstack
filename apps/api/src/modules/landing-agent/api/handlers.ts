@@ -337,6 +337,11 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             sessionId: parsed.data.sessionId,
             pageVersion: parsed.data.pageVersion,
             eventData: parsed.data.eventData,
+            utmSource: parsed.data.utmSource,
+            utmMedium: parsed.data.utmMedium,
+            utmCampaign: parsed.data.utmCampaign,
+            utmTerm: parsed.data.utmTerm,
+            utmContent: parsed.data.utmContent,
             ipAddress,
             userAgent,
         });
