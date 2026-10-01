@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { EmailService } from "@/lib/emailService";
+import { provisionUserTeam } from "@/lib/passwordOnboarding";
 
 export async function GET(req: Request) {
     try {
@@ -12,6 +13,10 @@ export async function GET(req: Request) {
         const result = await EmailService.verifyToken(token);
         if (!result.success) {
             return NextResponse.json({ error: result.error || "Invalid or expired verification link" }, { status: 400 });
+        }
+
+        if (result.email) {
+            await provisionUserTeam(result.email);
         }
 
         return NextResponse.json({ success: true, email: result.email });

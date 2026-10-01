@@ -5,12 +5,15 @@ import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 
 import { redirect } from "next/navigation";
 import { UserRole } from "@/types/prisma-safe";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
+import { authorizeCredentials } from "@/lib/passwordAuth";
+import { provisionUserTeam } from "@/lib/passwordOnboarding";
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -27,10 +30,20 @@ function applyDefaultClaims(token: JWT) {
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
-    // Google is the sole sign-in provider (Clerk removed). Signup is open:
-    // any verified Google account without a matching invite gets its own
-    // new team - see syncGoogleUserToApp in @/lib/googleOnboarding.
+    // Google and email+password (Clerk removed). Signup is open: any verified
+    // Google account, or any password signup that verifies its email, without a
+    // matching invite gets its own new team - see syncGoogleUserToApp in
+    // @/lib/googleOnboarding and provisionUserTeam in @/lib/passwordOnboarding.
     providers: [
+        CredentialsProvider({
+            id: "credentials",
+            name: "Email and password",
+            credentials: {
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" },
+            },
+            authorize: (credentials, req) => authorizeCredentials(credentials, req),
+        }),
         GoogleProvider({
             clientId: process.env["GOOGLE_CLIENT_ID"]!,
             clientSecret: process.env["GOOGLE_CLIENT_SECRET"]!,
@@ -44,7 +57,13 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        signIn: async ({ user, profile }) => {
+        signIn: async ({ user, account, profile }) => {
+            // authorize() has already checked the password, email verification
+            // and SSO enforcement; there is no OAuth profile to inspect.
+            if (account?.provider === "credentials") {
+                return true;
+            }
+
             // Only trust addresses Google has actually verified.
             const googleProfile = profile as { email_verified?: boolean; name?: string; hd?: string } | undefined;
             if (!user.email || googleProfile?.email_verified !== true) {
@@ -55,12 +74,23 @@ export const authOptions: NextAuthOptions = {
 
             const existingUser = await prisma.user.findUnique({
                 where: { email },
-                select: { id: true }
+                select: { id: true, emailVerified: true }
             });
 
             if (existingUser) {
                 if (await isSsoEnforcedForEmail(email)) {
                     return "/login?error=sso-required";
+                }
+                // A password signup whose email was never verified: Google has now
+                // proven control of this address, so take it over for the real owner.
+                // Clearing the password stops whoever pre-registered the address
+                // (and knows that password) from riding the account-linking below.
+                if (existingUser.emailVerified === null) {
+                    await prisma.user.update({
+                        where: { id: existingUser.id },
+                        data: { password: null, emailVerified: new Date() }
+                    });
+                    await provisionUserTeam(email);
                 }
                 // Pre-setting user.id makes NextAuth's adapter skip createUser()
                 // and go straight to linkAccount(), attaching this Google account
