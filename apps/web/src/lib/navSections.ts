@@ -58,6 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
             { label: "Landing pages", href: "/landing-agent/new", match: "/landing-agent" },
             { label: "Playbooks", href: "/playbooks", feature: "playbooks" },
             { label: "Knowledge", href: "/knowledge", feature: "knowledge" },
+            { label: "Content calendar", href: "/content/calendar", feature: "creator-funnel" },
         ],
     },
     {
