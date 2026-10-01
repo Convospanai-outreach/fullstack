@@ -6100,6 +6100,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-303 (Fixed — dependency advisories published 2026-10-01 broke the CI audit gate):** new high/critical
+  advisories failed `scripts/audit-with-allowlist.mjs` for apps/api and apps/web on every PR. Bumped instead of
+  allowlisted:
+  - `next` 16.3.4 -> 16.3.8 (GHSA-vcvr-r3jv-pc5j, critical: RCE in `next/og` ImageResponse; this repo doesn't import
+    `next/og`, but the framework ships it)
+  - `axios` -> ^1.20.0 (12 advisories in <=1.19.0: prototype-pollution gadgets, ReDoS, header injection, proxy bypass)
+  - `fastify` -> ^5.12.5 (GHSA-4mh8-r7rc-xpvc, DoS via an unhandled exception on HTTP/2 trailers)
+  - `dompurify` override 3.4.13 -> 3.4.16 (GHSA-p98j-92pf-mc4p, IN_PLACE hook leaves a detached subtree)
+
 - **OPEN-300 (Open — Lead Ads code pins Graph API v21.0, supported until 2027-01-21):**
   `apps/web/src/modules/facebook-leads/service/facebookLeadsService.ts` (`GRAPH_API_VERSION`) and the apps/api Lead Ads
   poller call v21.0, which Meta supports until 2027-01-21 (https://developers.facebook.com/docs/graph-api/changelog/versions,
