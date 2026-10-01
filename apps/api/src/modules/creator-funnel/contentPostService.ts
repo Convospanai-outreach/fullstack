@@ -41,6 +41,10 @@ const PLATFORM_LABEL: Record<SocialPlatform, string> = {
 // https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media
 //   caption "Maximum 2200 characters", "30 hashtags", "20 @ tags"; image "8 MB maximum",
 //   aspect ratio "within a 4:5 to 1.91:1 range" (size and ratio are checked at upload in apps/web).
+// The permission each platform needs to publish (Pages API posts: pages_manage_posts; Instagram
+// content publishing: instagram_content_publish; both checked 2026-10-01, see contentPublisher.ts).
+export const PUBLISH_SCOPE: Record<string, string> = { FACEBOOK_PAGE: "pages_manage_posts", INSTAGRAM: "instagram_content_publish" };
+
 export const INSTAGRAM_LIMITS = { caption: 2200, hashtags: 30, mentions: 20, media: 10 };
 
 export function instagramProblems(body: string, mediaUrls: string[]): string[] {
@@ -161,7 +165,7 @@ export async function createPost(teamId: string, userId: string, input: PostInpu
 }
 
 async function loadPost(teamId: string, postId: string) {
-    const post = await prisma.contentPost.findFirst({ where: { id: postId, teamId }, include: { targets: { select: { socialAccountId: true } } } });
+    const post = await prisma.contentPost.findFirst({ where: { id: postId, teamId }, include: { targets: { select: { socialAccountId: true, status: true } } } });
     if (!post) throw new ContentPostError(404, "Post not found");
     return post;
 }
@@ -184,6 +188,10 @@ export async function updatePost(teamId: string, postId: string, patch: Partial<
 
     const currentAccounts = post.targets.map((t) => t.socialAccountId);
     const accountIds = patch.accountIds ? [...new Set(patch.accountIds)] : currentAccounts;
+    // A PUBLISHED target is the only record of where the post is live.
+    if (post.targets.some((t) => t.status === "PUBLISHED" && !accountIds.includes(t.socialAccountId))) {
+        throw new ContentPostError(409, "This post is already live on an account you removed. Keep that account selected.");
+    }
     const contentChanged =
         (patch.body !== undefined && patch.body !== post.body) ||
         (patch.mediaUrls !== undefined && !(patch.mediaUrls.length === post.mediaUrls.length && patch.mediaUrls.every((u, i) => u === post.mediaUrls[i]))) ||
@@ -215,7 +223,7 @@ export async function updatePost(teamId: string, postId: string, patch: Partial<
         if (res.count !== 1) throw new ContentPostError(409, "This post changed while you were editing. Reload and try again.");
 
         if (patch.accountIds && !sameSet(accountIds, currentAccounts)) {
-            await tx.contentPostTarget.deleteMany({ where: { postId, socialAccountId: { notIn: accountIds } } });
+            await tx.contentPostTarget.deleteMany({ where: { postId, socialAccountId: { notIn: accountIds }, status: { not: "PUBLISHED" } } });
             await tx.contentPostTarget.createMany({ data: accountIds.map((socialAccountId) => ({ postId, socialAccountId })), skipDuplicates: true });
         }
         if (backToDraft) {
@@ -237,7 +245,9 @@ export async function updatePost(teamId: string, postId: string, patch: Partial<
 
 export async function deletePost(teamId: string, postId: string) {
     const post = await loadPost(teamId, postId);
-    if (post.status === "PUBLISHING" || post.status === "PUBLISHED") throw new ContentPostError(409, "Published posts can't be deleted here.");
+    if (post.status === "PUBLISHING" || post.status === "PUBLISHED" || post.targets.some((t) => t.status === "PUBLISHED")) {
+        throw new ContentPostError(409, "Part of this post is already live, so it can't be deleted here.");
+    }
     await prisma.$transaction(async (tx) => {
         await withdrawApproval(tx, teamId, post.approvalRequestId, "Withdrawn: the post was deleted");
         const res = await tx.contentPost.deleteMany({ where: { id: postId, teamId, status: { in: [...EDITABLE] } } });
@@ -246,7 +256,7 @@ export async function deletePost(teamId: string, postId: string) {
 }
 
 async function approvalSubject(db: Tx, postId: string, at: Date, timezone: string | null) {
-    const targets = await db.contentPostTarget.findMany({ where: { postId }, select: { socialAccount: { select: { platform: true } } } });
+    const targets = await db.contentPostTarget.findMany({ where: { postId, status: { not: "PUBLISHED" } }, select: { socialAccount: { select: { platform: true } } } });
     const platforms = [...new Set(targets.map((t) => PLATFORM_LABEL[t.socialAccount.platform]))].join(" + ");
     return `${platforms} post, ${formatWhen(at, timezone)}`;
 }
@@ -254,18 +264,26 @@ async function approvalSubject(db: Tx, postId: string, at: Date, timezone: strin
 export async function submitPost(teamId: string, postId: string, userId: string) {
     const post = await prisma.contentPost.findFirst({
         where: { id: postId, teamId },
-        include: { targets: { select: { socialAccount: { select: { platform: true, handle: true, status: true } } } } },
+        include: { targets: { select: { status: true, socialAccount: { select: { platform: true, handle: true, status: true, scopes: true } } } } },
     });
     if (!post) throw new ContentPostError(404, "Post not found");
+    // On a retry after a partial failure, only the accounts it didn't reach are posted to again.
+    const targets = post.targets.filter((t) => t.status !== "PUBLISHED");
     if (!(SUBMITTABLE as readonly string[]).includes(post.status)) throw new ContentPostError(409, "This post is already in review or approved.");
     if (!post.body.trim() && post.mediaUrls.length === 0) throw new ContentPostError(400, "Write something or add an image first.");
     if (!post.scheduledAt) throw new ContentPostError(400, "Pick a time first.");
     assertFuture(post.scheduledAt);
-    if (post.targets.length === 0) throw new ContentPostError(400, "Pick at least one account.");
-    if (post.targets.some((t) => t.socialAccount.status !== "CONNECTED")) {
+    if (targets.length === 0) throw new ContentPostError(400, post.targets.length ? "This post is already live on every account it targets." : "Pick at least one account.");
+    if (targets.some((t) => t.socialAccount.status !== "CONNECTED")) {
         throw new ContentPostError(400, "Reconnect the accounts marked in Settings > Social accounts first.");
     }
-    if (post.targets.some((t) => t.socialAccount.platform === "INSTAGRAM")) {
+    const unsupported = targets.find((t) => !PUBLISH_SCOPE[t.socialAccount.platform]);
+    if (unsupported) throw new ContentPostError(400, `Posting to ${PLATFORM_LABEL[unsupported.socialAccount.platform]} isn't available yet.`);
+    const noPermission = targets.find((t) => !t.socialAccount.scopes.includes(PUBLISH_SCOPE[t.socialAccount.platform]));
+    if (noPermission) {
+        throw new ContentPostError(400, `${noPermission.socialAccount.handle || PLATFORM_LABEL[noPermission.socialAccount.platform]} wasn't given permission to post. Reconnect it in Settings > Social accounts and allow posting.`);
+    }
+    if (targets.some((t) => t.socialAccount.platform === "INSTAGRAM")) {
         const problems = instagramProblems(post.body, post.mediaUrls);
         if (problems.length) throw new ContentPostError(400, problems.join(" "));
     }
@@ -287,7 +305,7 @@ export async function submitPost(teamId: string, postId: string, userId: string)
                 autoDenyAt: computeAutoDenyAt(tier, new Date(), extended),
                 payload: {
                     subject: await approvalSubject(tx, post.id, scheduledAt, post.timezone),
-                    recipient: post.targets.map((t) => `${t.socialAccount.handle || "Account"} (${PLATFORM_LABEL[t.socialAccount.platform]})`).join(", "),
+                    recipient: targets.map((t) => `${t.socialAccount.handle || "Account"} (${PLATFORM_LABEL[t.socialAccount.platform]})`).join(", "),
                     body: post.body,
                     mediaUrls: post.mediaUrls,
                 },

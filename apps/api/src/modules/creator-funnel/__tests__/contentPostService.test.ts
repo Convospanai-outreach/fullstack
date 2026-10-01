@@ -16,6 +16,7 @@ import {
     ContentPostError,
     createPost,
     decideContentPost,
+    deletePost,
     getStageMix,
     instagramProblems,
     isOwnMediaUrl,
@@ -38,7 +39,7 @@ const post = (overrides: any = {}) => ({
     timezone: "Asia/Kolkata",
     approvalRequestId: null,
     updatedAt: new Date("2026-09-30T00:00:00Z"),
-    targets: [{ socialAccountId: "acc-ig" }],
+    targets: [{ socialAccountId: "acc-ig", status: "PENDING" }],
     ...overrides,
 });
 
@@ -177,6 +178,13 @@ describe("contentPostService", () => {
             await expectError(updatePost(TEAM, "post-1", { body: "x" }), 409);
         });
 
+        it("never drops an account the post is already live on", async () => {
+            mockDb.socialAccount.count.mockResolvedValue(1);
+            mockDb.contentPost.findFirst.mockResolvedValue(post({ status: "FAILED", targets: [{ socialAccountId: "acc-ig", status: "PUBLISHED" }, { socialAccountId: "acc-fb", status: "FAILED" }] }));
+            await expectError(updatePost(TEAM, "post-1", { accountIds: ["acc-fb"] }), 409);
+            expect(mockDb.contentPost.updateMany).not.toHaveBeenCalled();
+        });
+
         it("reports a concurrent change instead of overwriting it", async () => {
             mockDb.contentPost.findFirst.mockResolvedValue(post());
             mockDb.contentPost.updateMany.mockResolvedValue({ count: 0 });
@@ -185,8 +193,15 @@ describe("contentPostService", () => {
     });
 
     describe("submitPost", () => {
-        const submittable = (overrides: any = {}) =>
-            post({ targets: [{ socialAccount: { platform: "INSTAGRAM", handle: "@maker", status: "CONNECTED" } }], ...overrides });
+        const ig = (overrides: any = {}) => ({
+            status: "PENDING",
+            socialAccount: { platform: "INSTAGRAM", handle: "@maker", status: "CONNECTED", scopes: ["instagram_content_publish"], ...overrides },
+        });
+        const fb = (status = "PENDING") => ({
+            status,
+            socialAccount: { platform: "FACEBOOK_PAGE", handle: "Maker Page", status: "CONNECTED", scopes: ["pages_manage_posts"] },
+        });
+        const submittable = (overrides: any = {}) => post({ targets: [ig()], ...overrides });
 
         it("checks Instagram's rules before it goes to review", async () => {
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ mediaUrls: [] }));
@@ -200,10 +215,34 @@ describe("contentPostService", () => {
             await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [] }));
             await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
-            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [{ socialAccount: { platform: "INSTAGRAM", handle: "x", status: "NEEDS_RECONNECT" } }] }));
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [ig({ status: "NEEDS_RECONNECT" })] }));
             await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ status: "IN_REVIEW" }));
             await expectError(submitPost(TEAM, "post-1", "user-1"), 409);
+        });
+
+        it("needs the account to have granted posting permission", async () => {
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [ig({ scopes: ["instagram_basic"] })] }));
+            const error = await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
+            expect(error.message).toMatch(/permission to post/);
+        });
+
+        it("on a retry, only lists and checks the accounts it didn't reach", async () => {
+            // Live on Instagram already; only the Facebook Page is left, so no Instagram image rule applies.
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ status: "FAILED", mediaUrls: [], targets: [ig(), fb()].map((t, i) => (i === 0 ? { ...t, status: "PUBLISHED" } : t)) }));
+            mockDb.contentPostTarget.findMany.mockResolvedValue([{ socialAccount: { platform: "FACEBOOK_PAGE" } }]);
+            await submitPost(TEAM, "post-1", "user-1");
+
+            const request = mockDb.approvalRequest.create.mock.calls[0][0].data;
+            expect(request.payload.recipient).toBe("Maker Page (Facebook Page)");
+            expect(request.payload.subject).toMatch(/^Facebook Page post, /);
+            expect(mockDb.contentPostTarget.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { postId: "post-1", status: { not: "PUBLISHED" } } }));
+        });
+
+        it("has nothing to send once every account has it", async () => {
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ status: "FAILED", targets: [{ ...ig(), status: "PUBLISHED" }] }));
+            const error = await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
+            expect(error.message).toMatch(/already live/);
         });
 
         it("creates a fresh approval and moves the post to review", async () => {
@@ -263,6 +302,12 @@ describe("contentPostService", () => {
             expect(mockDb.approvalRequest.updateMany.mock.calls[0][0].data.reviewerId).toBeUndefined();
             expect(mockDb.contentPost.updateMany.mock.calls[0][0].data.reviewNote).toBe("Nobody reviewed it in time. Send it again.");
         });
+    });
+
+    it("won't delete a post that is partly live", async () => {
+        mockDb.contentPost.findFirst.mockResolvedValue(post({ status: "FAILED", targets: [{ socialAccountId: "acc-ig", status: "PUBLISHED" }] }));
+        await expectError(deletePost(TEAM, "post-1"), 409);
+        expect(mockDb.contentPost.deleteMany).not.toHaveBeenCalled();
     });
 
     it("falls back to the 60/30/10/0 stage mix", async () => {

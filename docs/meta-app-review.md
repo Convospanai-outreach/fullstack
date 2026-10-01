@@ -87,7 +87,7 @@ Give reviewers:
 
 ## Operational notes
 
-- **Token lifetime.** Page tokens obtained through a long-lived user token don't expire. A daily check (`checkSocialTokens`) still asks Meta, and moves an account to "Needs reconnecting" if Meta invalidates it (password change, permissions removed, app removed). Admins get an in-app and email notice, and one warning if a token reports an expiry within a week.
+- **Token lifetime.** Facebook Page accounts use the Page token, which doesn't expire when obtained through a long-lived user token. Instagram accounts use the long-lived User token, because Instagram's publishing endpoints list "Access Tokens | User"; it lasts about 60 days and Meta doesn't let a server refresh it, so people reconnect about every two months (they're warned a week before). A daily check (`checkSocialTokens`) still asks Meta, and moves an account to "Needs reconnecting" if Meta invalidates it (password change, permissions removed, app removed). Admins get an in-app and email notice, and one warning if a token reports an expiry within a week.
 - **Graph API version.** Social calls use v26.0. The older Lead Ads code uses v21.0, which Meta supports until 2027-01-21; move it before then.
-- **Publishing limit.** Instagram allows 100 API-published posts per account per 24 hours (`GET /<IG_ID>/content_publishing_limit`). The publisher (Phase 3b) checks this before publishing.
+- **Publishing limit.** Meta's docs disagree on the number (the publishing guide says 100 API-published posts per 24 hours; the `media_publish` and `content_publishing_limit` references say 50), so the publisher reads `quota_usage` and `config.quota_total` from `GET /<IG_ID>/content_publishing_limit` before each Instagram post instead of hard-coding either.
 - **Media hosting.** Instagram fetches media from a public URL at publish time, so post media is served from the creator-funnel storage bucket.

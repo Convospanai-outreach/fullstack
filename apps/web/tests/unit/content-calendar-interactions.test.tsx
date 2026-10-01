@@ -179,6 +179,29 @@ describe("content calendar interactions", () => {
             expect(onChanged).toHaveBeenCalled();
         });
 
+        it("keeps accounts a failed post is already live on, and doesn't offer Delete", async () => {
+            const ig: CalendarAccount = { id: "acc-ig", platform: "INSTAGRAM", handle: "@maker", status: "CONNECTED" };
+            const { node } = open({
+                accounts: [account, ig],
+                post: post({
+                    status: "FAILED",
+                    reviewNote: null,
+                    targets: [
+                        { id: "t-1", status: "PUBLISHED", lastError: null, socialAccount: account },
+                        { id: "t-2", status: "FAILED", lastError: "(#9007) Media not ready", socialAccount: ig },
+                    ],
+                }),
+            });
+            await render(node);
+
+            const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+            expect(boxes.map((b) => b.disabled)).toEqual([true, false]);
+            expect(document.body.textContent).toContain("posted");
+            expect(document.body.textContent).toContain("@maker: (#9007) Media not ready");
+            expect(byText("Delete")).toBeUndefined();
+            expect(byText("Send for approval")).toBeTruthy();
+        });
+
         it("shows a published post read-only", async () => {
             const { node } = open({ post: post({ status: "PUBLISHED" }) });
             await render(node);

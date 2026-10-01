@@ -128,7 +128,7 @@ describe("facebookLeadsService", () => {
         it("stores the Page and its linked Instagram account as SocialAccounts, not FacebookLeadSources", async () => {
             const fetchMock = vi.fn()
                 .mockResolvedValueOnce(jsonResponse({ access_token: "short-lived" }))
-                .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived" }))
+                .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived", expires_in: 5_184_000 }))
                 .mockResolvedValueOnce(jsonResponse({ data: [{ id: "page-1", name: "My Page", access_token: "page-token" }] }))
                 .mockResolvedValueOnce(jsonResponse({ data: [{ permission: "pages_manage_posts", status: "granted" }, { permission: "instagram_manage_messages", status: "declined" }] }))
                 .mockResolvedValueOnce(jsonResponse({ instagram_business_account: { id: "ig-1", username: "mybrand" }, id: "page-1" }));
@@ -146,8 +146,12 @@ describe("facebookLeadsService", () => {
             expect(page.where).toEqual({ teamId_platform_externalId: { teamId: "team-1", platform: "FACEBOOK_PAGE", externalId: "page-1" } });
             expect(page.create).toMatchObject({ handle: "My Page", scopes: ["pages_manage_posts"], status: "CONNECTED", connectedById: "user-1" });
             expect(page.create.encryptedToken).toEqual({ v: 1, cipher: "page-token", iv: "iv", tag: "tag" });
+            expect(page.create.tokenExpiresAt).toBeNull();
             expect(ig.where.teamId_platform_externalId).toEqual({ teamId: "team-1", platform: "INSTAGRAM", externalId: "ig-1" });
             expect(ig.create).toMatchObject({ handle: "@mybrand", parentExternalId: "page-1" });
+            // Instagram publishing needs the User token (about 60 days), not the Page token.
+            expect(ig.create.encryptedToken).toEqual({ v: 1, cipher: "long-lived", iv: "iv", tag: "tag" });
+            expect(ig.create.tokenExpiresAt.getTime()).toBeGreaterThan(Date.now() + 59 * 24 * 60 * 60 * 1000);
             expect(page.select).toEqual({ id: true, platform: true, handle: true });
         });
 

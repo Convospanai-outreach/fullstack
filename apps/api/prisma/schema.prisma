@@ -1444,10 +1444,10 @@ model SocialAccount {
   platform         SocialPlatform
   externalId       String // Page id, Instagram user id, or LinkedIn URN
   handle           String? // Page name or @username
-  parentExternalId String? // INSTAGRAM: the Facebook Page it's linked through (its token is the Page's)
-  encryptedToken   Json? // credentialVault EncryptedCredential; null once disconnected
+  parentExternalId String? // INSTAGRAM: the Facebook Page it's linked through
+  encryptedToken   Json? // credentialVault EncryptedCredential: Page token (FACEBOOK_PAGE) or long-lived User token (INSTAGRAM); null once disconnected
   scopes           String[]       @default([])
-  tokenExpiresAt   DateTime? // null = none reported (long-lived Page tokens don't expire)
+  tokenExpiresAt   DateTime? // null = none reported (Page tokens don't expire; the Instagram User token lasts ~60 days)
   status           String         @default("CONNECTED") // CONNECTED | NEEDS_RECONNECT | DISCONNECTED
   lastError        String?        @db.Text
   lastCheckedAt    DateTime?
@@ -1487,6 +1487,7 @@ model ContentPost {
   timezone          String? // IANA zone the author scheduled in, e.g. "Asia/Kolkata"
   approvalRequestId String? // the ApprovalRequest behind IN_REVIEW / APPROVED
   reviewNote        String?           @db.Text // why it last went back to DRAFT
+  publishLeaseUntil DateTime? // the publisher's claim on this post; free once past (contentPublisher.ts)
   createdById       String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -1504,6 +1505,7 @@ model ContentPostTarget {
   socialAccountId String
   status          String    @default("PENDING") // PENDING | PUBLISHED | FAILED
   externalId      String? // the platform's post/media id once published
+  containerId     String? // INSTAGRAM: the media container being published, kept so a retry never double-posts
   publishedAt     DateTime?
   lastError       String?   @db.Text
   createdAt       DateTime  @default(now())
