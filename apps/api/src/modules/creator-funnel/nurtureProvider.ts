@@ -28,6 +28,11 @@ export class NurtureNotConfiguredError extends Error {
 const SUPPORTED_STEP_TYPES = new Set(["email", "condition", "delay", "manual_review"]);
 const LIVE_ENROLLMENT_STATUSES = ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"];
 
+/** True when CmfSequenceProvider.enroll can run every step of these (ACTIVE) step types. */
+export function nurtureCanRunSteps(stepTypes: string[]) {
+    return stepTypes.length > 0 && stepTypes.every((type) => SUPPORTED_STEP_TYPES.has(type.trim().toLowerCase().replace(/-/g, "_")));
+}
+
 /** CMf sequences. journeyKey is a CampaignSequence id in the lead's team. */
 export class CmfSequenceProvider implements NurtureProvider {
     readonly key = "CMF" as const;

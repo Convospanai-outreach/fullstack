@@ -39,6 +39,22 @@ describe("keepRawJsonBody", () => {
         expect(sign(JSON.stringify(JSON.parse(PAYLOAD)))).not.toBe(sign(PAYLOAD));
     });
 
+    // OPEN-306: Stripe and Razorpay sign pretty-printed JSON. Their handlers read req.text(), which
+    // server.ts builds from request.rawBody, so the HMAC must match over exactly those bytes.
+    it("keeps the exact signed bytes for the Stripe Connect and Razorpay webhooks", async () => {
+        const app = Fastify();
+        keepRawJsonBody(app);
+        app.post("/webhooks/stripe-connect", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
+        app.post("/webhooks/razorpay", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
+        const pretty = JSON.stringify({ id: "evt_1", data: { object: { name: "café ✓" } } }, null, 2);
+        const sign = (value: string) => crypto.createHmac("sha256", "whsec").update(value).digest("hex");
+        for (const url of ["/webhooks/stripe-connect", "/webhooks/razorpay"]) {
+            const res = await app.inject({ method: "POST", url, headers: { "content-type": "application/json" }, payload: pretty });
+            expect(sign(res.json().text)).toBe(sign(pretty));
+        }
+        expect(sign(JSON.stringify(JSON.parse(pretty)))).not.toBe(sign(pretty));
+    });
+
     it("leaves every other JSON route as before (parsed, no raw body)", async () => {
         const app = await buildApp();
         const res = await app.inject({ method: "POST", url: "/other", headers: { "content-type": "application/json" }, payload: PAYLOAD });

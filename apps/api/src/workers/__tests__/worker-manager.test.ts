@@ -39,6 +39,10 @@ vi.mock("@/modules/creator-funnel/keywordTriggers", () => ({
     sendPendingAutoReplies: vi.fn().mockResolvedValue({ handled: 0 }),
 }));
 
+vi.mock("@/modules/creator-funnel/checkoutHooks", () => ({
+    processAbandonedCarts: vi.fn().mockResolvedValue({ enrolled: 0 }),
+}));
+
 vi.mock("@/modules/creator-funnel/contentPublisher", () => ({
     publishDuePosts: vi.fn().mockResolvedValue({ published: 0, failed: 0 }),
 }));

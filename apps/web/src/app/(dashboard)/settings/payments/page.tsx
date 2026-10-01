@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Plus, Trash2 } from "lucide-react";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { ProductAutomations } from "@/components/checkout/ProductAutomations";
 
 const API_BASE = getBrowserApiBase();
 
@@ -185,22 +186,26 @@ function ProductRow({ product, onChanged }: { product: Product; onChanged: () =>
     };
 
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-border">
-            <div>
-                <div className="font-medium text-foreground text-sm">{product.name}</div>
-                <div className="text-xs text-muted-foreground">
-                    {(product.priceAmount / 100).toFixed(2)} {product.currency}
-                    {!product.isActive && " — inactive"}
+        <div className="p-3 rounded-lg border border-border">
+            <div className="flex items-center justify-between">
+                <div>
+                    <div className="font-medium text-foreground text-sm">{product.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                        {(product.priceAmount / 100).toFixed(2)} {product.currency}
+                        {!product.isActive && " — inactive"}
+                    </div>
                 </div>
+                <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    aria-label={`Delete ${product.name}`}
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
             </div>
-            <button
-                onClick={handleDelete}
-                disabled={deleting}
-                aria-label={`Delete ${product.name}`}
-                className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-            >
-                <Trash2 className="w-4 h-4" />
-            </button>
+            {/* Creator funnel only: renders nothing while the flag is off. */}
+            <ProductAutomations productId={product.id} />
         </div>
     );
 }
