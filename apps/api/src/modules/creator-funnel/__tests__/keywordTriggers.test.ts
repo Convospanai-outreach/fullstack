@@ -39,6 +39,8 @@ vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
 vi.mock("../funnelStageService", () => ({ applyFunnelEvent }));
 vi.mock("../socialInbox", async (importOriginal) => ({ ...(await importOriginal<typeof import("../socialInbox")>()), findOrCreateContact, pageTokenFor }));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
+const setFirstTouchPost = vi.hoisted(() => vi.fn());
+vi.mock("../contentRoi", () => ({ setFirstTouchPost }));
 
 import {
     ACCOUNT_HOURLY_LIMIT,
@@ -359,6 +361,22 @@ describe("sendPendingAutoReplies", () => {
         }));
         const link = JSON.parse(graphCall.mock.calls[0][2].message).text.split("\n\n")[1];
         expect(new URL(link).searchParams.get("utm_content")).toBe("post-9");
+        // ...and that post is the new lead's first touch (Content ROI).
+        expect(setFirstTouchPost).toHaveBeenCalledWith("team-a", "lead-new", "post-9");
+    });
+
+    it("records the commented post as first touch even when the reply has no link", async () => {
+        mockDb.contentPostTarget.findMany.mockResolvedValue([{ postId: "post-9", externalId: "m1" }]);
+        row({ mediaId: "m1" });
+        await sendPendingAutoReplies(NOW);
+        expect(setFirstTouchPost).toHaveBeenCalledWith("team-a", "lead-new", "post-9");
+    });
+
+    it("records no first touch for a comment on a post CMf didn't publish", async () => {
+        mockDb.contentPostTarget.findMany.mockResolvedValue([]);
+        row({ mediaId: "m-elsewhere" });
+        await sendPendingAutoReplies(NOW);
+        expect(setFirstTouchPost).not.toHaveBeenCalled();
     });
 
     it("uses the trigger's own post and DM medium for DM replies", async () => {

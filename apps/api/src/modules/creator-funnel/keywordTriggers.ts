@@ -317,7 +317,7 @@ function missingScopes(granted: string[], needed: string[]) {
 // The link carries a signed token naming this auto-reply (linkToken.ts), so a sign-up on the page
 // merges into the person's lead (landing-lead-intake-worker). If signing isn't possible the
 // plain link still goes out; the sign-up then just becomes its own lead.
-async function replyText(row: ReplyRow, now: Date) {
+async function replyText(row: ReplyRow, now: Date, postId: string | null) {
     const { replyText: text, landingPageId } = row.trigger;
     if (!landingPageId) return text;
     const page = await prisma.landingPage.findFirst({ where: { id: landingPageId, teamId: row.teamId, status: "published" }, select: { slug: true } });
@@ -335,7 +335,7 @@ async function replyText(row: ReplyRow, now: Date) {
         platform: row.trigger.socialAccount.platform,
         kind: row.commentId ? "COMMENT" : "DM",
         triggerId: row.trigger.id,
-        contentPostId: row.trigger.contentPostId ?? (await commentedPost(row)),
+        contentPostId: postId,
     });
     return `${text}\n\n${link}`;
 }
@@ -381,7 +381,10 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     if (missing.length) return fail(`Reconnect the account and allow: ${missing.join(", ")}.`);
     const token = await pageTokenFor(account);
     if (!token) return fail("The Facebook Page this account uses isn't connected.");
-    const text = await replyText(row, now);
+    // The post this reply is about: the trigger's own, or the one the comment was on (when CMf
+    // published it). Tags the link (utm_content) and becomes the lead's first touch.
+    const postId = row.trigger.contentPostId ?? (await commentedPost(row));
+    const text = await replyText(row, now, postId);
     if (text === null) return fail("The landing page this auto-reply links to isn't published.");
     if (platform === "INSTAGRAM" && Buffer.byteLength(text, "utf8") > INSTAGRAM_TEXT_MAX_BYTES) {
         return fail("The message and link are over Instagram's 1,000-byte limit. Shorten the message.");
@@ -417,7 +420,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     const messageId = typeof result?.message_id === "string" ? result.message_id : null;
     await setStatus(row.id, "SENDING", { status: "SENT", messageId, lastError: null });
     try {
-        await recordSent(row, platform, text, messageId, typeof result?.recipient_id === "string" ? result.recipient_id : null);
+        await recordSent(row, platform, text, messageId, typeof result?.recipient_id === "string" ? result.recipient_id : null, postId);
     } catch (error) {
         console.error("[KeywordTriggers] Recording a sent auto-reply failed:", errorText(error));
     }
@@ -426,7 +429,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
 
 // The reply on the lead's thread. A commenter becomes a lead here, keyed by the id Meta returns
 // for them, so their later DMs land on the same lead.
-async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string, messageId: string | null, recipientId: string | null) {
+async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string, messageId: string | null, recipientId: string | null, postId: string | null) {
     const account: ReceivingAccount = { id: row.socialAccountId, teamId: row.teamId, platform };
     let leadId = row.leadId;
     if (!leadId && recipientId) {
@@ -443,6 +446,10 @@ async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string
         }
     }
     if (!leadId) return;
+    if (postId) {
+        const { setFirstTouchPost } = await import("./contentRoi");
+        await setFirstTouchPost(row.teamId, leadId, postId).catch(() => undefined);
+    }
     await prisma.message.create({
         data: {
             leadId,
