@@ -45,6 +45,7 @@ interface Lead {
     enrichedData?: any;
 
     // CRM Intent Scoring
+    icpFitScore?: number | null;
     intentScore?: number;
     leadScore?: number;
     pipelineState?: string;
@@ -389,6 +390,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     subtitle={`${lead.jobTitle || "Professional"} at ${lead.company || "Independent"}`}
                 />
                 <div className="flex flex-wrap gap-2">
+                    {lead.icpFitScore != null && (
+                        <Badge variant={lead.icpFitScore >= 70 ? "success" : lead.icpFitScore >= 40 ? "warning" : "outline"} title="How well this lead matches the campaign's ICP">
+                            ICP fit {lead.icpFitScore}%
+                        </Badge>
+                    )}
                     <Button
                         variant={lead.consentObtained ? "outline" : "destructive"}
                         className={`gap-1.5 font-bold ${lead.consentObtained ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20'}`}
