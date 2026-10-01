@@ -6111,7 +6111,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Sequence emails** (user decision 2026-10-02): added at click-redirect time in
     `apps/web/src/app/api/track/click/[trackingKey]`, only for CMf `/p/` links. Source `email`, medium `sequence`,
     campaign the campaign id, content the sequence step id. The send path and stored email are unchanged. Emails
-    sent without click tracking get no UTM.
+    sent without click tracking get no UTM, and neither do links to Cloudflare-published pages (another origin,
+    served at `/<slug>`), so email attribution is thin if creators mostly share those.
   - **Stored:** `LandingEvent` and `Order` get `utm*` columns (`LandingEvent` guarded with IF EXISTS); `LandingLead`
     already had them. Both landing page scripts send the page URL's UTM with every event, and the checkout page
     sends its URL's UTM with the session. Cloudflare-published pages need a republish to send event UTM.
