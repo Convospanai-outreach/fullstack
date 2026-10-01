@@ -100,19 +100,21 @@ export default function SocialAccountsPage() {
                         {accounts.map((account) => {
                             const { label, Icon } = PLATFORMS[account.platform];
                             const needsReconnect = account.status === "NEEDS_RECONNECT";
+                            // A connected account can still carry a problem, e.g. its messages couldn't be subscribed.
+                            const warning = needsReconnect || Boolean(account.lastError);
                             return (
                                 <li key={account.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-3">
                                         <Icon className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
                                         <div className="min-w-0">
                                             <p className="truncate text-sm text-foreground">{account.handle || label}</p>
-                                            <p className={`text-xs ${needsReconnect ? "text-warning" : "text-muted-foreground"}`}>
-                                                {label} · {needsReconnect ? `Needs reconnecting${account.lastError ? `: ${account.lastError}` : ""}` : "Connected"}
+                                            <p className={`text-xs ${warning ? "text-warning" : "text-muted-foreground"}`}>
+                                                {label} · {needsReconnect ? `Needs reconnecting${account.lastError ? `: ${account.lastError}` : ""}` : account.lastError ? `Connected. ${account.lastError}` : "Connected"}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex gap-3 text-xs">
-                                        {needsReconnect && (
+                                        {warning && (
                                             <button type="button" onClick={connect} disabled={busy !== null} className="font-medium text-primary hover:underline disabled:opacity-50">
                                                 Reconnect
                                             </button>

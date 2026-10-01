@@ -29,6 +29,30 @@ export async function graphCall(method: "GET" | "POST", path: string, params: Re
     } catch {
         throw new GraphError("Meta didn't answer in time.", true);
     }
+    return readGraphResponse(res);
+}
+
+// For endpoints documented with a JSON body (the Messenger Send API). The token goes in the
+// Authorization header ("Bearer <token>", accepted by graph.facebook.com:
+// https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/,
+// checked 2026-10-01), so it's still never in the URL.
+export async function graphPostJson(path: string, body: Record<string, unknown>, token: string): Promise<any> {
+    let res: Response;
+    try {
+        res = await fetch(`${GRAPH_BASE_URL}/${path}`, {
+            method: "POST",
+            body: JSON.stringify(body),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            redirect: "error",
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+    } catch {
+        throw new GraphError("Meta didn't answer in time.", true);
+    }
+    return readGraphResponse(res);
+}
+
+async function readGraphResponse(res: Response): Promise<any> {
     const json: any = await res.json().catch(() => null);
     if (!res.ok) {
         const message = typeof json?.error?.message === "string" ? json.error.message : `Meta returned HTTP ${res.status}.`;

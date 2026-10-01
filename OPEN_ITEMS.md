@@ -6100,6 +6100,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-306 (Open — signed JSON webhooks other than Meta DMs get a re-serialized body):**
+  apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
+  route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
+  `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the
+  provider's JSON has whitespace, escaped characters or `\uXXXX` escapes. Affected: `/webhooks/stripe-billing`
+  (Stripe payloads are pretty-printed, so this likely fails every delivery), `/webhooks/stripe-connect`,
+  `/webhooks/razorpay`, `/webhooks/whatsapp` and `/webhooks/resend`. It fails closed (deliveries rejected), not
+  open. Prod on 2026-10-01 had 0 `Invoice` and 0 paid `CreditTransaction` rows, so there's no evidence either way.
+  - **Fix:** add these paths to `RAW_JSON_BODY_PATHS` in `apps/api/src/lib/rawJsonBody.ts` (OPEN-305), after checking
+    each provider dashboard's delivery log. Resend inbound is a do-not-touch path, so it needs explicit sign-off.
+- **OPEN-305 (Fixed — creator funnel phase 4a: Instagram and Facebook DMs in the Action Inbox):** one Meta webhook
+  (`apps/api/routes/webhooks/meta-social`) receives Instagram Direct and Facebook Page messages; they appear in
+  the Action Inbox and can be answered from there. Behind `creator-funnel`.
+  - **Signed bytes:** `src/lib/rawJsonBody.ts` keeps the exact request bytes for `/webhooks/meta-social` only (same
+    parser and poisoning options as Fastify's default). The route rejects missing or wrong `X-Hub-Signature-256`
+    (HMAC-SHA256 with `FACEBOOK_APP_SECRET`) with 401 before parsing, and 503s without the secret.
+  - **Ingestion (`creator-funnel/socialInbox.ts`):** every CONNECTED account row for the receiving Instagram account
+    or Page, in teams with the flag on, gets the message. A new person gets a Lead (`instagram_dm`/`facebook_dm`)
+    and a `SocialContact` in one transaction (a concurrent create is handled) and moves to TOFU
+    (`social_first_touch`). `Message.externalId` (`<accountId>:<mid>`) makes Meta's retries no-ops. Media URLs are
+    never stored (placeholders like "[Photo]"). Echoes, reactions, reads and postbacks are skipped. A deleted
+    message deletes CMf's copy. Any failed event returns 500 so Meta retries. The person's name/handle is looked up
+    after the reply, best effort.
+  - **Replies:** `sendReply` hands INSTAGRAM/FACEBOOK replies to `sendSocialReply`. It enforces:
+    - the 24-hour window from `SocialContact.lastInboundAt` (no message tags);
+    - Instagram's 1,000-byte limit;
+    - the messaging permission;
+    - guardrails;
+    - the linked Page's token.
+    A reply Meta refused or didn't confirm isn't recorded as sent. The legacy `/inbox/reply` route refuses these
+    platforms, since it only records messages.
+  - **Connect:** the Page is subscribed with `POST /{page-id}/subscribed_apps?subscribed_fields=messages`. A failure
+    is shown on Settings > Social and Reconnect retries it.
+  - **Schema:** migration `20261003120000_social_dms` adds the `SocialContact` table and a nullable unique
+    `Message.externalId` (additive).
+  - **Owed by the user:** `META_WEBHOOK_VERIFY_TOKEN` on both Oracle VMs, plus `FACEBOOK_APP_SECRET` there. The
+    webhook subscriptions (Page and Instagram objects, `messages`) go in the App Dashboard. The app must be
+    published to receive webhooks.
+
 - **OPEN-304 (Fixed — creator funnel phase 3b: publishing approved posts to Facebook Pages and Instagram):**
   a 1-minute worker tick (`creator-funnel/contentPublisher.ts`) publishes APPROVED posts once their time comes.
   Behind `creator-funnel`.

@@ -20,6 +20,11 @@ export async function POST(req: NextRequest) {
         if (content.length > 2200) {
             return NextResponse.json({ error: "Message exceeds 2200 characters", action: "block" }, { status: 400 });
         }
+        // This route only records the message (and queues LinkedIn). Instagram/Facebook replies
+        // must go through /inbox/replies/:id/reply, which actually sends them.
+        if (platform === "INSTAGRAM" || platform === "FACEBOOK") {
+            return NextResponse.json({ error: "Reply to Instagram and Facebook messages from the inbox thread" }, { status: 400 });
+        }
 
         // GUARDRAIL CHECK
         const { guardrailService } = await import("@/modules/governance/service/guardrailService");
