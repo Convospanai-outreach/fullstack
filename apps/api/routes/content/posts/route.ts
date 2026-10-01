@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { parseBody } from "@/lib/validation/parseBody";
-import { contentError, createPostSchema, creatorContext, FUNNEL_STAGES, parseWhen } from "@/modules/creator-funnel/contentRoutes";
+import { contentError, createPostSchema, creatorContext, parseWhen } from "@/modules/creator-funnel/contentRoutes";
 
-// Creator funnel content calendar: posts scheduled in [from, to) plus unscheduled drafts.
+// Creator funnel content calendar: posts scheduled in [from, to) plus unscheduled drafts. The
+// calendar filters in the browser so its stage-mix meter always sees the whole range.
 const MAX_RANGE_MS = 62 * 24 * 60 * 60 * 1000;
 const listQuery = z.object({
     from: z.iso.datetime({ offset: true }),
     to: z.iso.datetime({ offset: true }),
-    stage: z.enum(FUNNEL_STAGES).optional(),
-    status: z.enum(["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHING", "PUBLISHED", "FAILED"]).optional(),
-    accountId: z.string().max(64).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -27,7 +25,7 @@ export async function GET(req: NextRequest) {
         }
 
         const { listPosts } = await import("@/modules/creator-funnel/contentPostService");
-        return NextResponse.json(await listPosts(ctx.teamId, { ...query.data, from, to }));
+        return NextResponse.json(await listPosts(ctx.teamId, from, to));
     } catch (error) {
         return contentError(error);
     }

@@ -7,7 +7,7 @@ import { ContentPostError, isValidTimeZone } from "./contentPostService";
 // Shared pieces of the /content/* routes: the team context behind the creator-funnel flag,
 // the post payload schema, and ContentPostError -> HTTP status.
 
-export const FUNNEL_STAGES = ["TOFU", "MOFU", "BOFU", "POST"] as const;
+const FUNNEL_STAGES = ["TOFU", "MOFU", "BOFU", "POST"] as const;
 
 const postFields = {
     body: z.string().max(10000),

@@ -123,22 +123,16 @@ function assertFuture(scheduledAt: Date | null) {
     if (scheduledAt && scheduledAt.getTime() <= Date.now()) throw new ContentPostError(400, "Pick a time in the future.");
 }
 
-export async function listPosts(teamId: string, filter: { from: Date; to: Date; stage?: FunnelStage; status?: string; accountId?: string }) {
-    const where: Prisma.ContentPostWhereInput = {
-        teamId,
-        ...(filter.stage ? { funnelStage: filter.stage } : {}),
-        ...(filter.status ? { status: filter.status as any } : {}),
-        ...(filter.accountId ? { targets: { some: { socialAccountId: filter.accountId } } } : {}),
-    };
+export async function listPosts(teamId: string, from: Date, to: Date) {
     const [scheduled, unscheduled] = await Promise.all([
         prisma.contentPost.findMany({
-            where: { ...where, scheduledAt: { gte: filter.from, lt: filter.to } },
+            where: { teamId, scheduledAt: { gte: from, lt: to } },
             include: POST_INCLUDE,
             orderBy: { scheduledAt: "asc" },
             take: 500,
         }),
         prisma.contentPost.findMany({
-            where: { ...where, scheduledAt: null },
+            where: { teamId, scheduledAt: null },
             include: POST_INCLUDE,
             orderBy: { updatedAt: "desc" },
             take: 50,

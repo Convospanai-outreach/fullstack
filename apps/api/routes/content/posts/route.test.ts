@@ -56,9 +56,9 @@ describe("/content routes", () => {
     });
 
     it("lists a bounded range", async () => {
-        const ok = await GET(new NextRequest(`${BASE}/posts?from=2026-10-01T00:00:00Z&to=2026-11-01T00:00:00Z&stage=MOFU`));
+        const ok = await GET(new NextRequest(`${BASE}/posts?from=2026-10-01T00:00:00Z&to=2026-11-01T00:00:00Z`));
         expect(ok.status).toBe(200);
-        expect(service.listPosts).toHaveBeenCalledWith("team-a", expect.objectContaining({ stage: "MOFU", from: new Date("2026-10-01T00:00:00Z") }));
+        expect(service.listPosts).toHaveBeenCalledWith("team-a", new Date("2026-10-01T00:00:00Z"), new Date("2026-11-01T00:00:00Z"));
 
         expect((await GET(new NextRequest(`${BASE}/posts?from=2026-10-01T00:00:00Z&to=2027-01-01T00:00:00Z`))).status).toBe(400);
         expect((await GET(new NextRequest(`${BASE}/posts?from=nope&to=2026-11-01T00:00:00Z`))).status).toBe(400);

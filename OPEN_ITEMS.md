@@ -6100,6 +6100,26 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-301 (Fixed — creator funnel phase 3a: content calendar and post approval):** plan Instagram/Facebook
+  posts per funnel stage and send them for approval. Nothing publishes yet (phase 3b). Behind `creator-funnel`.
+  - **Schema:** migration `20261002120000_content_calendar` (additive) adds a `ContentPostStatus` enum,
+    `ContentPost` (body, mediaUrls, funnelStage, status, scheduledAt + IANA timezone, approvalRequestId, reviewNote),
+    `ContentPostTarget` (one row per account, with publish fields for 3b) and nullable `Team.contentStageMix`.
+  - **Approval:** "Send for approval" creates a fresh `ApprovalRequest` (`CONTENT_POST_PUBLISH`, entity `ContentPost`)
+    shown in Inbox > Approvals as "Publish post". Decisions only move a PENDING request and only the post still attached
+    to it (apps/web `/api/approvals/[id]` and apps/api `ApprovalService`, including the auto-deny sweep). An approval
+    after the post's time sends it back to draft. Editing the text, images or accounts of a post in review or approved
+    sends it back to draft and withdraws the request; moving it to another time keeps the approval.
+  - **Checks at submit:** a future time, at least one connected account of the team, and Instagram's rules (an image,
+    at most 10, 2200-character caption, 30 hashtags, 20 @ tags), cited with URLs checked 2026-09-30. Media must be a
+    JPEG in the team's folder of the public Supabase `content-media` bucket (created 2026-10-01: 8 MB, image/jpeg).
+    The upload route checks the JPEG signature; the browser checks the 4:5 to 1.91:1 shape.
+  - **Web:** Content > **Content calendar** (`/content/calendar`) with month/week views, drag to reschedule (keeps the
+    local clock time across DST), filters, a composer with approve/send-back for approvers, and a stage-mix meter
+    against the team target (default 60/30/10/0, admins can change it). The CSP `img-src` now allows the
+    `SUPABASE_URL` origin.
+  - **Tests:** service state machine and Instagram checks, routes (flag 404, validation, range cap, admin mix), both
+    approval paths, media upload, calendar helpers (DST drag) and page render.
 - **OPEN-303 (Fixed — dependency advisories published 2026-10-01 broke the CI audit gate):** new high/critical
   advisories failed `scripts/audit-with-allowlist.mjs` for apps/api and apps/web on every PR. Bumped instead of
   allowlisted:

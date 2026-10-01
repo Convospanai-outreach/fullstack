@@ -258,6 +258,10 @@ export default function ApprovalsPage() {
     );
 }
 
+// Plain-word names for action types whose raw name reads badly.
+const ACTION_LABELS: Record<string, string> = { CONTENT_POST_PUBLISH: "Publish post" };
+
 function formatAction(action: string) {
+    if (ACTION_LABELS[action]) return ACTION_LABELS[action];
     return action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
