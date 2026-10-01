@@ -90,6 +90,8 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
     const editable = !post || isEditable(post);
     // A post can still target an account that was disconnected since; list it so it can be unchecked.
     const choices = [...accounts, ...(post?.targets.map((t) => t.socialAccount).filter((a) => !accounts.some((x) => x.id === a.id)) ?? [])];
+    // Accounts this post is already live on: they stay selected and the post can't be deleted.
+    const live = new Set(post?.targets.filter((t) => t.status === "PUBLISHED").map((t) => t.socialAccount.id) ?? []);
     const hasInstagram = choices.some((a) => a.platform === "INSTAGRAM" && accountIds.includes(a.id));
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -213,7 +215,7 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                     </DialogDescription>
                 </DialogHeader>
 
-                {post?.reviewNote && post.status === "DRAFT" && (
+                {post?.reviewNote && (post.status === "DRAFT" || post.status === "FAILED") && (
                     <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">{post.reviewNote}</p>
                 )}
                 {post && (post.status === "IN_REVIEW" || post.status === "APPROVED") && (
@@ -269,9 +271,10 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                                 {choices.map((a) => (
                                     <li key={a.id}>
                                         <label className="flex items-center gap-2 text-sm">
-                                            <input type="checkbox" checked={accountIds.includes(a.id)} onChange={() => toggleAccount(a.id)} />
+                                            <input type="checkbox" checked={accountIds.includes(a.id)} disabled={live.has(a.id)} onChange={() => toggleAccount(a.id)} />
                                             <span className="text-foreground">{a.handle || PLATFORM_LABEL[a.platform]}</span>
                                             <span className="text-xs text-muted-foreground">{PLATFORM_LABEL[a.platform]}</span>
+                                            {live.has(a.id) && <span className="text-xs text-success">posted</span>}
                                             {a.status !== "CONNECTED" && (
                                                 <span className="text-xs text-warning">{a.status === "DISCONNECTED" ? "disconnected" : "needs reconnecting"}</span>
                                             )}
@@ -358,7 +361,7 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
 
                 {editable && (
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
-                        {post ? (
+                        {post && live.size === 0 ? (
                             <button type="button" disabled={busy !== null} onClick={remove} className="text-sm text-muted-foreground hover:text-destructive disabled:opacity-50">
                                 {busy === "delete" ? "Deleting..." : "Delete"}
                             </button>

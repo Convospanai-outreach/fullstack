@@ -6100,6 +6100,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-304 (Fixed — creator funnel phase 3b: publishing approved posts to Facebook Pages and Instagram):**
+  a 1-minute worker tick (`creator-funnel/contentPublisher.ts`) publishes APPROVED posts once their time comes.
+  Behind `creator-funnel`.
+  - **Only approved posts:** a post is claimed with one conditional update (still APPROVED, same approval request,
+    time still due, lease free), and only if its `ApprovalRequest` row is APPROVED and the team has the flag on. A
+    post more than a day late fails with a note instead of posting.
+  - **At most once per account:** each target moves to SENDING right before the one call that makes it public. A
+    target found in SENDING later is never re-sent blindly. Facebook is marked "couldn't confirm"; Instagram asks
+    the container's `status_code` (PUBLISHED counts as done, FINISHED is safe to publish). The two API VMs share the
+    work through `ContentPost.publishLeaseUntil`; the lease outlasts the slowest run for one post.
+  - **Facebook:** text via `/feed`, one photo via `/photos`, several photos as unpublished uploads attached to one
+    `/feed` post. `scheduled_publish_time` is not used, so an edit in CMf can always still stop a post.
+  - **Instagram:** a container (carousel for 2-10 images) is created and its id saved on the target; its status is
+    checked each minute and it's published once FINISHED, or failed after 10 minutes. `content_publishing_limit`
+    is read before each post (the docs say 100 and 50), and publishing goes ahead if it can't be read.
+  - **Instagram token (changes phase 2):** Instagram endpoints under Facebook Login list "Access Tokens | User", so
+    INSTAGRAM accounts now store the long-lived User token (about 60 days, not refreshable server-side) with its
+    expiry; the daily check warns a week before. Facebook Page accounts keep the Page token. No accounts existed in
+    prod when this changed. The user chose this over switching to Instagram Login (2026-10-01).
+  - **Retries and failures:** a FAILED post can be sent for approval again; only the accounts it didn't reach are
+    posted to, and the approval card lists only those. Accounts a post is live on can't be removed, and a partly
+    live post can't be deleted. Permission (`pages_manage_posts` / `instagram_content_publish`) is checked when a
+    post is sent for approval and again at publish. The author gets a plain-text in-app/email notice linking to
+    the calendar; Meta's error text is shown only in the calendar.
+  - **Schema:** migration `20261002130000_content_publishing` adds `ContentPost.publishLeaseUntil` and
+    `ContentPostTarget.containerId` (additive).
+
 - **OPEN-302 (Open — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
   (apps/api) writes the sweep's pseudo reviewer `"system-timeout"` into `ApprovalRequest.reviewerId`, which is a
   foreign key to `User(id)` (`ApprovalRequest_reviewerId_fkey`, confirmed in prod 2026-10-01; no `system-%` users

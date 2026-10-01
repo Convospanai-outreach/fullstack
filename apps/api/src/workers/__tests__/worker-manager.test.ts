@@ -35,6 +35,10 @@ vi.mock("@/modules/email-campaigner/service/warmupSeedService", () => ({
     sendWarmupSeedTraffic: vi.fn().mockResolvedValue({ sent: 0 }),
 }));
 
+vi.mock("@/modules/creator-funnel/contentPublisher", () => ({
+    publishDuePosts: vi.fn().mockResolvedValue({ published: 0, failed: 0 }),
+}));
+
 vi.mock("../job-processor", () => ({
     worker: { performJob: vi.fn().mockResolvedValue(undefined) },
 }));
@@ -174,6 +178,18 @@ describe("WorkerManager maintenance tick", () => {
         await (manager as any).handleMaintenanceTick();
 
         expect(SequenceService.processDue).toHaveBeenCalledTimes(1);
+    });
+
+    it("publishes due content posts once a minute, and a publisher failure doesn't stop the tick", async () => {
+        const { publishDuePosts } = await import("@/modules/creator-funnel/contentPublisher");
+        (publishDuePosts as Mock).mockRejectedValueOnce(new Error("meta down"));
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(publishDuePosts).toHaveBeenCalledTimes(1);
+        expect(runRetentionSweep).toHaveBeenCalled();
     });
 
     it("runs the retention sweep on the maintenance tick, at most once per day", async () => {
