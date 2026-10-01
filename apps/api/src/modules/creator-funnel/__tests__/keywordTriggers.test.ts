@@ -7,6 +7,7 @@ const matches = (row: any, where: any): boolean =>
     Object.entries(where).every(([key, cond]: [string, any]) => {
         if (key === "OR") return cond.some((c: any) => matches(row, c));
         if (cond && typeof cond === "object" && "in" in cond) return cond.in.includes(row[key]);
+        if (cond && typeof cond === "object" && "notIn" in cond) return !cond.notIn.includes(row[key]);
         if (cond && typeof cond === "object" && "gte" in cond) return row[key] >= cond.gte;
         return row[key] === cond;
     });
@@ -15,6 +16,7 @@ const mockDb: any = vi.hoisted(() => ({
     keywordTrigger: { findMany: vi.fn() },
     keywordTriggerReply: {
         count: vi.fn(),
+        groupBy: vi.fn(),
         create: vi.fn(),
         findMany: vi.fn(),
         update: vi.fn(),
@@ -165,6 +167,11 @@ describe("queueing", () => {
         expect(await queueCommentReplies(comment(), [account], NOW)).toBe(0);
     });
 
+    it("never answers the account's own comment, even if Instagram gives it a different id", async () => {
+        expect(await queueCommentReplies(comment({ authorId: "other-id", authorHandle: "@Maker" }), [{ ...account, handle: "@maker" }], NOW)).toBe(0);
+        expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
+    });
+
     it("limits a post-restricted trigger to comments on that post, whatever form the post id takes", async () => {
         const restricted = trigger({ contentPostId: "post-1", contentPost: { targets: [{ externalId: "page-1_44" }] } });
         mockDb.keywordTrigger.findMany.mockResolvedValue([restricted]);
@@ -223,14 +230,19 @@ describe("sendPendingAutoReplies", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         store.rows.clear();
-        mockDb.keywordTriggerReply.findMany.mockImplementation(async ({ where }: any) => [...store.rows.values()].filter((r) => matches(r, where)));
+        mockDb.keywordTriggerReply.findMany.mockImplementation(async ({ where, take }: any) =>
+            [...store.rows.values()]
+                .filter((r) => matches(r, where))
+                .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+                .slice(0, take)
+        );
         mockDb.keywordTriggerReply.updateMany.mockImplementation(async ({ where, data }: any) => {
             let count = 0;
             for (const r of store.rows.values()) if (matches(r, where)) { Object.assign(r, data, { updatedAt: NOW }); count++; }
             return { count };
         });
         mockDb.keywordTriggerReply.update.mockImplementation(async ({ where, data }: any) => Object.assign(get(where.id), data));
-        mockDb.keywordTriggerReply.count.mockResolvedValue(0);
+        mockDb.keywordTriggerReply.groupBy.mockResolvedValue([]);
         isCreatorFunnelEnabled.mockResolvedValue(true);
         pageTokenFor.mockResolvedValue("page-token");
         graphCall.mockResolvedValue({ recipient_id: "igsid-9", message_id: "mid-out" });
@@ -340,6 +352,19 @@ describe("sendPendingAutoReplies", () => {
         expect(graphCall).toHaveBeenCalledTimes(1);
     });
 
+    it("doesn't post the public reply when the DM didn't go out", async () => {
+        const r = row({ publicStatus: "PENDING" }, { publicCommentReply: "Sent you a DM!", socialAccount: { ...igAccount, scopes: ["pages_messaging"] } });
+        await sendPendingAutoReplies(NOW);
+        expect(get(r.id)).toMatchObject({ status: "FAILED", publicStatus: "SKIPPED" });
+
+        store.rows.clear();
+        graphCall.mockRejectedValueOnce(new GraphError("Meta didn't answer in time.", true));
+        const unsure = row({ publicStatus: "PENDING" }, { publicCommentReply: "Sent you a DM!" });
+        await sendPendingAutoReplies(NOW);
+        expect(get(unsure.id)).toMatchObject({ status: "UNCONFIRMED", publicStatus: "SKIPPED" });
+        expect(graphCall).toHaveBeenCalledTimes(1); // the DM attempt only
+    });
+
     it("answers a keyword DM in the conversation, on the lead it came from", async () => {
         const dm = row({ socialAccountId: "acc-fb", sourceKey: "dm:mid-1", personKey: "psid-3", commentId: null, leadId: "lead-1" }, { socialAccount: fbAccount });
         await sendPendingAutoReplies(NOW);
@@ -349,11 +374,16 @@ describe("sendPendingAutoReplies", () => {
         expect(get(dm.id).status).toBe("SENT");
     });
 
-    it("holds replies while an account is at its hourly cap", async () => {
-        mockDb.keywordTriggerReply.count.mockResolvedValue(ACCOUNT_HOURLY_LIMIT);
-        const r = row();
+    it("holds a capped account's replies without holding up other accounts", async () => {
+        mockDb.keywordTriggerReply.groupBy.mockResolvedValue([{ socialAccountId: "acc-ig", _count: { _all: ACCOUNT_HOURLY_LIMIT } }]);
+        const capped = Array.from({ length: 25 }, (_, i) => row({ sourceKey: `comment:c${i}`, commentId: `c${i}` }));
+        const other = row({ socialAccountId: "acc-fb", sourceKey: "comment:p_c1", commentId: "p_c1", createdAt: NOW }, { socialAccount: fbAccount });
+
         await sendPendingAutoReplies(NOW);
-        expect(get(r.id).status).toBe("PENDING");
+
+        expect(capped.every((r) => get(r.id).status === "PENDING")).toBe(true);
+        expect(get(other.id).status).toBe("SENT");
         expect(graphCall).not.toHaveBeenCalled();
+        expect(graphPostJson).toHaveBeenCalledTimes(1);
     });
 });

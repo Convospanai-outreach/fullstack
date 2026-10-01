@@ -78,8 +78,11 @@ describe("keywordTriggerService", () => {
 
         mockDb.socialAccount.findFirst.mockResolvedValue({ ...igAccount, status: "NEEDS_RECONNECT" });
         await expect(updateTrigger("team-a", "user-2", "trig-1", { active: true })).rejects.toMatchObject({ status: 409 });
-        // Switching off always works.
+        // Switching off always works, even when the reply no longer passes the content rules.
+        evaluate.mockResolvedValue({ isSafe: false, violations: [{ reason: "New rule" }] });
         await expect(updateTrigger("team-a", "user-2", "trig-1", { active: false })).resolves.toMatchObject({ active: false });
+        expect(mockDb.keywordTrigger.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: { active: false } }));
+        evaluate.mockResolvedValue({ isSafe: true, violations: [] });
 
         mockDb.keywordTrigger.findFirst.mockResolvedValue(null);
         await expect(updateTrigger("team-a", "user-2", "nope", { active: false })).rejects.toMatchObject({ status: 404 });

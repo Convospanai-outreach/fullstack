@@ -113,6 +113,11 @@ describe("ingestMetaWebhook", () => {
         expect(queueDmReply).toHaveBeenCalledTimes(2);
     });
 
+    it("matches keywords on what the person typed, not attachment placeholders", async () => {
+        await ingestMetaWebhook(igDelivery([dm({}, { mid: "mid-p", text: undefined, attachments: [{ type: "image" }] })]), NOW);
+        expect(queueDmReply).not.toHaveBeenCalled();
+    });
+
     it("sends comments to the keyword triggers of every receiving account, and counts a failure so Meta retries", async () => {
         const delivery = { object: "instagram", entry: [{ id: "ig-1", changes: [{ field: "comments", value: { id: "c1", text: "GUIDE", from: { id: "u9", username: "asha" }, media: { id: "m1" } } }] }] };
         expect(await ingestMetaWebhook(delivery, NOW)).toEqual({ events: 1, stored: 0, failed: 0 });

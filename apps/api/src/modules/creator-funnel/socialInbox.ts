@@ -45,7 +45,7 @@ const PLATFORM_LABEL: Record<AccountPlatform, string> = { INSTAGRAM: "Instagram"
 const ATTACHMENT_LABEL: Record<string, string> = { image: "Photo", video: "Video", audio: "Voice message", file: "File" };
 
 type DmEvent =
-    | { kind: "message"; platform: AccountPlatform; accountExternalId: string; senderId: string; mid: string; content: string; sentAt: Date }
+    | { kind: "message"; platform: AccountPlatform; accountExternalId: string; senderId: string; mid: string; content: string; text: string; sentAt: Date }
     | { kind: "deleted"; platform: AccountPlatform; accountExternalId: string; mid: string };
 
 // Lead media URLs are never stored: attachments become a placeholder like "[Photo]".
@@ -85,6 +85,7 @@ export function extractDmEvents(body: any): DmEvent[] {
                 senderId,
                 mid,
                 content: messageContent(message),
+                text: typeof message?.text === "string" ? message.text : "", // what the person typed; keyword triggers match on this only
                 sentAt: Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp) : new Date(),
             });
         }
@@ -92,14 +93,14 @@ export function extractDmEvents(body: any): DmEvent[] {
     return events;
 }
 
-export type ReceivingAccount = { id: string; teamId: string; platform: AccountPlatform };
+export type ReceivingAccount = { id: string; teamId: string; platform: AccountPlatform; handle?: string | null };
 
 // Every connected account row for this Instagram account / Page whose team has the creator
 // funnel on. Two teams that both connected the same Page each get their own copy.
 export async function receivingAccounts(platform: AccountPlatform, externalId: string): Promise<ReceivingAccount[]> {
     const accounts = await prisma.socialAccount.findMany({
         where: { platform, externalId, status: "CONNECTED" },
-        select: { id: true, teamId: true, platform: true },
+        select: { id: true, teamId: true, platform: true, handle: true },
     });
     const { isCreatorFunnelEnabled } = await import("./featureGate");
     const enabled: ReceivingAccount[] = [];
@@ -198,7 +199,8 @@ async function storeInbound(account: ReceivingAccount, event: Extract<DmEvent, {
 // keywordTriggers.ts only queues it; the worker sends it.
 async function queueDmAutoReply(account: ReceivingAccount, event: Extract<DmEvent, { kind: "message" }>, leadId: string, now: Date) {
     const { queueDmReply } = await import("./keywordTriggers");
-    await queueDmReply(account, { mid: event.mid, senderId: event.senderId, text: event.content, leadId }, now);
+    if (!event.text.trim()) return;
+    await queueDmReply(account, { mid: event.mid, senderId: event.senderId, text: event.text, leadId }, now);
 }
 
 // Handles one verified webhook delivery: DMs (messaging[]) and comments (changes[]). Each event

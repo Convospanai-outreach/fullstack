@@ -121,6 +121,11 @@ export async function updateTrigger(teamId: string, userId: string, id: string, 
     if (!existing) fail(404, "Auto-reply not found");
     const current = existing as NonNullable<typeof existing>;
     const { active, ...changes } = patch;
+    // Switching off never depends on anything else being valid (e.g. a content rule that now
+    // blocks the reply, or a landing page that was unpublished).
+    if (active === false && Object.keys(changes).length === 0) {
+        return prisma.keywordTrigger.update({ where: { id: current.id }, data: { active: false }, select: TRIGGER_SELECT });
+    }
     const input = normalize({ ...current, ...changes } as TriggerFields);
     const account = await checkFields(teamId, input);
 

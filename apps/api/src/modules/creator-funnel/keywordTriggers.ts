@@ -191,6 +191,9 @@ async function claim(data: {
 export async function queueCommentReplies(event: CommentEvent, accounts: ReceivingAccount[], now = new Date()) {
     let queued = 0;
     for (const account of accounts) {
+        // Second guard against replying to ourselves: Instagram documents from.id as the
+        // commenter's id without saying it equals the account id for the account's own comments.
+        if (event.authorHandle && account.handle && event.authorHandle.toLowerCase() === account.handle.toLowerCase()) continue;
         const trigger = await findMatchingTrigger(account, "COMMENT", event.text, event.objectId);
         if (!trigger || (await repliedRecently(trigger.id, event.authorId, now))) continue;
         const ok = await claim({
@@ -296,12 +299,16 @@ function errorText(error: unknown) {
     return error instanceof Error ? error.message.slice(0, 300) : "Unknown error";
 }
 
-async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean) {
+type Outcome = "SENT" | "FAILED" | "SKIPPED" | "UNCONFIRMED" | null; // null: another worker has it
+
+async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<Outcome> {
     const account = row.trigger.socialAccount;
     const platform = account.platform as AccountPlatform;
     const kind: MatchKind = row.commentId ? "COMMENT" : "DM";
-    const skip = (reason: string) => setStatus(row.id, "PENDING", { status: "SKIPPED", lastError: reason });
-    const fail = (reason: string) => setStatus(row.id, "PENDING", { status: "FAILED", lastError: reason });
+    const skip = async (reason: string): Promise<Outcome> =>
+        (await setStatus(row.id, "PENDING", { status: "SKIPPED", lastError: reason })).count ? "SKIPPED" : null;
+    const fail = async (reason: string): Promise<Outcome> =>
+        (await setStatus(row.id, "PENDING", { status: "FAILED", lastError: reason })).count ? "FAILED" : null;
 
     if (!row.trigger.active || !flagOn) return skip("The auto-reply was switched off before it was sent.");
     const age = now.getTime() - row.createdAt.getTime();
@@ -318,7 +325,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean) {
     // At most once: SENDING right before the one call that sends it. A row left in SENDING
     // (crash mid-call) is never sent again.
     const claimed = await setStatus(row.id, "PENDING", { status: "SENDING" });
-    if (claimed.count !== 1) return;
+    if (claimed.count !== 1) return null;
 
     const pageId = encodeURIComponent(platform === "INSTAGRAM" ? (account.parentExternalId as string) : account.externalId);
     const recipient = kind === "COMMENT" ? { comment_id: row.commentId } : { id: row.personKey };
@@ -339,7 +346,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean) {
             status: uncertain ? "UNCONFIRMED" : "FAILED",
             lastError: uncertain ? "Meta didn't confirm the auto-reply was sent; it won't be retried." : errorText(error),
         });
-        return;
+        return uncertain ? "UNCONFIRMED" : "FAILED";
     }
 
     const messageId = typeof result?.message_id === "string" ? result.message_id : null;
@@ -349,6 +356,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean) {
     } catch (error) {
         console.error("[KeywordTriggers] Recording a sent auto-reply failed:", errorText(error));
     }
+    return "SENT";
 }
 
 // The reply on the lead's thread. A commenter becomes a lead here, keyed by the id Meta returns
@@ -419,8 +427,18 @@ async function sendPublic(row: ReplyRow, flagOn: boolean) {
 /** One worker tick: sends queued auto-replies, oldest first, within each account's hourly cap. */
 export async function sendPendingAutoReplies(now = new Date()) {
     const started = Date.now();
+    // Accounts at their hourly cap are left out of the query, so their queue can't hold up
+    // everyone else's replies.
+    const recent = await prisma.keywordTriggerReply.groupBy({
+        by: ["socialAccountId"],
+        where: { status: { in: ["SENDING", "SENT", "UNCONFIRMED"] }, updatedAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) } },
+        _count: { _all: true },
+    });
+    const sentThisHour = new Map(recent.map((r) => [r.socialAccountId, r._count._all]));
+    const capped = [...sentThisHour].filter(([, count]) => count >= ACCOUNT_HOURLY_LIMIT).map(([id]) => id);
+
     const rows = (await prisma.keywordTriggerReply.findMany({
-        where: { OR: [{ status: "PENDING" }, { publicStatus: "PENDING" }] },
+        where: { OR: [{ status: "PENDING" }, { publicStatus: "PENDING" }], ...(capped.length ? { socialAccountId: { notIn: capped } } : {}) },
         orderBy: { createdAt: "asc" },
         take: ROWS_PER_TICK,
         include: REPLY_INCLUDE,
@@ -428,7 +446,6 @@ export async function sendPendingAutoReplies(now = new Date()) {
 
     const { isCreatorFunnelEnabled } = await import("./featureGate");
     const flags = new Map<string, boolean>();
-    const sentThisHour = new Map<string, number>();
     let handled = 0;
 
     for (const row of rows) {
@@ -436,26 +453,19 @@ export async function sendPendingAutoReplies(now = new Date()) {
         try {
             if (!flags.has(row.teamId)) flags.set(row.teamId, await isCreatorFunnelEnabled(row.teamId));
             const flagOn = flags.get(row.teamId) as boolean;
+            const sent = sentThisHour.get(row.socialAccountId) ?? 0;
+            if (sent >= ACCOUNT_HOURLY_LIMIT) continue; // reached the cap during this tick; stays queued
 
-            if (!sentThisHour.has(row.socialAccountId)) {
-                sentThisHour.set(
-                    row.socialAccountId,
-                    await prisma.keywordTriggerReply.count({
-                        where: {
-                            socialAccountId: row.socialAccountId,
-                            status: { in: ["SENDING", "SENT", "UNCONFIRMED"] },
-                            updatedAt: { gte: new Date(now.getTime() - 60 * 60 * 1000) },
-                        },
-                    })
-                );
-            }
-            if ((sentThisHour.get(row.socialAccountId) as number) >= ACCOUNT_HOURLY_LIMIT) continue; // stays queued
-
+            let privateStatus = row.status as Outcome;
             if (row.status === "PENDING") {
-                await sendPrivate(row, now, flagOn);
-                sentThisHour.set(row.socialAccountId, (sentThisHour.get(row.socialAccountId) as number) + 1);
+                privateStatus = await sendPrivate(row, now, flagOn);
+                sentThisHour.set(row.socialAccountId, sent + 1);
             }
-            if (row.publicStatus === "PENDING") await sendPublic(row, flagOn);
+            if (row.publicStatus === "PENDING") {
+                // The public reply usually says "sent you a DM", so it only goes out once the DM did.
+                if (privateStatus === "SENT") await sendPublic(row, flagOn);
+                else if (privateStatus !== null) await setPublicStatus(row.id, "PENDING", { publicStatus: "SKIPPED" });
+            }
             handled++;
         } catch (error) {
             console.error(`[KeywordTriggers] Auto-reply ${row.id} failed:`, errorText(error));
