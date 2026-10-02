@@ -56,7 +56,8 @@ export type JobType =
     | "warmup_seed_reply"
     | "EMAIL_DRAFT_BATCH_SUBMIT"
     | "EMAIL_DRAFT_BATCH_POLL"
-    | "invoice_pdf_render";
+    | "invoice_pdf_render"
+    | "playbook_generate";
 
 export interface JobPayload {
     leadId?: string | undefined;

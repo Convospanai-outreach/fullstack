@@ -80,6 +80,7 @@ export const landingLeadPayloadSchema = z.object({
     utmContent: z.string().max(200).optional(),
     referrer: z.string().max(2000).optional(),
     socialToken: z.string().max(300).optional(), // creator funnel ?t= link token, verified by the intake worker
+    whatsappConsent: z.boolean().optional(), // creator funnel pages' WhatsApp opt-in checkbox
     website: z.string().max(500).optional(), // honeypot
 });
 

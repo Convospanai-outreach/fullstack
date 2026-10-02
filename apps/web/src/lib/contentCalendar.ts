@@ -101,6 +101,9 @@ export type CalendarPost = {
     timezone: string | null;
     approvalRequestId: string | null;
     reviewNote: string | null;
+    // Text that replaces the body on that channel, and a suggested visual (playbook wizard drafts).
+    channelCaptions?: { INSTAGRAM?: string; LINKEDIN?: string } | null;
+    visualBrief?: string | null;
     targets: { id: string; status: string; lastError: string | null; socialAccount: CalendarAccount }[];
 };
 

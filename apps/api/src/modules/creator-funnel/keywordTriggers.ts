@@ -40,7 +40,7 @@ export const PER_PERSON_COOLDOWN_MS = 24 * 60 * 60 * 1000; // one auto-reply per
 export const ACCOUNT_HOURLY_LIMIT = 200;
 export const PRIVATE_REPLY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000; // Meta: 7 days; an hour's margin
 export const REPLY_TEXT_MAX_BYTES = 700; // leaves room for the landing link inside Instagram's 1,000 bytes
-const WEB_BASE_URL = (process.env["WEB_BASE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
+export const WEB_BASE_URL = (process.env["WEB_BASE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
 
 /**
  * The landing page link in an auto-reply: the signed ?t= token (linkToken.ts) plus UTM. The

@@ -6100,6 +6100,82 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-316 (Fixed — creator funnel phase 5b-2: WhatsApp opt-in on launch plan pages):** pages a launch plan drafts
+  (`LandingPage.funnelStage` set) ask sign-ups for WhatsApp consent:
+  - **Checkbox:** unticked by default, under the phone field; the text names WhatsApp and the business (team name). It is built
+    once in the api (`whatsappOptIn.ts`) and used by the public page payload (`whatsappOptIn`), the Cloudflare page builder
+    (HTML-escaped, outside the hashed script) and the ledger note. Other pages show no checkbox.
+  - **Stored:** `LandingLead.whatsappConsent` (nullable, guarded ALTER), only when the page has a funnel stage and a phone was given.
+  - **Consent:** the intake records it with `ConsentService.recordConsent` (method WEB_FORM, no staff user, proof
+    `landing_lead:<id>`, the sign-up's IP, the wording and page version in the notes) only when the lead it became has that same
+    phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
+    repeat it. A failure never fails the intake.
+  - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
+  - **Known gap (not changed here):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+    The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
+    relies on the ledger alone.
+  - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
+
+- **OPEN-315 (Fixed — creator funnel phase 5b-1: plan landing pages and keyword trigger):** a launch plan also drafts:
+  - **Pages:** a lead-magnet opt-in page (TOFU) and a sales page (BOFU), each through the landing agent (campaign, brief,
+    wireframes, selected page).
+  - **Sales page buttons:** they open the booking link, or `<WEB_BASE_URL>/checkout/<productId>`. They use a new section `ctaHref`,
+    rendered only when it is https, in both renderer copies; anything else keeps `#lead-form`.
+  - **Keyword trigger:** a switched-off comment keyword auto-reply (an Instagram account preferred, else a Facebook Page of the
+    plan) that sends the lead-magnet page.
+  - **Post prompts:** TOFU and MOFU posts ask readers to comment the keyword (default GUIDE).
+  - **Ids:** plain id columns on `PlaybookRun` (no FK; Landing* tables aren't in migrations), saved as soon as each exists, so a
+    retry carries on.
+  - **Order:** pages are made before the READY claim; the trigger after it, through `createTrigger`'s own checks.
+  - **Notes:** if there's no account, or the trigger is refused, `PlaybookRun.notes` says so.
+  - **Triggers and draft pages:** a switched-off trigger may point at a draft page. Switching one on, or pointing an active one at a
+    page, needs the page published. The trigger editor lists linked draft pages.
+  - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
+    switched-on trigger stay.
+  - **Not here:** the WhatsApp consent checkbox (5b-2).
+  - **Prod check (2026-10-02, after deploy):** a SQL-enqueued run on a test team (2 posts a week, booking offer, no social
+    account) came out READY with 8 draft posts, both draft pages (TOFU and BOFU, real AI copy, not the fallback), sales page buttons
+    on the booking link, and the no-account note. Deleted afterwards. Two follow-ups, fixed in the 5b-2 PR: the footer's "back to
+    top" button was pointed at the booking link too, and the wizard's cost note said N+4 credits where the two pages cost about 14
+    (brief 2 + wireframes 5, each).
+
+- **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
+  STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults
+  are unchanged (no Gemini key in prod).
+  - **Prod key:** prod has only `DEEPSEEK_API_KEY`, and no team has its own keys.
+  - **Model names:** `GET /models` lists only `deepseek-flash` and `deepseek-v4-pro`. The legacy names still work: `deepseek-chat` is
+    served by V4.1 Flash without thinking, and `deepseek-reasoner` by Flash with thinking (slower, billed reasoning tokens).
+  - **Every askAI caller without an explicit complexity:**
+    - it defaults to STRATEGIC, which is `deepseek-reasoner`;
+    - the one logged call took 19s, close to the 30s timeout.
+  - **Gemini defaults:** they still name the retired `gemini-1.5-*` models. That only matters if a Gemini key is added.
+  - **The playbook wizard opts into ROUTINE** (`deepseek-chat`).
+  - **Open question:** should the other callers move as well, or should `DEEPSEEK_MODEL` be pinned? That's a product decision,
+    left open.
+
+- **OPEN-313 (Fixed — creator funnel phase 5a: playbook wizard, post drafts):** Content > Launch plans
+  (`/content/plans`, `GET/POST /content/playbooks`, `GET/DELETE /content/playbooks/:id`, `POST .../retry`), behind
+  `creator-funnel`.
+  - **Inputs:** an offer (an active checkout Product, or a call through the team's own https booking link), an
+    audience (an existing ICP, or a description that creates a simple ICP), a lead magnet, a tone, a start date
+    (tomorrow to 60 days out), 2-5 posts a week, and accounts.
+  - **Output:** a `PlaybookRun` plus 4 weeks of DRAFT ContentPosts at 10:00 local (DST-safe), spread over the
+    team's stage mix by largest remainder. Each post has Facebook text (`body`), Instagram and LinkedIn text
+    (`channelCaptions`), and a `visualBrief`. Every post points back with `playbookRunId` (SetNull), so the
+    set is reviewed and deleted in one place.
+  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one short call per post, 4 at a time. askAI's Anthropic path caps replies at 800 tokens and each call at 30s, so a week per call would be cut off.
+    The job writes everything first, then saves all posts in one transaction that claims GENERATING -> READY, so a
+    repeated job saves nothing twice. It never throws: AI calls are billed, so a failure becomes FAILED with a
+    manual "Try again". There is one GENERATING plan per team; one stuck for 15 minutes can be retried.
+  - **Captions are content:** the publisher sends the Instagram caption on Instagram. `submitPost` checks
+    Instagram's limits on that caption, and the approval card shows each channel's text. Editing a channel
+    caption withdraws an approval like editing the body does. The visual brief isn't posted.
+  - **Delete:** deletes each draft through `deletePost` (approvals withdrawn). Posts already live are kept and
+    detached. An ICP the wizard created stays.
+  - **Nothing publishes:** every post is a DRAFT and goes through the existing approval flow.
+  - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
+    `playbookRunId` links.
+
 - **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
   answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
   `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check

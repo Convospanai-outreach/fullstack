@@ -10,6 +10,8 @@ interface Props {
     title?: string | null;
     version: number;
     renderedJson: unknown;
+    // Creator funnel pages: the WhatsApp opt-in checkbox text from the API, or null for none.
+    whatsappOptIn?: string | null;
 }
 
 const API_BASE = getBrowserApiBase();
@@ -28,7 +30,7 @@ async function trackEvent(slug: string, payload: { eventName: string; eventData?
     }).catch(() => null);
 }
 
-export default function PublishedLandingRenderer({ slug, title, version, renderedJson }: Props) {
+export default function PublishedLandingRenderer({ slug, title, version, renderedJson, whatsappOptIn }: Props) {
     const [submitting, setSubmitting] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [formStarted, setFormStarted] = useState(false);
@@ -98,6 +100,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                                         // Creator funnel: the signed ?t= from an auto-reply link, so the
                                         // sign-up merges into the lead that got it.
                                         socialToken: url.searchParams.get("t") || undefined,
+                                        whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
                                     }),
                                 });
                                 if (!res.ok) {
@@ -121,6 +124,12 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                         <input type="text" name="name" placeholder="Name" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="email" name="email" placeholder="Work email" required className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="phone" placeholder="Phone" className="rounded-md border border-slate-300 px-3 py-2" />
+                        {whatsappOptIn ? (
+                            <label className="flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="whatsappConsent" className="mt-1" />
+                                {whatsappOptIn}
+                            </label>
+                        ) : null}
                         <input type="text" name="company" placeholder="Company" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="title" placeholder="Title" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />

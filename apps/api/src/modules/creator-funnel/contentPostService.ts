@@ -9,6 +9,9 @@ import { getBreakerState } from "@/modules/overseer/breakerService";
 // review or approved sends it back to DRAFT, so nothing publishes that no one approved.
 // Moving an approved post to another time keeps the approval (the approver approved the
 // content; the time was on the approval card and can be moved by the author).
+// A post can carry its own text for Instagram or LinkedIn (channelCaptions); that text replaces
+// the body there, so it counts as content: it is checked, shown on the approval card, and
+// editing it withdraws the approval like editing the body does.
 
 // The transaction client of the (extended) app client, which Prisma.TransactionClient doesn't match.
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
@@ -46,6 +49,48 @@ const PLATFORM_LABEL: Record<SocialPlatform, string> = {
 export const PUBLISH_SCOPE: Record<string, string> = { FACEBOOK_PAGE: "pages_manage_posts", INSTAGRAM: "instagram_content_publish" };
 
 export const INSTAGRAM_LIMITS = { caption: 2200, hashtags: 30, mentions: 20, media: 10 };
+
+export type ChannelCaptions = { INSTAGRAM?: string | undefined; LINKEDIN?: string | undefined };
+const CAPTION_CHANNEL: Partial<Record<SocialPlatform, keyof ChannelCaptions>> = {
+    INSTAGRAM: "INSTAGRAM",
+    LINKEDIN_MEMBER: "LINKEDIN",
+    LINKEDIN_ORG: "LINKEDIN",
+};
+
+/** The channel captions stored on a post, without blank or unknown entries. */
+export function readCaptions(value: unknown): ChannelCaptions {
+    const out: ChannelCaptions = {};
+    if (!value || typeof value !== "object") return out;
+    for (const key of ["INSTAGRAM", "LINKEDIN"] as const) {
+        const text = (value as Record<string, unknown>)[key];
+        if (typeof text === "string" && text.trim()) out[key] = text;
+    }
+    return out;
+}
+
+/** What a post says on one platform: its channel caption when it has one, else the body. */
+export function captionFor(post: { body: string; channelCaptions?: unknown }, platform: SocialPlatform | string): string {
+    const channel = CAPTION_CHANNEL[platform as SocialPlatform];
+    return (channel && readCaptions(post.channelCaptions)[channel]) || post.body;
+}
+
+function captionsJson(captions: ChannelCaptions | undefined) {
+    const clean = readCaptions(captions);
+    return Object.keys(clean).length ? (clean as Prisma.InputJsonObject) : Prisma.DbNull;
+}
+
+const sameCaptions = (a: unknown, b: unknown) => {
+    const x = readCaptions(a);
+    const y = readCaptions(b);
+    return x.INSTAGRAM === y.INSTAGRAM && x.LINKEDIN === y.LINKEDIN;
+};
+
+// The approval card shows exactly what will go out on each platform.
+function approvalText(post: { body: string; channelCaptions?: unknown }, platforms: SocialPlatform[]) {
+    const unique = [...new Set(platforms)];
+    if (unique.every((p) => captionFor(post, p) === post.body)) return post.body;
+    return unique.map((p) => `${PLATFORM_LABEL[p]}:\n${captionFor(post, p)}`).join("\n\n");
+}
 
 export function instagramProblems(body: string, mediaUrls: string[]): string[] {
     const problems: string[] = [];
@@ -109,9 +154,11 @@ export type PostInput = {
     scheduledAt: Date | null;
     timezone: string | null;
     accountIds: string[];
+    channelCaptions?: ChannelCaptions;
+    visualBrief?: string | null;
 };
 
-async function assertAccounts(teamId: string, accountIds: string[]) {
+export async function assertAccounts(teamId: string, accountIds: string[]) {
     if (accountIds.length === 0) return;
     const found = await prisma.socialAccount.count({ where: { teamId, id: { in: accountIds }, status: { not: "DISCONNECTED" } } });
     if (found !== new Set(accountIds).size) throw new ContentPostError(400, "Pick accounts that are connected to this workspace.");
@@ -158,6 +205,8 @@ export async function createPost(teamId: string, userId: string, input: PostInpu
             mediaUrls: input.mediaUrls,
             scheduledAt: input.scheduledAt,
             timezone: input.timezone,
+            channelCaptions: captionsJson(input.channelCaptions),
+            visualBrief: input.visualBrief?.trim() || null,
             targets: { create: [...new Set(input.accountIds)].map((socialAccountId) => ({ socialAccountId })) },
         },
         include: POST_INCLUDE,
@@ -194,6 +243,7 @@ export async function updatePost(teamId: string, postId: string, patch: Partial<
     }
     const contentChanged =
         (patch.body !== undefined && patch.body !== post.body) ||
+        (patch.channelCaptions !== undefined && !sameCaptions(patch.channelCaptions, post.channelCaptions)) ||
         (patch.mediaUrls !== undefined && !(patch.mediaUrls.length === post.mediaUrls.length && patch.mediaUrls.every((u, i) => u === post.mediaUrls[i]))) ||
         !sameSet(accountIds, currentAccounts);
     const inApproval = post.status === "IN_REVIEW" || post.status === "APPROVED";
@@ -211,6 +261,8 @@ export async function updatePost(teamId: string, postId: string, patch: Partial<
             where: { id: postId, teamId, updatedAt: post.updatedAt },
             data: {
                 ...(patch.body !== undefined ? { body: patch.body } : {}),
+                ...(patch.channelCaptions !== undefined ? { channelCaptions: captionsJson(patch.channelCaptions) } : {}),
+                ...(patch.visualBrief !== undefined ? { visualBrief: patch.visualBrief?.trim() || null } : {}),
                 ...(patch.funnelStage !== undefined ? { funnelStage: patch.funnelStage } : {}),
                 ...(patch.mediaUrls !== undefined ? { mediaUrls: patch.mediaUrls } : {}),
                 ...(patch.scheduledAt !== undefined ? { scheduledAt: patch.scheduledAt } : {}),
@@ -270,7 +322,9 @@ export async function submitPost(teamId: string, postId: string, userId: string)
     // On a retry after a partial failure, only the accounts it didn't reach are posted to again.
     const targets = post.targets.filter((t) => t.status !== "PUBLISHED");
     if (!(SUBMITTABLE as readonly string[]).includes(post.status)) throw new ContentPostError(409, "This post is already in review or approved.");
-    if (!post.body.trim() && post.mediaUrls.length === 0) throw new ContentPostError(400, "Write something or add an image first.");
+    if (post.mediaUrls.length === 0 && post.targets.some((t) => !captionFor(post, t.socialAccount.platform).trim())) {
+        throw new ContentPostError(400, "Write something or add an image first.");
+    }
     if (!post.scheduledAt) throw new ContentPostError(400, "Pick a time first.");
     assertFuture(post.scheduledAt);
     if (targets.length === 0) throw new ContentPostError(400, post.targets.length ? "This post is already live on every account it targets." : "Pick at least one account.");
@@ -284,7 +338,7 @@ export async function submitPost(teamId: string, postId: string, userId: string)
         throw new ContentPostError(400, `${noPermission.socialAccount.handle || PLATFORM_LABEL[noPermission.socialAccount.platform]} wasn't given permission to post. Reconnect it in Settings > Social accounts and allow posting.`);
     }
     if (targets.some((t) => t.socialAccount.platform === "INSTAGRAM")) {
-        const problems = instagramProblems(post.body, post.mediaUrls);
+        const problems = instagramProblems(captionFor(post, "INSTAGRAM"), post.mediaUrls);
         if (problems.length) throw new ContentPostError(400, problems.join(" "));
     }
 
@@ -306,7 +360,7 @@ export async function submitPost(teamId: string, postId: string, userId: string)
                 payload: {
                     subject: await approvalSubject(tx, post.id, scheduledAt, post.timezone),
                     recipient: targets.map((t) => `${t.socialAccount.handle || "Account"} (${PLATFORM_LABEL[t.socialAccount.platform]})`).join(", "),
-                    body: post.body,
+                    body: approvalText(post, targets.map((t) => t.socialAccount.platform)),
                     mediaUrls: post.mediaUrls,
                 },
             },

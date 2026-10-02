@@ -138,6 +138,22 @@ describe("contentPostService", () => {
             }));
         });
 
+        it("treats a changed channel caption on an approved post as an edit, but not a changed visual brief", async () => {
+            mockDb.contentPost.findFirst.mockResolvedValue(post({ status: "APPROVED", approvalRequestId: "req-1", channelCaptions: { INSTAGRAM: "Old" } }));
+            await updatePost(TEAM, "post-1", { channelCaptions: { INSTAGRAM: "New" } });
+            expect(mockDb.contentPost.updateMany.mock.calls[0][0].data).toMatchObject({ channelCaptions: { INSTAGRAM: "New" }, status: "DRAFT" });
+
+            vi.clearAllMocks();
+            mockDb.$transaction.mockImplementation((fn: any) => fn(mockDb));
+            mockDb.contentPost.updateMany.mockResolvedValue({ count: 1 });
+            mockDb.contentPost.findFirst.mockResolvedValue(post({ status: "APPROVED", approvalRequestId: "req-1", channelCaptions: { INSTAGRAM: "Same" } }));
+            await updatePost(TEAM, "post-1", { channelCaptions: { INSTAGRAM: "Same" }, visualBrief: "A new photo idea" });
+            const data = mockDb.contentPost.updateMany.mock.calls[0][0].data;
+            expect(data.status).toBeUndefined();
+            expect(data.visualBrief).toBe("A new photo idea");
+            expect(mockDb.approvalRequest.updateMany).not.toHaveBeenCalled();
+        });
+
         it("treats adding an account to an approved post as an edit", async () => {
             mockDb.socialAccount.count.mockResolvedValue(2);
             mockDb.contentPost.findFirst.mockResolvedValue(post({ status: "APPROVED", approvalRequestId: "req-1" }));
@@ -219,6 +235,17 @@ describe("contentPostService", () => {
             await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ status: "IN_REVIEW" }));
             await expectError(submitPost(TEAM, "post-1", "user-1"), 409);
+        });
+
+        it("checks Instagram's rules against the Instagram caption, and shows each channel's text on the approval card", async () => {
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ channelCaptions: { INSTAGRAM: "x".repeat(2201) } }));
+            const error = await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
+            expect(error.message).toMatch(/2200 characters/);
+
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [ig(), fb()], channelCaptions: { INSTAGRAM: "Insta text", LINKEDIN: "Not posted" } }));
+            mockDb.contentPostTarget.findMany.mockResolvedValue([]);
+            await submitPost(TEAM, "post-1", "user-1");
+            expect(mockDb.approvalRequest.create.mock.calls[0][0].data.payload.body).toBe("Instagram:\nInsta text\n\nFacebook Page:\nHello");
         });
 
         it("needs the account to have granted posting permission", async () => {

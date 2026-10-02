@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
-import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE } from "./contentPostService";
+import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE, captionFor } from "./contentPostService";
 import { GraphError, graphCall } from "./metaGraph";
 
 // Creator funnel publisher (phase 3b). Runs every minute from the worker tick and only ever
@@ -57,7 +57,7 @@ type Target = {
     updatedAt: Date;
     socialAccount: { platform: string; externalId: string; handle: string | null; status: string; scopes: string[]; encryptedToken: unknown };
 };
-type Post = { id: string; teamId: string; body: string; mediaUrls: string[]; createdById: string | null; targets: Target[] };
+type Post = { id: string; teamId: string; body: string; channelCaptions: unknown; mediaUrls: string[]; createdById: string | null; targets: Target[] };
 type Outcome = "PUBLISHED" | "FAILED" | null;
 
 const labelOf = (t: Target) => t.socialAccount.handle || PLATFORM_LABEL[t.socialAccount.platform] || "the account";
@@ -95,10 +95,11 @@ async function publishToPage(post: Post, t: Target, token: string) {
     if (t.status === "SENDING") return fail(t, unconfirmed(t));
     const page = encodeURIComponent(t.socialAccount.externalId);
     const [first, ...rest] = post.mediaUrls;
-    if (!first) return send(t, async () => idOf(await graphCall("POST", `${page}/feed`, { message: post.body }, token)));
+    const text = captionFor(post, "FACEBOOK_PAGE");
+    if (!first) return send(t, async () => idOf(await graphCall("POST", `${page}/feed`, { message: text }, token)));
     if (rest.length === 0) {
         return send(t, async () => {
-            const json = await graphCall("POST", `${page}/photos`, { url: first, caption: post.body }, token);
+            const json = await graphCall("POST", `${page}/photos`, { url: first, caption: text }, token);
             return typeof json?.post_id === "string" ? json.post_id : idOf(json);
         });
     }
@@ -111,7 +112,7 @@ async function publishToPage(post: Post, t: Target, token: string) {
     } catch (error) {
         return fail(t, messageOf(error));
     }
-    return send(t, async () => idOf(await graphCall("POST", `${page}/feed`, { message: post.body, ...attached }, token)));
+    return send(t, async () => idOf(await graphCall("POST", `${page}/feed`, { message: text, ...attached }, token)));
 }
 
 async function instagramQuotaLeft(ig: string, token: string): Promise<number | null> {
@@ -129,10 +130,11 @@ async function instagramQuotaLeft(ig: string, token: string): Promise<number | n
 async function createContainer(ig: string, post: Post, token: string): Promise<string> {
     const [first, ...rest] = post.mediaUrls;
     if (!first) throw new GraphError("Instagram posts need at least one image.", false);
-    if (rest.length === 0) return idOf(await graphCall("POST", `${ig}/media`, { image_url: first, caption: post.body }, token));
+    const caption = captionFor(post, "INSTAGRAM");
+    if (rest.length === 0) return idOf(await graphCall("POST", `${ig}/media`, { image_url: first, caption }, token));
     const children: string[] = [];
     for (const url of post.mediaUrls) children.push(idOf(await graphCall("POST", `${ig}/media`, { image_url: url, is_carousel_item: "true" }, token)));
-    return idOf(await graphCall("POST", `${ig}/media`, { media_type: "CAROUSEL", children: children.join(","), caption: post.body }, token));
+    return idOf(await graphCall("POST", `${ig}/media`, { media_type: "CAROUSEL", children: children.join(","), caption }, token));
 }
 
 async function containerStatus(containerId: string, token: string): Promise<string> {
@@ -262,7 +264,7 @@ async function runPost(c: Candidate, now: Date, started: number): Promise<Outcom
         const post = await prisma.contentPost.findFirst({
             where: { id: c.id },
             select: {
-                id: true, teamId: true, body: true, mediaUrls: true, createdById: true,
+                id: true, teamId: true, body: true, channelCaptions: true, mediaUrls: true, createdById: true,
                 targets: {
                     where: { status: { in: ["PENDING", "SENDING"] } },
                     select: {

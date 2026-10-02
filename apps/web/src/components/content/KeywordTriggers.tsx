@@ -31,7 +31,7 @@ export type KeywordTrigger = {
 type TriggerList = {
     triggers: KeywordTrigger[];
     accounts: { id: string; platform: "INSTAGRAM" | "FACEBOOK_PAGE"; handle: string | null; status: string }[];
-    landingPages: { id: string; slug: string; title: string | null }[];
+    landingPages: { id: string; slug: string; title: string | null; status?: string }[];
     posts: { id: string; body: string; accountIds: string[] }[];
 };
 
@@ -286,7 +286,7 @@ export function KeywordTriggers() {
                                 <option value="">No link</option>
                                 {data.landingPages.map((p) => (
                                     <option key={p.id} value={p.id}>
-                                        {p.title || `/p/${p.slug}`}
+                                        {p.title || `/p/${p.slug}`}{p.status && p.status !== "published" ? " (draft: publish it before switching on)" : ""}
                                     </option>
                                 ))}
                             </select>

@@ -486,6 +486,7 @@ model LandingLead {
   ipAddress     String?
   userAgent     String?
   socialToken   String? // creator funnel: the signed ?t= link the visitor came from (linkToken.ts); intake merges into that lead
+  whatsappConsent Boolean? // creator funnel: ticked the WhatsApp opt-in on a launch plan page (whatsappOptIn.ts); only kept with a phone
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -565,6 +566,7 @@ model ICP {
   team             Team              @relation(fields: [teamId], references: [id])
   campaigns        Campaign[]
   landingCampaigns LandingCampaign[]
+  playbookRuns     PlaybookRun[]
 
   @@index([teamId])
   @@index([status])
@@ -609,8 +611,9 @@ model Product {
   automationsActivatedById String?
   automationsActivatedAt   DateTime?
 
-  team   Team    @relation(fields: [teamId], references: [id])
-  orders Order[]
+  team         Team          @relation(fields: [teamId], references: [id])
+  orders       Order[]
+  playbookRuns PlaybookRun[]
 
   @@index([teamId])
 }
@@ -1368,6 +1371,7 @@ model Team {
   socialContacts  SocialContact[]
   keywordTriggers KeywordTrigger[]
   contentPosts    ContentPost[]
+  playbookRuns    PlaybookRun[]
   contentStageMix Json? // creator funnel: target % per FunnelStage ({TOFU,MOFU,BOFU,POST}); null = 60/30/10/0
 
   // WhatsApp Business API ownership, set at setup time. Automated sequence sends
@@ -1624,15 +1628,53 @@ model ContentPost {
   reviewNote        String?           @db.Text // why it last went back to DRAFT
   publishLeaseUntil DateTime? // the publisher's claim on this post; free once past (contentPublisher.ts)
   createdById       String?
+  channelCaptions   Json? // per-channel text that replaces body there: {INSTAGRAM?, LINKEDIN?}
+  visualBrief       String?           @db.Text // suggested image or video for the post (playbook wizard)
+  playbookRunId     String? // the playbook wizard run that drafted it
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   team            Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playbookRun     PlaybookRun?        @relation(fields: [playbookRunId], references: [id], onDelete: SetNull)
   targets         ContentPostTarget[]
   keywordTriggers KeywordTrigger[]
 
   @@index([teamId, scheduledAt])
   @@index([status, scheduledAt])
+  @@index([playbookRunId])
+}
+
+// Creator funnel playbook wizard: one run drafts a launch bundle (posts now; landing pages,
+// keyword trigger and sequences later) that is reviewed, and deleted, in one place. Everything
+// it makes points back here with playbookRunId. Nothing in it publishes or sends on its own.
+model PlaybookRun {
+  id          String    @id @default(uuid())
+  teamId      String
+  createdById String?
+  name        String
+  status      String    @default("GENERATING") // GENERATING | READY | FAILED
+  error       String?   @db.Text
+  inputs      Json // what the wizard was given: offer, audience, lead magnet, tone, start date, cadence
+  productId   String?
+  bookingUrl  String?
+  icpId       String?
+  icpCreated  Boolean   @default(false) // the wizard created the ICP from a typed audience
+  // What else the run drafted (5b). Plain ids: Landing* tables aren't created by migrations, so no FK.
+  leadMagnetCampaignId String? // LandingCampaign of the lead-magnet opt-in page
+  leadMagnetPageId     String? // its draft LandingPage
+  salesCampaignId      String? // LandingCampaign of the sales page
+  salesPageId          String? // its draft LandingPage (CTA links to the booking or checkout page)
+  keywordTriggerId     String? // the switched-off comment keyword auto-reply to the lead-magnet page
+  notes                String?  @db.Text // what the run couldn't make and why, shown on the plan
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  icp          ICP?          @relation(fields: [icpId], references: [id], onDelete: SetNull)
+  contentPosts ContentPost[]
+
+  @@index([teamId, createdAt])
 }
 
 model ContentPostTarget {
