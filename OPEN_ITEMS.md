@@ -6100,6 +6100,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-314 (Open — AI model routing defaults):** checked 2026-10-02.
+  - **Prod key:** prod has only `DEEPSEEK_API_KEY`, and no team has its own keys.
+  - **Model names:** `GET /models` lists only `deepseek-flash` and `deepseek-v4-pro`. The legacy names still work: `deepseek-chat` is
+    served by V4.1 Flash without thinking, and `deepseek-reasoner` by Flash with thinking (slower, billed reasoning tokens).
+  - **Every askAI caller without an explicit complexity:**
+    - it defaults to STRATEGIC, which is `deepseek-reasoner`;
+    - the one logged call took 19s, close to the 30s timeout.
+  - **Gemini defaults:** they still name the retired `gemini-1.5-*` models. That only matters if a Gemini key is added.
+  - **The playbook wizard opts into ROUTINE** (`deepseek-chat`).
+  - **Open question:** should the other callers move as well, or should `DEEPSEEK_MODEL` be pinned? That's a product decision,
+    left open.
+
 - **OPEN-313 (Fixed — creator funnel phase 5a: playbook wizard, post drafts):** Content > Launch plans
   (`/content/plans`, `GET/POST /content/playbooks`, `GET/DELETE /content/playbooks/:id`, `POST .../retry`), behind
   `creator-funnel`.

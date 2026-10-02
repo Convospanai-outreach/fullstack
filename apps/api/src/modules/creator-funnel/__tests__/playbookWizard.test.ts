@@ -163,6 +163,8 @@ describe("playbookWizard", () => {
 
             expect(askAI).toHaveBeenCalledTimes(12); // one short call per post
             expect(askAI.mock.calls[0][1]).toBe(TEAM);
+            // The cheap, fast tier (DeepSeek Flash without thinking), not the STRATEGIC default.
+            expect(askAI.mock.calls[0][2]).toMatchObject({ complexity: "ROUTINE", expectsJson: true });
             const posts = mockDb.contentPost.createMany.mock.calls[0][0].data;
             expect(posts).toHaveLength(12);
             for (const p of posts) {
