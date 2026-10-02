@@ -63,6 +63,12 @@ const plan = (over: Partial<PlanDetail> = {}): PlanDetail => ({
     leadMagnetPage: { id: "lp-1", campaignId: "lc-1", slug: "meal-plan", title: "Free meal plan", status: "draft" },
     salesPage: { id: "lp-2", campaignId: "lc-2", slug: "course", title: "Batch Cooking Course", status: "published" },
     keywordTrigger: { id: "trig-1", keywords: ["GUIDE"], active: false, socialAccount: { platform: "INSTAGRAM", handle: "@maker" } },
+    sequences: [
+        {
+            id: "seq-1", campaignId: "camp-1", name: "Spring launch: nurture emails", status: "DRAFT", funnelStage: "MOFU",
+            steps: [{ delayDays: 0, subject: "Your meal plan" }, { delayDays: 2, subject: "One more idea" }], _count: { enrollments: 0 },
+        },
+    ],
     icpCreated: true,
     product: { id: "prod-1", name: "Batch Cooking Course" },
     icp: { id: "icp-1", name: "Audience: busy parents" },
@@ -149,7 +155,7 @@ describe("launch plans", () => {
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         route({
             "GET /api/proxy/content/playbooks/run-1": () => json(200, { run: plan() }),
-            "DELETE /api/proxy/content/playbooks/run-1": () => json(200, { deleted: 11, kept: 1, pagesDeleted: 1, pagesKept: 1, triggerKept: false }),
+            "DELETE /api/proxy/content/playbooks/run-1": () => json(200, { deleted: 11, kept: 1, pagesDeleted: 1, pagesKept: 1, triggerKept: false, sequencesDeleted: 1, sequencesKept: 0 }),
         });
         await render(<LaunchPlanReview id="run-1" />);
         const text = container.textContent ?? "";
@@ -165,10 +171,16 @@ describe("launch plans", () => {
         expect(container.querySelector('a[href="/landing-agent/lc-1/editor"]')).toBeTruthy();
         expect(text).toContain('"GUIDE" on @maker');
         expect(text).toContain("Off: publish the lead-magnet page, then switch it on");
+        // 5c: the email sequences, each in its campaign, with nobody added.
+        expect(text).toContain("Spring launch: nurture emails");
+        expect(text).toContain("Right away: Your meal plan");
+        expect(text).toContain("2 days later: One more idea");
+        expect(text).toContain("Draft: nobody added yet");
+        expect(container.querySelector('a[href="/campaigns/camp-1"]')).toBeTruthy();
 
         await click(byText("Delete plan and drafts"));
         expect(confirm).toHaveBeenCalled();
-        expect(toast.success).toHaveBeenCalledWith("Deleted 11 drafts and 1 draft page. Kept 1 live post, 1 published page.");
+        expect(toast.success).toHaveBeenCalledWith("Deleted 11 drafts and 1 draft page and 1 email sequence. Kept 1 live post, 1 published page.");
         expect(push).toHaveBeenCalledWith("/content/plans");
         confirm.mockRestore();
     });

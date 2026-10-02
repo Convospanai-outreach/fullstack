@@ -137,8 +137,10 @@ export function LaunchPlans() {
                     <h3 className="text-sm font-semibold text-foreground">New launch plan</h3>
                     <p className="text-xs text-muted-foreground">
                         Writes {postsPerWeek * 4} draft posts over 4 weeks, spread across your funnel stage mix, with text for Facebook, Instagram and
-                        LinkedIn and a suggested visual for each, plus a lead-magnet page, a sales page and a comment keyword auto-reply, all as
-                        drafts. Uses about {postsPerWeek * 4 + 14} AI credits. Nothing is posted, published or switched on until you do it.
+                        LinkedIn and a suggested visual for each, plus a lead-magnet page, a sales page, a comment keyword auto-reply and
+                        {offerType === "product" ? " nurture, checkout reminder and after-purchase email sequences" : " a nurture email sequence"}, all as
+                        drafts. Uses about {postsPerWeek * 4 + 14 + (offerType === "product" ? 6 : 4)} AI credits. Nothing is posted, published, sent or
+                        switched on until you do it.
                     </p>
                 </div>
 
