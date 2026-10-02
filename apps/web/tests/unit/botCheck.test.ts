@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import { createHash } from "crypto";
-import { looksLikeBot, verifyTurnstile, isBreachedPassword } from "../botCheck";
+import { looksLikeBot, verifyTurnstile, isBreachedPassword } from "@/lib/botCheck";
 
 describe("looksLikeBot", () => {
     it("flags a filled honeypot", () => {

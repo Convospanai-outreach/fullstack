@@ -20,8 +20,8 @@ const { mockPrisma, tx } = vi.hoisted(() => {
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/invitations", () => ({ isAssignableInviteRole: (r: string) => r !== "SUPER_ADMIN" }));
 
-import { provisionUserTeam } from "../passwordOnboarding";
-import { FREE_TEAM_INITIAL_CREDITS } from "../googleOnboarding";
+import { provisionUserTeam } from "@/lib/passwordOnboarding";
+import { FREE_TEAM_INITIAL_CREDITS } from "@/lib/googleOnboarding";
 
 describe("provisionUserTeam", () => {
     const user = { id: "u1", name: "Ada L", company: "Analytical Engines", memberships: [] as { id: string }[] };

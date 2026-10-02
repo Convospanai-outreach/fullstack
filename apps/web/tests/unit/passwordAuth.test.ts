@@ -13,7 +13,7 @@ vi.mock("@/lib/passwordOnboarding", () => ({ provisionUserTeam: mockProvisionUse
 vi.mock("@/lib/sso/oidc", () => ({ isSsoEnforcedForEmail: mockIsSsoEnforcedForEmail }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: mockCheckRateLimit }));
 
-import { authorizeCredentials, registerSchema } from "../passwordAuth";
+import { authorizeCredentials, registerSchema } from "@/lib/passwordAuth";
 
 describe("authorizeCredentials", () => {
     const goodPassword = "correct horse battery";
