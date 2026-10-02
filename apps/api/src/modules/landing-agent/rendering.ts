@@ -12,6 +12,7 @@ interface LandingPageSectionLike {
     body?: unknown;
     bullets?: unknown;
     ctaLabel?: unknown;
+    ctaHref?: unknown;
     imageUrl?: unknown;
     imageAlt?: unknown;
 }
@@ -341,6 +342,13 @@ function renderBullets(bullets: unknown): string {
     return `<ul>${bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
+// Where a section's button goes: the section's own https link (a sales page's booking or
+// checkout page), else the page's lead form.
+function ctaHref(section: LandingPageSectionLike): string {
+    const href = text(section.ctaHref);
+    return href && /^https:\/\//i.test(href) && isSafeLink(href) ? escapeHtml(href) : "#lead-form";
+}
+
 function renderImage(section: LandingPageSectionLike, altFallback: string): string {
     const src = text(section.imageUrl);
     if (!src || !isSafeLink(src)) {
@@ -366,7 +374,7 @@ function renderSection(section: LandingPageSectionLike, index: number): string {
         <p class="la-eyebrow">Campaign Offer</p>
         <h1>${heading}</h1>
         ${body ? `<p>${body}</p>` : ""}
-        ${ctaLabel ? `<a class="la-cta" href="#lead-form">${ctaLabel}</a>` : ""}
+        ${ctaLabel ? `<a class="la-cta" href="${ctaHref(section)}">${ctaLabel}</a>` : ""}
     </div>
     ${image ? `<div class="la-hero-media">${image}</div>` : ""}
 </section>`;
@@ -391,7 +399,7 @@ function renderSection(section: LandingPageSectionLike, index: number): string {
     <p class="la-eyebrow">Next Step</p>
     <h2>${heading}</h2>
     ${body ? `<p>${body}</p>` : ""}
-    <a class="la-cta" href="#lead-form">${ctaLabel || "Request a follow-up"}</a>
+    <a class="la-cta" href="${ctaHref(section)}">${ctaLabel || "Request a follow-up"}</a>
 </section>`;
     }
 
@@ -400,7 +408,7 @@ function renderSection(section: LandingPageSectionLike, index: number): string {
 <section id="${id}" class="la-section la-footer" data-section-type="footer">
     <h2>${heading}</h2>
     ${body ? `<p>${body}</p>` : ""}
-    ${ctaLabel ? `<a class="la-cta" href="#lead-form">${ctaLabel}</a>` : ""}
+    ${ctaLabel ? `<a class="la-cta" href="${ctaHref(section)}">${ctaLabel}</a>` : ""}
 </section>`;
     }
 

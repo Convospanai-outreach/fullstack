@@ -69,6 +69,7 @@ export function LaunchPlans() {
     const [tone, setTone] = useState(TONES[0]!);
     const [startDate, setStartDate] = useState(tomorrow);
     const [postsPerWeek, setPostsPerWeek] = useState(3);
+    const [keyword, setKeyword] = useState("GUIDE");
     const [accountIds, setAccountIds] = useState<string[] | null>(null);
     const [busy, setBusy] = useState(false);
 
@@ -90,6 +91,8 @@ export function LaunchPlans() {
 
     const busyWriting = data.runs.some((r) => r.status === "GENERATING" && !r.stale);
     const selected = accountIds ?? [];
+    // The keyword auto-reply listens on an Instagram account or Facebook Page of the plan.
+    const hasTriggerAccount = accounts.some((a) => selected.includes(a.id) && (a.platform === "INSTAGRAM" || a.platform === "FACEBOOK_PAGE"));
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,6 +111,7 @@ export function LaunchPlans() {
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     postsPerWeek,
                     accountIds: selected,
+                    ...(hasTriggerAccount ? { keyword: keyword.trim() } : {}),
                 }),
             });
             const body = await res.json().catch(() => null);
@@ -133,7 +137,8 @@ export function LaunchPlans() {
                     <h3 className="text-sm font-semibold text-foreground">New launch plan</h3>
                     <p className="text-xs text-muted-foreground">
                         Writes {postsPerWeek * 4} draft posts over 4 weeks, spread across your funnel stage mix, with text for Facebook, Instagram and
-                        LinkedIn and a suggested visual for each. Uses AI credits. Nothing is posted until you approve it.
+                        LinkedIn and a suggested visual for each, plus a lead-magnet page, a sales page and a comment keyword auto-reply, all as
+                        drafts. Uses about {postsPerWeek * 4 + 4} AI credits. Nothing is posted, published or switched on until you do it.
                     </p>
                 </div>
 
@@ -232,6 +237,24 @@ export function LaunchPlans() {
                         </ul>
                     )}
                 </fieldset>
+
+                {hasTriggerAccount && (
+                    <div className="space-y-2">
+                        <label htmlFor="plan-keyword" className="text-sm font-medium text-foreground">Comment keyword</label>
+                        <input
+                            id="plan-keyword"
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                            required
+                            pattern="[\p{L}\p{N}]{2,30}"
+                            maxLength={30}
+                            className={input}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Posts ask people to comment this word; an auto-reply (saved switched off) sends them the lead-magnet page.
+                        </p>
+                    </div>
+                )}
 
                 <div className="flex justify-end">
                     <button type="submit" disabled={busy || busyWriting || (offerType === "product" && !productId)} className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50">

@@ -42,7 +42,9 @@ const fail = (status: number, message: string): never => {
     throw new ContentPostError(status, message);
 };
 
-async function checkFields(teamId: string, input: TriggerFields) {
+// A switched-off trigger may point at a draft landing page (the playbook wizard drafts both);
+// it can only be switched on once the page is published.
+async function checkFields(teamId: string, input: TriggerFields, willBeActive: boolean) {
     const account = await prisma.socialAccount.findFirst({
         where: { id: input.socialAccountId, teamId, platform: { in: [...SOCIAL_PLATFORMS] } },
         select: { id: true, platform: true, status: true, scopes: true },
@@ -62,8 +64,9 @@ async function checkFields(teamId: string, input: TriggerFields) {
         if (!post) fail(400, "That post isn't live on this account.");
     }
     if (input.landingPageId) {
-        const page = await prisma.landingPage.findFirst({ where: { id: input.landingPageId, teamId, status: "published" }, select: { id: true, slug: true } });
-        if (!page) fail(400, "Pick a published landing page.");
+        const page = await prisma.landingPage.findFirst({ where: { id: input.landingPageId, teamId }, select: { id: true, slug: true, status: true } });
+        if (!page) fail(400, "Pick one of your landing pages.");
+        if (willBeActive && page!.status !== "published") fail(400, "Publish the landing page before switching this auto-reply on.");
         // Instagram counts the message and the link together. Size the longest link this trigger can
         // send (uuid-length ids, the longest token) so it fails here, not at send time.
         if (account?.platform === "INSTAGRAM") {
@@ -129,7 +132,7 @@ const TRIGGER_SELECT = {
 
 export async function createTrigger(teamId: string, userId: string, raw: TriggerFields) {
     const input = normalize(raw);
-    await checkFields(teamId, input);
+    await checkFields(teamId, input, false);
     return prisma.keywordTrigger.create({ data: { teamId, ...input, active: false, createdById: userId }, select: TRIGGER_SELECT });
 }
 
@@ -144,7 +147,7 @@ export async function updateTrigger(teamId: string, userId: string, id: string, 
         return prisma.keywordTrigger.update({ where: { id: current.id }, data: { active: false }, select: TRIGGER_SELECT });
     }
     const input = normalize({ ...current, ...changes } as TriggerFields);
-    const account = await checkFields(teamId, input);
+    const account = await checkFields(teamId, input, active ?? current.active);
 
     const turningOn = active === true && !current.active;
     if (active ?? current.active) checkCanActivate(account, input);
@@ -169,14 +172,21 @@ export async function deleteTrigger(teamId: string, id: string) {
 // landing pages, and posts live on an account (a trigger can be limited to one of them).
 export async function listTriggers(teamId: string, now = new Date()) {
     const since = new Date(now.getTime() - STATS_WINDOW_MS);
-    const [triggers, accounts, landingPages, posts] = await Promise.all([
-        prisma.keywordTrigger.findMany({ where: { teamId }, orderBy: { createdAt: "asc" }, select: TRIGGER_SELECT }),
+    const triggers = await prisma.keywordTrigger.findMany({ where: { teamId }, orderBy: { createdAt: "asc" }, select: TRIGGER_SELECT });
+    const linkedPageIds = triggers.map((t) => t.landingPageId).filter((id): id is string => Boolean(id));
+    const [accounts, landingPages, posts] = await Promise.all([
         prisma.socialAccount.findMany({
             where: { teamId, platform: { in: [...SOCIAL_PLATFORMS] }, status: { not: "DISCONNECTED" } },
             orderBy: { createdAt: "asc" },
             select: { id: true, platform: true, handle: true, status: true },
         }),
-        prisma.landingPage.findMany({ where: { teamId, status: "published" }, orderBy: { updatedAt: "desc" }, take: 50, select: { id: true, slug: true, title: true } }),
+        // Published pages, plus any draft page a trigger already points at (so editing it keeps it).
+        prisma.landingPage.findMany({
+            where: { teamId, OR: [{ status: "published" }, { id: { in: linkedPageIds } }] },
+            orderBy: { updatedAt: "desc" },
+            take: 50,
+            select: { id: true, slug: true, title: true, status: true },
+        }),
         prisma.contentPost.findMany({
             where: { teamId, targets: { some: { status: "PUBLISHED", externalId: { not: null } } } },
             orderBy: { scheduledAt: "desc" },
