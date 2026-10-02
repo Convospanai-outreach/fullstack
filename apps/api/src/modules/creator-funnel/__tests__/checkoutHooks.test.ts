@@ -116,6 +116,21 @@ describe("checkoutHooks", () => {
             expect(mockDb.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ leadId: "lead-new", direction: "OUTBOUND", sender: "Delivery" }) });
         });
 
+        it("starts the product's after-purchase sequence only after stopping nurture, and only when switched on", async () => {
+            const order: string[] = [];
+            nurture.stopNurture.mockImplementation(async () => { order.push("stop"); return { stopped: true }; });
+            nurture.enrollInNurture.mockImplementation(async () => { order.push("enroll"); });
+            mockDb.order.findFirst.mockResolvedValue(capturedOrder({ leadId: "lead-1", product: product({ postPurchaseSequenceId: "seq-post" }) }));
+            await onOrderCaptured("team-a", "order-1");
+            expect(nurture.enrollInNurture).toHaveBeenCalledWith("team-a", "lead-1", "seq-post");
+            expect(order).toEqual(["stop", "enroll"]);
+
+            nurture.enrollInNurture.mockClear();
+            mockDb.order.findFirst.mockResolvedValue(capturedOrder({ leadId: "lead-1", product: product({ postPurchaseSequenceId: "seq-post", automationsActive: false }) }));
+            await onOrderCaptured("team-a", "order-1");
+            expect(nurture.enrollInNurture).not.toHaveBeenCalled();
+        });
+
         it("uses the existing lead instead of making a duplicate", async () => {
             mockDb.order.findFirst.mockResolvedValue(capturedOrder());
             mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });

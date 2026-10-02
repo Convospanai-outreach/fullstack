@@ -607,6 +607,7 @@ model Product {
   deliveryMailboxId        String? // ConnectedMailbox the delivery email goes from
   cartAbandonSequenceId    String? // CampaignSequence a lead joins when checkout isn't paid in time
   cartAbandonHours         Int?
+  postPurchaseSequenceId   String? // CampaignSequence a buyer joins after payment (e.g. a testimonial request)
   automationsActive        Boolean   @default(false)
   automationsActivatedById String?
   automationsActivatedAt   DateTime?
@@ -1670,6 +1671,9 @@ model PlaybookRun {
   nurtureCampaignId      String? // MOFU nurture: lead magnet, teaching, then the offer (booking offers end with the booking emails)
   cartAbandonCampaignId  String? // BOFU checkout reminders (product offers)
   postPurchaseCampaignId String? // POST testimonial request (product offers)
+  // 5c-1b: the nurture switch. Set = new sign-ups on the plan's lead-magnet page join the nurture sequence (who and when = the approval).
+  nurtureActivatedAt   DateTime?
+  nurtureActivatedById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

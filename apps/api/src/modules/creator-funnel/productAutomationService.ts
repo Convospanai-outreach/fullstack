@@ -13,6 +13,7 @@ export const updateAutomationSchema = z.object({
     deliveryMailboxId: z.string().max(64).nullable().optional(),
     cartAbandonSequenceId: z.string().max(64).nullable().optional(),
     cartAbandonHours: z.number().int().min(1).max(168).nullable().optional(),
+    postPurchaseSequenceId: z.string().max(64).nullable().optional(),
     active: z.boolean().optional(),
 });
 export type UpdateAutomationInput = z.infer<typeof updateAutomationSchema>;
@@ -22,6 +23,7 @@ type Config = {
     deliveryMailboxId: string | null;
     cartAbandonSequenceId: string | null;
     cartAbandonHours: number | null;
+    postPurchaseSequenceId: string | null;
 };
 
 const fail = (message: string, status = 400): never => {
@@ -47,9 +49,10 @@ async function checkConfig(teamId: string, config: Config, activating: boolean) 
         if (!mailbox) fail("That mailbox isn't connected.");
     }
     if (abandon !== (config.cartAbandonHours != null)) fail("Set both the cart-abandon sequence and the hours to wait.");
-    if (config.cartAbandonSequenceId) {
+    for (const sequenceId of [config.cartAbandonSequenceId, config.postPurchaseSequenceId]) {
+        if (!sequenceId) continue;
         const sequence = await prisma.campaignSequence.findFirst({
-            where: { id: config.cartAbandonSequenceId, teamId },
+            where: { id: sequenceId, teamId },
             select: { steps: { where: { status: "ACTIVE" }, select: { stepType: true } } },
         });
         if (!sequence) fail("That sequence wasn't found.");
@@ -57,7 +60,9 @@ async function checkConfig(teamId: string, config: Config, activating: boolean) 
             fail("That sequence has no steps, or has steps a nurture can't run yet (email, delay, condition and manual review only).");
         }
     }
-    if (activating && !delivery && !abandon) fail("Add a delivery link or a cart-abandon sequence before switching on.");
+    if (activating && !delivery && !abandon && !config.postPurchaseSequenceId) {
+        fail("Add a delivery link, a cart-abandon sequence or an after-purchase sequence before switching on.");
+    }
 }
 
 function view(product: Awaited<ReturnType<typeof findProduct>>) {
@@ -67,6 +72,7 @@ function view(product: Awaited<ReturnType<typeof findProduct>>) {
         deliveryMailboxId: product.deliveryMailboxId,
         cartAbandonSequenceId: product.cartAbandonSequenceId,
         cartAbandonHours: product.cartAbandonHours,
+        postPurchaseSequenceId: product.postPurchaseSequenceId,
         active: product.automationsActive,
         activatedAt: product.automationsActivatedAt,
     };
@@ -104,6 +110,7 @@ export async function updateAutomation(teamId: string, userId: string, productId
         deliveryMailboxId: input.deliveryMailboxId !== undefined ? input.deliveryMailboxId : product.deliveryMailboxId,
         cartAbandonSequenceId: input.cartAbandonSequenceId !== undefined ? input.cartAbandonSequenceId : product.cartAbandonSequenceId,
         cartAbandonHours: input.cartAbandonHours !== undefined ? input.cartAbandonHours : product.cartAbandonHours,
+        postPurchaseSequenceId: input.postPurchaseSequenceId !== undefined ? input.postPurchaseSequenceId : product.postPurchaseSequenceId,
     };
     const active = input.active ?? product.automationsActive;
     const switchingOn = active && !product.automationsActive;
