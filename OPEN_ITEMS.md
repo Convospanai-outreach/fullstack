@@ -6100,6 +6100,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
+  sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
+  - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
+    then invites to the offer (sales page link). A booking offer ends with two call-booking emails (booking link) instead of a
+    separate BOFU sequence, since there's no checkout event to start one.
+  - **Product offers also get:** checkout reminders (BOFU, checkout link) and a testimonial request 7 days after buying (POST). The
+    delivery email isn't repeated; the product's own automation sends it.
+  - **Copy:** one ROUTINE AI call per email (6 for a product, 4 for a booking). Links are added by code, never written by the AI.
+    Bodies are stored as escaped HTML paragraphs, since the engine sends a step's body as HTML.
+  - **Ids:** plain campaign ids on `PlaybookRun`, saved in the same transaction as the campaign, sequence and steps, so a retry carries on.
+  - **Nothing sends:** no enrollment and no product wiring here. The switches (MOFU auto-enroll of new opt-ins, product cart-abandon
+    and post-purchase wiring) are 5c-1b.
+  - **Delete:** removes sequences nobody joined, with their campaigns (only while the campaign has no emails or leads), unpointing a
+    switched-off product first. A sequence someone joined, or one a switched-on product sends, stays.
+
 - **OPEN-316 (Fixed — creator funnel phase 5b-2: WhatsApp opt-in on launch plan pages):** pages a launch plan drafts
   (`LandingPage.funnelStage` set) ask sign-ups for WhatsApp consent:
   - **Checkbox:** unticked by default, under the phone field; the text names WhatsApp and the business (team name). It is built

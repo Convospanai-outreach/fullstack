@@ -7,6 +7,7 @@ const mockDb: any = vi.hoisted(() => ({
     socialAccount: { findMany: vi.fn() },
     contentPost: { findMany: vi.fn(), createMany: vi.fn() },
     contentPostTarget: { createMany: vi.fn() },
+    landingPage: { findFirst: vi.fn() },
     $transaction: vi.fn(),
 }));
 const askAI = vi.hoisted(() => vi.fn());
@@ -21,12 +22,14 @@ const bundle = vi.hoisted(() => ({
     createPlanTrigger: vi.fn(),
     deleteBundle: vi.fn(),
 }));
+const sequences = vi.hoisted(() => ({ ensureSequence: vi.fn(), planSequences: vi.fn(), deleteSequences: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI } }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 vi.mock("@/modules/landing-agent/service", () => ({ extractJsonCandidate: (raw: string) => raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1) }));
 vi.mock("../playbookBundle", () => bundle);
+vi.mock("../playbookSequences", async (importOriginal) => ({ ...(await importOriginal<typeof import("../playbookSequences")>()), ...sequences }));
 vi.mock("../keywordTriggers", () => ({ WEB_BASE_URL: "https://app.test" }));
 vi.mock("../contentPostService", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../contentPostService")>()),
@@ -83,6 +86,9 @@ describe("playbookWizard", () => {
         bundle.ensurePage.mockImplementation(async (_run: any, spec: any) => (spec.kind === "leadMagnet" ? "lp-magnet" : "lp-sales"));
         bundle.createPlanTrigger.mockResolvedValue(null);
         bundle.deleteBundle.mockResolvedValue({ pagesDeleted: 2, pagesKept: 0, triggerKept: false });
+        mockDb.landingPage.findFirst.mockResolvedValue({ slug: "course" });
+        sequences.ensureSequence.mockImplementation(async (_run: any, spec: any) => `camp-${spec.kind}`);
+        sequences.deleteSequences.mockResolvedValue({ sequencesDeleted: 3, sequencesKept: 0 });
     });
 
     describe("planning", () => {
@@ -170,11 +176,11 @@ describe("playbookWizard", () => {
         });
 
         it("writes 4 weeks of DRAFT posts with per-channel text and a visual brief, linked to the run, without publishing anything", async () => {
-            mockDb.playbookRun.findFirst.mockResolvedValue(stored());
+            mockDb.playbookRun.findFirst.mockResolvedValue(stored({ productId: "prod-1" }));
             askAI.mockImplementation(async () => postReply());
             expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: true });
 
-            expect(askAI).toHaveBeenCalledTimes(12); // one short call per post
+            expect(askAI).toHaveBeenCalledTimes(12); // one short call per post (emails are mocked here)
             expect(askAI.mock.calls[0][1]).toBe(TEAM);
             // The cheap, fast tier (DeepSeek Flash without thinking), not the STRATEGIC default.
             expect(askAI.mock.calls[0][2]).toMatchObject({ complexity: "ROUTINE", expectsJson: true });
@@ -197,6 +203,16 @@ describe("playbookWizard", () => {
             expect(bundle.createPlanTrigger).toHaveBeenCalledWith(expect.objectContaining({ id: "run-1" }), {
                 socialAccountId: "acc-ig", keyword: "GUIDE", leadMagnet: "A 5-day email course on batch cooking", landingPageId: "lp-magnet",
             });
+            // 5c: the email sequences, once the pages exist (the nurture invite links to the sales page).
+            expect(mockDb.landingPage.findFirst).toHaveBeenCalledWith({ where: { id: "lp-sales", teamId: TEAM }, select: { slug: true } });
+            expect(sequences.ensureSequence.mock.calls.map((c: any[]) => c[1].kind)).toEqual(["nurture", "cartAbandon", "postPurchase"]);
+            const [nurture, abandon] = sequences.ensureSequence.mock.calls.map((c: any[]) => c[1]);
+            expect(nurture.emails[2].link).toEqual({ href: "https://app.test/p/course", label: "See the details" });
+            expect(abandon.emails[0].link).toEqual({ href: "https://app.test/checkout/prod-1", label: "Finish your order" });
+            const email = sequences.ensureSequence.mock.calls[0][2];
+            expect(email).toMatchObject({ timezone: "Asia/Kolkata", context: expect.arrayContaining(["Tone: Warm and direct"]) });
+            await email.write("an email prompt");
+            expect(askAI).toHaveBeenCalledWith("an email prompt", TEAM, expect.objectContaining({ complexity: "ROUTINE", expectsJson: true }));
             // Awareness and nurture posts ask for the comment keyword.
             const prompts = askAI.mock.calls.map((c: any[]) => c[0] as string);
             expect(prompts.filter((p) => p.includes('comment "GUIDE"')).length).toBeGreaterThan(0);
@@ -324,7 +340,7 @@ describe("playbookWizard", () => {
             });
             mockDb.playbookRun.deleteMany.mockResolvedValue({ count: 1 });
 
-            expect(await deleteRun(TEAM, "run-1")).toEqual({ deleted: 2, kept: 1, pagesDeleted: 2, pagesKept: 0, triggerKept: false });
+            expect(await deleteRun(TEAM, "run-1")).toEqual({ deleted: 2, kept: 1, pagesDeleted: 2, pagesKept: 0, triggerKept: false, sequencesDeleted: 3, sequencesKept: 0 });
             expect(bundle.deleteBundle).toHaveBeenCalledWith(expect.objectContaining({ id: "run-1", leadMagnetCampaignId: "lc-1" }));
             expect(mockDb.contentPost.findMany).toHaveBeenCalledWith({ where: { teamId: TEAM, playbookRunId: "run-1" }, select: { id: true } });
             expect(deletePost).toHaveBeenCalledTimes(3);

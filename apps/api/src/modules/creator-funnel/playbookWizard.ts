@@ -9,6 +9,7 @@ import { isHttpsUrl } from "./checkoutHooks";
 import { assertAccounts, ContentPostError, deletePost, getStageMix, INSTAGRAM_LIMITS } from "./contentPostService";
 import type { PlaybookWizardInput } from "./contentRoutes";
 import { createPlanTrigger, DEFAULT_KEYWORD, deleteBundle, ensurePage, triggerAccount, type BundleRun } from "./playbookBundle";
+import { deleteSequences, ensureSequence, planSequences, sequenceSpecs, type SequenceRun } from "./playbookSequences";
 
 // Creator funnel playbook wizard (spec phase 5a). One run turns an offer, an audience, a lead
 // magnet, a tone and a start date into 4 weeks of DRAFT posts spread over the team's stage mix,
@@ -258,14 +259,17 @@ export function buildPostPrompt(ctx: RunContext, index: number, total: number, s
 
 type Writer = { askAI: (typeof import("@/lib/aiService"))["aiService"]["askAI"]; extractJson: (raw: string) => string };
 
+// Every AI call of a plan (posts and emails) is short copy on the cheap tier.
+const AI_OPTIONS = {
+    taskType: "CONTENT_PLAYBOOK",
+    surface: "GENERIC",
+    complexity: TaskComplexity.ROUTINE,
+    expectsJson: true,
+    disableGuardrails: true,
+} as const;
+
 async function writePost(ai: Writer, ctx: RunContext, index: number, total: number, slot: Slot): Promise<Draft> {
-    const raw = await ai.askAI(buildPostPrompt(ctx, index, total, slot), ctx.teamId, {
-        taskType: "CONTENT_PLAYBOOK",
-        surface: "GENERIC",
-        complexity: TaskComplexity.ROUTINE,
-        expectsJson: true,
-        disableGuardrails: true,
-    });
+    const raw = await ai.askAI(buildPostPrompt(ctx, index, total, slot), ctx.teamId, AI_OPTIONS);
     const p = draftSchema.parse(JSON.parse(ai.extractJson(raw)));
     return {
         facebook: clamp(p.facebook.trim(), 3000),
@@ -356,11 +360,28 @@ export async function generatePlaybookRun(runId: string, now = new Date()) {
             import("./keywordTriggers"),
         ]);
         const ai: Writer = { askAI: (...args) => aiService.askAI(...args), extractJson: extractJsonCandidate };
-        const bundle: BundleRun = { ...run };
-        const [drafts, pageIds] = await Promise.all([
-            writeAll(ai, ctx, slots),
-            Promise.all(pageSpecs(ctx, run, WEB_BASE_URL).map((spec) => ensurePage(bundle, spec))),
-        ]);
+        const bundle: BundleRun & SequenceRun = { ...run };
+        // The sequences link to the sales page, so they're written once the pages exist.
+        const pagesThenSequences = async () => {
+            const ids = await Promise.all(pageSpecs(ctx, run, WEB_BASE_URL).map((spec) => ensurePage(bundle, spec)));
+            const sales = await prisma.landingPage.findFirst({ where: { id: ids[1]!, teamId: run.teamId }, select: { slug: true } });
+            const specs = sequenceSpecs({
+                leadMagnet: clamp(inputs.leadMagnet, 500),
+                booking: inputs.offer.type === "booking",
+                bookingUrl: run.bookingUrl,
+                salesPageUrl: sales?.slug ? `${WEB_BASE_URL}/p/${encodeURIComponent(sales.slug)}` : null,
+                checkoutUrl: run.productId ? `${WEB_BASE_URL}/checkout/${encodeURIComponent(run.productId)}` : null,
+            });
+            const email = {
+                write: (prompt: string) => ai.askAI(prompt, run.teamId, AI_OPTIONS),
+                extractJson: ai.extractJson,
+                context: [`Offer: ${offerText(ctx)}`, `Audience: ${audienceText(ctx)}`, `Free lead magnet: ${clamp(inputs.leadMagnet, 500)}`, `Tone: ${clamp(inputs.tone, 100)}`],
+                timezone: inputs.timezone,
+            };
+            await Promise.all(specs.map((spec) => ensureSequence(bundle, spec, email)));
+            return ids;
+        };
+        const [drafts, pageIds] = await Promise.all([writeAll(ai, ctx, slots), pagesThenSequences()]);
         const notes = account ? null : "No Instagram account or Facebook Page was picked, so there's no comment keyword auto-reply. You can add one in Settings > Social accounts.";
 
         const saved = await prisma.$transaction(async (tx) => {
@@ -448,10 +469,13 @@ export async function getRun(teamId: string, runId: string, now = new Date()) {
     if (!run) throw new ContentPostError(404, "Plan not found");
     const ids = await prisma.playbookRun.findFirst({
         where: { id: runId, teamId },
-        select: { leadMagnetCampaignId: true, salesCampaignId: true, leadMagnetPageId: true, salesPageId: true, keywordTriggerId: true },
+        select: {
+            leadMagnetCampaignId: true, salesCampaignId: true, leadMagnetPageId: true, salesPageId: true, keywordTriggerId: true,
+            nurtureCampaignId: true, cartAbandonCampaignId: true, postPurchaseCampaignId: true,
+        },
     });
     const pageIds = [ids?.leadMagnetPageId, ids?.salesPageId].filter((id): id is string => Boolean(id));
-    const [pages, trigger] = await Promise.all([
+    const [pages, trigger, sequences] = await Promise.all([
         pageIds.length
             ? prisma.landingPage.findMany({ where: { id: { in: pageIds }, teamId }, select: { id: true, campaignId: true, slug: true, title: true, status: true } })
             : [],
@@ -461,17 +485,18 @@ export async function getRun(teamId: string, runId: string, now = new Date()) {
                   select: { id: true, keywords: true, active: true, socialAccount: { select: { platform: true, handle: true } } },
               })
             : null,
+        planSequences(teamId, [ids?.nurtureCampaignId ?? null, ids?.cartAbandonCampaignId ?? null, ids?.postPurchaseCampaignId ?? null]),
     ]);
     const page = (id: string | null | undefined) => pages.find((p) => p.id === id) ?? null;
-    return { ...withStale(run, now), leadMagnetPage: page(ids?.leadMagnetPageId), salesPage: page(ids?.salesPageId), keywordTrigger: trigger };
+    return { ...withStale(run, now), leadMagnetPage: page(ids?.leadMagnetPageId), salesPage: page(ids?.salesPageId), keywordTrigger: trigger, sequences };
 }
 
 /**
  * Deletes a run and every draft it made. A post that's already live (even on one account) is
  * kept, just no longer linked to the run; approvals of deleted posts are withdrawn. The same goes
  * for its landing pages (a published one stays) and its keyword auto-reply (one switched on
- * stays). An audience the wizard created stays in the ICP builder, since other campaigns may use
- * it by now.
+ * stays), and its email sequences (one anyone joined, or a switched-on product sends, stays).
+ * An audience the wizard created stays in the ICP builder, since other campaigns may use it by now.
  */
 export async function deleteRun(teamId: string, runId: string) {
     const run = await prisma.playbookRun.findFirst({
@@ -479,6 +504,7 @@ export async function deleteRun(teamId: string, runId: string) {
         select: {
             id: true, teamId: true, createdById: true, icpId: true, keywordTriggerId: true,
             leadMagnetCampaignId: true, leadMagnetPageId: true, salesCampaignId: true, salesPageId: true,
+            nurtureCampaignId: true, cartAbandonCampaignId: true, postPurchaseCampaignId: true,
         },
     });
     if (!run) throw new ContentPostError(404, "Plan not found");
@@ -495,6 +521,7 @@ export async function deleteRun(teamId: string, runId: string) {
         }
     }
     const bundle = await deleteBundle(run);
+    const sequences = await deleteSequences(run);
     await prisma.playbookRun.deleteMany({ where: { id: run.id, teamId } });
-    return { deleted, kept, ...bundle };
+    return { deleted, kept, ...bundle, ...sequences };
 }
