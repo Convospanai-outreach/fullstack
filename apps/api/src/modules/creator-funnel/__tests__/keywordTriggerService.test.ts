@@ -109,7 +109,7 @@ describe("keywordTriggerService", () => {
     });
 
     it("lists triggers with last week's sends and latest problem, plus the editor's options", async () => {
-        mockDb.keywordTrigger.findMany.mockResolvedValue([{ id: "trig-1", active: true }]);
+        mockDb.keywordTrigger.findMany.mockResolvedValue([{ id: "trig-1", active: true }, { id: "trig-2", active: false, landingPageId: "lp-draft" }]);
         mockDb.socialAccount.findMany.mockResolvedValue([{ id: "acc-ig", platform: "INSTAGRAM", handle: "@maker", status: "CONNECTED" }]);
         mockDb.landingPage.findMany.mockResolvedValue([{ id: "lp-1", slug: "guide", title: "Guide" }]);
         mockDb.contentPost.findMany.mockResolvedValue([{ id: "post-1", body: "x".repeat(200), targets: [{ socialAccountId: "acc-ig" }] }]);
@@ -117,8 +117,29 @@ describe("keywordTriggerService", () => {
         mockDb.keywordTriggerReply.findFirst.mockResolvedValue({ lastError: "(#10) blocked", updatedAt: new Date() });
 
         const list = await listTriggers("team-a");
-        expect(list.triggers).toEqual([{ id: "trig-1", active: true, sentLast7Days: 3, lastError: "(#10) blocked" }]);
+        expect(list.triggers[0]).toEqual({ id: "trig-1", active: true, sentLast7Days: 3, lastError: "(#10) blocked" });
         expect(list.posts).toEqual([{ id: "post-1", body: "x".repeat(120), accountIds: ["acc-ig"] }]);
-        expect(mockDb.landingPage.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a", status: "published" } }));
+        // Published pages, plus a draft page a trigger already points at.
+        expect(mockDb.landingPage.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { teamId: "team-a", OR: [{ status: "published" }, { id: { in: ["lp-draft"] } }] },
+        }));
+    });
+
+    it("lets a switched-off trigger point at a draft page, but switching it on needs the page published", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ id: "lp-1", slug: "guide", status: "draft" });
+        await expect(createTrigger("team-a", "user-1", input({ landingPageId: "lp-1" }))).resolves.toMatchObject({ active: false, landingPageId: "lp-1" });
+        expect(mockDb.landingPage.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "lp-1", teamId: "team-a" } }));
+
+        const existing = { id: "trig-1", socialAccountId: "acc-ig", scope: "COMMENT", keywords: ["guide"], match: "CONTAINS", contentPostId: null, replyText: "Hi", publicCommentReply: null, landingPageId: "lp-1", active: false };
+        mockDb.keywordTrigger.findFirst.mockResolvedValue(existing);
+        await expect(updateTrigger("team-a", "user-2", "trig-1", { active: true })).rejects.toMatchObject({ status: 400, message: "Publish the landing page before switching this auto-reply on." });
+        await expect(updateTrigger("team-a", "user-2", "trig-1", { replyText: "Hello" })).resolves.toMatchObject({ replyText: "Hello" });
+        // An active trigger can't be pointed at a draft page either.
+        mockDb.keywordTrigger.findFirst.mockResolvedValue({ ...existing, active: true, landingPageId: null });
+        await expect(updateTrigger("team-a", "user-2", "trig-1", { landingPageId: "lp-1" })).rejects.toMatchObject({ status: 400 });
+
+        mockDb.landingPage.findFirst.mockResolvedValue({ id: "lp-1", slug: "guide", status: "published" });
+        mockDb.keywordTrigger.findFirst.mockResolvedValue(existing);
+        await expect(updateTrigger("team-a", "user-2", "trig-1", { active: true })).resolves.toMatchObject({ active: true });
     });
 });

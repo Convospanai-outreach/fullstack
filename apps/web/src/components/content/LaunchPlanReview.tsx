@@ -21,7 +21,12 @@ type PlanPost = {
     scheduledAt: string | null;
     targets: { status: string; socialAccount: { id: string; platform: string; handle: string | null } }[];
 };
+type PlanPage = { id: string; campaignId: string; slug: string; title: string | null; status: string };
 export type PlanDetail = Omit<PlanSummary, "_count"> & {
+    notes: string | null;
+    leadMagnetPage: PlanPage | null;
+    salesPage: PlanPage | null;
+    keywordTrigger: { id: string; keywords: string[]; active: boolean; socialAccount: { platform: string; handle: string | null } } | null;
     bookingUrl: string | null;
     icpCreated: boolean;
     product: { id: string; name: string } | null;
@@ -66,7 +71,7 @@ export function LaunchPlanReview({ id }: { id: string }) {
     };
 
     const remove = async () => {
-        if (!window.confirm("Delete this plan and all of its draft posts? Posts that are already live stay.")) return;
+        if (!window.confirm("Delete this plan and all of its drafts (posts, pages, auto-reply)? Anything already live stays.")) return;
         setBusy("delete");
         try {
             const res = await fetch(url, { method: "DELETE" });
@@ -75,7 +80,12 @@ export function LaunchPlanReview({ id }: { id: string }) {
                 toast.error(typeof body?.error === "string" ? body.error : "Couldn't delete the plan.");
                 return;
             }
-            toast.success(body.kept ? `Deleted ${body.deleted} drafts. ${body.kept} live post${body.kept === 1 ? "" : "s"} kept.` : `Deleted ${body.deleted} drafts.`);
+            const kept = [
+                body.kept ? `${body.kept} live post${body.kept === 1 ? "" : "s"}` : null,
+                body.pagesKept ? `${body.pagesKept} published page${body.pagesKept === 1 ? "" : "s"}` : null,
+                body.triggerKept ? "the switched-on auto-reply" : null,
+            ].filter(Boolean);
+            toast.success(`Deleted ${body.deleted} drafts${body.pagesDeleted ? ` and ${body.pagesDeleted} draft page${body.pagesDeleted === 1 ? "" : "s"}` : ""}.${kept.length ? ` Kept ${kept.join(", ")}.` : ""}`);
             router.push("/content/plans");
         } finally {
             setBusy(null);
@@ -118,6 +128,34 @@ export function LaunchPlanReview({ id }: { id: string }) {
 
             {data.status === "GENERATING" && !data.stale && <p className="text-sm text-muted-foreground">Writing your posts. This takes a minute or two; the page updates by itself.</p>}
             {data.status === "FAILED" && <p className="text-sm text-destructive">{data.error || "Something went wrong."}</p>}
+            {data.notes && <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">{data.notes}</p>}
+
+            {(data.leadMagnetPage || data.salesPage || data.keywordTrigger) && (
+                <section className="grid gap-3 md:grid-cols-3">
+                    {([["Lead-magnet page", data.leadMagnetPage], ["Sales page", data.salesPage]] as const).map(([label, page]) =>
+                        page ? (
+                            <div key={label} className="space-y-1 rounded-lg border border-border p-4 text-sm">
+                                <div className="text-xs font-medium text-muted-foreground">{label}</div>
+                                <div className="text-foreground">{page.title || `/p/${page.slug}`}</div>
+                                <div className="text-xs text-muted-foreground">{page.status === "published" ? "Published" : "Draft: edit and publish it in the landing page editor"}</div>
+                                <Link href={`/landing-agent/${encodeURIComponent(page.campaignId)}/editor`} className="text-xs text-primary hover:underline">Open in editor</Link>
+                            </div>
+                        ) : null,
+                    )}
+                    {data.keywordTrigger && (
+                        <div className="space-y-1 rounded-lg border border-border p-4 text-sm">
+                            <div className="text-xs font-medium text-muted-foreground">Comment keyword auto-reply</div>
+                            <div className="text-foreground">
+                                &quot;{data.keywordTrigger.keywords.join(", ")}&quot; on {data.keywordTrigger.socialAccount.handle || data.keywordTrigger.socialAccount.platform}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                {data.keywordTrigger.active ? "On" : "Off: publish the lead-magnet page, then switch it on"}
+                            </div>
+                            <Link href="/settings/social" className="text-xs text-primary hover:underline">Settings &gt; Social accounts</Link>
+                        </div>
+                    )}
+                </section>
+            )}
 
             {data.contentPosts.length > 0 && (
                 <>

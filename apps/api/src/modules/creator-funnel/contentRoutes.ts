@@ -53,6 +53,8 @@ export const playbookWizardSchema = z.object({
     timezone: z.string().max(64).refine(isValidTimeZone, "Unknown time zone"),
     postsPerWeek: z.number().int().min(2).max(5).default(3),
     accountIds: z.array(z.string().max(64)).max(10).default([]),
+    // The word commenters type to get the lead magnet (the plan's keyword auto-reply).
+    keyword: z.string().trim().regex(/^[\p{L}\p{N}]{2,30}$/u, "One word of letters and numbers").optional(),
 });
 
 export type PlaybookWizardInput = z.infer<typeof playbookWizardSchema>;

@@ -1658,6 +1658,13 @@ model PlaybookRun {
   bookingUrl  String?
   icpId       String?
   icpCreated  Boolean   @default(false) // the wizard created the ICP from a typed audience
+  // What else the run drafted (5b). Plain ids: Landing* tables aren't created by migrations, so no FK.
+  leadMagnetCampaignId String? // LandingCampaign of the lead-magnet opt-in page
+  leadMagnetPageId     String? // its draft LandingPage
+  salesCampaignId      String? // LandingCampaign of the sales page
+  salesPageId          String? // its draft LandingPage (CTA links to the booking or checkout page)
+  keywordTriggerId     String? // the switched-off comment keyword auto-reply to the lead-magnet page
+  notes                String?  @db.Text // what the run couldn't make and why, shown on the plan
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

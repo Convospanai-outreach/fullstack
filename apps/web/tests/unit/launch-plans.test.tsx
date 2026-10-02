@@ -59,6 +59,10 @@ const plan = (over: Partial<PlanDetail> = {}): PlanDetail => ({
     stale: false,
     createdAt: "2026-10-02T00:00:00Z",
     bookingUrl: null,
+    notes: null,
+    leadMagnetPage: { id: "lp-1", campaignId: "lc-1", slug: "meal-plan", title: "Free meal plan", status: "draft" },
+    salesPage: { id: "lp-2", campaignId: "lc-2", slug: "course", title: "Batch Cooking Course", status: "published" },
+    keywordTrigger: { id: "trig-1", keywords: ["GUIDE"], active: false, socialAccount: { platform: "INSTAGRAM", handle: "@maker" } },
     icpCreated: true,
     product: { id: "prod-1", name: "Batch Cooking Course" },
     icp: { id: "icp-1", name: "Audience: busy parents" },
@@ -135,6 +139,7 @@ describe("launch plans", () => {
             leadMagnet: "Meal plan PDF",
             postsPerWeek: 3,
             accountIds: ["acc-ig"],
+            keyword: "GUIDE",
         });
         expect(body.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         expect(push).toHaveBeenCalledWith("/content/plans/run-1");
@@ -144,7 +149,7 @@ describe("launch plans", () => {
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         route({
             "GET /api/proxy/content/playbooks/run-1": () => json(200, { run: plan() }),
-            "DELETE /api/proxy/content/playbooks/run-1": () => json(200, { deleted: 11, kept: 1 }),
+            "DELETE /api/proxy/content/playbooks/run-1": () => json(200, { deleted: 11, kept: 1, pagesDeleted: 1, pagesKept: 1, triggerKept: false }),
         });
         await render(<LaunchPlanReview id="run-1" />);
         const text = container.textContent ?? "";
@@ -154,12 +159,24 @@ describe("launch plans", () => {
         expect(text).toContain("Suggested visual: A flat lay");
         expect(text).toContain("Nothing is posted until it's approved");
         expect(text).toContain("stays if you delete this plan");
+        // The rest of the bundle: both pages (with their editor) and the switched-off auto-reply.
+        expect(text).toContain("Free meal plan");
+        expect(text).toContain("Draft: edit and publish it");
+        expect(container.querySelector('a[href="/landing-agent/lc-1/editor"]')).toBeTruthy();
+        expect(text).toContain('"GUIDE" on @maker');
+        expect(text).toContain("Off: publish the lead-magnet page, then switch it on");
 
         await click(byText("Delete plan and drafts"));
         expect(confirm).toHaveBeenCalled();
-        expect(toast.success).toHaveBeenCalledWith("Deleted 11 drafts. 1 live post kept.");
+        expect(toast.success).toHaveBeenCalledWith("Deleted 11 drafts and 1 draft page. Kept 1 live post, 1 published page.");
         expect(push).toHaveBeenCalledWith("/content/plans");
         confirm.mockRestore();
+    });
+
+    it("shows what the plan couldn't make", async () => {
+        route({ "GET /api/proxy/content/playbooks/run-1": () => json(200, { run: plan({ notes: "No Instagram account or Facebook Page was picked.", keywordTrigger: null }) }) });
+        await render(<LaunchPlanReview id="run-1" />);
+        expect(container.textContent).toContain("No Instagram account or Facebook Page was picked.");
     });
 
     it("offers a retry for a failed plan", async () => {

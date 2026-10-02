@@ -6100,6 +6100,24 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-315 (Fixed — creator funnel phase 5b-1: plan landing pages and keyword trigger):** a launch plan also drafts:
+  - **Pages:** a lead-magnet opt-in page (TOFU) and a sales page (BOFU), each through the landing agent (campaign, brief,
+    wireframes, selected page).
+  - **Sales page buttons:** they open the booking link, or `<WEB_BASE_URL>/checkout/<productId>`. They use a new section `ctaHref`,
+    rendered only when it is https, in both renderer copies; anything else keeps `#lead-form`.
+  - **Keyword trigger:** a switched-off comment keyword auto-reply (an Instagram account preferred, else a Facebook Page of the
+    plan) that sends the lead-magnet page.
+  - **Post prompts:** TOFU and MOFU posts ask readers to comment the keyword (default GUIDE).
+  - **Ids:** plain id columns on `PlaybookRun` (no FK; Landing* tables aren't in migrations), saved as soon as each exists, so a
+    retry carries on.
+  - **Order:** pages are made before the READY claim; the trigger after it, through `createTrigger`'s own checks.
+  - **Notes:** if there's no account, or the trigger is refused, `PlaybookRun.notes` says so.
+  - **Triggers and draft pages:** a switched-off trigger may point at a draft page. Switching one on, or pointing an active one at a
+    page, needs the page published. The trigger editor lists linked draft pages.
+  - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
+    switched-on trigger stay.
+  - **Not here:** the WhatsApp consent checkbox (5b-2).
+
 - **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
   STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults
   are unchanged (no Gemini key in prod).

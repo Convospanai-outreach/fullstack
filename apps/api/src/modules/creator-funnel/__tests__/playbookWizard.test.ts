@@ -14,11 +14,20 @@ const enqueue = vi.hoisted(() => vi.fn());
 const assertAccounts = vi.hoisted(() => vi.fn());
 const deletePost = vi.hoisted(() => vi.fn());
 const getStageMix = vi.hoisted(() => vi.fn());
+const bundle = vi.hoisted(() => ({
+    DEFAULT_KEYWORD: "GUIDE",
+    ensurePage: vi.fn(),
+    triggerAccount: vi.fn(),
+    createPlanTrigger: vi.fn(),
+    deleteBundle: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI } }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 vi.mock("@/modules/landing-agent/service", () => ({ extractJsonCandidate: (raw: string) => raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1) }));
+vi.mock("../playbookBundle", () => bundle);
+vi.mock("../keywordTriggers", () => ({ WEB_BASE_URL: "https://app.test" }));
 vi.mock("../contentPostService", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../contentPostService")>()),
     assertAccounts,
@@ -27,7 +36,7 @@ vi.mock("../contentPostService", async (importOriginal) => ({
 }));
 
 import { ContentPostError } from "../contentPostService";
-import { allocateStages, buildPostPrompt, deleteRun, generatePlaybookRun, planSlots, retryRun, startRun, STALE_MS } from "../playbookWizard";
+import { allocateStages, buildPostPrompt, deleteRun, generatePlaybookRun, pageSpecs, planSlots, retryRun, startRun, STALE_MS } from "../playbookWizard";
 
 const TEAM = "team-a";
 // 2030-01-07 is a Monday; 09:00 in Kolkata.
@@ -70,6 +79,10 @@ describe("playbookWizard", () => {
         mockDb.socialAccount.findMany.mockResolvedValue([{ id: "acc-ig" }]);
         getStageMix.mockResolvedValue({ TOFU: 60, MOFU: 30, BOFU: 10, POST: 0 });
         enqueue.mockResolvedValue({ id: "job-1" });
+        bundle.triggerAccount.mockResolvedValue({ id: "acc-ig", platform: "INSTAGRAM" });
+        bundle.ensurePage.mockImplementation(async (_run: any, spec: any) => (spec.kind === "leadMagnet" ? "lp-magnet" : "lp-sales"));
+        bundle.createPlanTrigger.mockResolvedValue(null);
+        bundle.deleteBundle.mockResolvedValue({ pagesDeleted: 2, pagesKept: 0, triggerKept: false });
     });
 
     describe("planning", () => {
@@ -177,7 +190,58 @@ describe("playbookWizard", () => {
             expect(posts.filter((p: any) => p.funnelStage === "TOFU")).toHaveLength(7);
             expect(mockDb.contentPostTarget.createMany.mock.calls[0][0].data).toHaveLength(12);
             expect(mockDb.socialAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: TEAM, id: { in: ["acc-ig"] }, status: { not: "DISCONNECTED" } } }));
-            expect(mockDb.playbookRun.updateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "GENERATING" }, data: { status: "READY", error: null } });
+            expect(mockDb.playbookRun.updateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "GENERATING" }, data: { status: "READY", error: null, notes: null } });
+
+            // 5b: both landing pages, then the switched-off keyword auto-reply to the lead-magnet page.
+            expect(bundle.ensurePage.mock.calls.map((c: any[]) => c[1].kind)).toEqual(["leadMagnet", "sales"]);
+            expect(bundle.createPlanTrigger).toHaveBeenCalledWith(expect.objectContaining({ id: "run-1" }), {
+                socialAccountId: "acc-ig", keyword: "GUIDE", leadMagnet: "A 5-day email course on batch cooking", landingPageId: "lp-magnet",
+            });
+            // Awareness and nurture posts ask for the comment keyword.
+            const prompts = askAI.mock.calls.map((c: any[]) => c[0] as string);
+            expect(prompts.filter((p) => p.includes('comment "GUIDE"')).length).toBeGreaterThan(0);
+            expect(prompts.filter((p) => p.includes("Funnel stage: BOFU") && p.includes('comment "GUIDE"'))).toHaveLength(0);
+        });
+
+        it("without an Instagram or Facebook account: no keyword call to action, no trigger, and a note saying why", async () => {
+            mockDb.playbookRun.findFirst.mockResolvedValue(stored());
+            bundle.triggerAccount.mockResolvedValue(null);
+            askAI.mockImplementation(async () => postReply());
+            expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: true });
+            expect(askAI.mock.calls.some((c: any[]) => (c[0] as string).includes("comment"))).toBe(false);
+            expect(bundle.createPlanTrigger).not.toHaveBeenCalled();
+            expect(mockDb.playbookRun.updateMany.mock.calls[0][0].data.notes).toMatch(/No Instagram account or Facebook Page/);
+        });
+
+        it("records the trigger's problem as a note without failing the plan", async () => {
+            mockDb.playbookRun.findFirst.mockResolvedValue(stored());
+            askAI.mockImplementation(async () => postReply());
+            bundle.createPlanTrigger.mockResolvedValue("The comment keyword auto-reply wasn't set up (Blocked).");
+            expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: true });
+            expect(mockDb.playbookRun.updateMany).toHaveBeenLastCalledWith({ where: { id: "run-1" }, data: { notes: "The comment keyword auto-reply wasn't set up (Blocked)." } });
+        });
+
+        it("fails the run, saving no post, when a landing page can't be made", async () => {
+            mockDb.playbookRun.findFirst.mockResolvedValue(stored());
+            askAI.mockImplementation(async () => postReply());
+            bundle.ensurePage.mockRejectedValue(new Error("the plan's audience was deleted"));
+            expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: false });
+            expect(mockDb.contentPost.createMany).not.toHaveBeenCalled();
+            expect(mockDb.playbookRun.updateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "GENERATING" }, data: { status: "FAILED", error: expect.any(String) } });
+        });
+
+        it("drafts an opt-in page and a sales page whose buttons open the booking or checkout link", () => {
+            const ctx = { teamId: TEAM, inputs: input() as any, product: stored().product, icp: { name: "Busy parents", description: null } };
+            const [magnet, sales] = pageSpecs(ctx, { productId: "prod-1", bookingUrl: null }, "https://app.test");
+            expect(magnet).toMatchObject({ kind: "leadMagnet", ctaHref: null });
+            expect(magnet!.prompt).toContain("Opt-in page for a free lead magnet: A 5-day email course on batch cooking.");
+            expect(sales).toMatchObject({ kind: "sales", name: "Batch Cooking Course", ctaHref: "https://app.test/checkout/prod-1" });
+            expect(sales!.prompt).toContain("Every call to action is buying it.");
+
+            const bookingCtx = { ...ctx, product: null, inputs: input({ offer: { type: "booking", bookingUrl: "https://cal.example/me", description: "Intro call" } }) as any };
+            const [, call] = pageSpecs(bookingCtx, { productId: null, bookingUrl: "https://cal.example/me" }, "https://app.test");
+            expect(call).toMatchObject({ name: "Intro call", ctaHref: "https://cal.example/me" });
+            expect(call!.prompt).toContain("Every call to action is booking the call.");
         });
 
         it("saves nothing twice: a repeated job finds the run already claimed", async () => {
@@ -253,14 +317,15 @@ describe("playbookWizard", () => {
 
     describe("deleteRun", () => {
         it("deletes the drafts through the post rules, keeps live posts, then the run", async () => {
-            mockDb.playbookRun.findFirst.mockResolvedValue({ id: "run-1" });
+            mockDb.playbookRun.findFirst.mockResolvedValue({ id: "run-1", teamId: TEAM, leadMagnetCampaignId: "lc-1" });
             mockDb.contentPost.findMany.mockResolvedValue([{ id: "p-1" }, { id: "p-live" }, { id: "p-3" }]);
             deletePost.mockImplementation(async (_team: string, id: string) => {
                 if (id === "p-live") throw new ContentPostError(409, "Part of this post is already live");
             });
             mockDb.playbookRun.deleteMany.mockResolvedValue({ count: 1 });
 
-            expect(await deleteRun(TEAM, "run-1")).toEqual({ deleted: 2, kept: 1 });
+            expect(await deleteRun(TEAM, "run-1")).toEqual({ deleted: 2, kept: 1, pagesDeleted: 2, pagesKept: 0, triggerKept: false });
+            expect(bundle.deleteBundle).toHaveBeenCalledWith(expect.objectContaining({ id: "run-1", leadMagnetCampaignId: "lc-1" }));
             expect(mockDb.contentPost.findMany).toHaveBeenCalledWith({ where: { teamId: TEAM, playbookRunId: "run-1" }, select: { id: true } });
             expect(deletePost).toHaveBeenCalledTimes(3);
             expect(mockDb.playbookRun.deleteMany).toHaveBeenCalledWith({ where: { id: "run-1", teamId: TEAM } });
@@ -269,7 +334,7 @@ describe("playbookWizard", () => {
         it("is a 404 for another team's run", async () => {
             mockDb.playbookRun.findFirst.mockResolvedValue(null);
             await expectError(deleteRun(TEAM, "run-x"), 404);
-            expect(mockDb.playbookRun.findFirst).toHaveBeenCalledWith({ where: { id: "run-x", teamId: TEAM }, select: { id: true } });
+            expect(mockDb.playbookRun.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "run-x", teamId: TEAM } }));
         });
 
         it("stops on an unexpected error instead of deleting the run", async () => {
