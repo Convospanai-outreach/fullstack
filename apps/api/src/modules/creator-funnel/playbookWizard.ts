@@ -434,6 +434,7 @@ export async function generatePlaybookRun(runId: string, now = new Date()) {
 
 const RUN_SELECT = {
     id: true, name: true, status: true, error: true, notes: true, inputs: true, bookingUrl: true, icpCreated: true, createdAt: true, updatedAt: true,
+    nurtureActivatedAt: true,
     product: { select: { id: true, name: true } },
     icp: { select: { id: true, name: true } },
 } satisfies Prisma.PlaybookRunSelect;
@@ -487,8 +488,18 @@ export async function getRun(teamId: string, runId: string, now = new Date()) {
             : null,
         planSequences(teamId, [ids?.nurtureCampaignId ?? null, ids?.cartAbandonCampaignId ?? null, ids?.postPurchaseCampaignId ?? null]),
     ]);
+    // For the switches: the mailboxes emails can go from, and whether the product already uses the sequences.
+    const [mailboxes, product] = await Promise.all([
+        prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { id: true, email: true }, orderBy: { email: "asc" } }),
+        run.product
+            ? prisma.product.findFirst({
+                  where: { id: run.product.id, teamId },
+                  select: { automationsActive: true, cartAbandonSequenceId: true, postPurchaseSequenceId: true },
+              })
+            : null,
+    ]);
     const page = (id: string | null | undefined) => pages.find((p) => p.id === id) ?? null;
-    return { ...withStale(run, now), leadMagnetPage: page(ids?.leadMagnetPageId), salesPage: page(ids?.salesPageId), keywordTrigger: trigger, sequences };
+    return { ...withStale(run, now), leadMagnetPage: page(ids?.leadMagnetPageId), salesPage: page(ids?.salesPageId), keywordTrigger: trigger, sequences, mailboxes, productAutomation: product };
 }
 
 /**
