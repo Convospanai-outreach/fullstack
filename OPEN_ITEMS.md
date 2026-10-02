@@ -6100,6 +6100,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-318 (Fixed — creator funnel phase 5c-1b: switching the plan's email sequences on):** the explicit steps that let the
+  5c-1a drafts send:
+  - **Nurture switch** (plan page, admin only): needs a finished plan, a nurture sequence a nurture can run, and a connected team
+    mailbox, which becomes the sequence's sender (never the system sender). Who and when are recorded on `PlaybookRun`, which is
+    the approval. New sign-ups on the plan's lead-magnet page then join through `NurtureProvider`, on all three intake paths, when
+    the flag is on, the lead isn't at BOFU/POST, and nothing else is emailing it. No backfill of earlier sign-ups. Switching off
+    stops new sign-ups joining; people already in carry on. A failure never fails the intake.
+  - **Use on product** (plan page, admin only): fills only empty cart-abandon (2h) and after-purchase fields of a product whose
+    automations are off, with the picked mailbox as sender. Sends start only when someone switches the product on in
+    Settings > Payments (the existing who/when approval).
+  - **`Product.postPurchaseSequenceId`** (nullable): checked like the cart-abandon sequence and editable in Settings > Payments. It
+    counts toward what a product needs before switching on. After payment, the buyer joins it once nurture has been stopped. A
+    repeat buyer who was in it before isn't added again.
+
 - **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
   sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
   - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
@@ -6599,7 +6613,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
   `Content-Security-Policy` for those pages.
 
-- **OPEN-318 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+- **OPEN-319 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
@@ -6610,8 +6624,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
   second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
   not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
-  rejects a request another process already claimed (verified to fail on the old route). apps/api 313
-  files / 2039 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 314
+  files / 2049 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
   without it this changes nothing. **Follow-up:** the `@fastify/rate-limit` backstop (OPEN-274) is
   still per-process. Its built-in Redis store either fails open or 500s every request when Redis errors,
   so it needs a store with a local fallback.
