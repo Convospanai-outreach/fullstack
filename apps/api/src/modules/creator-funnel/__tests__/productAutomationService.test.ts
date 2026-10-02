@@ -17,6 +17,7 @@ const stored = (over: Record<string, unknown> = {}) => ({
     deliveryMailboxId: null,
     cartAbandonSequenceId: null,
     cartAbandonHours: null,
+    postPurchaseSequenceId: null,
     automationsActive: false,
     automationsActivatedById: null,
     automationsActivatedAt: null,
@@ -65,6 +66,15 @@ describe("productAutomationService", () => {
         await expect(updateAutomation("team-a", "user-1", "prod-1", { cartAbandonSequenceId: "seq-other", cartAbandonHours: 4 })).rejects.toThrow("wasn't found");
         expect(mockDb.campaignSequence.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "seq-other", teamId: "team-a" } }));
         expect(mockDb.product.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("an after-purchase sequence alone is enough to switch on, and is checked like the cart-abandon one", async () => {
+        await updateAutomation("team-a", "user-1", "prod-1", { postPurchaseSequenceId: "seq-post", active: true });
+        expect(mockDb.campaignSequence.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "seq-post", teamId: "team-a" } }));
+        expect(mockDb.product.updateMany.mock.calls[0][0].data).toMatchObject({ postPurchaseSequenceId: "seq-post", automationsActive: true });
+
+        mockDb.campaignSequence.findFirst.mockResolvedValue({ steps: [{ stepType: "whatsapp" }] });
+        await expect(updateAutomation("team-a", "user-1", "prod-1", { postPurchaseSequenceId: "seq-post" })).rejects.toThrow("can't run");
     });
 
     it("edits while on keep the original approval; switching off always works", async () => {

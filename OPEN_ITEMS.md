@@ -6100,6 +6100,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-318 (Fixed — creator funnel phase 5c-1b: switching the plan's email sequences on):** the explicit steps that let the
+  5c-1a drafts send:
+  - **Nurture switch** (plan page, admin only): needs a finished plan, a nurture sequence a nurture can run, and a connected team
+    mailbox, which becomes the sequence's sender (never the system sender). Who and when are recorded on `PlaybookRun`, which is
+    the approval. New sign-ups on the plan's lead-magnet page then join through `NurtureProvider`, on all three intake paths, when
+    the flag is on, the lead isn't at BOFU/POST, and nothing else is emailing it. No backfill of earlier sign-ups. Switching off
+    stops new sign-ups joining; people already in carry on. A failure never fails the intake.
+  - **Use on product** (plan page, admin only): fills only empty cart-abandon (2h) and after-purchase fields of a product whose
+    automations are off, with the picked mailbox as sender. Sends start only when someone switches the product on in
+    Settings > Payments (the existing who/when approval).
+  - **`Product.postPurchaseSequenceId`** (nullable): checked like the cart-abandon sequence and editable in Settings > Payments. It
+    counts toward what a product needs before switching on. After payment, the buyer joins it once nurture has been stopped. A
+    repeat buyer who was in it before isn't added again.
+
 - **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
   sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
   - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
