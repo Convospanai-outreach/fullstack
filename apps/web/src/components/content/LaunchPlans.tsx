@@ -138,7 +138,7 @@ export function LaunchPlans() {
                     <p className="text-xs text-muted-foreground">
                         Writes {postsPerWeek * 4} draft posts over 4 weeks, spread across your funnel stage mix, with text for Facebook, Instagram and
                         LinkedIn and a suggested visual for each, plus a lead-magnet page, a sales page and a comment keyword auto-reply, all as
-                        drafts. Uses about {postsPerWeek * 4 + 4} AI credits. Nothing is posted, published or switched on until you do it.
+                        drafts. Uses about {postsPerWeek * 4 + 14} AI credits. Nothing is posted, published or switched on until you do it.
                     </p>
                 </div>
 

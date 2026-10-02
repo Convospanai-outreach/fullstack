@@ -6133,6 +6133,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
     switched-on trigger stay.
   - **Not here:** the WhatsApp consent checkbox (5b-2).
+  - **Prod check (2026-10-02, after deploy):** a SQL-enqueued run on a test team (2 posts a week, booking offer, no social
+    account) came out READY with 8 draft posts, both draft pages (TOFU and BOFU, real AI copy, not the fallback), sales page buttons
+    on the booking link, and the no-account note. Deleted afterwards. Two follow-ups, fixed in the 5b-2 PR: the footer's "back to
+    top" button was pointed at the booking link too, and the wizard's cost note said N+4 credits where the two pages cost about 14
+    (brief 2 + wireframes 5, each).
 
 - **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
   STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults

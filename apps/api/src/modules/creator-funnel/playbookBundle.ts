@@ -36,10 +36,11 @@ async function saveIds(runId: string, data: Prisma.PlaybookRunUpdateManyMutation
     if (res.count !== 1) throw new Error("run is no longer being written");
 }
 
-/** Points every button of a page's sections at href (the sales page's booking or checkout link). */
+/** Points every button of a page's sections at href (the sales page's booking or checkout link); the footer's stays "back to top". */
 export function withCtaHref(renderedJson: unknown, href: string): unknown {
     const link = (section: unknown) =>
-        section && typeof section === "object" && ((section as Record<string, unknown>)["ctaLabel"] || (section as Record<string, unknown>)["type"] === "cta_form")
+        section && typeof section === "object" && (section as Record<string, unknown>)["type"] !== "footer" &&
+        ((section as Record<string, unknown>)["ctaLabel"] || (section as Record<string, unknown>)["type"] === "cta_form")
             ? { ...(section as Record<string, unknown>), ctaHref: href }
             : section;
     if (Array.isArray(renderedJson)) return renderedJson.map(link);
