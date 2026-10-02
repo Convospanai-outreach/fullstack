@@ -22,11 +22,21 @@ type PlanPost = {
     targets: { status: string; socialAccount: { id: string; platform: string; handle: string | null } }[];
 };
 type PlanPage = { id: string; campaignId: string; slug: string; title: string | null; status: string };
+type PlanSequence = {
+    id: string;
+    campaignId: string | null;
+    name: string;
+    status: string;
+    funnelStage: FunnelStage | null;
+    steps: { delayDays: number; subject: string | null }[];
+    _count: { enrollments: number };
+};
 export type PlanDetail = Omit<PlanSummary, "_count"> & {
     notes: string | null;
     leadMagnetPage: PlanPage | null;
     salesPage: PlanPage | null;
     keywordTrigger: { id: string; keywords: string[]; active: boolean; socialAccount: { platform: string; handle: string | null } } | null;
+    sequences: PlanSequence[];
     bookingUrl: string | null;
     icpCreated: boolean;
     product: { id: string; name: string } | null;
@@ -71,7 +81,7 @@ export function LaunchPlanReview({ id }: { id: string }) {
     };
 
     const remove = async () => {
-        if (!window.confirm("Delete this plan and all of its drafts (posts, pages, auto-reply)? Anything already live stays.")) return;
+        if (!window.confirm("Delete this plan and all of its drafts (posts, pages, auto-reply, email sequences)? Anything already live stays.")) return;
         setBusy("delete");
         try {
             const res = await fetch(url, { method: "DELETE" });
@@ -84,8 +94,13 @@ export function LaunchPlanReview({ id }: { id: string }) {
                 body.kept ? `${body.kept} live post${body.kept === 1 ? "" : "s"}` : null,
                 body.pagesKept ? `${body.pagesKept} published page${body.pagesKept === 1 ? "" : "s"}` : null,
                 body.triggerKept ? "the switched-on auto-reply" : null,
+                body.sequencesKept ? `${body.sequencesKept} email sequence${body.sequencesKept === 1 ? "" : "s"} in use` : null,
             ].filter(Boolean);
-            toast.success(`Deleted ${body.deleted} drafts${body.pagesDeleted ? ` and ${body.pagesDeleted} draft page${body.pagesDeleted === 1 ? "" : "s"}` : ""}.${kept.length ? ` Kept ${kept.join(", ")}.` : ""}`);
+            const also = [
+                body.pagesDeleted ? `${body.pagesDeleted} draft page${body.pagesDeleted === 1 ? "" : "s"}` : null,
+                body.sequencesDeleted ? `${body.sequencesDeleted} email sequence${body.sequencesDeleted === 1 ? "" : "s"}` : null,
+            ].filter(Boolean);
+            toast.success(`Deleted ${body.deleted} drafts${also.length ? ` and ${also.join(" and ")}` : ""}.${kept.length ? ` Kept ${kept.join(", ")}.` : ""}`);
             router.push("/content/plans");
         } finally {
             setBusy(null);
@@ -154,6 +169,35 @@ export function LaunchPlanReview({ id }: { id: string }) {
                             <Link href="/settings/social" className="text-xs text-primary hover:underline">Settings &gt; Social accounts</Link>
                         </div>
                     )}
+                </section>
+            )}
+
+            {data.sequences.length > 0 && (
+                <section className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        Email sequences, saved as draft campaigns. Nobody is added to them and nothing is sent until you switch them on.
+                    </p>
+                    <div className="grid gap-3 md:grid-cols-3">
+                        {data.sequences.map((seq) => (
+                            <div key={seq.id} className="space-y-2 rounded-lg border border-border p-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    {seq.funnelStage && <span className={`rounded border px-1.5 text-xs ${STAGE_META[seq.funnelStage].className}`}>{STAGE_META[seq.funnelStage].label}</span>}
+                                    <span className="text-foreground">{seq.name}</span>
+                                </div>
+                                <ol className="space-y-1 text-xs text-muted-foreground">
+                                    {seq.steps.map((step, i) => (
+                                        <li key={i}>{step.delayDays === 0 ? "Right away" : `${step.delayDays} day${step.delayDays === 1 ? "" : "s"} later`}: {step.subject || "(no subject)"}</li>
+                                    ))}
+                                </ol>
+                                <div className="text-xs text-muted-foreground">
+                                    {seq._count.enrollments > 0 ? `${seq._count.enrollments} joined` : "Draft: nobody added yet"}
+                                </div>
+                                {seq.campaignId && (
+                                    <Link href={`/campaigns/${encodeURIComponent(seq.campaignId)}`} className="text-xs text-primary hover:underline">Edit in campaigns</Link>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </section>
             )}
 

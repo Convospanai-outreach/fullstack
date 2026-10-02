@@ -1666,6 +1666,10 @@ model PlaybookRun {
   salesPageId          String? // its draft LandingPage (CTA links to the booking or checkout page)
   keywordTriggerId     String? // the switched-off comment keyword auto-reply to the lead-magnet page
   notes                String?  @db.Text // what the run couldn't make and why, shown on the plan
+  // Its email sequences (5c), each in its own draft Campaign (the campaign editor edits one sequence per campaign). Plain ids like the 5b ones.
+  nurtureCampaignId      String? // MOFU nurture: lead magnet, teaching, then the offer (booking offers end with the booking emails)
+  cartAbandonCampaignId  String? // BOFU checkout reminders (product offers)
+  postPurchaseCampaignId String? // POST testimonial request (product offers)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
