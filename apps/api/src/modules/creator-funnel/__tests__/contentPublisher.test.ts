@@ -231,6 +231,22 @@ describe("publishDuePosts", () => {
             expect(store.targets.get("t-ig")).toMatchObject({ status: "PUBLISHED", externalId: "ig-media-1", containerId: "c-1" });
         });
 
+        it("uses the post's Instagram caption on Instagram and the body on Facebook", async () => {
+            target("t-ig", igAccount);
+            target("t-fb", fbAccount);
+            due({}, { mediaUrls: ["https://cdn/a.jpg"], channelCaptions: { INSTAGRAM: "IG words #tag", LINKEDIN: "LI words" } });
+            routes({
+                "ig-1/content_publishing_limit": () => ({ data: [{ quota_usage: 0, config: { quota_total: 50 } }] }),
+                "ig-1/media": () => ({ id: "c-1" }),
+                "c-1": () => ({ status_code: "FINISHED" }),
+                "ig-1/media_publish": () => ({ id: "ig-media-1" }),
+                "page-1/photos": () => ({ id: "photo-1", post_id: "page-1_7" }),
+            });
+            await publishDuePosts(NOW);
+            expect(graphCall).toHaveBeenCalledWith("POST", "ig-1/media", { image_url: "https://cdn/a.jpg", caption: "IG words #tag" }, "user-token");
+            expect(graphCall).toHaveBeenCalledWith("POST", "page-1/photos", { url: "https://cdn/a.jpg", caption: "Hello" }, "page-token");
+        });
+
         it("builds a carousel from child containers", async () => {
             target("t-ig", igAccount);
             due({}, { mediaUrls: ["https://cdn/a.jpg", "https://cdn/b.jpg"] });

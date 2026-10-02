@@ -72,6 +72,7 @@ describe("/content routes", () => {
         expect(res.status).toBe(201);
         expect(service.createPost).toHaveBeenCalledWith("team-a", "user-1", {
             body: "Hi", funnelStage: "TOFU", mediaUrls: [], accountIds: [], timezone: "Asia/Kolkata", scheduledAt: new Date("2030-01-07T04:30:00Z"),
+            channelCaptions: {}, visualBrief: null,
         });
     });
 
