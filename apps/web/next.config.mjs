@@ -117,6 +117,24 @@ const nextConfig = {
             },
         ];
     },
+    // One home per concept: duplicate pages redirect to the canonical one. Temporary (307)
+    // until verified in prod. These run before src/proxy.ts, which still enforces auth on
+    // the destination.
+    async redirects() {
+        return [
+            ['/audit-logs', '/settings/audit'],
+            ['/governance/audit', '/settings/audit'],
+            ['/governance/guardrails', '/settings/guardrails'],
+            ['/governance/keys', '/settings/keys'],
+            ['/automations/approvals', '/inbox?tab=approvals'],
+            ['/settings/approvals', '/inbox?tab=approvals'],
+            ['/settings/hitl', '/inbox?tab=approvals'],
+            ['/approvals', '/inbox?tab=approvals'],
+            ['/team', '/settings/team'],
+            ['/crm', '/settings/crm'],
+            ['/dashboard/settings', '/settings'],
+        ].map(([source, destination]) => ({ source, destination, permanent: false }));
+    },
     webpack(config) {
         // Ensure three.js ESM builds resolve correctly in the webpack graph
         config.resolve.extensionAlias = {

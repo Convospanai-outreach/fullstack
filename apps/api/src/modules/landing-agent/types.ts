@@ -14,6 +14,7 @@ export interface LandingPageSection {
     body?: string;
     bullets?: string[];
     ctaLabel?: string;
+    ctaHref?: string; // https link the button opens instead of the lead form
     imageUrl?: string;
     imagePrompt?: string;
     imageAlt?: string;

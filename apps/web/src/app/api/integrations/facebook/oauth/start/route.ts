@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildFacebookLeadsAuthUrl } from "@/modules/facebook-leads/service/facebookLeadsService";
+import { resolveEnabledFeatureKeys } from "@/lib/hiddenFeaturesReadiness";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,12 @@ export async function GET(req: NextRequest) {
         }
 
         const nextPath = req.nextUrl.searchParams.get("next");
-        const authUrl = buildFacebookLeadsAuthUrl({ teamId, userId, ...(nextPath ? { nextPath } : {}) });
+        // "social" (creator funnel) asks for posting, comment and messaging permissions.
+        const purpose = req.nextUrl.searchParams.get("purpose") === "social" ? "social" : "leads";
+        if (purpose === "social" && !(await resolveEnabledFeatureKeys(teamId)).has("creator-funnel")) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        const authUrl = buildFacebookLeadsAuthUrl({ teamId, userId, purpose, ...(nextPath ? { nextPath } : {}) });
 
         return NextResponse.json({ authUrl });
     } catch (error: any) {

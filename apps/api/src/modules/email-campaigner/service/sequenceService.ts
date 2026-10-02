@@ -735,6 +735,23 @@ export class SequenceService {
         });
     }
 
+    // Explicitly exits every live enrollment of one lead, e.g. when a rep marks a reply's
+    // outcome in the Action Inbox. exitReason(lead) can't be relied on there: an outcome
+    // like LOST moves the lead off the "replied" status that was stopping it, and
+    // pre-created runs only re-check exitReason before sending.
+    static async stopEnrollmentsForLead(teamId: string, leadId: string, errorCode: string, now = new Date()) {
+        const client = db();
+        const stopped = await client.sequenceEnrollment.updateMany({
+            where: { teamId, leadId, status: { in: ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"] } },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+        });
+        await client.sequenceStepRun.updateMany({
+            where: { teamId, leadId, status: { in: RUN_DUE_STATUSES } },
+            data: { status: "SKIPPED_EXITED", completedAt: now, errorCode },
+        });
+        return { stopped: stopped.count };
+    }
+
     // Follows this sequence's SequenceEdge graph from currentStep to find what runs next.
     // `handle` ("yes"/"no") only applies right after a CONDITION step; every other step type
     // (and a condition outcome with no matching branch configured) uses the "default" edge.

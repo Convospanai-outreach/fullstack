@@ -9,6 +9,7 @@ export type HiddenFeatureKey =
     | "agents"
     | "caller"
     | "command-center"
+    | "creator-funnel"
     | "crystal-knows"
     | "csv-ingestion"
     | "edge"
@@ -40,16 +41,23 @@ const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set([]);
 type HiddenFeatureBase = Omit<HiddenFeatureDefinition, "built">;
 
 const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
+    "creator-funnel": {
+        key: "creator-funnel",
+        label: "Creator funnel",
+        description: "Instagram and Facebook posts and DMs into landing pages, nurture and checkout, with a content calendar.",
+        openPath: "/settings/social",
+        pathPrefixes: ["/settings/social", "/content/calendar"],
+    },
     "agents": {
         key: "agents",
-        label: "Agent Swarm",
+        label: "AI agents",
         description: "Autonomous and semi-autonomous agent workspaces.",
         openPath: "/agents/swarm",
         pathPrefixes: ["/agents"],
     },
     "caller": {
         key: "caller",
-        label: "Caller Workspace",
+        label: "Calling",
         description: "Dedicated caller workflows and queue handling.",
         openPath: "/caller",
         pathPrefixes: ["/caller"],
@@ -63,14 +71,14 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
     },
     "command-center": {
         key: "command-center",
-        label: "Command Center",
+        label: "Agent runs",
         description: "Operations overview for orchestrated runs and supervision.",
         openPath: "/command-center",
         pathPrefixes: ["/command-center"],
     },
     "crystal-knows": {
         key: "crystal-knows",
-        label: "Crystal Knows",
+        label: "Personality insights",
         description: "DISC personality lookup for lead enrichment and personality-tuned AI drafting.",
         openPath: "/crystal-knows",
         pathPrefixes: ["/crystal-knows"],
@@ -84,21 +92,21 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
     },
     "edge": {
         key: "edge",
-        label: "Edge Runtime",
+        label: "Private edge server",
         description: "Edge runtime setup, diagnostics, and hardware-aware operations.",
         openPath: "/edge",
         pathPrefixes: ["/edge"],
     },
     "hunter-email-finder": {
         key: "hunter-email-finder",
-        label: "Hunter Email Finder",
+        label: "Find emails",
         description: "Email discovery and verification workflows powered by Hunter.",
         openPath: "/hunter-email-finder",
         pathPrefixes: ["/hunter-email-finder"],
     },
     "jobs": {
         key: "jobs",
-        label: "Jobs",
+        label: "Background jobs",
         description: "Queued job visibility and debugging tools.",
         openPath: "/jobs",
         pathPrefixes: ["/jobs"],
@@ -112,7 +120,7 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
     },
     "linkedin-runner": {
         key: "linkedin-runner",
-        label: "LinkedIn Runner",
+        label: "LinkedIn outreach",
         description: "Execution controls for LinkedIn automation and browser flows.",
         openPath: "/linkedin-runner",
         pathPrefixes: ["/linkedin-runner"],
@@ -133,28 +141,28 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
     },
     "runtime": {
         key: "runtime",
-        label: "Runtime",
+        label: "AI runtime status",
         description: "Runtime control, diagnostics, and execution surfaces.",
         openPath: "/runtime",
         pathPrefixes: ["/runtime"],
     },
     "scraper-bridge": {
         key: "scraper-bridge",
-        label: "Scraper Bridge",
+        label: "Web scraper",
         description: "Ingress and orchestration surface for scrape-driven workflows.",
         openPath: "/scraper-bridge",
         pathPrefixes: ["/scraper-bridge"],
     },
     "sovereign": {
         key: "sovereign",
-        label: "Sovereign Controls",
+        label: "Data residency",
         description: "Residency, compliance, and sovereign execution surfaces.",
         openPath: "/sovereign",
         pathPrefixes: ["/sovereign"],
     },
     "studio": {
         key: "studio",
-        label: "Studio",
+        label: "Content studio",
         description: "Prompting, copy, and workflow composition workspace.",
         openPath: "/studio",
         pathPrefixes: ["/studio"],
@@ -261,6 +269,7 @@ export type HiddenFeatureCategory = "Outreach" | "Automation" | "Account" | "Adm
 
 export const HIDDEN_FEATURE_CATEGORY_BY_KEY: Record<HiddenFeatureKey, HiddenFeatureCategory> = {
     "playbooks": "Outreach",
+    "creator-funnel": "Outreach",
     "hunter-email-finder": "Outreach",
     "crystal-knows": "Outreach",
     "csv-ingestion": "Outreach",

@@ -156,3 +156,45 @@ describe("POST /api/approvals/[id] - requires RESOLVE_APPROVALS permission", () 
         expect(mockHandleEmailSending).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: null }));
     });
 });
+
+const { mockDecideContentPost } = vi.hoisted(() => ({ mockDecideContentPost: vi.fn() }));
+vi.mock("@/modules/creator-funnel/contentPostDecision", () => ({ decideContentPost: mockDecideContentPost }));
+
+describe("POST /api/approvals/[id] - content posts", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1", teamId: "team-1", actionType: "CONTENT_POST_PUBLISH", entityType: "ContentPost", entityId: "post-1", payload: {},
+        });
+        mockDecideContentPost.mockResolvedValue(true);
+    });
+
+    it("decides through the guarded post decision and never touches the email path", async () => {
+        const { POST } = await import("./route");
+
+        const approved = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+        expect(approved.status).toBe(200);
+        expect(mockDecideContentPost).toHaveBeenCalledWith("team-1", "req-1", "user-1", "APPROVED", undefined);
+
+        await POST(postRequest({ action: "REJECT", reason: "Wrong link" }), paramsFor("req-1"));
+        expect(mockDecideContentPost).toHaveBeenLastCalledWith("team-1", "req-1", "user-1", "REJECTED", "Wrong link");
+
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+        expect(mockPrisma.email.update).not.toHaveBeenCalled();
+        expect(mockHandleEmailSending).not.toHaveBeenCalled();
+    });
+
+    it("409s when the request was already decided or withdrawn by an edit", async () => {
+        mockDecideContentPost.mockResolvedValue(false);
+        const { POST } = await import("./route");
+        expect((await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"))).status).toBe(409);
+    });
+
+    it("needs an explicit action", async () => {
+        const { POST } = await import("./route");
+        expect((await POST(postRequest({}), paramsFor("req-1"))).status).toBe(400);
+        expect(mockDecideContentPost).not.toHaveBeenCalled();
+    });
+});

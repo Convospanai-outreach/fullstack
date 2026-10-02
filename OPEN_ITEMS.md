@@ -5988,6 +5988,617 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   deployment (the owner's objective): Mautic isn't deployed, and narrowing it to Cloudflare ranges in the current
   Caddy template would untrust Caddy itself and break HTTPS detection.
 
+- **OPEN-283 (Fixed — Mautic on AWS: CloudFormation stack replaces the undeployed Oracle-era compose; closes S-17's MAUTIC_TRUSTED_PROXIES):**
+  the owner's objective is to host Mautic on AWS (eu-north-1, Free plan credits). `deploy/aws/mautic/mautic.yaml` is one
+  t4g.small AL2023 instance running Docker Compose (Caddy 2.11.4, MySQL 8.4.11, Mautic 7.2.1 web/cron/worker) in its own
+  VPC. Only Cloudflare reaches it (security group: tcp 443 from the 15 Cloudflare IPv4 ranges, no SSH; admin through SSM
+  Session Manager). All state is on a separate encrypted, retained EBS volume with daily DLM snapshots kept 7 days. The
+  instance requires IMDSv2 with hop limit 1, so containers can't use the instance role. The EIP is pre-bound to an ENI and
+  the data volume attaches through `Instance.Volumes`, because both must exist before the CreationPolicy signal.
+  Secrets: `AdminSecret` is generated; `ExternalSecret` (Resend key, Cloudflare origin cert/key) is filled in by the owner
+  and read at runtime by the instance role; the DB passwords are generated on first boot and kept on the data volume. There
+  are none in parameters, metadata or user data. Proxy chain (the S-17 fix): Caddy trusts the Cloudflare ranges and
+  overwrites `X-Forwarded-For` with `{client_ip}`, and Mautic's `trusted_proxies` is only the compose subnet
+  (`172.28.0.0/24`), never `0.0.0.0/0`. Mautic config (API + Basic auth, Resend SMTP DSN, trusted hosts/proxies) is set
+  through `MAUTIC_CONFIG_PARAMETERS`. The budget alert excludes credits. `docker-compose.mautic.yml` and
+  `docker/mautic/Caddyfile` (never deployed, `MAUTIC_TRUSTED_PROXIES: 0.0.0.0/0`) are removed.
+  Regression test `scripts/ci/mautic-template.test.mjs` (new CI step): its S-17 test fails on main because of the old
+  compose file. The other tests pin Cloudflare-only ingress matching Caddy's trusted ranges, Mautic trusting only the
+  compose subnet, IMDSv2, encryption, Retain policies, no secret parameters, and `bash -n` of the embedded scripts.
+  cfn-lint is clean and shellcheck is clean. **Not deployed:** the AWS account isn't activated yet (`OptInRequired`),
+  so there has been no service-side validation or pricing check; the owner deploys by following `deploy/aws/mautic/README.md`.
+
+- **OPEN-284 (Fixed — Mautic stack: the cost budget moves to its own us-east-1 template):** the first deploy attempt of
+  `deploy/aws/mautic/mautic.yaml` (OPEN-283) failed CloudFormation's own validation in eu-north-1:
+  `Template format error: Unrecognized resource types: [AWS::Budgets::Budget]`. cfn-lint doesn't catch Region support,
+  and the account was only activated after #595 merged. The budget (with `IncludeCredit: false`) and its `AlertEmail`
+  / `MonthlyBudgetUsd` parameters move to `deploy/aws/mautic/budget.yaml`, deployed as its own stack in us-east-1; a
+  budget is account-wide anyway. Both templates now pass `validate-template` in their Regions (run as the IAM admin
+  user), and cfn-lint is clean. The README deploy steps add the budget stack and note Git Bash's `/aws/...` path
+  rewriting (`MSYS_NO_PATHCONV=1`). Regression test: `mautic-template.test.mjs` test 7 fails on main's template
+  (Budgets resource present) and passes here.
+
+- **OPEN-285 (Fixed — Mautic budget default above expected spend; README MSYS note):** review on #596 (codeant-ai)
+  flagged that `budget.yaml`'s default `MonthlyBudgetUsd` of 15 sat below the stack's own estimate (about $18–20 a
+  month before credits), so the 80% alert would fire every month. The default is now 30; the live `mautic-budget`
+  stack was already deployed with 30. The README now says `export MSYS_NO_PATHCONV=1` rather than "set". Regression:
+  `mautic-template.test.mjs` test 7 now asserts the default is at least 25, which fails on main's 15.
+
+- **OPEN-286 (Fixed — Mautic dev-stage idle auto-stop, switchable for go-live):** the owner asked for Render-like sleep
+  while Mautic is in development. `mautic.yaml` gains an `AutoStopWhenIdle` parameter (default `true`) and a
+  conditional `IdleStopAlarm`: CloudWatch `NetworkOut` under 250 KB per 5 minutes for 12 periods (1 hour) triggers the
+  EC2 `stop` action. Missing data counts as not breaching, so the alarm resets while stopped. Measured idle is about 12 KB
+  per 5 minutes (SSM agent); CPU was rejected because cron spikes blur it. Stopping saves compute (about $12 of about $19
+  a month); EBS, the EIP and the secrets still bill. There's no wake-on-request: `deploy/aws/mautic/mautic-power.sh
+  start|stop|status` starts the instance and resets the alarm. Setting `AutoStopWhenIdle=false` removes the alarm and
+  must happen before apps/api pushes leads to Mautic. The alarm acts through the `AWSServiceRoleForCloudWatchEvents`
+  service-linked role, which didn't exist in the account; the README creates it once. Regression:
+  `mautic-template.test.mjs` test 8 fails on main's template and passes here; the `bash -n` test covers the script.
+
+- **OPEN-287 (Fixed — Action Inbox + daily digest, #599):** users had no single place to see what needs them:
+  `(dashboard)/inbox` only redirected to `/approvals`, replies had no UI, and replies/meetings/stalls triggered no
+  notifications. New team-scoped `GET /inbox`, `/inbox/counts`, `/inbox/thread/:leadId` and
+  `POST /inbox/replies/:id/{read,reply,mark}`. Replies send from the mailbox that sent the original email through that
+  provider's own send function (never falling back to another mailbox), respect SuppressionEntry and guardrails, and
+  persist an Email row so reply sync still matches the lead's next answer. Marking an outcome saves `Lead.replyOutcome`
+  and explicitly stops the lead's sequence enrollments for all four outcomes: sequences otherwise stop only through
+  `exitReason(lead)`, and a lead moved to LOST would have had its pre-scheduled runs send again (control test in
+  `sequenceService.stopEnrollments.test.ts`). `/inbox` is the post-login landing behind
+  `NEXT_PUBLIC_ACTION_INBOX_ENABLED` (build-time inlined). Reply/meeting alerts go through NotificationDispatcher (one
+  per lead per 6h); an hourly worker tick sends the 08:00 IST digest, idempotent via `DigestLog`. Migration
+  `20260930100000_action_inbox_and_digest` (additive) was applied with Web Prisma Migrate before merge, since Render
+  can deploy apps/web ahead of the Oracle `migrate deploy`. Known gaps left: Gmail replies store the subject only; inbox
+  replies carry no In-Reply-To headers; a new IMAP mailbox's first sync can alert once per historical reply; SMTP inbox
+  replies skip daily-send accounting.
+- **OPEN-289 (Fixed — new brace-expansion, fast-uri and ip-address advisories failed the `npm audit` gate on main):**
+  main's CI after #599 failed only in `scripts/audit-with-allowlist.mjs` (Web Build and API Strict Typecheck), on
+  seven newly published advisories: GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p and GHSA-q2hr-2g5m-vwhr (`brace-expansion`
+  recursion/quadratic DoS), GHSA-hrr3-gc8f-f4qj and GHSA-jvvf-x445-j334 (`fast-uri` host-case normalization and
+  mailto header injection), and GHSA-j6r3-76f7-8jcv and GHSA-h3mg-xc3c-68pw (`ip-address` <= 10.7.0 cross-family
+  subnet checks and an unbounded parse diagnostic). The lockfile moves within each package's existing major:
+  `brace-expansion` 1.1.21 / 2.1.7 / 5.0.12, `fast-uri` 3.1.8 / 4.1.5, and `ip-address` 10.7.2. The root
+  `ip-address` override goes to 10.7.2. The `fast-uri` pins (root, apps/api, apps/web) go to 4.1.5 and apps/api's
+  `brace-expansion` pin to 1.1.21, to keep the stated floors honest (npm keeps locked entries that satisfy their ranges,
+  so those pins weren't what resolved them). The lockfile entries were edited in place: none of the three packages
+  has dependencies. `npm update` was not used, because it re-resolved geoip-lite to a nested `ip-address@5.9.4`, which
+  is also vulnerable. Evidence: the gate exits 0 from the root, apps/api and apps/web after `npm ci`; apps/api strict
+  `tsc` is clean, and the inbox and server vitest suites pass (62).
+- **OPEN-290 (Fixed — IA phase 1: one home per concept via redirects; roadmap 3.8):** several dashboard concepts had two
+  or three pages. `next.config.mjs` now has temporary (307) `redirects()` to one canonical page each. Every pair was
+  compared first, both the page and its API route:
+  - **Audit, guardrails, keys:** `/audit-logs` and `/governance/audit` go to `/settings/audit`, `/governance/guardrails`
+    to `/settings/guardrails`, and `/governance/keys` to `/settings/keys`. The /settings pages are the complete ones:
+    key revocation, allowlist/regex rules, and the trace drill-down.
+  - **Approvals:** `/automations/approvals`, `/settings/approvals` and `/settings/hitl` go to `/approvals`. All read the
+    same `ApprovalRequest` queue. No approval-rules page exists; the only rule is `requiresApprovalForCampaign` in
+    `/settings/governance`.
+  - **Team, CRM, settings:** `/team` goes to `/settings/team`; its two policy fields are also editable in
+    `/settings/governance`. `/crm`, a preview page, goes to `/settings/crm`, the real CRM configuration. `/dashboard/settings`
+    had no page and now goes to `/settings`.
+  - **Kept, not duplicates:** `/admin/audit` (platform-wide, for SUPER/SYSTEM_ADMIN), and `/settings/governance` (the
+    OrganizationPolicy editor) versus `/governance` (a stats overview).
+  - **Links:** internal links, the sidebar, the Omnibox, GovernanceLayout tabs, the WelcomeTour selector and featureHelp
+    now point at the canonical pages. The CRM help copy was rewritten to what the page does.
+  - **Deletions:** no page was deleted; the orphans are listed in the PR.
+  - **Test:** `tests/unit/ia-redirects.test.ts` checks that every redirect is temporary, lands on an existing page, and
+    needs one hop.
+- **OPEN-291 (Fixed — IA phase 2: one sidebar entry per concept, tabs, one Settings layout, 4-item header; roadmap 3.8):**
+  the sidebar had 25+ entries in six groups, including Admin and Monitoring shown to every member.
+  - **Sidebar and tabs:** `lib/navSections.ts` is the single source for the sidebar and `SectionTabs`. The sidebar has
+    seven sections (Home, Inbox, Leads, Campaigns, Pipeline, Content, Reports) plus Settings. Each section's pages
+    render as tabs above the page, from the dashboard shell. Flag-gated tabs appear only when the feature is live.
+  - **Admin console:** a single "Admin console" entry, shown only to SUPER/SYSTEM_ADMIN, the roles `/admin` requires.
+  - **Inbox:** tabs are Replies | Approvals. `/approvals` and the phase 1 approval redirects now go to
+    `/inbox?tab=approvals`. The Approvals tab shows the stalled nudges; meetings live in Calendar.
+  - **Settings:** `SettingsFrame` is one five-section Settings menu, used by `/settings/*`, `/governance/*`, `/billing`
+    and `/profile`. `GovernanceLayout` no longer draws its own tab bar; it titles pages from the menu.
+  - **Header:** ⌘K, notifications, and one Help menu (page guide, Help center, Labs, theme). The connection status
+    shows only when unhealthy, including when the status check itself fails. The Tools menu and the hard-coded
+    "Manual mode" badge are removed.
+  - **Labels:** user-facing labels were renamed to plain words (Buyer signals, Reports, Trust overview, Workspace
+    policies, Data residency, …). Routes are unchanged. ⌘K lists every former sidebar destination. The WelcomeTour
+    follows the new sidebar.
+  - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
+    to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
+  sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
+  - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
+    then invites to the offer (sales page link). A booking offer ends with two call-booking emails (booking link) instead of a
+    separate BOFU sequence, since there's no checkout event to start one.
+  - **Product offers also get:** checkout reminders (BOFU, checkout link) and a testimonial request 7 days after buying (POST). The
+    delivery email isn't repeated; the product's own automation sends it.
+  - **Copy:** one ROUTINE AI call per email (6 for a product, 4 for a booking). Links are added by code, never written by the AI.
+    Bodies are stored as escaped HTML paragraphs, since the engine sends a step's body as HTML.
+  - **Ids:** plain campaign ids on `PlaybookRun`, saved in the same transaction as the campaign, sequence and steps, so a retry carries on.
+  - **Nothing sends:** no enrollment and no product wiring here. The switches (MOFU auto-enroll of new opt-ins, product cart-abandon
+    and post-purchase wiring) are 5c-1b.
+  - **Delete:** removes sequences nobody joined, with their campaigns (only while the campaign has no emails or leads), unpointing a
+    switched-off product first. A sequence someone joined, or one a switched-on product sends, stays.
+
+- **OPEN-316 (Fixed — creator funnel phase 5b-2: WhatsApp opt-in on launch plan pages):** pages a launch plan drafts
+  (`LandingPage.funnelStage` set) ask sign-ups for WhatsApp consent:
+  - **Checkbox:** unticked by default, under the phone field; the text names WhatsApp and the business (team name). It is built
+    once in the api (`whatsappOptIn.ts`) and used by the public page payload (`whatsappOptIn`), the Cloudflare page builder
+    (HTML-escaped, outside the hashed script) and the ledger note. Other pages show no checkbox.
+  - **Stored:** `LandingLead.whatsappConsent` (nullable, guarded ALTER), only when the page has a funnel stage and a phone was given.
+  - **Consent:** the intake records it with `ConsentService.recordConsent` (method WEB_FORM, no staff user, proof
+    `landing_lead:<id>`, the sign-up's IP, the wording and page version in the notes) only when the lead it became has that same
+    phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
+    repeat it. A failure never fails the intake.
+  - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
+  - **Known gap (not changed here):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+    The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
+    relies on the ledger alone.
+  - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
+
+- **OPEN-315 (Fixed — creator funnel phase 5b-1: plan landing pages and keyword trigger):** a launch plan also drafts:
+  - **Pages:** a lead-magnet opt-in page (TOFU) and a sales page (BOFU), each through the landing agent (campaign, brief,
+    wireframes, selected page).
+  - **Sales page buttons:** they open the booking link, or `<WEB_BASE_URL>/checkout/<productId>`. They use a new section `ctaHref`,
+    rendered only when it is https, in both renderer copies; anything else keeps `#lead-form`.
+  - **Keyword trigger:** a switched-off comment keyword auto-reply (an Instagram account preferred, else a Facebook Page of the
+    plan) that sends the lead-magnet page.
+  - **Post prompts:** TOFU and MOFU posts ask readers to comment the keyword (default GUIDE).
+  - **Ids:** plain id columns on `PlaybookRun` (no FK; Landing* tables aren't in migrations), saved as soon as each exists, so a
+    retry carries on.
+  - **Order:** pages are made before the READY claim; the trigger after it, through `createTrigger`'s own checks.
+  - **Notes:** if there's no account, or the trigger is refused, `PlaybookRun.notes` says so.
+  - **Triggers and draft pages:** a switched-off trigger may point at a draft page. Switching one on, or pointing an active one at a
+    page, needs the page published. The trigger editor lists linked draft pages.
+  - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
+    switched-on trigger stay.
+  - **Not here:** the WhatsApp consent checkbox (5b-2).
+  - **Prod check (2026-10-02, after deploy):** a SQL-enqueued run on a test team (2 posts a week, booking offer, no social
+    account) came out READY with 8 draft posts, both draft pages (TOFU and BOFU, real AI copy, not the fallback), sales page buttons
+    on the booking link, and the no-account note. Deleted afterwards. Two follow-ups, fixed in the 5b-2 PR: the footer's "back to
+    top" button was pointed at the booking link too, and the wizard's cost note said N+4 credits where the two pages cost about 14
+    (brief 2 + wireframes 5, each).
+
+- **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
+  STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults
+  are unchanged (no Gemini key in prod).
+  - **Prod key:** prod has only `DEEPSEEK_API_KEY`, and no team has its own keys.
+  - **Model names:** `GET /models` lists only `deepseek-flash` and `deepseek-v4-pro`. The legacy names still work: `deepseek-chat` is
+    served by V4.1 Flash without thinking, and `deepseek-reasoner` by Flash with thinking (slower, billed reasoning tokens).
+  - **Every askAI caller without an explicit complexity:**
+    - it defaults to STRATEGIC, which is `deepseek-reasoner`;
+    - the one logged call took 19s, close to the 30s timeout.
+  - **Gemini defaults:** they still name the retired `gemini-1.5-*` models. That only matters if a Gemini key is added.
+  - **The playbook wizard opts into ROUTINE** (`deepseek-chat`).
+  - **Open question:** should the other callers move as well, or should `DEEPSEEK_MODEL` be pinned? That's a product decision,
+    left open.
+
+- **OPEN-313 (Fixed — creator funnel phase 5a: playbook wizard, post drafts):** Content > Launch plans
+  (`/content/plans`, `GET/POST /content/playbooks`, `GET/DELETE /content/playbooks/:id`, `POST .../retry`), behind
+  `creator-funnel`.
+  - **Inputs:** an offer (an active checkout Product, or a call through the team's own https booking link), an
+    audience (an existing ICP, or a description that creates a simple ICP), a lead magnet, a tone, a start date
+    (tomorrow to 60 days out), 2-5 posts a week, and accounts.
+  - **Output:** a `PlaybookRun` plus 4 weeks of DRAFT ContentPosts at 10:00 local (DST-safe), spread over the
+    team's stage mix by largest remainder. Each post has Facebook text (`body`), Instagram and LinkedIn text
+    (`channelCaptions`), and a `visualBrief`. Every post points back with `playbookRunId` (SetNull), so the
+    set is reviewed and deleted in one place.
+  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one short call per post, 4 at a time. askAI's Anthropic path caps replies at 800 tokens and each call at 30s, so a week per call would be cut off.
+    The job writes everything first, then saves all posts in one transaction that claims GENERATING -> READY, so a
+    repeated job saves nothing twice. It never throws: AI calls are billed, so a failure becomes FAILED with a
+    manual "Try again". There is one GENERATING plan per team; one stuck for 15 minutes can be retried.
+  - **Captions are content:** the publisher sends the Instagram caption on Instagram. `submitPost` checks
+    Instagram's limits on that caption, and the approval card shows each channel's text. Editing a channel
+    caption withdraws an approval like editing the body does. The visual brief isn't posted.
+  - **Delete:** deletes each draft through `deletePost` (approvals withdrawn). Posts already live are kept and
+    detached. An ICP the wizard created stays.
+  - **Nothing publishes:** every post is a DRAFT and goes through the existing approval flow.
+  - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
+    `playbookRunId` links.
+
+- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+  answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
+  `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
+  2026-10-02.
+
+- **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
+  (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
+  - **Per published post:**
+    - visits: distinct landing page sessions with `utm_content=<post>`, by event time;
+    - opt-ins: landing sign-ups with that `utm_content`, by sign-up time;
+    - purchases and revenue: paid orders from checkouts started in the window, by currency.
+  - **Order attribution:** the order's own `utm_content` post if it's one of the team's, else the buyer lead's new
+    `Lead.firstTouchPostId`. Each order counts once.
+  - **`firstTouchPostId`** is set once, only to a ContentPost of the same team (`utm_content` is public input). It
+    is written by the keyword auto-reply (the trigger's post or the commented post) and by landing intake on both
+    the merge and normal paths.
+  - **Stage conversion:** of the leads that reached a stage in the window (from `stage_change` activity), the share
+    that also reached the next one. Leads that skip a stage don't inflate it.
+  - **Ranking:** posts are sorted by revenue in the team's main currency.
+  - **Limits:**
+    - a buyer who pays with a different email than they opted in with stays unattributed (shown as a separate line);
+    - data only accumulates from 6b/6c onward (prod had 0 posts, orders and auto-replies on 2026-10-02, so there
+      was no backfill).
+  - **Schema:** migration `20261008120000_lead_first_touch_post`.
+
+- **OPEN-310 (Fixed — creator funnel phase 6b: UTM on outbound links, stored on events and orders):** one helper
+  (`apps/api/src/lib/utm.ts`, mirrored in `apps/web/src/lib/utm.ts` with a parity test) adds `utm_source`,
+  `utm_medium`, `utm_campaign` and `utm_content`. It never overwrites UTM a link already has, and keeps `?t=` and the
+  fragment.
+  - **Auto-reply links:** source `instagram`/`facebook`, medium `comment`/`dm`, campaign the trigger id. Content is
+    the trigger's post or, for an any-post trigger, the post the comment was on when CMf published it (new
+    `KeywordTriggerReply.mediaId`, matched to `ContentPostTarget.externalId`). Instagram triggers now check message
+    + full link against 1,000 bytes when saved.
+  - **Sequence emails** (user decision 2026-10-02): added at click-redirect time in
+    `apps/web/src/app/api/track/click/[trackingKey]`, only for CMf `/p/` links. Source `email`, medium `sequence`,
+    campaign the campaign id, content the sequence step id. The send path and stored email are unchanged. Emails
+    sent without click tracking get no UTM, and neither do links to Cloudflare-published pages (another origin,
+    served at `/<slug>`), so email attribution is thin if creators mostly share those.
+  - **Stored:** `LandingEvent` and `Order` get `utm*` columns (`LandingEvent` guarded with IF EXISTS); `LandingLead`
+    already had them. Both landing page scripts send the page URL's UTM with every event, and the checkout page
+    sends its URL's UTM with the session. Cloudflare-published pages need a republish to send event UTM.
+  - **Not tagged:** post captions (user-written; the Phase 5 wizard will use the helper) and the delivery link
+    (an external course URL).
+  - **Attribution note for 6c:** landing pages don't link to checkout today, so most purchases will be attributed
+    through `Order.leadId` and the lead's first touch, not through `Order` UTM.
+
+- **OPEN-309 (Fixed — creator funnel phase 6a: checkout hooks):** checkout and payment now move buyers through the
+  funnel. Behind `creator-funnel`. User decisions 2026-10-02: existing leads only at checkout start, a per-product
+  switch is the approval, and the OPEN-306 fix is included for the two checkout webhooks.
+  - **Checkout start** (`checkoutService.createSession`, after the gateway session is saved, never failing checkout):
+    the public checkout's email is unverified, so this acts only on a lead the team already has with that email
+    (case-insensitive). The order is linked to that lead and the lead moves to BOFU.
+  - **Payment** (the `order_captured` job, after the audit log):
+    - The buyer's lead is used, or created from the verified payment. It moves to POST and its nurture stops.
+    - The product's delivery link is emailed from the product's chosen mailbox. The order goes to SENDING right
+      before the one send and is never retried; Resend sends also carry an idempotency key.
+    - The delivery email checks the suppression list, escapes names, and refuses links that aren't https.
+  - **Cart abandon** (5-minute worker tick): an unpaid checkout older than the product's hours (1-168), started after
+    the automations were switched on and at most 7 days old, is claimed once. If the lead hasn't paid for the product
+    since, its current nurture stops and it joins the product's cart-abandon sequence through `NurtureProvider`.
+  - **Approval:** Settings > Payments > a product > Funnel automations. Delivery link, mailbox, sequence and hours
+    are saved switched off. Switching on checks the setup and records who and when; only orders started after that
+    get these emails.
+  - **Schema:** migration `20261006120000_checkout_funnel_hooks`, additive:
+    - `Product`: delivery and cart-abandon settings, plus `automationsActive` (default false) and who/when.
+    - `Order`: `leadId` (FK, SetNull), delivery status/error/time, and `abandonHandledAt`.
+  - **Razorpay checkout orders:** `/webhooks/razorpay` now finds the order by the Razorpay order id it was created
+    with (`Order.gatewaySessionId`) and requires the captured amount to match. It no longer relies on payment notes:
+    Razorpay's docs (checked 2026-10-02) don't say an order's notes reach the payment, and the checkout page sets
+    none. The billing branches of that route are unchanged, but with exact bytes they'll process real events for
+    the first time, so watch the first one.
+  - **Note:** stopping nurture (`stopEnrollmentsForLead`) ends every active sequence the lead is in, not only nurture.
+    A delivery that crashed mid-send stays "sending" and is never retried; check the mailbox's Sent folder.
+  - **Pre-existing, not fixed:** Stripe's default `successUrl` is `/checkout/<id>/success`, but that page doesn't
+    exist, so Stripe buyers land on a 404 after paying.
+
+- **OPEN-308 (Fixed — creator funnel phase 4c: auto-reply link sign-ups merge into the same lead):** the
+  landing page link in a keyword auto-reply now carries `?t=<token>`. A sign-up through it is added to the lead
+  the auto-reply went to, instead of becoming a second lead.
+  - **Token (`linkToken.ts`):** HMAC-SHA256 with `NEXTAUTH_SECRET` (domain-separated) over the `KeywordTriggerReply`
+    id and an expiry. It lasts 72 hours and is about 70 characters. It names the auto-reply, not the lead, because
+    a commenter's lead is only created after the DM is sent. If signing fails, the plain link goes out.
+  - **Forwarding:** the web `/p/<slug>` renderer and the Cloudflare edge form script both send `t` as `socialToken`.
+    It is stored on the new nullable `LandingLead.socialToken` column (migration
+    `20261005120000_landing_lead_social_token`, guarded with IF EXISTS like other Landing* changes). Pages
+    already published to Cloudflare keep the old script until they are republished.
+  - **Merge (`socialLinkMerge.ts`, run by `landing-lead-intake-worker`):** the merge only runs when all of these
+    hold, otherwise the sign-up takes the old create-or-update-by-email path:
+    - the token checks out;
+    - it hadn't expired when the person signed up;
+    - the auto-reply and its lead belong to the page's team.
+
+    The merge fills only the lead's empty fields. It sets a name only when the lead is unnamed or still called by
+    its @handle. Then it moves the lead to MOFU (`landing_opt_in`). It never replaces an email the lead already
+    has, and never adds an email another lead in the team has (case-insensitive). The update is conditional on
+    the email it read.
+  - **Limit:** a forwarded link can attach a friend's email to the original lead within the 72 hours. Only the
+    first email sticks; any later different email falls back to a new lead.
+  - **Instagram:** a reply whose text plus link is over 1,000 bytes fails with a clear error instead of sending.
+  - **Deferred:** the WhatsApp consent checkbox is deferred to Phase 5 (playbook), per the user's decision on
+    2026-10-01.
+
+- **OPEN-307 (Fixed — creator funnel phase 4b: keyword auto-replies on comments and DMs):** a comment or DM containing
+  one of an active trigger's keywords gets an automatic DM, and comments can also get a public reply. Behind
+  `creator-funnel`.
+  - **Approval:** triggers are saved switched off. Switching one on checks the account is connected and has the
+    permissions its sends need, and records who switched it on (`activatedById`/`activatedAt`).
+  - **Queue, then send:** the webhook only writes a `KeywordTriggerReply` claim, unique per (account, comment or DM),
+    so Meta's retries never queue twice. A 10-second worker tick (`sendPendingAutoReplies`) does the Graph calls.
+    - Each row moves to SENDING right before its one call; a row Meta didn't confirm is never retried.
+    - One reply per person per trigger per 24h; at most 200 per account per hour (Instagram allows 750 private
+      replies an hour).
+    - Comments older than 7 days are skipped (Meta's private-reply limit).
+  - **Comments:** Instagram `comments` and Page `feed` (comment adds) are read from `changes[]`. The account's own
+    comments, including CMf's public replies, are skipped so a reply can't trigger itself. A trigger can be limited
+    to one published post. Comments aren't stored or shown in the inbox (user decision 2026-10-01).
+  - **Leads:** a commenter becomes a lead only when an auto-reply is sent, keyed by the Instagram/Messenger id Meta
+    returns, so their later DMs land on the same lead (TOFU, source `instagram_comment`/`facebook_comment`). The
+    auto-reply is recorded on the lead's thread.
+  - **Link:** a plain `https://craftmyfunnel.live/p/<slug>` link to a published landing page. The signed link and
+    opt-in merge are phase 4c.
+  - **Connect:** Pages now subscribe to `messages,feed`. Pages connected before this need a Reconnect.
+  - **Schema:** migration `20261004120000_keyword_triggers` adds the `KeywordTrigger` and `KeywordTriggerReply`
+    tables (additive; `landingPageId` has no FK because Landing* tables aren't created by migrations).
+  - **UI:** Settings > Social > Keyword auto-replies, plus a "Comment keyword → DM" link on live posts in the
+    calendar.
+
+- **OPEN-306 (Partly fixed 2026-10-02 — signed JSON webhooks other than Meta DMs get a re-serialized body):**
+  `/webhooks/stripe-connect` and `/webhooks/razorpay` now get the exact bytes (OPEN-309, user sign-off 2026-10-02;
+  handler logic unchanged). Still open: `/webhooks/stripe-billing`, `/webhooks/whatsapp` and `/webhooks/resend`.
+  apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
+  route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
+  `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the
+  provider's JSON has whitespace, escaped characters or `\uXXXX` escapes. Affected: `/webhooks/stripe-billing`
+  (Stripe payloads are pretty-printed, so this likely fails every delivery), `/webhooks/stripe-connect`,
+  `/webhooks/razorpay`, `/webhooks/whatsapp` and `/webhooks/resend`. It fails closed (deliveries rejected), not
+  open. Prod on 2026-10-01 had 0 `Invoice` and 0 paid `CreditTransaction` rows, so there's no evidence either way.
+  - **Fix:** add these paths to `RAW_JSON_BODY_PATHS` in `apps/api/src/lib/rawJsonBody.ts` (OPEN-305), after checking
+    each provider dashboard's delivery log. Resend inbound is a do-not-touch path, so it needs explicit sign-off.
+- **OPEN-305 (Fixed — creator funnel phase 4a: Instagram and Facebook DMs in the Action Inbox):** one Meta webhook
+  (`apps/api/routes/webhooks/meta-social`) receives Instagram Direct and Facebook Page messages; they appear in
+  the Action Inbox and can be answered from there. Behind `creator-funnel`.
+  - **Signed bytes:** `src/lib/rawJsonBody.ts` keeps the exact request bytes for `/webhooks/meta-social` only (same
+    parser and poisoning options as Fastify's default). The route rejects missing or wrong `X-Hub-Signature-256`
+    (HMAC-SHA256 with `FACEBOOK_APP_SECRET`) with 401 before parsing, and 503s without the secret.
+  - **Ingestion (`creator-funnel/socialInbox.ts`):** every CONNECTED account row for the receiving Instagram account
+    or Page, in teams with the flag on, gets the message. A new person gets a Lead (`instagram_dm`/`facebook_dm`)
+    and a `SocialContact` in one transaction (a concurrent create is handled) and moves to TOFU
+    (`social_first_touch`). `Message.externalId` (`<accountId>:<mid>`) makes Meta's retries no-ops. Media URLs are
+    never stored (placeholders like "[Photo]"). Echoes, reactions, reads and postbacks are skipped. A deleted
+    message deletes CMf's copy. Any failed event returns 500 so Meta retries. The person's name/handle is looked up
+    after the reply, best effort.
+  - **Replies:** `sendReply` hands INSTAGRAM/FACEBOOK replies to `sendSocialReply`. It enforces:
+    - the 24-hour window from `SocialContact.lastInboundAt` (no message tags);
+    - Instagram's 1,000-byte limit;
+    - the messaging permission;
+    - guardrails;
+    - the linked Page's token.
+    A reply Meta refused or didn't confirm isn't recorded as sent. The legacy `/inbox/reply` route refuses these
+    platforms, since it only records messages.
+  - **Connect:** the Page is subscribed with `POST /{page-id}/subscribed_apps?subscribed_fields=messages`. A failure
+    is shown on Settings > Social and Reconnect retries it.
+  - **Schema:** migration `20261003120000_social_dms` adds the `SocialContact` table and a nullable unique
+    `Message.externalId` (additive).
+  - **Owed by the user:** `META_WEBHOOK_VERIFY_TOKEN` on both Oracle VMs, plus `FACEBOOK_APP_SECRET` there. The
+    webhook subscriptions (Page and Instagram objects, `messages`) go in the App Dashboard. The app must be
+    published to receive webhooks.
+
+- **OPEN-304 (Fixed — creator funnel phase 3b: publishing approved posts to Facebook Pages and Instagram):**
+  a 1-minute worker tick (`creator-funnel/contentPublisher.ts`) publishes APPROVED posts once their time comes.
+  Behind `creator-funnel`.
+  - **Only approved posts:** a post is claimed with one conditional update (still APPROVED, same approval request,
+    time still due, lease free), and only if its `ApprovalRequest` row is APPROVED and the team has the flag on. A
+    post more than a day late fails with a note instead of posting.
+  - **At most once per account:** each target moves to SENDING right before the one call that makes it public. A
+    target found in SENDING later is never re-sent blindly. Facebook is marked "couldn't confirm"; Instagram asks
+    the container's `status_code` (PUBLISHED counts as done, FINISHED is safe to publish). The two API VMs share the
+    work through `ContentPost.publishLeaseUntil`; the lease outlasts the slowest run for one post.
+  - **Facebook:** text via `/feed`, one photo via `/photos`, several photos as unpublished uploads attached to one
+    `/feed` post. `scheduled_publish_time` is not used, so an edit in CMf can always still stop a post.
+  - **Instagram:** a container (carousel for 2-10 images) is created and its id saved on the target; its status is
+    checked each minute and it's published once FINISHED, or failed after 10 minutes. `content_publishing_limit`
+    is read before each post (the docs say 100 and 50), and publishing goes ahead if it can't be read.
+  - **Instagram token (changes phase 2):** Instagram endpoints under Facebook Login list "Access Tokens | User", so
+    INSTAGRAM accounts now store the long-lived User token (about 60 days, not refreshable server-side) with its
+    expiry; the daily check warns a week before. Facebook Page accounts keep the Page token. No accounts existed in
+    prod when this changed. The user chose this over switching to Instagram Login (2026-10-01).
+  - **Retries and failures:** a FAILED post can be sent for approval again; only the accounts it didn't reach are
+    posted to, and the approval card lists only those. Accounts a post is live on can't be removed, and a partly
+    live post can't be deleted. Permission (`pages_manage_posts` / `instagram_content_publish`) is checked when a
+    post is sent for approval and again at publish. The author gets a plain-text in-app/email notice linking to
+    the calendar; Meta's error text is shown only in the calendar.
+  - **Schema:** migration `20261002130000_content_publishing` adds `ContentPost.publishLeaseUntil` and
+    `ContentPostTarget.containerId` (additive).
+
+- **OPEN-302 (Open — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
+  (apps/api) writes the sweep's pseudo reviewer `"system-timeout"` into `ApprovalRequest.reviewerId`, which is a
+  foreign key to `User(id)` (`ApprovalRequest_reviewerId_fkey`, confirmed in prod 2026-10-01; no `system-%` users
+  exist). The first non-post QUEUED request to pass its `autoDenyAt` will make the update throw, and
+  `autoDenyExpiredApprovals` has no per-item try/catch, so the rest of that sweep stops too. Not yet triggered: as of
+  2026-10-01 no request has ever been auto-denied and none is overdue. `requestEntityApproval`'s AUTO path
+  (`"system-auto"`) has the same shape, but no action type is AUTO today. Content-post decisions (OPEN-301) already
+  skip the pseudo reviewer. Fix: leave `reviewerId` null for system decisions and catch per item in the sweep.
+
+- **OPEN-301 (Fixed — creator funnel phase 3a: content calendar and post approval):** plan Instagram/Facebook
+  posts per funnel stage and send them for approval. Nothing publishes yet (phase 3b). Behind `creator-funnel`.
+  - **Schema:** migration `20261002120000_content_calendar` (additive) adds a `ContentPostStatus` enum,
+    `ContentPost` (body, mediaUrls, funnelStage, status, scheduledAt + IANA timezone, approvalRequestId, reviewNote),
+    `ContentPostTarget` (one row per account, with publish fields for 3b) and nullable `Team.contentStageMix`.
+  - **Approval:** "Send for approval" creates a fresh `ApprovalRequest` (`CONTENT_POST_PUBLISH`, entity `ContentPost`)
+    shown in Inbox > Approvals as "Publish post". Decisions only move a PENDING request and only the post still attached
+    to it (apps/web `/api/approvals/[id]` and apps/api `ApprovalService`, including the auto-deny sweep, which for
+    posts leaves the reviewer empty; see OPEN-302). An approval
+    after the post's time sends it back to draft. Editing the text, images or accounts of a post in review or approved
+    sends it back to draft and withdraws the request; moving it to another time keeps the approval.
+  - **Checks at submit:** a future time, at least one connected account of the team, and Instagram's rules (an image,
+    at most 10, 2200-character caption, 30 hashtags, 20 @ tags), cited with URLs checked 2026-09-30. Media must be a
+    JPEG in the team's folder of the public Supabase `content-media` bucket (created 2026-10-01: 8 MB, image/jpeg).
+    The upload route checks the JPEG signature; the browser checks the 4:5 to 1.91:1 shape.
+  - **Web:** Content > **Content calendar** (`/content/calendar`) with month/week views, drag to reschedule (keeps the
+    local clock time across DST), filters, a composer with approve/send-back for approvers, and a stage-mix meter
+    against the team target (default 60/30/10/0, admins can change it). Viewers can look but not change posts; the
+    approval card shows the full text and the images. The CSP `img-src` now allows the
+    `SUPABASE_URL` origin.
+  - **Tests:** service state machine and Instagram checks, routes (flag 404, validation, range cap, admin mix), both
+    approval paths, media upload, calendar helpers (DST drag) and page render.
+- **OPEN-303 (Fixed — dependency advisories published 2026-10-01 broke the CI audit gate):** new high/critical
+  advisories failed `scripts/audit-with-allowlist.mjs` for apps/api and apps/web on every PR. Bumped instead of
+  allowlisted:
+  - `next` 16.3.4 -> 16.3.8 (GHSA-vcvr-r3jv-pc5j, critical: RCE in `next/og` ImageResponse; this repo doesn't import
+    `next/og`, but the framework ships it)
+  - `axios` -> ^1.20.0 (12 advisories in <=1.19.0: prototype-pollution gadgets, ReDoS, header injection, proxy bypass)
+  - `fastify` -> ^5.12.5 (GHSA-4mh8-r7rc-xpvc, DoS via an unhandled exception on HTTP/2 trailers)
+  - `dompurify` override 3.4.13 -> 3.4.16 (GHSA-p98j-92pf-mc4p, IN_PLACE hook leaves a detached subtree)
+
+- **OPEN-300 (Open — Lead Ads code pins Graph API v21.0, supported until 2027-01-21):**
+  `apps/web/src/modules/facebook-leads/service/facebookLeadsService.ts` (`GRAPH_API_VERSION`) and the apps/api Lead Ads
+  poller call v21.0, which Meta supports until 2027-01-21 (https://developers.facebook.com/docs/graph-api/changelog/versions,
+  checked 2026-09-30; latest is v26.0). Move Lead Ads to a current version and retest the poll before then.
+  Creator-funnel social calls already use v26.0.
+
+- **OPEN-299 (Fixed — creator funnel phase 2: social account connections):** teams can connect Facebook Pages and
+  their linked Instagram professional accounts. This is behind `creator-funnel`.
+  - **Schema:** migration `20261002110000_social_accounts` adds a `SocialPlatform` enum and a `SocialAccount` table
+    (additive). The table has unique `(teamId, platform, externalId)`, a token encrypted with the same `credentialVault`
+    as `encryptedPageAccessToken`, granted scopes, status (CONNECTED / NEEDS_RECONNECT / DISCONNECTED), expiry, and
+    `parentExternalId` (an Instagram account's Page).
+  - **OAuth (extended, not forked):** the Meta connect flow now carries a signed `purpose`. `social` asks for Page
+    posting, comment and messaging permissions and the Instagram publish/comment/message permissions instead of
+    `leads_retrieval`. It writes one `FACEBOOK_PAGE` row per Page, plus an `INSTAGRAM` row when
+    `GET /{page-id}?fields=instagram_business_account` returns one, and stores the granted scopes from
+    `/me/permissions`. The Lead Ads path is unchanged.
+    - The start route allows `purpose=social` only for teams with the flag on.
+    - Failed callbacks now return to the page that started the flow (from the verified state) instead of always
+      going to `/settings/crm`.
+  - **Token health:** `socialTokenHealth.ts` runs once a day per account from the hourly worker tick. It calls
+    `debug_token` with an app token. An invalid token moves the account to NEEDS_RECONNECT and notifies admins; an
+    expiry within 7 days warns once. It is skipped without `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` in the API's env.
+  - **API:** `GET /social/accounts` never selects the token. `DELETE /social/accounts/:id` (admin only) wipes the token
+    and marks the account DISCONNECTED. Both return 404 while the flag is off.
+  - **Web:** Settings > Mailboxes & Integrations > **Social accounts** (`/settings/social`). The link shows only while
+    `creator-funnel` is on (`SettingsFrame` now filters links by feature), and the page includes the "Allow access to
+    messages" instruction.
+  - **Docs:** `docs/meta-app-review.md` covers each permission's use, the screencast script, test-user steps, and
+    what to submit in which phase. Every Meta permission, endpoint and limit is cited with its URL and check date
+    (2026-09-30) in code comments.
+  - **Tests:** the social scopes, SocialAccount writes (Page and linked Instagram, Page without Instagram, no Lead Ads
+    write), the verified nextPath, the start route (default purpose, flag gate, admin only), the token check (no
+    creds, query and app token, invalid, unreadable, expiry warned once, Meta unreachable), and the routes (401/404,
+    token never selected, team-scoped admin disconnect).
+
+- **OPEN-298 (Fixed — creator funnel phase 1: funnel stages, nurture seam, one-sender lock):** foundation for the
+  creator funnel (Instagram/Facebook to landing page to nurture to checkout). Everything is behind the per-team
+  `creator-funnel` hidden feature: off by default and early access, with no pages yet.
+  - **Schema:** migration `20261002100000_creator_funnel_stage` is additive: enums `FunnelStage` (TOFU/MOFU/BOFU/POST)
+    and `NurtureOwner` (CMF/MAUTIC); nullable `Lead.funnelStage`, `Lead.nurtureOwner`, `CampaignSequence.funnelStage`,
+    `LandingPage.funnelStage` and `Team.nurtureProvider` (null = CMf). `Playbook` gets no stage because it describes a
+    whole funnel. The destructive scan is clean.
+  - **Stages:** `creator-funnel/funnelStageService.ts` has named events (social first touch to TOFU, landing opt-in to
+    MOFU, checkout started or call booked to BOFU, payment to POST). Moves are forward-only unless forced, and a
+    conditional update means concurrent moves can't both win. Each change is logged to the existing `LeadActivity`
+    (channel `funnel`, type `stage_change`), so there is no new event table.
+  - **Mautic:** `mauticService.tagFunnelStage` sets a `stage-<x>` tag and removes the others (the `-` prefix, per the
+    Mautic contacts API docs, checked 2026-09-30). It is skipped without error when Mautic isn't configured or the lead
+    was never pushed, and it is segmentation only: the `mauticContactId` comment ("Mautic never sends nurture") still
+    holds.
+  - **Nurture seam:** `nurtureProvider.ts` has `enroll`/`stop`/`status`. `CmfSequenceProvider` (the default) creates a
+    single-lead `SequenceEnrollment` with the same step allowlist as the web enroller. `MauticJourneyProvider` is a
+    stub that throws "not set up yet". The provider is chosen per team (`Team.nurtureProvider`).
+  - **One-sender lock:** `enrollInNurture` stops the other provider first, and enrolls nothing if that stop fails.
+    `stopNurture` clears the owner. Replies already exit CMf sequences, which pauses nurture during a 1:1 thread.
+  - **Live hook:** a landing-page opt-in moves the lead to MOFU, only for flagged teams, and never fails the intake job.
+  - **Web:** `creator-funnel` is registered as a hidden feature (Settings, Features). It is never on by readiness
+    default and is marked unbuilt until the calendar ships.
+  - **Tests:** transitions (forward, skip-forward, no backward unless forced, unchanged, concurrent, cross-team), the
+    flag gate, the Mautic no-op / not-pushed / tag-swap / error paths, the providers (enroll, unsupported step, lock
+    both directions, stop, status, stub), and the intake hook (flag on, flag off, failure isolation).
+
+- **OPEN-297 (Fixed — IA: sign-in lands on Home):** sign-in landed on /inbox behind `NEXT_PUBLIC_ACTION_INBOX_ENABLED`.
+  Now that Home leads with Needs you (OPEN-292), `postLoginPath()` always returns `/dashboard` and the flag is gone
+  (code, test and `.env.example`). An explicit `redirect_url`/`callbackUrl` still wins. A leftover value for the old
+  variable in Render's env is now unused and can be deleted.
+
+- **OPEN-296 (Fixed — IA phase 7: four retention events to PostHog from apps/api):** product analytics were
+  browser-only (posthog-js), so activation, the aha reply, active days and booked meetings weren't measured.
+  - **Emitter:** `apps/api/src/lib/analytics/productEvents.ts` uses `posthog-node` (lazy-loaded, `captureImmediate`).
+    It does nothing unless `POSTHOG_API_KEY` is set (`POSTHOG_HOST` defaults to `https://us.i.posthog.com`), and every
+    call swallows its own errors. Distinct id is the user id (the team as a fallback); `team_id` is on every event.
+  - **Once-only claims:** migration `20261001120000_analytics_milestones` (additive, destructive scan clean) adds
+    `Team.firstCampaignSentAt`, `Team.firstPositiveReplyAt` and `User.lastActiveDay`. Each "once" event fires only when
+    a conditional update (still null / not today) claims it, so it can't repeat across restarts or both VMs.
+  - **Events:**
+    - `activation_first_campaign_sent`: hourly worker sweep (after the digest tick) for teams whose first email the
+      provider accepted (`Email.providerId` set). The campaign send path is untouched. The event is stamped with that
+      email's time and attributed to the campaign owner, so teams that sent before this shipped are recorded once,
+      accurately, over the first few hourly sweeps (100 teams per sweep).
+    - `aha_first_positive_reply`: the first time the team marks a reply interested or meeting booked in the Action
+      Inbox. Inbound replies aren't sentiment-scored at ingestion, so the rep's mark is the reliable signal.
+    - `session_active_day`: at most once per user per IST day, when Home (Needs you) or the Action Inbox loads.
+    - `meeting_booked`: every meeting created through `POST /meetings`.
+  - **Ops:** add `POSTHOG_API_KEY` (the same project key as the web's `NEXT_PUBLIC_POSTHOG_KEY`) to both Oracle VMs'
+    `.env`. Until then nothing is sent and nothing is claimed, so no milestone is used up; the first sweep after the
+    key is added records past activations with their original timestamps.
+  - **Tests:** `productEvents.test.ts` (no-key no-op, once-per-day claim, first-positive-reply claim, meeting
+    fallback actor, activation sweep and timestamp, failure isolation) and the mark-outcome route.
+
+- **OPEN-295 (Fixed — IA phase 6: hot-reply alerts link to the thread; optional Slack push):** reply alerts linked to
+  the inbox root, and email and in-app were the only channels.
+  - **Exact thread:** the reply alert (email and in-app) now links to `/inbox?reply=<messageId>`. Meeting alerts are
+    unchanged.
+  - **Slack:** optional, per user. `NotificationSettings.slackWebhook Json?` (migration
+    `20261001110000_notification_slack_webhook`; additive, destructive scan clean) holds the URL encrypted with
+    `credentialVault`.
+    - `PUT /settings/notifications/slack` accepts only `https://hooks.slack.com/services/...`, posts a test message
+      first, and stores the URL only if Slack accepts it. `null` turns it off.
+    - `GET` returns `{ connected }` only. `settingsService.getSettings` omits the column, so `/settings` and
+      `/settings/notifications` never return it.
+    - Posts refuse redirects, time out after 5s, and escape `&`, `<` and `>`, so lead text can't form links or
+      `<!channel>` mentions. Failures are logged and never block reply ingestion.
+  - **WhatsApp: not built.** The spec allows it only on an existing WABA send path plus an approved utility template.
+    Neither exists for this: WABA credentials are the customer team's own (for messaging leads), there is no user
+    phone number or user opt-in field, `TemplateGuard`/`ConsentService` are lead-facing, and no utility template for
+    internal alerts is registered.
+  - **Tests:** the notifier (thread link, Slack text escaping, recipients), `slackAlert` (host allowlist, no
+    redirects, encrypted storage, test-post gating, failure isolation), and the route (auth, validation, never
+    returning the URL).
+
+- **OPEN-294 (Fixed — IA phase 5: digest leads with what needs you, then goal pace, a win, yesterday):** the daily
+  digest listed replies, stalled leads and meetings, and linked everything to the inbox root.
+  - **Needs you:** the three most urgent non-empty items from `collectNeedsYou`, in Home's order and with Home's
+    labels. Each entry links to the exact item (for example `/inbox?reply=<id>` or `/leads/<id>`), with "See all N" when
+    there are more. The subject line lists the same three.
+  - **Goal pace:** "4 of 10 meetings booked this month. Behind by 2." (or "On pace") for each team with a goal. The
+    team is named only for users in more than one team.
+  - **One win:** yesterday's most recent booked meeting, or else an inbound reply from a lead marked interested or
+    meeting booked.
+  - **Unchanged:** HTML escaping of every lead-, meeting- and team-supplied string, the 08:00 IST window, the DigestLog
+    claim, `digestEnabled`/`emailGlobal`, and the empty-skip (a goal line alone does not send an email).
+  - **Tests:** ordering, deep links, escaping, the top-3 cap, goal pace and team naming, win selection, and emptiness.
+
+- **OPEN-293 (Fixed — IA phase 4: monthly meeting goal on Home):** Home had no target to measure booked meetings against.
+  - **Schema:** `Team.monthlyMeetingGoal Int?`, set by migration `20261001100000_team_monthly_meeting_goal`. The change
+    only adds a nullable column, with no default and no backfill, and the destructive-migration scan is clean.
+  - **Service:** `meetingGoalService.ts` counts meetings created this local month (`localMonth` in `localDay.ts`, IST).
+    Pace is `goal × dayOfMonth / daysInMonth`, and the shortfall rounds up to whole meetings ("Behind by N").
+  - **Route:** `GET/PUT /dashboard/meeting-goal` (lazy-imported). PUT needs a team member and a whole number from 1 to
+    1000, or null to clear.
+  - **Web:** the `GoalProgress` card sits between Needs you and the KPIs. It shows booked / goal, a pace bar, and
+    "On pace" or "Behind by N", with inline edit, or "Set a monthly meeting goal" when there is no goal. Setup step 8
+    has an optional "How many meetings a month do you want?" field.
+  - **Deploy order:** the card renders nothing if the API route is missing.
+  - **Tests:** pace rounding and last day, the IST month around UTC midnight, February and leap years, service
+    queries, route auth and validation, and `tests/unit/goal-progress.test.tsx`.
+
+- **OPEN-292 (Fixed — IA phase 3: Home opens on "Needs you"; roadmap 3.8):** Home led with charts, and the same meeting
+  and draft counts appeared in the KPI row, the workflow rail and the bottom mini-stats.
+  - **Shared service:** `apps/api/src/modules/inbox/needsYouService.ts` (`collectNeedsYou`) returns six items, each
+    with a count, the top 3 entries and a link to act on them: unread replies (linking to the exact thread via
+    `/inbox?reply=<id>`), pending approvals, approved-but-unsent drafts, stalled-lead nudges, mailboxes needing
+    reconnect, and today's meetings in IST. Approved-but-unsent means Email status `queued`, the approval flow's
+    status; campaign `QUEUED` is not counted.
+  - **Digest:** `collectDigestData` now takes replies, nudges and today's meetings from the same service, so the
+    digest and Home can't drift. `GET /dashboard/needs-you` (lazy-imported) serves Home for the current team.
+  - **Home order:** error banner, then Needs you, then KPIs, then trend and recent leads, then the setup banner and
+    workflow rail only while `setupPercent` < 100, then the activity feed. Approvals get an inline Approve, which
+    uses the existing `/api/approvals/:id`.
+  - **Repeated numbers removed:** the meetings and pending-send mini-stats, the workflow rail's approval and queued
+    counts, and the KPI "N Dispatch Ready" pill.
+  - **Deploy order:** Needs you renders nothing if the API route is missing, so Render shipping before Oracle is safe.
+  - **Tests:** the service (scoping, IST bounds, top-3 cap, deep links), the route (auth, team scope), updated digest
+    mocks, and `tests/unit/needs-you.test.tsx`, which renders all-clear, partial, full and API-unavailable states.
+
+
+- **OPEN-288 (Fixed, report-only stage — roadmap 3.6 part 2 (S-17): nonce-based script policy for the signed-in app):**
+  every page sent `script-src 'unsafe-inline' 'unsafe-eval'` and `connect-src wss://*`. A nonce policy needs dynamic
+  rendering, and every page was statically prerendered (static root layout, client-component dashboard layout). Owner
+  decision: strict policy for the signed-in app only; marketing pages stay static and cached. `proxy.ts` now gives each
+  non-public page request a fresh nonce and a `Content-Security-Policy-Report-Only` policy
+  (`'nonce-…' 'strict-dynamic'`, no `unsafe-inline`/`unsafe-eval` in `script-src`) that reports to the Sentry security
+  endpoint derived from `NEXT_PUBLIC_SENTRY_DSN`. The policy is also set as a request header, which is how Next finds
+  the nonce for its own scripts, and it is built before `NextResponse.next()`, which copies request headers at call
+  time (the first draft set them after and the test caught it). `(dashboard)/layout.tsx` is now a server layout that
+  calls `connection()` around the unchanged client shell (`DashboardShell.tsx`); `setup`, `client` and `credits` get
+  the same thin layout. The enforced policy drops `wss://*`: nothing in apps/web opens a WebSocket since OPEN-282.
+  Regression test `tests/unit/security-headers-nonce-csp.test.ts` (4 tests, 3 fail on main). **Next step:** once the
+  Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
+  `Content-Security-Policy` for those pages.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

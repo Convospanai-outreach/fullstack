@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Monthly cost alert for the CraftMyFunnel AWS account (Mautic stack) - separate from mautic.yaml because
+  AWS::Budgets::Budget is not available in eu-north-1; deploy this one in us-east-1.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    must:
+      - deploy in us-east-1; CloudFormation rejects AWS::Budgets::Budget in eu-north-1
+    ref:
+      - { at: deploy/aws/mautic/README.md, has: deploy & operate runbook }
+
+Parameters:
+  AlertEmail:
+    Type: String
+    AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    Description: Receives the AWS Budgets cost alerts.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    Description: >-
+      Monthly gross cost (before credits) that triggers the alerts. Keep it above the expected spend (about $20
+      for the Mautic stack) or the 80% alert fires every month.
+
+Resources:
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          early warning on credit burn; account-wide (Budgets is global), so it also covers anything outside the
+          Mautic stack; Free plan pays from credits, so credits are excluded or spend would read ~$0
+        must:
+          - IncludeCredit false
+    Properties:
+      Budget:
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+        CostTypes:
+          IncludeCredit: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }

@@ -169,6 +169,27 @@ describe("AIService.askAI - TRIVIAL complexity tier (AI cost optimization)", () 
     });
 });
 
+describe("AIService.askAI - DeepSeek model for every tier", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { deepseek: { apiKey: "test-key" } } },
+        });
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: "ok" } }],
+            usage: { prompt_tokens: 10, completion_tokens: 2 },
+        });
+    });
+
+    it("uses deepseek-chat (Flash, no thinking) even for the default strategic tier, never deepseek-reasoner", async () => {
+        for (const complexity of [undefined, TaskComplexity.STRATEGIC, TaskComplexity.ROUTINE, TaskComplexity.TRIVIAL]) {
+            await aiService.askAI("Write a short pitch", "team-1", { taskType: "GENERATION", ...(complexity ? { complexity } : {}) });
+        }
+        expect(mockOpenAICreate).toHaveBeenCalledTimes(4);
+        for (const call of mockOpenAICreate.mock.calls) expect(call[0].model).toBe("deepseek-chat");
+    });
+});
+
 describe("AIService.getRagEmbedding (RAG vector search)", () => {
     beforeEach(() => {
         vi.clearAllMocks();

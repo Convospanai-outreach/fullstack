@@ -70,7 +70,7 @@ export function LeadDrilldown({ lead, onClose }: LeadDrilldownProps) {
           {sent ? (
             <div className="text-[12px] text-success border border-success/25 bg-success/5 rounded-md px-3 py-2 flex items-center justify-between">
               Queued in Approvals
-              <Link href="/approvals" className="underline">View →</Link>
+              <Link href="/inbox?tab=approvals" className="underline">View →</Link>
             </div>
           ) : (
             <button

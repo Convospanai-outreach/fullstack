@@ -334,3 +334,25 @@ describe("ApprovalService.approve / reject - draft feedback recording", () => {
         expect(mockEventStoreRecord).not.toHaveBeenCalled();
     });
 });
+
+const { mockDecideContentPost } = vi.hoisted(() => ({ mockDecideContentPost: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/creator-funnel/contentPostService", () => ({ decideContentPost: mockDecideContentPost }));
+
+describe("ApprovalService.approve / reject - content posts", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "req-1", teamId: "team-a", actionType: "CONTENT_POST_PUBLISH", entityType: "ContentPost", entityId: "post-1" });
+    });
+
+    it("hands a post approval to the guarded content-post decision instead of the generic update", async () => {
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+        expect(mockDecideContentPost).toHaveBeenCalledWith("team-a", "req-1", "user-a", "APPROVED");
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("routes rejections, including the auto-deny sweep's, the same way", async () => {
+        await ApprovalService.reject("req-1", "system-timeout", "team-a", "Auto-denied");
+        expect(mockDecideContentPost).toHaveBeenCalledWith("team-a", "req-1", "system-timeout", "REJECTED", "Auto-denied");
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+    });
+});

@@ -12,13 +12,17 @@
  * - Added: SetupBanner (inline, only when setupPercent < 100)
  * - Added: KPIRow (north-star metrics above the fold)
  * - Added: WorkflowSection (progressive disclosure — rail + active step detail)
- * - Added: BottomGrid (activity feed + mini-stat stack)
+ * - Added: BottomGrid (activity feed; its meetings/pending-send mini-stats were removed as duplicates)
+ * - Added: NeedsYou first (what's waiting on you, shared with the daily digest); setup banner and
+ *   workflow rail only while setupPercent < 100
  * - Data: fetches from /api/dashboard/summary (real Prisma-backed aggregation, not a stub)
  * - Loading: independent Suspense-like states per section via useState
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { SetupBanner } from "@/components/dashboard/SetupBanner";
+import { NeedsYou } from "@/components/dashboard/NeedsYou";
+import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { KPIRow } from "@/components/dashboard/KPIRow";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
 import { BottomGrid } from "@/components/dashboard/BottomGrid";
@@ -95,11 +99,8 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
-  const showBanner =
-    !bannerDismissed &&
-    !loading &&
-    data !== null &&
-    data.setupPercent < 100;
+  const setupIncomplete = !loading && data !== null && data.setupPercent < 100;
+  const showBanner = setupIncomplete && !bannerDismissed;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -118,13 +119,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Setup banner — inline, only when setup is incomplete */}
-      {showBanner && data && (
-        <SetupBanner
-          percent={data.setupPercent}
-          onDismiss={() => setBannerDismissed(true)}
-        />
-      )}
+      {/* Needs you — what's waiting on the user, one click from acting */}
+      <NeedsYou hasLeads={(data?.kpis.activeLeads ?? 0) > 0} />
+
+      {/* Monthly meeting goal — booked vs goal, and whether the team is on pace */}
+      <GoalProgress />
 
       {/* KPI row — always visible, north-star metrics */}
       <KPIRow data={data?.kpis ?? null} loading={loading} error={error} />
@@ -142,22 +141,24 @@ export default function DashboardPage() {
 
       <LeadDrilldown lead={selectedLead} onClose={() => setSelectedLead(null)} />
 
-      {/* Workflow section — progressive disclosure */}
-      <div className="mb-4">
-        <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
-          Workflow
-        </p>
-        <WorkflowSection data={data?.workflow ?? null} loading={loading} />
-      </div>
+      {/* Setup checklist — only while setup is incomplete */}
+      {setupIncomplete && data && (
+        <div className="mb-4">
+          {showBanner && (
+            <SetupBanner
+              percent={data.setupPercent}
+              onDismiss={() => setBannerDismissed(true)}
+            />
+          )}
+          <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
+            Workflow
+          </p>
+          <WorkflowSection data={data.workflow} loading={false} />
+        </div>
+      )}
 
-      {/* Bottom grid — activity feed + mini stats */}
-      <BottomGrid
-        recentActivity={data?.recentActivity ?? []}
-        meetingsBooked={data?.kpis.meetingsBooked ?? 0}
-        meetingsDelta={data?.kpis.meetingsDelta ?? 0}
-        draftsPendingSend={data?.kpis.draftsPendingSend ?? 0}
-        loading={loading}
-      />
+      {/* Activity feed */}
+      <BottomGrid recentActivity={data?.recentActivity ?? []} loading={loading} />
     </div>
   );
 }

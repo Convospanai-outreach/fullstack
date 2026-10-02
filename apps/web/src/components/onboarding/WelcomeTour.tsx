@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-// Tour steps — one per sidebar group (not per item, to keep this short) plus
-// the two header discovery affordances. Targets must match real hrefs in
-// DashboardSidebar.tsx or the data-tour hooks on ToolsMenu/WorkspaceHelpPanel.
+// Tour steps — one per sidebar area plus the Help menu. Targets must match real hrefs
+// in DashboardSidebar.tsx (scoped to the sidebar nav, since the logo also links to
+// /dashboard) or the data-tour hook on WorkspaceHelpPanel.
 // Copy is grounded in apps/web/src/lib/featureHelp.ts — see OPEN-83 follow-up.
 const TOUR_STEPS = [
     {
@@ -14,43 +14,33 @@ const TOUR_STEPS = [
         position: "bottom",
     },
     {
-        target: "a[href='/dashboard']",
-        content: "Your daily workflow lives up top: Dashboard, Leads, Pipeline, Campaigns, and Calendar — everything for actually running outreach.",
+        target: "aside nav a[href='/dashboard']",
+        content: "Home: start here to see what needs you today.",
         position: "right",
     },
     {
-        target: "a[href='/intel']",
-        content: "Analyze: Intel is live buying-interest signals, Analytics is after-the-fact performance, Governance is your safety/compliance posture. Three different kinds of reporting — worth knowing apart.",
+        target: "aside nav a[href='/inbox']",
+        content: "Inbox: replies to answer and anything waiting for your approval. The badge counts both.",
         position: "right",
     },
     {
-        target: "a[href='/templates']",
-        content: "Growth: reusable Templates, an ICP Builder to define your ideal customer, Landing Pages, and Automations for \"when X happens, do Y\" rules.",
+        target: "aside nav a[href='/leads']",
+        content: "Leads, Campaigns and Pipeline: build your list, reach out, and track deals. Each opens with tabs for its related pages, like Accounts, Automations and Calendar.",
         position: "right",
     },
     {
-        target: "a[href='/admin']",
-        content: "Operations: Admin controls, Monitoring for infrastructure health, and Audit Logs for a history of what happened.",
+        target: "aside nav a[href='/templates']",
+        content: "Content and Reports: templates, landing pages and playbooks; then ROI, journey and buyer signals.",
         position: "right",
     },
     {
-        target: "a[href='/team']",
-        content: "Account: Team, Billing, and Settings — everything about your workspace itself, not your outreach.",
+        target: "aside a[href='/settings']",
+        content: "Settings: your workspace, mailboxes and integrations, trust controls, team and billing, and personal preferences.",
         position: "right",
-    },
-    {
-        target: "a[href='/approvals']",
-        content: "Approvals & Inbox: anything that needs your sign-off before it goes out shows up here.",
-        position: "right",
-    },
-    {
-        target: "[data-tour='tools-menu']",
-        content: "There's more: 17 additional tools (LinkedIn automation, AI agents, a knowledge base, and more) live behind this Tools menu — it shows you which ones are actually turned on.",
-        position: "bottom",
     },
     {
         target: "[data-tour='help-panel']",
-        content: "Forgot what a page does? Click this compass icon anytime — it explains exactly the page you're on, and flags anything it's easy to confuse it with.",
+        content: "Help: explains the page you're on, links to the help center and Labs (beta and advanced tools), and switches the theme.",
         position: "bottom",
     },
 ];
