@@ -20,9 +20,19 @@ const checks = [
     invert: true,
   },
   {
-    name: "Password signup endpoint is disabled",
+    name: "Password signup creates unverified, validated accounts",
     file: "apps/web/src/app/api/register/route.ts",
-    test: (text) => text.includes("status: 410") && text.includes("Password signup is disabled"),
+    test: (text) => text.includes("registerSchema") && text.includes("emailVerified: null"),
+  },
+  {
+    name: "Password login refuses unverified email",
+    file: "apps/web/src/lib/passwordAuth.ts",
+    test: (text) => text.includes("AUTH_ERROR_EMAIL_NOT_VERIFIED") && text.includes("!user.emailVerified"),
+  },
+  {
+    name: "NextAuth exposes the credentials provider",
+    file: "apps/web/src/lib/auth.ts",
+    test: (text) => text.includes("CredentialsProvider("),
   },
   {
     name: "NextAuth exposes the Google provider",
