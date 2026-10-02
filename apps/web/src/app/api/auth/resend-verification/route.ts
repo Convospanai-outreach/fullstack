@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { EmailService } from "@/lib/emailService";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { allowForEmail } from "@/lib/botCheck";
 
 // Always answers 200 so this can't be used to probe which emails are registered.
 export async function POST(req: NextRequest) {
+    const { prisma } = await import("@/lib/db");
     const limited = await applyRateLimit(req, RATE_LIMITS.REGISTRATION, "resend-verification");
     if (limited) return limited;
 

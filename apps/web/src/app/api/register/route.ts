@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { EmailService } from "@/lib/emailService";
 import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
@@ -7,6 +6,7 @@ import { hashPassword, registerSchema } from "@/lib/passwordAuth";
 import { allowForEmail, clientIpFromRequest, isBreachedPassword, looksLikeBot, verifyTurnstile } from "@/lib/botCheck";
 
 export async function POST(req: NextRequest) {
+    const { prisma } = await import("@/lib/db");
     const limited = await applyRateLimit(req, RATE_LIMITS.REGISTRATION, "register");
     if (limited) return limited;
 

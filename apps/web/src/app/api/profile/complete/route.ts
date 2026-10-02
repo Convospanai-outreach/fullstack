@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { profileFieldsSchema } from "@/lib/passwordAuth";
 
@@ -11,6 +10,7 @@ function isDefaultTeamName(name: string) {
 }
 
 export async function POST(req: Request) {
+    const { prisma } = await import("@/lib/db");
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
