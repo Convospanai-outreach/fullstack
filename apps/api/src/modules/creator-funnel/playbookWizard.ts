@@ -3,6 +3,7 @@ import type { FunnelStage, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
+import { TaskComplexity } from "@/ai/types";
 import { localDate, localTimeOn } from "@/modules/inbox/localDay";
 import { isHttpsUrl } from "./checkoutHooks";
 import { assertAccounts, ContentPostError, deletePost, getStageMix, INSTAGRAM_LIMITS } from "./contentPostService";
@@ -204,8 +205,11 @@ function offerText(ctx: RunContext) {
     return ctx.inputs.offer.type === "booking" ? `A call people book with the creator: ${clamp(ctx.inputs.offer.description, 500)}` : "";
 }
 
-// Each post is one AI call, kept short: the Anthropic path of askAI caps a reply at 800 tokens
-// and every provider call at 30s (aiService.ts), so a whole week in one reply would be cut off.
+// Each post is one AI call, kept short: every provider call has a 30s limit and the Anthropic
+// path of askAI caps a reply at 800 tokens (aiService.ts). ROUTINE is enough for short copy and is
+// the cheap tier: on DeepSeek it asks for "deepseek-chat", which DeepSeek serves with
+// DeepSeek-V4.1-Flash in non-thinking mode (no billed reasoning tokens). Checked 2026-10-02 at
+// https://api-docs.deepseek.com/quick_start/pricing and against GET https://api.deepseek.com/models.
 const ANGLES = [
     "a common mistake and how to avoid it",
     "a quick, practical tip",
@@ -249,6 +253,7 @@ async function writePost(ai: Writer, ctx: RunContext, index: number, total: numb
     const raw = await ai.askAI(buildPostPrompt(ctx, index, total, slot), ctx.teamId, {
         taskType: "CONTENT_PLAYBOOK",
         surface: "GENERIC",
+        complexity: TaskComplexity.ROUTINE,
         expectsJson: true,
         disableGuardrails: true,
     });
