@@ -27,7 +27,7 @@ vi.mock("../contentPostService", async (importOriginal) => ({
 }));
 
 import { ContentPostError } from "../contentPostService";
-import { allocateStages, buildWeekPrompt, deleteRun, generatePlaybookRun, planSlots, retryRun, startRun, STALE_MS } from "../playbookWizard";
+import { allocateStages, buildPostPrompt, deleteRun, generatePlaybookRun, planSlots, retryRun, startRun, STALE_MS } from "../playbookWizard";
 
 const TEAM = "team-a";
 // 2030-01-07 is a Monday; 09:00 in Kolkata.
@@ -47,7 +47,8 @@ const input = (overrides: any = {}) => ({
 });
 
 const draft = (n: number) => ({ facebook: `FB ${n}`, instagram: `IG ${n} #food`, linkedin: `LI ${n}`, visualBrief: `Photo ${n}` });
-const weekReply = (count: number) => `Here you go: ${JSON.stringify({ posts: Array.from({ length: count }, (_, i) => draft(i)) })}`;
+let calls = 0;
+const postReply = () => `Here you go: ${JSON.stringify(draft(calls++))}`;
 
 const expectError = async (promise: Promise<unknown>, status: number) => {
     const error = await promise.catch((e) => e);
@@ -157,10 +158,10 @@ describe("playbookWizard", () => {
 
         it("writes 4 weeks of DRAFT posts with per-channel text and a visual brief, linked to the run, without publishing anything", async () => {
             mockDb.playbookRun.findFirst.mockResolvedValue(stored());
-            askAI.mockImplementation(async () => weekReply(3));
+            askAI.mockImplementation(async () => postReply());
             expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: true });
 
-            expect(askAI).toHaveBeenCalledTimes(4);
+            expect(askAI).toHaveBeenCalledTimes(12); // one short call per post
             expect(askAI.mock.calls[0][1]).toBe(TEAM);
             const posts = mockDb.contentPost.createMany.mock.calls[0][0].data;
             expect(posts).toHaveLength(12);
@@ -179,7 +180,7 @@ describe("playbookWizard", () => {
 
         it("saves nothing twice: a repeated job finds the run already claimed", async () => {
             mockDb.playbookRun.findFirst.mockResolvedValue(stored());
-            askAI.mockImplementation(async () => weekReply(3));
+            askAI.mockImplementation(async () => postReply());
             mockDb.playbookRun.updateMany.mockResolvedValue({ count: 0 });
             expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: false });
             expect(mockDb.contentPost.createMany).not.toHaveBeenCalled();
@@ -193,7 +194,7 @@ describe("playbookWizard", () => {
 
         it("records a failure without saving any post when the AI reply is unusable, and doesn't throw", async () => {
             mockDb.playbookRun.findFirst.mockResolvedValue(stored());
-            askAI.mockImplementationOnce(async () => weekReply(2)).mockImplementation(async () => weekReply(3));
+            askAI.mockImplementationOnce(async () => JSON.stringify({ facebook: "only this" })).mockImplementation(async () => postReply());
             expect(await generatePlaybookRun("run-1", NOW)).toEqual({ done: false });
             expect(mockDb.contentPost.createMany).not.toHaveBeenCalled();
             expect(mockDb.playbookRun.updateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "GENERATING" }, data: { status: "FAILED", error: expect.any(String) } });
@@ -201,30 +202,36 @@ describe("playbookWizard", () => {
             vi.clearAllMocks();
             mockDb.playbookRun.updateMany.mockResolvedValue({ count: 1 });
             mockDb.playbookRun.findFirst.mockResolvedValue(stored());
-            askAI.mockRejectedValue(new Error("Insufficient credits"));
+            askAI.mockRejectedValue(new Error("Insufficient credits for AI generation."));
             await expect(generatePlaybookRun("run-1", NOW)).resolves.toEqual({ done: false });
             expect(mockDb.contentPost.createMany).not.toHaveBeenCalled();
+            expect(mockDb.playbookRun.updateMany.mock.calls[0][0].data.error).toMatch(/Not enough AI credits/);
+            // The first failure stops further (billed) calls.
+            expect(askAI.mock.calls.length).toBeLessThanOrEqual(4);
         });
 
         it("trims captions to Instagram's limit", async () => {
             mockDb.playbookRun.findFirst.mockResolvedValue(stored());
-            askAI.mockImplementation(async () => JSON.stringify({ posts: Array.from({ length: 3 }, () => ({ ...draft(0), instagram: "y".repeat(5000) })) }));
+            askAI.mockImplementation(async () => JSON.stringify({ ...draft(0), instagram: "y".repeat(5000) }));
             await generatePlaybookRun("run-1", NOW);
             expect([...mockDb.contentPost.createMany.mock.calls[0][0].data[0].channelCaptions.INSTAGRAM]).toHaveLength(2200);
         });
 
-        it("puts the offer, audience, lead magnet, tone and stage order in the prompt", () => {
-            const prompt = buildWeekPrompt(
+        it("puts the offer, audience, lead magnet, tone, stage and an angle in the prompt", () => {
+            const prompt = buildPostPrompt(
                 { teamId: TEAM, inputs: input() as any, product: stored().product, icp: { name: "Busy parents", description: "Two kids, no time" } },
-                0,
-                ["TOFU", "BOFU"],
+                4,
+                12,
+                { week: 1, stage: "BOFU" },
             );
             expect(prompt).toContain("Batch Cooking Course (499.00 INR): Six weeks of recipes");
             expect(prompt).toContain("Busy parents: Two kids, no time");
             expect(prompt).toContain("A 5-day email course on batch cooking");
             expect(prompt).toContain("Warm and direct");
-            expect(prompt).toMatch(/1\. TOFU[\s\S]*2\. BOFU/);
-            expect(prompt).toContain("exactly 2 items");
+            expect(prompt).toContain("post 5 of 12 (week 2 of 4)");
+            expect(prompt).toContain("Funnel stage: BOFU");
+            expect(prompt).toContain("Angle: a simple step-by-step");
+            expect(prompt).toContain("at most 600 characters");
         });
     });
 

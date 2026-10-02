@@ -204,45 +204,81 @@ function offerText(ctx: RunContext) {
     return ctx.inputs.offer.type === "booking" ? `A call people book with the creator: ${clamp(ctx.inputs.offer.description, 500)}` : "";
 }
 
-export function buildWeekPrompt(ctx: RunContext, week: number, stages: FunnelStage[]) {
+// Each post is one AI call, kept short: the Anthropic path of askAI caps a reply at 800 tokens
+// and every provider call at 30s (aiService.ts), so a whole week in one reply would be cut off.
+const ANGLES = [
+    "a common mistake and how to avoid it",
+    "a quick, practical tip",
+    "a short personal story",
+    "a myth to bust",
+    "a simple step-by-step",
+    "a question that invites replies",
+    "a before-and-after",
+    "a behind-the-scenes look",
+    "a short checklist",
+    "a clear opinion",
+];
+const PARALLEL_CALLS = 4;
+
+export function buildPostPrompt(ctx: RunContext, index: number, total: number, slot: Pick<Slot, "week" | "stage">) {
     const audience = ctx.icp ? `${clamp(ctx.icp.name, 120)}${ctx.icp.description ? `: ${clamp(ctx.icp.description, 500)}` : ""}` : "";
     return [
-        "You write social media posts for a creator's 4-week launch plan.",
+        "You write one social media post for a creator's 4-week launch plan.",
         `Offer: ${offerText(ctx)}`,
         `Audience: ${audience}`,
         `Free lead magnet they give away: ${clamp(ctx.inputs.leadMagnet, 500)}`,
         `Tone: ${clamp(ctx.inputs.tone, 100)}`,
         "",
-        `Write ${stages.length} posts for week ${week + 1} of ${WEEKS}, in this order, one per funnel stage listed:`,
-        ...stages.map((s, i) => `${i + 1}. ${STAGE_GUIDE[s]}`),
+        `This is post ${index + 1} of ${total} (week ${slot.week + 1} of ${WEEKS}).`,
+        `Funnel stage: ${STAGE_GUIDE[slot.stage]}.`,
+        `Angle: ${ANGLES[index % ANGLES.length]}.`,
         "",
-        "For each post write the same idea three ways:",
-        "- facebook: up to 1500 characters.",
-        `- instagram: up to 2000 characters, at most 10 hashtags (Instagram allows ${INSTAGRAM_LIMITS.hashtags}).`,
-        "- linkedin: up to 2500 characters, professional, at most 3 hashtags.",
-        "- visualBrief: one or two sentences describing a suggested image or short video for the post.",
+        "Write the same idea three ways, plus a visual:",
+        "- facebook: at most 500 characters.",
+        "- instagram: at most 600 characters including at most 8 hashtags.",
+        "- linkedin: at most 600 characters, professional, at most 3 hashtags.",
+        "- visualBrief: one sentence describing a suggested image or short video.",
         "Don't include links or URLs; the creator adds them. Don't invent prices, numbers or testimonials that aren't given above.",
-        `Return JSON only: {"posts":[{"facebook":"...","instagram":"...","linkedin":"...","visualBrief":"..."}]} with exactly ${stages.length} items in the order above.`,
+        'Return JSON only: {"facebook":"...","instagram":"...","linkedin":"...","visualBrief":"..."}',
     ].join("\n");
 }
 
 type Writer = { askAI: (typeof import("@/lib/aiService"))["aiService"]["askAI"]; extractJson: (raw: string) => string };
 
-async function writeWeek(ai: Writer, ctx: RunContext, week: number, stages: FunnelStage[]): Promise<Draft[]> {
-    const raw = await ai.askAI(buildWeekPrompt(ctx, week, stages), ctx.teamId, {
+async function writePost(ai: Writer, ctx: RunContext, index: number, total: number, slot: Slot): Promise<Draft> {
+    const raw = await ai.askAI(buildPostPrompt(ctx, index, total, slot), ctx.teamId, {
         taskType: "CONTENT_PLAYBOOK",
         surface: "GENERIC",
         expectsJson: true,
         disableGuardrails: true,
     });
-    const parsed = z.object({ posts: z.array(draftSchema) }).parse(JSON.parse(ai.extractJson(raw)));
-    if (parsed.posts.length !== stages.length) throw new Error(`expected ${stages.length} posts, got ${parsed.posts.length}`);
-    return parsed.posts.map((p) => ({
+    const p = draftSchema.parse(JSON.parse(ai.extractJson(raw)));
+    return {
         facebook: clamp(p.facebook.trim(), 3000),
         instagram: clamp(p.instagram.trim(), INSTAGRAM_LIMITS.caption),
         linkedin: clamp(p.linkedin.trim(), 3000),
         visualBrief: clamp(p.visualBrief.trim(), 1000),
-    }));
+    };
+}
+
+/** Runs the calls PARALLEL_CALLS at a time; the first failure stops new calls and is thrown. */
+async function writeAll(ai: Writer, ctx: RunContext, slots: Slot[]): Promise<Draft[]> {
+    const drafts: Draft[] = new Array(slots.length);
+    let next = 0;
+    let failed = false;
+    const worker = async () => {
+        while (!failed && next < slots.length) {
+            const i = next++;
+            try {
+                drafts[i] = await writePost(ai, ctx, i, slots.length, slots[i]!);
+            } catch (error) {
+                failed = true;
+                throw error;
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(PARALLEL_CALLS, slots.length) }, worker));
+    return drafts;
 }
 
 /**
@@ -266,10 +302,7 @@ export async function generatePlaybookRun(runId: string, now = new Date()) {
         const ctx: RunContext = { teamId: run.teamId, inputs, product: run.product, icp: run.icp };
         const [{ aiService }, { extractJsonCandidate }] = await Promise.all([import("@/lib/aiService"), import("@/modules/landing-agent/service")]);
         const ai: Writer = { askAI: (...args) => aiService.askAI(...args), extractJson: extractJsonCandidate };
-        const weeks = await Promise.all(
-            Array.from({ length: WEEKS }, (_, w) => writeWeek(ai, ctx, w, slots.filter((s) => s.week === w).map((s) => s.stage))),
-        );
-        const drafts = weeks.flat();
+        const drafts = await writeAll(ai, ctx, slots);
 
         const saved = await prisma.$transaction(async (tx) => {
             const claimed = await tx.playbookRun.updateMany({ where: { id: run.id, status: "GENERATING" }, data: { status: "READY", error: null } });
@@ -298,10 +331,16 @@ export async function generatePlaybookRun(runId: string, now = new Date()) {
         }, { timeout: 20_000 });
         return { done: saved };
     } catch (error) {
-        console.error(`[PlaybookWizard] Run ${run.id} failed:`, error instanceof Error ? error.message : error);
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[PlaybookWizard] Run ${run.id} failed:`, message);
         await prisma.playbookRun.updateMany({
             where: { id: run.id, status: "GENERATING" },
-            data: { status: "FAILED", error: "Couldn't write the posts this time. Try again." },
+            data: {
+                status: "FAILED",
+                error: message.includes("Insufficient credits")
+                    ? "Not enough AI credits to write the posts. Add credits, then try again."
+                    : "Couldn't write the posts this time. Try again.",
+            },
         });
         return { done: false };
     }

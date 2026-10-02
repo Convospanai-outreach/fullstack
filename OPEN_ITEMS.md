@@ -6110,7 +6110,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     team's stage mix by largest remainder. Each post has Facebook text (`body`), Instagram and LinkedIn text
     (`channelCaptions`), and a `visualBrief`. Every post points back with `playbookRunId` (SetNull), so the
     set is reviewed and deleted in one place.
-  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one call per week.
+  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one short call per post, 4 at a time. askAI's Anthropic path caps replies at 800 tokens and each call at 30s, so a week per call would be cut off.
     The job writes everything first, then saves all posts in one transaction that claims GENERATING -> READY, so a
     repeated job saves nothing twice. It never throws: AI calls are billed, so a failure becomes FAILED with a
     manual "Try again". There is one GENERATING plan per team; one stuck for 15 minutes can be retried.
