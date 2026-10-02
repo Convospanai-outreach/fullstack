@@ -76,7 +76,7 @@ export default function GovernancePage() {
         <div className="space-y-8 max-w-5xl">
             <div className="flex justify-between items-center">
                 <SectionHeader
-                    title="Enterprise Governance"
+                    title="Workspace policies"
                     subtitle="Control operational guardrails, rate limits, and compliance logic for your entire organization."
                 />
                 <Link
@@ -269,14 +269,14 @@ export default function GovernancePage() {
                         <div className="bg-purple-500/20 p-2 rounded-lg">
                             <Eye className="w-5 h-5 text-purple-400" />
                         </div>
-                        <h3 className="font-bold text-foreground text-sm">Human Intercepts</h3>
+                        <h3 className="font-bold text-foreground text-sm">Review AI actions</h3>
                     </div>
                     <p className="text-[10px] text-muted-foreground">Review AI decisions before they are executed.</p>
                     <Link
-                        href="/settings/hitl"
+                        href="/inbox?tab=approvals"
                         className="block text-center py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-all"
                     >
-                        View Intercepts
+                        Open approvals
                     </Link>
                 </GlassCard>
 

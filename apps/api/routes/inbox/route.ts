@@ -1,29 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentContext } from "@/lib/auth";
-import { InboxService } from "@/lib/inboxService";
+import { getCurrentContextFromRequest } from "@/lib/auth";
+import { handleAPIError } from "@/lib/apiResponse";
 
+// Action Inbox: inbound replies (paginated, newest first), open Overseer nudges,
+// meetings in the next 48h, and the badge counts. See modules/inbox/actionInboxService.ts.
 export async function GET(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
-            return new NextResponse("Unauthorized", { status: 401 });
-        }
+        const { userId, teamId } = await getCurrentContextFromRequest(req);
+        if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const url = new URL(req.url);
-        const status = url.searchParams.get("status");
-        const platform = url.searchParams.get("platform");
-        const search = url.searchParams.get("search");
+        const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1", 10) || 1);
+        const limit = Math.min(50, Math.max(1, Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20));
 
-        const filter: { status?: string; platform?: string; search?: string } = {};
-        if (status) filter.status = status;
-        if (platform) filter.platform = platform;
-        if (search) filter.search = search;
+        const { markActiveDay } = await import("@/lib/analytics/productEvents");
+        void markActiveDay(userId, teamId);
 
-        const conversations = await InboxService.getThreads(teamId, filter);
-
-        return NextResponse.json(conversations);
+        const { getInbox } = await import("@/modules/inbox/actionInboxService");
+        return NextResponse.json(await getInbox(teamId, { page, limit }));
     } catch (error) {
-        console.error("Inbox Fetch Error:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return handleAPIError(error);
     }
 }

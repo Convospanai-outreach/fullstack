@@ -1,0 +1,712 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Self-hosted Mautic for CraftMyFunnel on one Graviton EC2 instance running Docker Compose
+  (Caddy, MySQL 8.4, Mautic web/cron/worker) - one small instance instead of managed
+  services to fit Free plan credits, reachable only through Cloudflare on port 443.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: >-
+      CF proxy (Full strict, origin cert) -> EIP:443 -> Caddy -> mautic_web:80; mysql + cron + worker on same host;
+      all state on DataVolume (/srv/mautic); apps/api pushes leads via Mautic API (Basic auth) through CF
+    must:
+      - no inbound except tcp 443 from CF IPv4 ranges; admin only via SSM Session Manager (no SSH, no key pair)
+      - CF ranges in SecurityGroup & Caddyfile identical; source https://www.cloudflare.com/ips-v4
+      - no secrets in Parameters, Metadata or UserData; instance reads Secrets Manager at runtime w/ its role
+      - template body < 51200 bytes so `aws cloudformation deploy` needs no S3 bucket
+    ref:
+      - { at: deploy/aws/mautic/README.md, has: deploy & operate runbook }
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: mautic.craftmyfunnel.live
+    AllowedPattern: "^[a-z0-9.-]+$"
+    Description: Public hostname. Its DNS record must be proxied (orange cloud) through Cloudflare.
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: >-
+      Amazon Linux 2023 arm64 AMI ID. Look it up from the SSM parameter
+      /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64 (see README).
+  InstanceType:
+    Type: String
+    Default: t4g.small
+    AllowedValues: [t4g.small, t4g.medium]
+    Description: t4g.small (2 GiB) fits the Free plan; t4g.medium needs a paid plan.
+  AdminEmail:
+    Type: String
+    AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    Description: Email of the first Mautic admin user.
+  MailerFromEmail:
+    Type: String
+    AllowedPattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    Description: Default sender for Mautic email. Must be on a domain verified in Resend.
+  MailerFromName:
+    Type: String
+    Default: CraftMyFunnel
+    AllowedPattern: "^[A-Za-z0-9 .&-]{1,64}$"
+    Description: Default sender name for Mautic email.
+  AutoStopWhenIdle:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Development cost saver - stop the instance after an hour without real traffic (start it again with
+      mautic-power.sh). Set to false once apps/api depends on Mautic.
+
+Conditions:
+  AutoStop: !Equals [!Ref AutoStopWhenIdle, "true"]
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          own VPC so SG/routes affect nothing else in acct; 1 public subnet, no NAT GW (~$35/mo) - instance egresses
+          via its EIP; no flow logs (cost), SG is the boundary
+    Properties:
+      CidrBlock: 10.60.0.0/24
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: no auto public IP; the EIP on Eni is the only public address
+        must:
+          - DataVolume AZ == this subnet's AZ (EBS attaches only within an AZ)
+        mutable: must-never-change
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.60.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet
+      RouteTableId: !Ref RouteTable
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          origin reachable only from Cloudflare edge; no 80 (Caddy uses CF origin cert, no ACME) & no 22 (SSM);
+          egress limited to 80/443 (dnf, image pulls, SSM, Secrets Manager) + 587 (Resend SMTP); Amazon DNS/NTP/IMDS
+          are not subject to SG rules
+        must:
+          - never add 0.0.0.0/0 ingress; CF-only is what keeps the Mautic login off the open internet
+          - ranges identical to Caddyfile trusted_proxies
+          - keep 587 egress or Mautic email stops
+        mutable: review-required
+    Properties:
+      GroupDescription: Mautic origin - HTTPS from Cloudflare only
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 173.245.48.0/20, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 103.21.244.0/22, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 103.22.200.0/22, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 103.31.4.0/22, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 141.101.64.0/18, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 108.162.192.0/18, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 190.93.240.0/20, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 188.114.96.0/20, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 197.234.240.0/22, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 198.41.128.0/17, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 162.158.0.0/15, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 104.16.0.0/13, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 104.24.0.0/14, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 172.64.0.0/13, Description: Cloudflare }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 131.0.72.0/22, Description: Cloudflare }
+      SecurityGroupEgress:
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS - AWS APIs and image registries }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP - package mirrors }
+        - { IpProtocol: tcp, FromPort: 587, ToPort: 587, CidrIp: 0.0.0.0/0, Description: SMTP submission - Resend }
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  Eni:
+    Type: AWS::EC2::NetworkInterface
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          EIP is bound to this ENI before the instance exists, so bootstrap has internet during cfn-init;
+          an EIP bound via InstanceId would only attach after the CreationPolicy signal (deadlock)
+        must:
+          - EipAssociation completes before Instance (DependsOn)
+    Properties:
+      SubnetId: !Ref Subnet
+      GroupSet: [!Ref SecurityGroup]
+      Description: Mautic origin interface
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: stable origin address for the Cloudflare DNS record; survives instance replacement
+        must:
+          - Cloudflare A record for DomainName points here (proxied)
+        mutable: must-never-change
+    Properties:
+      Domain: vpc
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+
+  EipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ElasticIp.AllocationId
+      NetworkInterfaceId: !Ref Eni
+
+  AdminSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          generated password of the first Mautic admin; read by bootstrap.sh once for mautic:install, then by humans;
+          aws/secretsmanager key (a CMK adds $1/mo, no cross-acct need); no rotation - Mautic owns the password after
+          install, rotating here would not change it
+        must:
+          - never regenerate after install; secret and Mautic's stored hash would diverge
+        mutable: must-never-change
+    Properties:
+      Description: !Sub Mautic admin login for stack ${AWS::StackName}
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"admin"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+        RequireEachIncludedType: true
+
+  ExternalSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          owner fills after create: Resend API key (Mautic SMTP) + Cloudflare origin cert/key (Caddy TLS);
+          bootstrap.sh skips mailer / keeps Caddy stopped while a value is empty
+        must:
+          - never change SecretString in this template; a stack update would overwrite the owner's values
+          - keep key names in sync with bootstrap.sh
+        mutable: must-never-change
+    Properties:
+      Description: !Sub Resend API key and Cloudflare origin certificate for Mautic stack ${AWS::StackName} - filled in by the owner
+      SecretString: '{"resend_api_key":"","cloudflare_origin_cert":"","cloudflare_origin_key":""}'
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: SSM Session Manager access (replaces SSH) + read of this stack's two secrets only; cfn-init/cfn-signal need no creds
+        must:
+          - GetSecretValue scoped to AdminSecret & ExternalSecret; no wildcards
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: read-mautic-secrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: [!Ref AdminSecret, !Ref ExternalSecret]
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  DataVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          all Mautic state (MySQL datadir, config/local.php, media, generated DB passwords) lives here, apart from
+          the root volume, so the instance is disposable; tag drives SnapshotPolicy
+        must:
+          - encrypted; same AZ as Subnet
+          - attached via Instance.Volumes (attached before cfn-init runs; a VolumeAttachment would come after the signal)
+        mutable: change-with-constraints
+        mutability:
+          AvailabilityZone: must-never-change
+          Size: free-to-tune
+    Properties:
+      AvailabilityZone: !GetAtt Subnet.AvailabilityZone
+      Size: 10
+      VolumeType: gp3
+      Encrypted: true
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-data" }
+        - { Key: mautic-backup, Value: !Ref AWS::StackName }
+
+  Instance:
+    Type: AWS::EC2::Instance
+    DependsOn: [EipAssociation, DefaultRoute, SubnetRouteTableAssociation]
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT25M
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          single t4g host (arm64: cheapest RAM/$) over ECS/RDS - Free plan credits; AL2023 + Docker Compose mirrors the
+          upstream docker-mautic example; IMDSv2 hop limit 1 keeps containers off the instance role; EC2 default
+          auto-recovery covers host failure. Re-apply cfg: `cfn-init` via SSM (README); both scripts idempotent
+        must:
+          - ImageId change or any replacement fails while DataVolume is attached to the old instance; patch in place w/ dnf
+          - compose network subnet == Mautic trusted_proxies in bootstrap.sh
+          - mem_limits sum must fit InstanceType RAM + 1 GiB swap
+        mutable: review-required
+        mutability:
+          InstanceType: change-with-constraints
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /opt/mautic/stack.env:
+              mode: "000600"
+              owner: root
+              group: root
+              content: !Sub |
+                AWS_REGION=${AWS::Region}
+                DATA_VOLUME_ID=${DataVolume}
+                DOMAIN=${DomainName}
+                ADMIN_EMAIL=${AdminEmail}
+                ADMIN_SECRET_ID=${AdminSecret}
+                EXTERNAL_SECRET_ID=${ExternalSecret}
+                MAILER_FROM_EMAIL=${MailerFromEmail}
+                MAILER_FROM_NAME="${MailerFromName}"
+            /opt/mautic/host-setup.sh:
+              mode: "000700"
+              owner: root
+              group: root
+              content: |
+                #!/bin/bash
+                # Host preparation: Docker, Compose, swap and the data volume. Safe to re-run.
+                set -euo pipefail
+                . /opt/mautic/stack.env
+
+                dnf install -y -q docker jq
+                if [ ! -f /etc/docker/daemon.json ]; then
+                  mkdir -p /etc/docker
+                  echo '{"log-driver": "json-file", "log-opts": {"max-size": "10m", "max-file": "3"}}' > /etc/docker/daemon.json
+                fi
+                systemctl enable --now docker
+
+                # AL2023 does not package the Compose plugin; pin the release by checksum.
+                COMPOSE_VERSION=v5.5.1
+                COMPOSE_SHA256=732e3a84c1a0f67256ce80bc2598a24546b10ca05f9faa97efceb1171ece2ef7
+                PLUGIN=/usr/local/lib/docker/cli-plugins/docker-compose
+                if ! echo "$COMPOSE_SHA256  $PLUGIN" | sha256sum -c --status 2>/dev/null; then
+                  mkdir -p "$(dirname "$PLUGIN")"
+                  curl -fsSL -o "$PLUGIN.tmp" \
+                    "https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-aarch64"
+                  echo "$COMPOSE_SHA256  $PLUGIN.tmp" | sha256sum -c --quiet -
+                  chmod 755 "$PLUGIN.tmp"
+                  mv "$PLUGIN.tmp" "$PLUGIN"
+                fi
+
+                if [ ! -f /swapfile ]; then
+                  dd if=/dev/zero of=/swapfile bs=1M count=1024 status=none
+                  chmod 600 /swapfile
+                  mkswap /swapfile >/dev/null
+                  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+                fi
+                swapon --show=NAME --noheadings | grep -qx /swapfile || swapon /swapfile
+
+                # Nitro exposes EBS volumes as NVMe; find ours by volume ID, format it only if blank.
+                DEV="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${DATA_VOLUME_ID/-/}"
+                for _ in $(seq 60); do [ -e "$DEV" ] && break; sleep 2; done
+                [ -e "$DEV" ] || { echo "Data volume $DATA_VOLUME_ID is not attached" >&2; exit 1; }
+                blkid "$DEV" >/dev/null || mkfs.xfs -q -L mautic-data "$DEV"
+                UUID=$(blkid -s UUID -o value "$DEV")
+                mkdir -p /srv/mautic
+                grep -q "UUID=$UUID " /etc/fstab || echo "UUID=$UUID /srv/mautic xfs defaults,nofail 0 2" >> /etc/fstab
+                mountpoint -q /srv/mautic || mount /srv/mautic
+            /opt/mautic/bootstrap.sh:
+              mode: "000700"
+              owner: root
+              group: root
+              content: |
+                #!/bin/bash
+                # Renders the Compose environment from Secrets Manager and the data volume,
+                # starts the stack and runs the one-time Mautic install. Safe to re-run:
+                # run it again after filling in or changing the external secret.
+                set -euo pipefail
+                umask 077
+                . /opt/mautic/stack.env
+                cd /opt/mautic
+                DATA=/srv/mautic
+                mountpoint -q "$DATA" || { echo "$DATA is not mounted; run host-setup.sh first" >&2; exit 1; }
+                mkdir -p "$DATA"/{mysql,config,logs,media/files,media/images,cron,secrets} certs
+
+                # Database passwords live on the data volume next to the database they
+                # unlock, so a replacement instance picks them up again.
+                if [ ! -s "$DATA/secrets/db.env" ]; then
+                  printf 'MYSQL_ROOT_PASSWORD=%s\nMAUTIC_DB_PASSWORD=%s\n' \
+                    "$(openssl rand -hex 24)" "$(openssl rand -hex 24)" > "$DATA/secrets/db.env"
+                fi
+                . "$DATA/secrets/db.env"
+
+                secret() {
+                  aws secretsmanager get-secret-value --region "$AWS_REGION" --secret-id "$1" \
+                    --query SecretString --output text
+                }
+                ADMIN_PASSWORD=$(secret "$ADMIN_SECRET_ID" | jq -r .password)
+                EXTERNAL=$(secret "$EXTERNAL_SECRET_ID")
+                field() { jq -r --arg k "$1" '.[$k] // ""' <<<"$EXTERNAL"; }
+                RESEND_API_KEY=$(field resend_api_key)
+                ORIGIN_CERT=$(field cloudflare_origin_cert)
+                ORIGIN_KEY=$(field cloudflare_origin_key)
+
+                # Mautic merges this JSON over config/local.php. Mautic trusts only the
+                # compose network (Caddy), and Caddy resolves the client IP from Cloudflare.
+                MAUTIC_CONFIG_PARAMETERS=$(jq -cn --arg host "$DOMAIN" --arg from "$MAILER_FROM_EMAIL" \
+                  --arg name "$MAILER_FROM_NAME" --arg key "$RESEND_API_KEY" '
+                  {
+                    trusted_proxies: ["172.28.0.0/24"],
+                    trusted_hosts: ["^" + ($host | gsub("[.]"; "\\.")) + "$"],
+                    api_enabled: true,
+                    api_enable_basic_auth: true,
+                    mailer_from_email: $from,
+                    mailer_from_name: $name
+                  } + if $key == "" then {} else
+                    {mailer_dsn: ("smtp://resend:" + ($key | @uri) + "@smtp.resend.com:587")} end')
+                if [ -z "$RESEND_API_KEY" ]; then
+                  echo "resend_api_key is empty in $EXTERNAL_SECRET_ID: Mautic cannot send email yet." >&2
+                fi
+                {
+                  printf 'MYSQL_ROOT_PASSWORD=%s\n' "$MYSQL_ROOT_PASSWORD"
+                  printf 'MAUTIC_DB_PASSWORD=%s\n' "$MAUTIC_DB_PASSWORD"
+                  printf "MAUTIC_CONFIG_PARAMETERS='%s'\n" "$MAUTIC_CONFIG_PARAMETERS"
+                } > .env
+
+                PROFILE=()
+                CERT_CHANGED=0
+                if [ -n "$ORIGIN_CERT" ] && [ -n "$ORIGIN_KEY" ]; then
+                  printf '%s\n' "$ORIGIN_CERT" > certs/origin.pem.new
+                  printf '%s\n' "$ORIGIN_KEY" > certs/origin.key.new
+                  for f in origin.pem origin.key; do
+                    cmp -s "certs/$f.new" "certs/$f" || CERT_CHANGED=1
+                    mv "certs/$f.new" "certs/$f"
+                  done
+                  PROFILE=(--profile edge)
+                else
+                  echo "The Cloudflare origin certificate or key is empty in $EXTERNAL_SECRET_ID:" \
+                    "Caddy stays stopped, so Mautic is not reachable yet." >&2
+                fi
+
+                docker compose up -d --wait --wait-timeout 600 db mautic_web
+                if [ ! -f "$DATA/.installed" ]; then
+                  docker compose exec -T --user www-data --workdir /var/www/html mautic_web \
+                    php ./bin/console mautic:install "https://$DOMAIN" \
+                      --db_driver=pdo_mysql --db_host=db --db_port=3306 --db_name=mautic \
+                      --db_user=mautic --db_password="$MAUTIC_DB_PASSWORD" \
+                      --admin_username=admin --admin_email="$ADMIN_EMAIL" \
+                      --admin_password="$ADMIN_PASSWORD" --admin_firstname=Mautic --admin_lastname=Admin
+                  touch "$DATA/.installed"
+                fi
+                docker compose "${PROFILE[@]}" up -d
+                if [ "$CERT_CHANGED" = 1 ]; then
+                  docker compose "${PROFILE[@]}" restart caddy
+                fi
+            /opt/mautic/compose.yaml:
+              mode: "000644"
+              owner: root
+              group: root
+              content: |
+                # Values in ${...} come from .env, which bootstrap.sh renders.
+                name: mautic
+
+                x-mautic: &mautic
+                  image: mautic/mautic:7.2.1-apache
+                  restart: unless-stopped
+                  volumes:
+                    - /srv/mautic/config:/var/www/html/config
+                    - /srv/mautic/logs:/var/www/html/var/logs
+                    - /srv/mautic/media/files:/var/www/html/docroot/media/files
+                    - /srv/mautic/media/images:/var/www/html/docroot/media/images
+                    - /srv/mautic/cron:/opt/mautic/cron
+                  depends_on:
+                    db:
+                      condition: service_healthy
+
+                x-mautic-env: &mautic-env
+                  MAUTIC_DB_HOST: db
+                  MAUTIC_DB_PORT: "3306"
+                  MAUTIC_DB_DATABASE: mautic
+                  MAUTIC_DB_USER: mautic
+                  MAUTIC_DB_PASSWORD: ${MAUTIC_DB_PASSWORD}
+                  MAUTIC_MESSENGER_DSN_EMAIL: doctrine://default
+                  MAUTIC_MESSENGER_DSN_HIT: doctrine://default
+                  MAUTIC_CONFIG_PARAMETERS: ${MAUTIC_CONFIG_PARAMETERS}
+
+                services:
+                  db:
+                    image: mysql:8.4.11
+                    restart: unless-stopped
+                    command: ["--innodb-buffer-pool-size=256M", "--performance-schema=OFF", "--max-connections=60"]
+                    environment:
+                      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+                      MYSQL_DATABASE: mautic
+                      MYSQL_USER: mautic
+                      MYSQL_PASSWORD: ${MAUTIC_DB_PASSWORD}
+                    volumes:
+                      - /srv/mautic/mysql:/var/lib/mysql
+                    # TCP, so the image's socket-only init server doesn't count as ready.
+                    healthcheck:
+                      test: mysqladmin --host=127.0.0.1 --user=mautic --password="$$MYSQL_PASSWORD" ping
+                      start_period: 60s
+                      interval: 5s
+                      timeout: 5s
+                      retries: 30
+                    mem_limit: 512m
+
+                  mautic_web:
+                    <<: *mautic
+                    environment:
+                      <<: *mautic-env
+                      DOCKER_MAUTIC_ROLE: mautic_web
+                    healthcheck:
+                      test: curl -so /dev/null http://localhost
+                      start_period: 60s
+                      interval: 10s
+                      timeout: 5s
+                      retries: 30
+                    mem_limit: 640m
+
+                  mautic_cron:
+                    <<: *mautic
+                    environment:
+                      <<: *mautic-env
+                      DOCKER_MAUTIC_ROLE: mautic_cron
+                    mem_limit: 256m
+
+                  mautic_worker:
+                    <<: *mautic
+                    environment:
+                      <<: *mautic-env
+                      DOCKER_MAUTIC_ROLE: mautic_worker
+                    mem_limit: 384m
+
+                  caddy:
+                    image: caddy:2.11.4
+                    profiles: [edge]
+                    restart: unless-stopped
+                    ports:
+                      - "443:443"
+                    volumes:
+                      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+                      - ./certs:/certs:ro
+                      - caddy_data:/data
+                    depends_on:
+                      - mautic_web
+                    mem_limit: 128m
+
+                volumes:
+                  caddy_data:
+
+                networks:
+                  default:
+                    ipam:
+                      config:
+                        - subnet: 172.28.0.0/24
+            /opt/mautic/Caddyfile:
+              mode: "000644"
+              owner: root
+              group: root
+              content: !Sub |
+                # Only Cloudflare can reach this port (security group), so trust its
+                # ranges to report the client IP. Keep them identical to the group's.
+                {
+                    auto_https disable_redirects
+                    servers {
+                        trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22
+                        client_ip_headers Cf-Connecting-Ip
+                    }
+                }
+
+                ${DomainName}:443 {
+                    tls /certs/origin.pem /certs/origin.key
+                    reverse_proxy mautic_web:80 {
+                        # Replace rather than append: Mautic trusts only Caddy, so the
+                        # last X-Forwarded-For entry it sees must be the real client.
+                        header_up X-Forwarded-For {client_ip}
+                    }
+                }
+          commands:
+            1-host-setup:
+              command: /opt/mautic/host-setup.sh
+            2-bootstrap:
+              command: /opt/mautic/bootstrap.sh
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref Eni
+          DeviceIndex: "0"
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+        HttpPutResponseHopLimit: 1
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 12
+            VolumeType: gp3
+            Encrypted: true
+            DeleteOnTermination: true
+      Volumes:
+        - Device: /dev/sdf
+          VolumeId: !Ref DataVolume
+      Tags:
+        - { Key: Name, Value: !Ref AWS::StackName }
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf install -y -q aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
+
+  IdleStopAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: AutoStop
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          dev-stage cost saver, Render-style sleep: stopped instance bills no compute (EBS, EIP, secrets still bill);
+          idle = NetworkOut; measured idle ~12 KB/5 min (SSM agent), any UI use through Cloudflare is far more;
+          CPU rejected - cron spikes blur it. No wake-on-request: start with mautic-power.sh
+        must:
+          - AutoStopWhenIdle=false before apps/api sends leads here; while stopped, lead pushes and Cloudflare requests fail
+          - stop action runs via service-linked role AWSServiceRoleForCloudWatchEvents (README creates it once)
+          - missing data notBreaching, so the alarm resets while stopped and can fire again after the next start
+        mutable: free-to-tune
+    Properties:
+      AlarmDescription: !Sub Stops the ${AWS::StackName} Mautic instance after 1 hour with under 250 KB outbound per 5 minutes - development cost saver
+      Namespace: AWS/EC2
+      MetricName: NetworkOut
+      Dimensions:
+        - { Name: InstanceId, Value: !Ref Instance }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 12
+      DatapointsToAlarm: 12
+      Threshold: 250000
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Sub arn:${AWS::Partition}:automate:${AWS::Region}:ec2:stop
+
+  SnapshotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: dlm.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+
+  SnapshotPolicy:
+    Type: AWS::DLM::LifecyclePolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: >-
+          daily snapshots of DataVolume kept 7 days (incremental, <$1/mo at this size); crash-consistent, which
+          InnoDB recovers from; restore = new volume from snapshot, swap into Instance.Volumes
+        must:
+          - TargetTags match DataVolume's mautic-backup tag
+    Properties:
+      Description: !Sub Daily snapshots of the ${AWS::StackName} Mautic data volume
+      ExecutionRoleArn: !GetAtt SnapshotRole.Arn
+      State: ENABLED
+      PolicyDetails:
+        PolicyType: EBS_SNAPSHOT_MANAGEMENT
+        ResourceTypes: [VOLUME]
+        TargetTags:
+          - { Key: mautic-backup, Value: !Ref AWS::StackName }
+        Schedules:
+          - Name: daily-keep-7
+            CopyTags: true
+            CreateRule:
+              Interval: 24
+              IntervalUnit: HOURS
+              Times: ["02:00"]
+            RetainRule:
+              Count: 7
+
+Outputs:
+  MauticUrl:
+    Value: !Sub https://${DomainName}
+  OriginIp:
+    Description: Point the proxied Cloudflare A record for DomainName here.
+    Value: !Ref ElasticIp
+  InstanceId:
+    Value: !Ref Instance
+  PowerCommand:
+    Description: Start, stop or check the instance (development auto-stop).
+    Value: bash deploy/aws/mautic/mautic-power.sh start|stop|status
+  SessionCommand:
+    Description: Shell on the instance through Session Manager (no SSH).
+    Value: !Sub aws ssm start-session --target ${Instance} --region ${AWS::Region}
+  AdminSecretArn:
+    Description: Mautic admin username and password.
+    Value: !Ref AdminSecret
+  ExternalSecretArn:
+    Description: Fill in resend_api_key, cloudflare_origin_cert and cloudflare_origin_key here.
+    Value: !Ref ExternalSecret

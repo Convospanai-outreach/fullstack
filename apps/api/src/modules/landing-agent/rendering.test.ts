@@ -237,3 +237,24 @@ describe("sanitizeRenderedJsonHtml (public page JSON for /p/[slug])", () => {
         expect(sanitizeRenderedJsonHtml(null)).toBeNull();
     });
 });
+
+describe("section button links (creator funnel sales page)", () => {
+    const html = (ctaHref: unknown) => renderSectionsToHtml([
+        { id: "hero", type: "hero", heading: "Hi", ctaLabel: "Book", ctaHref },
+        { id: "cta", type: "cta_form", heading: "Go", ctaHref },
+    ]);
+
+    it("opens the section's https link instead of the lead form", () => {
+        const out = html("https://cal.example/me?a=1&b=2");
+        expect(out).toContain('href="https://cal.example/me?a=1&amp;b=2"');
+        expect(out).not.toContain('href="#lead-form"');
+    });
+
+    it("keeps the lead form for anything that isn't an https link", () => {
+        for (const bad of ["javascript:alert(1)", "http://plain.example", "/relative", '" onclick="x', undefined]) {
+            const out = html(bad);
+            expect(out.match(/href="#lead-form"/g)).toHaveLength(2);
+            expect(out).not.toContain("onclick");
+        }
+    });
+});

@@ -42,7 +42,7 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(_req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
+        const { userId, teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
@@ -77,6 +77,11 @@ export async function POST(_req: NextRequest) {
                 teamId
             }
         });
+
+        const { onMeetingCreated } = await import("@/modules/inbox/inboundReplyNotifier");
+        void onMeetingCreated(meeting, userId);
+        const { trackMeetingBooked } = await import("@/lib/analytics/productEvents");
+        void trackMeetingBooked(teamId, userId, meeting.id);
 
         return successResponse(meeting);
     } catch (error) {

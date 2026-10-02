@@ -93,16 +93,16 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
       label: "Drafts Queued",
       tooltip: "Total AI-generated drafts in review pipeline across campaigns",
       value: data.draftsReady,
-      href: "/approvals",
+      href: "/inbox?tab=approvals",
       renderDelta: () => (
         data.draftsPendingSend > 0
-          ? <span className="text-warning font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-warning/20 px-1.5 bg-warning/5">{data.draftsPendingSend} Dispatch Ready</span>
+          ? <span className="text-warning font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-warning/20 px-1.5 bg-warning/5">Needs approval</span>
           : <span className="text-success font-mono text-[9px] uppercase tracking-widest">Optimized</span>
       )
     },
     {
       id: "open_rate",
-      label: "Signal Capture",
+      label: "Signals captured",
       tooltip: "Engagement and reply rate performance across outreach",
       value: `${data.openRatePct}%`,
       href: "/analytics/roi",

@@ -128,3 +128,57 @@ describe("mauticService.pushLead", () => {
         expect(result).toEqual({ status: "error", details: "Lead not found" });
     });
 });
+
+describe("mauticService.tagFunnelStage", () => {
+    const originalEnv = { ...process.env };
+    const originalFetch = global.fetch;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        process.env["MAUTIC_BASE_URL"] = "https://mautic.example.com";
+        process.env["MAUTIC_USERNAME"] = "admin";
+        process.env["MAUTIC_PASSWORD"] = "secret";
+    });
+
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        global.fetch = originalFetch;
+    });
+
+    it("is a no-op without error when Mautic isn't configured", async () => {
+        delete process.env["MAUTIC_BASE_URL"];
+        global.fetch = vi.fn();
+
+        expect((await mauticService.tagFunnelStage("lead-1", "team-1", "MOFU")).status).toBe("skipped");
+        expect(mockPrisma.lead.findFirst).not.toHaveBeenCalled();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("skips a lead that was never pushed to Mautic", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ mauticContactId: null });
+        global.fetch = vi.fn();
+
+        expect((await mauticService.tagFunnelStage("lead-1", "team-1", "MOFU")).status).toBe("skipped");
+        expect(mockPrisma.lead.findFirst).toHaveBeenCalledWith({ where: { id: "lead-1", teamId: "team-1" }, select: { mauticContactId: true } });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("adds the new stage tag and removes the others", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ mauticContactId: "42" });
+        global.fetch = vi.fn().mockResolvedValue(jsonResponse({ contact: { id: 42 } }));
+
+        expect(await mauticService.tagFunnelStage("lead-1", "team-1", "BOFU")).toEqual({ status: "updated", mauticContactId: "42" });
+
+        const [url, init] = (global.fetch as any).mock.calls[0];
+        expect(url).toBe("https://mautic.example.com/api/contacts/42/edit");
+        expect(init.method).toBe("PATCH");
+        expect(JSON.parse(init.body)).toEqual({ tags: ["stage-bofu", "-stage-tofu", "-stage-mofu", "-stage-post"] });
+    });
+
+    it("returns an error result instead of throwing when Mautic fails", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ mauticContactId: "42" });
+        global.fetch = vi.fn().mockResolvedValue(jsonResponse({}, false, 500));
+
+        expect((await mauticService.tagFunnelStage("lead-1", "team-1", "POST")).status).toBe("error");
+    });
+});

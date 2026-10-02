@@ -32,4 +32,17 @@ describe("landing-agent public payload schemas", () => {
         });
         expect(bad.success).toBe(false);
     });
+
+    it("keeps the creator funnel link token and caps its length", () => {
+        const ok = landingLeadPayloadSchema.safeParse({ email: "ops@example.com", socialToken: "abc.def" });
+        expect(ok.success && ok.data.socialToken).toBe("abc.def");
+
+        expect(landingLeadPayloadSchema.safeParse({ socialToken: "x".repeat(301) }).success).toBe(false);
+    });
+
+    it("keeps the page's UTM on events and caps it", () => {
+        const ok = landingEventPayloadSchema.safeParse({ eventName: "page_view", utmSource: "instagram", utmContent: "post-1" });
+        expect(ok.success && [ok.data.utmSource, ok.data.utmContent]).toEqual(["instagram", "post-1"]);
+        expect(landingEventPayloadSchema.safeParse({ eventName: "page_view", utmCampaign: "x".repeat(201) }).success).toBe(false);
+    });
 });

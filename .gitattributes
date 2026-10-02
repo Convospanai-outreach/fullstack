@@ -1,0 +1,2 @@
+# Run with bash, including Git Bash on Windows, which fails on CRLF line endings.
+deploy/aws/mautic/*.sh text eol=lf

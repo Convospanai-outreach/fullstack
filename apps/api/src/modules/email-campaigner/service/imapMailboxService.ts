@@ -11,6 +11,7 @@ import { simpleParser, type ParsedMail } from "mailparser";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
+import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 
 const FIRST_SYNC_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, per task spec
 
@@ -72,8 +73,9 @@ async function processParsedMessage(input: {
     const isBounce = isBounceMessage(from, subject);
     const type = isBounce ? "BOUNCE" : "REPLY_RECEIVED";
 
+    let inboundMessage: { id: string; leadId: string; sentimentScore: number | null; emailEventId: string | null; createdAt: Date } | undefined;
     try {
-        return await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
             const matchedEmail = await tx.email.findFirst({
                 where: {
                     mailboxId: mailbox.id,
@@ -132,7 +134,7 @@ async function processParsedMessage(input: {
                 return "bounce" as const;
             }
 
-            await tx.message.create({
+            inboundMessage = await tx.message.create({
                 data: {
                     leadId: matchedEmail.leadId,
                     content: parsed.text || parsed.html || subject || "Reply detected",
@@ -156,6 +158,8 @@ async function processParsedMessage(input: {
             await tx.emailEvent.update({ where: { id: emailEvent.id }, data: { processedAt: new Date() } });
             return "reply" as const;
         });
+        if (result === "reply" && inboundMessage) void onInboundReply(inboundMessage);
+        return result;
     } catch (error: any) {
         if (isEmailEventUniqueDuplicate(error)) return "duplicate";
         throw error;

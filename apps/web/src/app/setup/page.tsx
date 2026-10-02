@@ -31,7 +31,7 @@ import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
-import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -1039,7 +1039,52 @@ function CampaignPlan({ status, onOpenCampaigns }: { status: SetupStatus; onOpen
       ) : (
         <button type="button" onClick={onOpenCampaigns} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Create campaign <ExternalLink className="h-4 w-4" /></button>
       )}
+      <MeetingGoalField />
     </section>
+  );
+}
+
+// Optional: the team's monthly meeting goal, which Home tracks pace against. Skipping is fine.
+function MeetingGoalField() {
+  const url = getBrowserApiUrl("/dashboard/meeting-goal");
+  const [goal, setGoal] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(url, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data?.goal) setGoal(String(data.goal)); })
+      .catch(() => {});
+  }, [url]);
+
+  const save = async () => {
+    const value = Number(goal);
+    if (!Number.isInteger(value) || value < 1 || value > 1000) {
+      toast.error("Enter a whole number from 1 to 1000.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal: value }) });
+      if (!res.ok) throw new Error();
+      toast.success("Goal saved. Home will show your pace.");
+    } catch {
+      toast.error("Couldn't save the goal. You can set it later on Home.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t border-white/10 pt-5">
+      <Field label="How many meetings a month do you want? (optional)">
+        <div className="flex gap-2">
+          <input className={`${inputClass} max-w-[10rem]`} type="number" inputMode="numeric" min={1} max={1000} placeholder="e.g. 20" value={goal} onChange={(e) => setGoal(e.target.value)} />
+          <button type="button" onClick={save} disabled={saving || !goal} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5 disabled:opacity-50">{saving ? "Saving..." : "Save goal"}</button>
+        </div>
+      </Field>
+      <p className="mt-2 text-xs text-slate-400">Home shows whether you're on pace. Skip this if you're not sure yet.</p>
+    </div>
   );
 }
 

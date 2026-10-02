@@ -19,8 +19,19 @@ vi.mock("@/modules/scoring", () => ({
     },
 }));
 
+vi.mock("@/modules/creator-funnel/featureGate", () => ({ isCreatorFunnelEnabled: vi.fn().mockResolvedValue(false) }));
+vi.mock("@/modules/creator-funnel/funnelStageService", () => ({ applyFunnelEvent: vi.fn() }));
+vi.mock("@/modules/creator-funnel/socialLinkMerge", () => ({ mergeSignupIntoSocialLead: vi.fn() }));
+vi.mock("@/modules/creator-funnel/contentRoi", () => ({ setFirstTouchPost: vi.fn() }));
+vi.mock("@/modules/creator-funnel/whatsappOptIn", () => ({ recordWhatsappOptIn: vi.fn() }));
+
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
+import { isCreatorFunnelEnabled } from "@/modules/creator-funnel/featureGate";
+import { applyFunnelEvent } from "@/modules/creator-funnel/funnelStageService";
+import { mergeSignupIntoSocialLead } from "@/modules/creator-funnel/socialLinkMerge";
+import { setFirstTouchPost } from "@/modules/creator-funnel/contentRoi";
+import { recordWhatsappOptIn } from "@/modules/creator-funnel/whatsappOptIn";
 import { handleLandingLeadIntake } from "../landing-lead-intake-worker";
 
 describe("landing-lead-intake-worker", () => {
@@ -165,5 +176,167 @@ describe("landing-lead-intake-worker", () => {
         const result = await handleLandingLeadIntake({ landingLeadId: "ll-3", teamId: "team-1" } as any);
 
         expect(result).toEqual({ created: true, leadId: "lead-3" });
+    });
+
+    describe("creator funnel", () => {
+        const optIn = () => {
+            (prisma.landingLead.findFirst as any).mockResolvedValue({
+                id: "ll-5",
+                teamId: "team-1",
+                email: null,
+                name: "Asha",
+                phone: null,
+                company: null,
+                title: null,
+                campaign: { linkedCampaignId: null },
+            });
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-5" });
+            (leadScoringService.scoreAndPersist as any).mockResolvedValue(undefined);
+        };
+
+        it("moves the lead to MOFU on opt-in when the team has the creator funnel on", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(true);
+
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+
+            expect(isCreatorFunnelEnabled).toHaveBeenCalledWith("team-1");
+            expect(applyFunnelEvent).toHaveBeenCalledWith("team-1", "lead-5", "landing_opt_in");
+        });
+
+        it("leaves the stage alone for teams without the flag", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(false);
+
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+
+            expect(applyFunnelEvent).not.toHaveBeenCalled();
+        });
+
+        it("never fails the intake when the stage update throws", async () => {
+            optIn();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(true);
+            (applyFunnelEvent as any).mockRejectedValue(new Error("db down"));
+
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-5" });
+        });
+
+        const linkSignUp = () => {
+            const row = {
+                id: "ll-6",
+                teamId: "team-1",
+                socialToken: "tok",
+                email: "asha@example.com",
+                name: "Asha",
+                phone: null,
+                company: null,
+                title: null,
+                campaign: { linkedCampaignId: "campaign-1" },
+            };
+            (prisma.landingLead.findFirst as any).mockResolvedValue(row);
+            (leadScoringService.scoreAndPersist as any).mockResolvedValue(undefined);
+            return row;
+        };
+
+        it("merges a sign-up from an auto-reply link into that person's lead and moves it to MOFU", async () => {
+            const row = linkSignUp();
+            (isCreatorFunnelEnabled as any).mockResolvedValue(true);
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toEqual({ created: false, leadId: "lead-social", merged: true });
+
+            expect(mergeSignupIntoSocialLead).toHaveBeenCalledWith(row, "campaign-1");
+            expect(prisma.lead.create).not.toHaveBeenCalled();
+            expect(prisma.lead.updateMany).not.toHaveBeenCalled();
+            expect(leadScoringService.scoreAndPersist).toHaveBeenCalledWith("lead-social");
+            expect(applyFunnelEvent).toHaveBeenCalledWith("team-1", "lead-social", "landing_opt_in");
+        });
+
+        it("takes the normal path when the link can't be merged", async () => {
+            linkSignUp();
+            (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-new" });
+        });
+
+        it("takes the normal path when the merge throws", async () => {
+            linkSignUp();
+            (mergeSignupIntoSocialLead as any).mockRejectedValue(new Error("db down"));
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-new" });
+        });
+
+        it("records the page's utm_content as first touch on every path (merge, existing, new)", async () => {
+            const row = linkSignUp();
+            (row as any).utmContent = "post-p";
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(setFirstTouchPost).toHaveBeenLastCalledWith("team-1", "lead-social", "post-p");
+
+            (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-existing", fullName: null, phone: null, company: null, jobTitle: null, source: "x", campaignId: null });
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(setFirstTouchPost).toHaveBeenLastCalledWith("team-1", "lead-existing", "post-p");
+
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(setFirstTouchPost).toHaveBeenLastCalledWith("team-1", "lead-new", "post-p");
+        });
+
+        it("doesn't fail the intake when first-touch attribution throws, and skips it without utm_content", async () => {
+            optIn();
+            (setFirstTouchPost as any).mockRejectedValue(new Error("db down"));
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-5" });
+            expect(setFirstTouchPost).not.toHaveBeenCalled();
+
+            const row = linkSignUp();
+            (row as any).utmContent = "post-p";
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toMatchObject({ leadId: "lead-social" });
+        });
+
+        it("records a ticked WhatsApp opt-in on the lead of every path (merge, existing, new)", async () => {
+            const row = linkSignUp();
+            (row as any).whatsappConsent = true;
+            (recordWhatsappOptIn as any).mockResolvedValue(true);
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(recordWhatsappOptIn).toHaveBeenLastCalledWith(row, "lead-social");
+
+            (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-existing", fullName: null, phone: null, company: null, jobTitle: null, source: "x", campaignId: null });
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(recordWhatsappOptIn).toHaveBeenLastCalledWith(row, "lead-existing");
+
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(recordWhatsappOptIn).toHaveBeenLastCalledWith(row, "lead-new");
+        });
+
+        it("skips the opt-in when the box wasn't ticked, and never fails the intake over it", async () => {
+            optIn();
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+            expect(recordWhatsappOptIn).not.toHaveBeenCalled();
+
+            const row = linkSignUp();
+            (row as any).whatsappConsent = true;
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            (recordWhatsappOptIn as any).mockRejectedValue(new Error("db down"));
+            await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toMatchObject({ leadId: "lead-social" });
+        });
+
+        it("doesn't try a merge for an ordinary sign-up", async () => {
+            optIn();
+            await handleLandingLeadIntake({ landingLeadId: "ll-5", teamId: "team-1" } as any);
+            expect(mergeSignupIntoSocialLead).not.toHaveBeenCalled();
+        });
     });
 });

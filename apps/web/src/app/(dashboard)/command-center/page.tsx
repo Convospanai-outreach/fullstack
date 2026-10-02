@@ -118,7 +118,7 @@ export default function CommandCenterPage() {
                         <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
                         Refresh Pulse
                     </Button>
-                    <Link href="/approvals">
+                    <Link href="/inbox?tab=approvals">
                         <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white text-xs shadow-lg shadow-blue-600/20">
                             Review Queue ({metrics.pendingApprovals})
                         </Button>

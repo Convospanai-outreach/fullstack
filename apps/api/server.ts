@@ -16,6 +16,7 @@ import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAu
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
+import { keepRawJsonBody } from '@/lib/rawJsonBody';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
@@ -153,6 +154,7 @@ fastify.addContentTypeParser('*', { parseAs: 'buffer' }, (req: any, body: Buffer
   req.rawBody = body;
   done(null, body);
 });
+keepRawJsonBody(fastify);
 
 function getAdaptedRequestBody(request: any, headers: Headers) {
   if (request.rawBody !== undefined) {

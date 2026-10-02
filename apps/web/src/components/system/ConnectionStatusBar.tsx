@@ -67,6 +67,8 @@ function PulseDot({ status }: { status: ServiceStatus["status"] }) {
 
 interface ConnectionStatusBarProps {
     inline?: boolean;
+    /** Render nothing while loading or while every service is online. */
+    onlyWhenUnhealthy?: boolean;
 }
 
 // Skeleton pill shown before any data arrives — no flash/empty corner
@@ -81,12 +83,13 @@ function StatusPillSkeleton({ inline }: { inline?: boolean }) {
     );
 }
 
-export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps) {
+export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false }: ConnectionStatusBarProps) {
     // Start with a defined "loading" state so there is never an empty corner
     const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const [unreachable, setUnreachable] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -98,9 +101,13 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
                 const data = await res.json();
                 setSystemStatus(data);
                 setHasLoaded(true);
+                setUnreachable(false);
+            } else {
+                setUnreachable(true);
             }
         } catch {
             // silently fail on background refresh
+            setUnreachable(true);
         } finally {
             setIsLoading(false);
         }
@@ -141,6 +148,16 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
             document.removeEventListener("keydown", handleKeyDown);
         };
     }, [expanded]);
+
+    if (onlyWhenUnhealthy && unreachable) {
+        return (
+            <span role="status" className="flex items-center gap-1.5 whitespace-nowrap text-xs text-destructive">
+                <span className="w-2 h-2 rounded-full bg-destructive" aria-hidden="true" />
+                <span className="sr-only sm:not-sr-only">Can&apos;t reach server</span>
+            </span>
+        );
+    }
+    if (onlyWhenUnhealthy && (!hasLoaded || systemStatus?.overall === "online")) return null;
 
     // Show skeleton until first load completes
     if (!hasLoaded) return <StatusPillSkeleton inline={inline} />;

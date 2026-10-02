@@ -24,6 +24,9 @@ export class WorkerManager {
     private scheduleInterval: number = parseInt(process.env['SCHEDULE_INTERVAL_MS'] || '60000');
     private lastScheduleTick: number = 0;
     private lastSequenceTick: number = 0;
+    private lastContentPublishTick: number = 0;
+    private lastAutoReplyTick: number = 0;
+    private lastCartAbandonTick: number = 0;
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
     private lastImapSyncTick: number = 0;
@@ -32,6 +35,9 @@ export class WorkerManager {
     private lastOutboxTick: number = 0;
     private lastApprovalSweepTick: number = 0;
     private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
+    private contentPublishInterval: number = 60 * 1000; // creator funnel posts publish within a minute of their time
+    private autoReplyInterval: number = 10 * 1000; // keyword auto-replies go out within seconds of the comment/DM
+    private cartAbandonInterval: number = 5 * 60 * 1000; // cart-abandon hours are whole hours, so 5 minutes is plenty
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private imapSyncInterval: number = parseInt(process.env['IMAP_REPLY_SYNC_INTERVAL_MS'] || '600000'); // 10 minutes
@@ -49,6 +55,7 @@ export class WorkerManager {
     private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastRetentionTick: number = 0;
     private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastDigestHourSlot: number | null = null;
 
     async start() {
         if (this.isRunning) return;
@@ -101,6 +108,45 @@ export class WorkerManager {
                 console.log(`[Worker] Processed ${results.length} due sequence step(s).`);
             }
             this.lastSequenceTick = now;
+        }
+
+        // Creator funnel: publish approved posts whose time has come (contentPublisher.ts).
+        // Marked done before running and never rethrown, so a failure can't retry every loop.
+        if (now - this.lastContentPublishTick >= this.contentPublishInterval) {
+            this.lastContentPublishTick = now;
+            try {
+                const { publishDuePosts } = await import("@/modules/creator-funnel/contentPublisher");
+                const posts = await publishDuePosts(new Date(now));
+                if (posts.published > 0 || posts.failed > 0) {
+                    console.log(`[Worker] Content posts: ${posts.published} published, ${posts.failed} failed.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Content publishing failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+        }
+
+        // Creator funnel: send queued keyword auto-replies (keywordTriggers.ts). Same rule as above:
+        // marked done before running and never rethrown.
+        if (now - this.lastAutoReplyTick >= this.autoReplyInterval) {
+            this.lastAutoReplyTick = now;
+            try {
+                const { sendPendingAutoReplies } = await import("@/modules/creator-funnel/keywordTriggers");
+                await sendPendingAutoReplies(new Date(now));
+            } catch (error) {
+                console.error(`[Worker] Keyword auto-replies failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+        }
+
+        // Creator funnel: hand unpaid checkouts to their product's cart-abandon sequence
+        // (checkoutHooks.ts). Same rule as above: marked done before running and never rethrown.
+        if (now - this.lastCartAbandonTick >= this.cartAbandonInterval) {
+            this.lastCartAbandonTick = now;
+            try {
+                const { processAbandonedCarts } = await import("@/modules/creator-funnel/checkoutHooks");
+                await processAbandonedCarts(new Date(now));
+            } catch (error) {
+                console.error(`[Worker] Cart-abandon hand-off failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
         }
 
         // Fix [HIGH-2]: Reset stale jobs every 5 minutes
@@ -232,6 +278,41 @@ export class WorkerManager {
                 console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
             }
             this.lastShadowSignalReconcileTick = now;
+        }
+
+        // Daily Action Inbox digest: once per clock hour (keyed on the hour itself rather than
+        // an interval, which drifts and could skip the one hour that matters). The service
+        // only sends during 08:00-08:59 local and is idempotent via DigestLog.
+        // Marked done before running and never rethrown, so a failure can't retry every loop
+        // or starve the retention sweep below.
+        const hourSlot = Math.floor(now / (60 * 60 * 1000));
+        if (hourSlot !== this.lastDigestHourSlot) {
+            this.lastDigestHourSlot = hourSlot;
+            try {
+                const { runDailyDigest } = await import("@/modules/inbox/dailyDigestService");
+                const result = await runDailyDigest(new Date(now));
+                if (result.sent > 0 || result.failed > 0) {
+                    console.log(`[Worker] Daily digest: sent ${result.sent}, failed ${result.failed}, skipped ${result.skippedEmpty} empty.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Daily digest failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+
+            // activation_first_campaign_sent (productEvents.ts); never throws.
+            const { sweepFirstCampaignSends } = await import("@/lib/analytics/productEvents");
+            const activated = await sweepFirstCampaignSends();
+            if (activated > 0) console.log(`[Worker] Activation events: ${activated} team(s) sent their first campaign email.`);
+
+            // Creator funnel: daily Meta token check per connected social account (socialTokenHealth.ts).
+            try {
+                const { checkSocialTokens } = await import("@/modules/creator-funnel/socialTokenHealth");
+                const tokens = await checkSocialTokens(new Date(now));
+                if (tokens.needsReconnect > 0 || tokens.warned > 0) {
+                    console.log(`[Worker] Social tokens: ${tokens.needsReconnect} need reconnecting, ${tokens.warned} expiring soon.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Social token check failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
         }
 
         // Log-table retention (roadmap 3.2 / I-08). Dry run unless

@@ -29,6 +29,20 @@ export async function POST(
             return NextResponse.json({ error: "Approval request not found" }, { status: 404 });
         }
 
+        // Creator funnel posts: a guarded decision on the post, none of the email handling below.
+        if (approval.actionType === "CONTENT_POST_PUBLISH") {
+            if (action !== "APPROVE" && action !== "REJECT") {
+                return NextResponse.json({ error: "action must be APPROVE or REJECT" }, { status: 400 });
+            }
+            const { decideContentPost } = await import("@/modules/creator-funnel/contentPostDecision");
+            const decided = await decideContentPost(ctx.teamId, id, ctx.userId, action === "APPROVE" ? "APPROVED" : "REJECTED", reason || undefined);
+            if (!decided) {
+                return NextResponse.json({ error: "This request was already decided or withdrawn." }, { status: 409 });
+            }
+            const updated = await prisma.approvalRequest.findUnique({ where: { id } });
+            return NextResponse.json({ success: true, approval: updated });
+        }
+
         if (action === "REJECT") {
             const updated = await prisma.approvalRequest.update({
                 where: { id },

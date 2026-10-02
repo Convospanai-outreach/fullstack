@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, ArrowRight, Info } from "lucide-react";
+import { HelpCircle, ArrowRight, Info, BookOpen, FlaskConical } from "lucide-react";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { getFeatureHelpForPath } from "@/lib/featureHelp";
 
 export function WorkspaceHelpPanel() {
@@ -47,15 +48,15 @@ export function WorkspaceHelpPanel() {
                 }`}
                 aria-haspopup="dialog"
                 aria-expanded={open}
-                aria-label="What is this page?"
+                aria-label="Help"
             >
-                <Compass className="w-4 h-4" />
+                <HelpCircle className="w-4 h-4" />
             </button>
 
             {open && (
                 <div
                     role="dialog"
-                    aria-label="Page guide"
+                    aria-label="Help"
                     className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-card shadow-xl z-[60] p-4"
                 >
                     {help ? (
@@ -86,14 +87,30 @@ export function WorkspaceHelpPanel() {
                         </p>
                     )}
 
-                    <Link
-                        href="/tools"
-                        onClick={() => setOpen(false)}
-                        className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
-                    >
-                        See everything the workspace can do
-                        <ArrowRight className="w-3 h-3" />
-                    </Link>
+                    <div className="mt-3 pt-3 border-t border-border space-y-1">
+                        <Link
+                            href="/help"
+                            onClick={() => setOpen(false)}
+                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-foreground hover:bg-accent transition-colors"
+                        >
+                            <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                            Help center
+                            <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground" />
+                        </Link>
+                        <Link
+                            href="/tools"
+                            onClick={() => setOpen(false)}
+                            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] text-foreground hover:bg-accent transition-colors"
+                        >
+                            <FlaskConical className="w-3.5 h-3.5 text-muted-foreground" />
+                            Labs: beta and advanced tools
+                            <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground" />
+                        </Link>
+                        <div className="flex items-center justify-between rounded-md px-2 py-1 text-[12.5px] text-foreground">
+                            Theme
+                            <ThemeToggle />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

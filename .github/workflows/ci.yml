@@ -263,6 +263,9 @@ jobs:
     - name: Keep slow image builds out of the deploy trigger
       run: node --test scripts/ci/deploy-trigger-workflows.test.mjs
 
+    - name: Mautic CloudFormation template invariants
+      run: node --test scripts/ci/mautic-template.test.mjs
+
     # Same allowlisted high/critical gate the web jobs run. Run inside a workspace
     # folder, `npm audit` only covers that workspace's tree, so the web jobs never
     # covered dependencies that only apps/api uses.

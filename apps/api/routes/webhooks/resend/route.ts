@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
         // the reply show up in the Inbox UI, not just the lead-stage/EmailEvent bookkeeping.
         if (email.leadId) {
           const body = await fetchReceivedEmailBody(mailbox, event.data?.email_id);
-          await prisma.message.create({
+          const inboundMessage = await prisma.message.create({
             data: {
               leadId: email.leadId,
               content: body?.content || event.data?.subject || "Reply detected",
@@ -259,6 +259,10 @@ export async function POST(req: NextRequest) {
               ...(emailEvent?.id ? { emailEventId: emailEvent.id } : {}),
             },
           }).catch(() => undefined);
+          if (inboundMessage) {
+            const { onInboundReply } = await import("@/modules/inbox/inboundReplyNotifier");
+            void onInboundReply(inboundMessage);
+          }
         }
 
         await rescoreLead(email.leadId);

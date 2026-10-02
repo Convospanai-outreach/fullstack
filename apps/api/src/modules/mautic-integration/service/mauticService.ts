@@ -36,6 +36,8 @@ function authHeader(username: string, password: string) {
 // (roadmap B-07). Bound each call to 10s via AbortSignal.
 const MAUTIC_TIMEOUT_MS = 10_000;
 
+const FUNNEL_STAGE_TAGS = ["stage-tofu", "stage-mofu", "stage-bofu", "stage-post"];
+
 function teamSlug(teamId: string) {
     // Same value written as the segmentation tag/custom field on the Mautic side -
     // internal isolation still uses teamId, this is only the external-facing label.
@@ -135,6 +137,40 @@ class MauticService {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Unknown error";
             logger.error(`[MauticService] pushLead error for lead ${leadId} (team ${teamId}):`, { error: errorMessage });
+            return { status: "error", details: errorMessage };
+        }
+    }
+
+    /**
+     * Mirror a creator-funnel stage onto the lead's Mautic contact as a `stage-<stage>` tag,
+     * removing the other stage tags. Segmentation only: Mautic still sends nothing for the lead.
+     * Skipped (no error) when Mautic isn't configured or the lead was never pushed.
+     * Tag removal uses a "-" prefix, per https://devdocs.mautic.org/en/5.x/rest_api/contacts.html
+     * ("Edit Contact"), checked 2026-09-30.
+     */
+    async tagFunnelStage(leadId: string, teamId: string, stage: string): Promise<MauticPushResult> {
+        const config = getMauticConfig();
+        if (!config) {
+            return { status: "skipped", details: "Mautic is not configured (MAUTIC_BASE_URL/USERNAME/PASSWORD missing)" };
+        }
+
+        try {
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { mauticContactId: true } });
+            if (!lead?.mauticContactId) return { status: "skipped", details: "Lead has no Mautic contact" };
+
+            const current = `stage-${stage.toLowerCase()}`;
+            const tags = [current, ...FUNNEL_STAGE_TAGS.filter((tag) => tag !== current).map((tag) => `-${tag}`)];
+            const res = await fetch(`${config.baseUrl}/api/contacts/${encodeURIComponent(lead.mauticContactId)}/edit`, {
+                method: "PATCH",
+                headers: { Authorization: authHeader(config.username, config.password), "Content-Type": "application/json" },
+                body: JSON.stringify({ tags }),
+                signal: AbortSignal.timeout(MAUTIC_TIMEOUT_MS),
+            });
+            if (!res.ok) throw new Error(`Mautic stage tag failed: ${res.status}`);
+            return { status: "updated", mauticContactId: lead.mauticContactId };
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            logger.error(`[MauticService] tagFunnelStage error for lead ${leadId} (team ${teamId}):`, { error: errorMessage });
             return { status: "error", details: errorMessage };
         }
     }

@@ -1,68 +1,10 @@
-"use client";
+import type { ReactNode } from "react";
+import { connection } from "next/server";
+import DashboardShell from "./DashboardShell";
 
-/*
- * app/(dashboard)/layout.tsx — Dashboard route group shell
- *
- * Changes from previous version:
- * - Removed: fixed full-bleed setup banner (moved inline to dashboard home page)
- * - Removed: showSetupBanner / setupPercent state (setup fetch moved to page.tsx)
- * - Removed: OnboardingChecklist (replaced by WorkflowSection in dashboard page)
- * - Removed: bannerOffset prop on DashboardHeader
- * - Updated: main content margin-top now fixed mt-12 (48px header, no banner offset)
- * - Updated: sidebar offset updated to lg:pl-48 (192px, matching new sidebar width)
- * - Kept: Omnibox, ConnectionStatusBar
- * - Removed: clerk-sync auth gate - proxy.ts's own session check (token-based,
- *   provider-agnostic) already covers unauthenticated access; the extra gate
- *   here only ever guarded a Clerk-specific async-webhook race.
- */
-
-import { useState } from "react";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { Omnibox } from "@/components/dashboard/Omnibox";
-import WelcomeTour from "@/components/onboarding/WelcomeTour";
-
-export default function DashboardLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    return (
-        <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/30 relative">
-            {/* Abstract Glowing Wave Backdrop Pattern */}
-            <div className="backdrop-wave-pattern" aria-hidden="true" />
-
-            {/* Sidebar — fixed, 192px wide on desktop */}
-            <DashboardSidebar
-                isOpen={sidebarOpen}
-                onClose={() => setSidebarOpen(false)}
-            />
-
-            {/* Main content area — offset by sidebar width on desktop */}
-            <div className="flex-1 flex flex-col min-h-screen relative lg:pl-48">
-                <DashboardHeader
-                    onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-                />
-
-                {/* mt-12 = fixed header height (48px) */}
-                <main id="main-content" className="flex-1 mt-12 p-4 lg:p-6 overflow-y-auto z-10" tabIndex={-1}>
-                    {/* Subtle background gradients */}
-                    <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
-                        <div className="absolute top-[10%] right-[10%] w-[400px] h-[400px] bg-brand-900/10 rounded-full blur-[100px]" />
-                        <div className="absolute bottom-[10%] left-[20%] w-[300px] h-[300px] bg-foreground/10 rounded-full blur-[100px]" />
-                    </div>
-
-                    <div className="relative z-10">
-                        {children}
-                    </div>
-                </main>
-            </div>
-
-            {/* Global overlays */}
-            <Omnibox />
-            <WelcomeTour />
-        </div>
-    );
+// Signed-in pages render per request so Next can attach proxy.ts's per-request CSP nonce
+// to its scripts (roadmap 3.6 part 2: strict script policy for the signed-in app only).
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+    await connection();
+    return <DashboardShell>{children}</DashboardShell>;
 }
