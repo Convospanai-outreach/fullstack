@@ -12,7 +12,7 @@ import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 
-function extractJsonCandidate(raw: string): string {
+export function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
     if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
         return trimmed;

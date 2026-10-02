@@ -157,6 +157,17 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             return { acknowledged: true };
         }
 
+        case "playbook_generate": {
+            // Creator funnel playbook wizard: writes a plan's draft posts. Never throws (a failure
+            // is recorded on the plan for a manual retry, since every AI call is billed).
+            const runId = asString(payload.runId);
+            if (!runId) {
+                throw new NonRetryableJobError("playbook_generate payload is missing runId");
+            }
+            const { generatePlaybookRun } = await import("@/modules/creator-funnel/playbookWizard");
+            return generatePlaybookRun(runId);
+        }
+
         case "EMAIL_DRAFT_BATCH_SUBMIT":
             return handleEmailDraftBatchSubmit(payload);
 

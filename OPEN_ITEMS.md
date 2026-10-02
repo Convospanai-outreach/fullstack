@@ -6100,6 +6100,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-313 (Fixed — creator funnel phase 5a: playbook wizard, post drafts):** Content > Launch plans
+  (`/content/plans`, `GET/POST /content/playbooks`, `GET/DELETE /content/playbooks/:id`, `POST .../retry`), behind
+  `creator-funnel`.
+  - **Inputs:** an offer (an active checkout Product, or a call through the team's own https booking link), an
+    audience (an existing ICP, or a description that creates a simple ICP), a lead magnet, a tone, a start date
+    (tomorrow to 60 days out), 2-5 posts a week, and accounts.
+  - **Output:** a `PlaybookRun` plus 4 weeks of DRAFT ContentPosts at 10:00 local (DST-safe), spread over the
+    team's stage mix by largest remainder. Each post has Facebook text (`body`), Instagram and LinkedIn text
+    (`channelCaptions`), and a `visualBrief`. Every post points back with `playbookRunId` (SetNull), so the
+    set is reviewed and deleted in one place.
+  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one short call per post, 4 at a time. askAI's Anthropic path caps replies at 800 tokens and each call at 30s, so a week per call would be cut off.
+    The job writes everything first, then saves all posts in one transaction that claims GENERATING -> READY, so a
+    repeated job saves nothing twice. It never throws: AI calls are billed, so a failure becomes FAILED with a
+    manual "Try again". There is one GENERATING plan per team; one stuck for 15 minutes can be retried.
+  - **Captions are content:** the publisher sends the Instagram caption on Instagram. `submitPost` checks
+    Instagram's limits on that caption, and the approval card shows each channel's text. Editing a channel
+    caption withdraws an approval like editing the body does. The visual brief isn't posted.
+  - **Delete:** deletes each draft through `deletePost` (approvals withdrawn). Posts already live are kept and
+    detached. An ICP the wizard created stays.
+  - **Nothing publishes:** every post is a DRAFT and goes through the existing approval flow.
+  - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
+    `playbookRunId` links.
+
 - **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
   answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
   `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check

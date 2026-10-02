@@ -58,3 +58,11 @@ export function localMonth(date: Date, timeZone = DEFAULT_TIMEZONE) {
         daysInMonth: new Date(Date.UTC(p.year, p.month, 0)).getUTCDate(),
     };
 }
+
+// The instant it is `hour`:00 local time on a local calendar date (month 1-12; a day past the
+// end of the month rolls over, like Date.UTC).
+export function localTimeOn(year: number, month: number, day: number, hour: number, timeZone = DEFAULT_TIMEZONE) {
+    const guess = Date.UTC(year, month - 1, day, hour);
+    const first = guess - offsetMs(new Date(guess), timeZone);
+    return new Date(guess - offsetMs(new Date(first), timeZone));
+}
