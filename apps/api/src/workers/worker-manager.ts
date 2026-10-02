@@ -24,6 +24,9 @@ export class WorkerManager {
     private scheduleInterval: number = parseInt(process.env['SCHEDULE_INTERVAL_MS'] || '60000');
     private lastScheduleTick: number = 0;
     private lastSequenceTick: number = 0;
+    private lastContentPublishTick: number = 0;
+    private lastAutoReplyTick: number = 0;
+    private lastCartAbandonTick: number = 0;
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
     private lastImapSyncTick: number = 0;
@@ -32,6 +35,9 @@ export class WorkerManager {
     private lastOutboxTick: number = 0;
     private lastApprovalSweepTick: number = 0;
     private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
+    private contentPublishInterval: number = 60 * 1000; // creator funnel posts publish within a minute of their time
+    private autoReplyInterval: number = 10 * 1000; // keyword auto-replies go out within seconds of the comment/DM
+    private cartAbandonInterval: number = 5 * 60 * 1000; // cart-abandon hours are whole hours, so 5 minutes is plenty
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private imapSyncInterval: number = parseInt(process.env['IMAP_REPLY_SYNC_INTERVAL_MS'] || '600000'); // 10 minutes
@@ -102,6 +108,45 @@ export class WorkerManager {
                 console.log(`[Worker] Processed ${results.length} due sequence step(s).`);
             }
             this.lastSequenceTick = now;
+        }
+
+        // Creator funnel: publish approved posts whose time has come (contentPublisher.ts).
+        // Marked done before running and never rethrown, so a failure can't retry every loop.
+        if (now - this.lastContentPublishTick >= this.contentPublishInterval) {
+            this.lastContentPublishTick = now;
+            try {
+                const { publishDuePosts } = await import("@/modules/creator-funnel/contentPublisher");
+                const posts = await publishDuePosts(new Date(now));
+                if (posts.published > 0 || posts.failed > 0) {
+                    console.log(`[Worker] Content posts: ${posts.published} published, ${posts.failed} failed.`);
+                }
+            } catch (error) {
+                console.error(`[Worker] Content publishing failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+        }
+
+        // Creator funnel: send queued keyword auto-replies (keywordTriggers.ts). Same rule as above:
+        // marked done before running and never rethrown.
+        if (now - this.lastAutoReplyTick >= this.autoReplyInterval) {
+            this.lastAutoReplyTick = now;
+            try {
+                const { sendPendingAutoReplies } = await import("@/modules/creator-funnel/keywordTriggers");
+                await sendPendingAutoReplies(new Date(now));
+            } catch (error) {
+                console.error(`[Worker] Keyword auto-replies failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+        }
+
+        // Creator funnel: hand unpaid checkouts to their product's cart-abandon sequence
+        // (checkoutHooks.ts). Same rule as above: marked done before running and never rethrown.
+        if (now - this.lastCartAbandonTick >= this.cartAbandonInterval) {
+            this.lastCartAbandonTick = now;
+            try {
+                const { processAbandonedCarts } = await import("@/modules/creator-funnel/checkoutHooks");
+                await processAbandonedCarts(new Date(now));
+            } catch (error) {
+                console.error(`[Worker] Cart-abandon hand-off failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
         }
 
         // Fix [HIGH-2]: Reset stale jobs every 5 minutes

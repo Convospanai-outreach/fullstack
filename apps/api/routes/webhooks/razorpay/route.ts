@@ -109,14 +109,30 @@ export async function POST(req: Request) {
             // (an atomic PENDING -> CAPTURED transition) rather than reusing that
             // table's existence check, and must not fall through into the generic
             // credit-topup fallback further down.
-            if (notes.checkoutOrderId) {
+            // The order is found by the Razorpay order id it was created with (Order.gatewaySessionId,
+            // set server-side in checkoutService), not by payment notes: those aren't set server-side and
+            // may not carry the order's notes at all. The captured amount must match the order too.
+            const checkoutOrder = payment.order_id
+                ? await prisma.order.findFirst({
+                      where: { gateway: "RAZORPAY", gatewaySessionId: payment.order_id },
+                      select: { id: true },
+                  })
+                : null;
+            if (checkoutOrder || notes?.checkoutOrderId) {
+                if (!checkoutOrder) return NextResponse.json({ status: "ok" });
                 await prisma.$transaction(async (tx) => {
                     const claim = await tx.order.updateMany({
-                        where: { id: notes.checkoutOrderId, status: "PENDING" },
+                        where: {
+                            id: checkoutOrder.id,
+                            status: "PENDING",
+                            gateway: "RAZORPAY",
+                            gatewaySessionId: payment.order_id,
+                            amount: payment.amount,
+                        },
                         data: { status: "CAPTURED", gatewayPaymentId: payment.id },
                     });
                     if (claim.count === 1) {
-                        const order = await tx.order.findUnique({ where: { id: notes.checkoutOrderId } });
+                        const order = await tx.order.findUnique({ where: { id: checkoutOrder.id } });
                         if (order) {
                             await OutboxService.publishEvent({
                                 teamId: order.teamId,

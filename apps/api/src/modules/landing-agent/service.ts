@@ -12,7 +12,7 @@ import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 
-function extractJsonCandidate(raw: string): string {
+export function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
     if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
         return trimmed;
@@ -629,6 +629,7 @@ export const landingAgentService = {
             },
             include: {
                 campaign: true,
+                team: { select: { name: true } },
             },
         });
     },
@@ -650,6 +651,8 @@ export const landingAgentService = {
             utmTerm?: string;
             utmContent?: string;
             referrer?: string;
+            socialToken?: string;
+            whatsappConsent?: boolean;
         };
         ipAddress?: string;
         userAgent?: string;
@@ -679,6 +682,9 @@ export const landingAgentService = {
                     utmTerm: input.payload.utmTerm,
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
+                    socialToken: input.payload.socialToken,
+                    // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
+                    ...(input.payload.whatsappConsent === true && page.funnelStage && input.payload.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
@@ -776,6 +782,11 @@ export const landingAgentService = {
         sessionId?: string;
         pageVersion?: number;
         eventData?: unknown;
+        utmSource?: string;
+        utmMedium?: string;
+        utmCampaign?: string;
+        utmTerm?: string;
+        utmContent?: string;
         ipAddress?: string;
         userAgent?: string;
     }) {
@@ -797,6 +808,11 @@ export const landingAgentService = {
                 pageVersion: input.pageVersion ?? page.version,
                 eventName: input.eventName,
                 eventData: sanitizeJson(input.eventData) as Prisma.InputJsonValue | undefined,
+                utmSource: input.utmSource,
+                utmMedium: input.utmMedium,
+                utmCampaign: input.utmCampaign,
+                utmTerm: input.utmTerm,
+                utmContent: input.utmContent,
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

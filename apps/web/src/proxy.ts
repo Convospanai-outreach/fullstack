@@ -491,6 +491,14 @@ async function appProxy(req: NextRequest) {
         }
     }
 
+    // Creator funnel calendar images and branding logos live in Supabase Storage.
+    let supabaseStorageOrigin = '';
+    try {
+        supabaseStorageOrigin = process.env['SUPABASE_URL'] ? new URL(process.env['SUPABASE_URL']).origin : '';
+    } catch {
+        supabaseStorageOrigin = '';
+    }
+
     const cspValues = [
         "default-src 'self'",
         // Scripts: Allow self, Google Auth, Razorpay, Cloudflare Turnstile, Google Tag
@@ -500,7 +508,7 @@ async function appProxy(req: NextRequest) {
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         // Images: Allow self, Google placeholders, and data URLs for icons
-        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
+        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com" + (supabaseStorageOrigin ? ` ${supabaseStorageOrigin}` : ''),
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
         // Connect: Self, Analytics, Razorpay, Sentry ingest, plus Sovereign AI nodes. No

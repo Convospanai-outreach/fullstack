@@ -70,6 +70,7 @@ model Lead {
 
   // Creator funnel: stage (null = not in a creator funnel) and the system that owns its nurture.
   funnelStage  FunnelStage?
+  firstTouchPostId String? // creator funnel: the ContentPost that first brought this lead in (Content ROI attribution)
   nurtureOwner NurtureOwner?
 
   // Lead Intent Scoring (Weighted Algorithm)
@@ -111,6 +112,8 @@ model Lead {
   team                Team?                @relation(fields: [teamId], references: [id])
   meetings            Meeting[]
   messages            Message[]
+  socialContacts      SocialContact[]
+  orders              Order[]
   tasks               Task[]
   generations         Generation[]
 
@@ -141,6 +144,7 @@ model Lead {
   leadActivities      LeadActivity[]
   leadDataSources     LeadDataSource[]
 
+  @@index([teamId, firstTouchPostId])
   @@index([teamId])
   @@index([email])
   @@index([company])
@@ -481,6 +485,8 @@ model LandingLead {
   referrer      String?
   ipAddress     String?
   userAgent     String?
+  socialToken   String? // creator funnel: the signed ?t= link the visitor came from (linkToken.ts); intake merges into that lead
+  whatsappConsent Boolean? // creator funnel: ticked the WhatsApp opt-in on a launch plan page (whatsappOptIn.ts); only kept with a phone
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -503,6 +509,12 @@ model LandingEvent {
   pageVersion   Int?
   ipAddress     String?
   userAgent     String?
+  // UTM of the page URL the event happened on (attribution; creator funnel 6b)
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmTerm       String?
+  utmContent    String?
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -554,6 +566,7 @@ model ICP {
   team             Team              @relation(fields: [teamId], references: [id])
   campaigns        Campaign[]
   landingCampaigns LandingCampaign[]
+  playbookRuns     PlaybookRun[]
 
   @@index([teamId])
   @@index([status])
@@ -588,8 +601,19 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  team   Team    @relation(fields: [teamId], references: [id])
-  orders Order[]
+  // Creator funnel automations (checkoutHooks.ts). Nothing sends until someone switches them on;
+  // who and when is recorded as the approval.
+  deliveryUrl              String? // https link emailed to the buyer after payment (course, download)
+  deliveryMailboxId        String? // ConnectedMailbox the delivery email goes from
+  cartAbandonSequenceId    String? // CampaignSequence a lead joins when checkout isn't paid in time
+  cartAbandonHours         Int?
+  automationsActive        Boolean   @default(false)
+  automationsActivatedById String?
+  automationsActivatedAt   DateTime?
+
+  team         Team          @relation(fields: [teamId], references: [id])
+  orders       Order[]
+  playbookRuns PlaybookRun[]
 
   @@index([teamId])
 }
@@ -611,12 +635,28 @@ model Order {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  // Creator funnel (checkoutHooks.ts): the buyer's lead, the delivery email, and the cart-abandon hand-off.
+  leadId           String?
+  deliveryStatus   String? // SENDING | SENT | FAILED | SKIPPED; SENDING is never retried
+  deliveryError    String?
+  deliveredAt      DateTime?
+  abandonHandledAt DateTime?
+  // UTM of the checkout page URL (attribution; creator funnel 6b)
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmTerm          String?
+  utmContent       String?
+
   team    Team    @relation(fields: [teamId], references: [id])
   product Product @relation(fields: [productId], references: [id])
+  lead    Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@unique([gateway, gatewayPaymentId])
   @@index([teamId])
   @@index([productId])
+  @@index([leadId])
+  @@index([status, abandonHandledAt])
 }
 
 model Job {
@@ -1328,6 +1368,11 @@ model Team {
   // Creator funnel: who runs this team's marketing nurture journeys. null = CMF sequences.
   nurtureProvider NurtureOwner?
   socialAccounts  SocialAccount[]
+  socialContacts  SocialContact[]
+  keywordTriggers KeywordTrigger[]
+  contentPosts    ContentPost[]
+  playbookRuns    PlaybookRun[]
+  contentStageMix Json? // creator funnel: target % per FunnelStage ({TOFU,MOFU,BOFU,POST}); null = 60/30/10/0
 
   // WhatsApp Business API ownership, set at setup time. Automated sequence sends
   // require both fields; a team with either unset falls back to human-in-the-loop
@@ -1442,10 +1487,10 @@ model SocialAccount {
   platform         SocialPlatform
   externalId       String // Page id, Instagram user id, or LinkedIn URN
   handle           String? // Page name or @username
-  parentExternalId String? // INSTAGRAM: the Facebook Page it's linked through (its token is the Page's)
-  encryptedToken   Json? // credentialVault EncryptedCredential; null once disconnected
+  parentExternalId String? // INSTAGRAM: the Facebook Page it's linked through
+  encryptedToken   Json? // credentialVault EncryptedCredential: Page token (FACEBOOK_PAGE) or long-lived User token (INSTAGRAM); null once disconnected
   scopes           String[]       @default([])
-  tokenExpiresAt   DateTime? // null = none reported (long-lived Page tokens don't expire)
+  tokenExpiresAt   DateTime? // null = none reported (Page tokens don't expire; the Instagram User token lasts ~60 days)
   status           String         @default("CONNECTED") // CONNECTED | NEEDS_RECONNECT | DISCONNECTED
   lastError        String?        @db.Text
   lastCheckedAt    DateTime?
@@ -1454,11 +1499,205 @@ model SocialAccount {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team           Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contentTargets ContentPostTarget[]
+  contacts       SocialContact[]
+  keywordTriggers KeywordTrigger[]
 
   @@unique([teamId, platform, externalId])
   @@index([teamId])
   @@index([status, lastCheckedAt])
+}
+
+// Creator funnel: a person who messaged a connected account (Instagram DM or Facebook Page
+// message). Each new contact gets its own Lead; their messages are Message rows on that lead.
+// lastInboundAt drives the 24-hour reply window Meta allows.
+model SocialContact {
+  id              String    @id @default(uuid())
+  teamId          String
+  socialAccountId String
+  externalUserId  String // Instagram-scoped id (IGSID) or Page-scoped id (PSID)
+  handle          String? // @username (Instagram), when the profile lookup succeeds
+  name            String?
+  leadId          String
+  lastInboundAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  team          Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, externalUserId])
+  @@index([teamId])
+  @@index([leadId])
+}
+
+// Creator funnel keyword auto-replies: a comment (private reply DM, plus an optional public
+// reply) or a DM that contains one of the keywords gets an automatic reply. Saved inactive;
+// switching one on is the person's approval for it to send on its own.
+enum KeywordTriggerScope {
+  COMMENT
+  DM
+  BOTH
+}
+
+enum KeywordMatch {
+  EXACT
+  CONTAINS
+}
+
+model KeywordTrigger {
+  id                 String              @id @default(uuid())
+  teamId             String
+  socialAccountId    String
+  scope              KeywordTriggerScope @default(COMMENT)
+  keywords           String[]
+  match              KeywordMatch        @default(CONTAINS)
+  contentPostId      String? // only comments on this post (any post when null)
+  replyText          String              @db.Text
+  publicCommentReply String?             @db.Text
+  landingPageId      String? // LandingPage id; no FK (Landing* tables aren't created by migrations)
+  active             Boolean             @default(false)
+  activatedById      String?
+  activatedAt        DateTime?
+  createdById        String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  team          Team                  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount         @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  contentPost   ContentPost?          @relation(fields: [contentPostId], references: [id], onDelete: SetNull)
+  replies       KeywordTriggerReply[]
+
+  @@index([teamId])
+  @@index([socialAccountId, active])
+}
+
+// One automatic reply: created by the webhook (PENDING), sent by the worker. The unique
+// (socialAccountId, sourceKey) claim means a comment or DM is answered at most once, even
+// when Meta retries the delivery. Status: PENDING | SENDING | SENT | FAILED | UNCONFIRMED | SKIPPED.
+model KeywordTriggerReply {
+  id              String    @id @default(uuid())
+  teamId          String
+  triggerId       String
+  socialAccountId String
+  sourceKey       String // "comment:<comment id>" or "dm:<message id>"
+  personKey       String // the commenter's or sender's id
+  personHandle    String? // @username (Instagram comments) or name (Facebook comments)
+  commentId       String?
+  mediaId         String? // the commented post/media id, for per-post attribution (UTM utm_content)
+  leadId          String?
+  status          String    @default("PENDING")
+  publicStatus    String? // the public comment reply, when the trigger has one; same statuses
+  messageId       String? // Meta's id for the sent DM
+  lastError       String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  trigger KeywordTrigger @relation(fields: [triggerId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, sourceKey])
+  @@index([triggerId, personKey, createdAt])
+  @@index([status, createdAt])
+  @@index([socialAccountId, updatedAt])
+}
+
+// Creator funnel content calendar. A post is written once and goes to one or more connected
+// accounts (one ContentPostTarget each). Nothing publishes until the post is APPROVED through
+// an ApprovalRequest (actionType CONTENT_POST_PUBLISH, entityType ContentPost).
+enum ContentPostStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+model ContentPost {
+  id                String            @id @default(uuid())
+  teamId            String
+  body              String            @db.Text
+  mediaUrls         String[]          @default([])
+  funnelStage       FunnelStage
+  status            ContentPostStatus @default(DRAFT)
+  scheduledAt       DateTime?
+  timezone          String? // IANA zone the author scheduled in, e.g. "Asia/Kolkata"
+  approvalRequestId String? // the ApprovalRequest behind IN_REVIEW / APPROVED
+  reviewNote        String?           @db.Text // why it last went back to DRAFT
+  publishLeaseUntil DateTime? // the publisher's claim on this post; free once past (contentPublisher.ts)
+  createdById       String?
+  channelCaptions   Json? // per-channel text that replaces body there: {INSTAGRAM?, LINKEDIN?}
+  visualBrief       String?           @db.Text // suggested image or video for the post (playbook wizard)
+  playbookRunId     String? // the playbook wizard run that drafted it
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  team            Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playbookRun     PlaybookRun?        @relation(fields: [playbookRunId], references: [id], onDelete: SetNull)
+  targets         ContentPostTarget[]
+  keywordTriggers KeywordTrigger[]
+
+  @@index([teamId, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([playbookRunId])
+}
+
+// Creator funnel playbook wizard: one run drafts a launch bundle (posts now; landing pages,
+// keyword trigger and sequences later) that is reviewed, and deleted, in one place. Everything
+// it makes points back here with playbookRunId. Nothing in it publishes or sends on its own.
+model PlaybookRun {
+  id          String    @id @default(uuid())
+  teamId      String
+  createdById String?
+  name        String
+  status      String    @default("GENERATING") // GENERATING | READY | FAILED
+  error       String?   @db.Text
+  inputs      Json // what the wizard was given: offer, audience, lead magnet, tone, start date, cadence
+  productId   String?
+  bookingUrl  String?
+  icpId       String?
+  icpCreated  Boolean   @default(false) // the wizard created the ICP from a typed audience
+  // What else the run drafted (5b). Plain ids: Landing* tables aren't created by migrations, so no FK.
+  leadMagnetCampaignId String? // LandingCampaign of the lead-magnet opt-in page
+  leadMagnetPageId     String? // its draft LandingPage
+  salesCampaignId      String? // LandingCampaign of the sales page
+  salesPageId          String? // its draft LandingPage (CTA links to the booking or checkout page)
+  keywordTriggerId     String? // the switched-off comment keyword auto-reply to the lead-magnet page
+  notes                String?  @db.Text // what the run couldn't make and why, shown on the plan
+  // Its email sequences (5c), each in its own draft Campaign (the campaign editor edits one sequence per campaign). Plain ids like the 5b ones.
+  nurtureCampaignId      String? // MOFU nurture: lead magnet, teaching, then the offer (booking offers end with the booking emails)
+  cartAbandonCampaignId  String? // BOFU checkout reminders (product offers)
+  postPurchaseCampaignId String? // POST testimonial request (product offers)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team         Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  icp          ICP?          @relation(fields: [icpId], references: [id], onDelete: SetNull)
+  contentPosts ContentPost[]
+
+  @@index([teamId, createdAt])
+}
+
+model ContentPostTarget {
+  id              String    @id @default(uuid())
+  postId          String
+  socialAccountId String
+  status          String    @default("PENDING") // PENDING | PUBLISHED | FAILED
+  externalId      String? // the platform's post/media id once published
+  containerId     String? // INSTAGRAM: the media container being published, kept so a retry never double-posts
+  publishedAt     DateTime?
+  lastError       String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  post          ContentPost   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, socialAccountId])
+  @@index([socialAccountId])
 }
 
 // Per-form sync watermark, mirroring MailboxSyncCursor's lock/retry shape so a
@@ -1832,6 +2071,7 @@ model Message {
   isRead         Boolean         @default(false)
   sentimentScore Float? // -1.0 to 1.0
   emailEventId    String?         @unique
+  externalId     String?         @unique // "<socialAccountId>:<Meta message id>" for Instagram/Facebook DMs; dedupes webhook retries
   createdAt      DateTime        @default(now())
   lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   emailEvent     EmailEvent?     @relation(fields: [emailEventId], references: [id], onDelete: SetNull)

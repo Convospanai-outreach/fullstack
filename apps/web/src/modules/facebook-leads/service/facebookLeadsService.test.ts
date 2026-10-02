@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, mockEncryptCredential } = vi.hoisted(() => ({
     mockPrisma: {
         facebookLeadSource: { upsert: vi.fn() },
-        socialAccount: { upsert: vi.fn() },
+        socialAccount: { upsert: vi.fn(), update: vi.fn() },
     },
     mockEncryptCredential: vi.fn(async (plaintext: string) => ({ v: 1, cipher: plaintext, iv: "iv", tag: "tag" })),
 }));
@@ -128,7 +128,7 @@ describe("facebookLeadsService", () => {
         it("stores the Page and its linked Instagram account as SocialAccounts, not FacebookLeadSources", async () => {
             const fetchMock = vi.fn()
                 .mockResolvedValueOnce(jsonResponse({ access_token: "short-lived" }))
-                .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived" }))
+                .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived", expires_in: 5_184_000 }))
                 .mockResolvedValueOnce(jsonResponse({ data: [{ id: "page-1", name: "My Page", access_token: "page-token" }] }))
                 .mockResolvedValueOnce(jsonResponse({ data: [{ permission: "pages_manage_posts", status: "granted" }, { permission: "instagram_manage_messages", status: "declined" }] }))
                 .mockResolvedValueOnce(jsonResponse({ instagram_business_account: { id: "ig-1", username: "mybrand" }, id: "page-1" }));
@@ -146,9 +146,44 @@ describe("facebookLeadsService", () => {
             expect(page.where).toEqual({ teamId_platform_externalId: { teamId: "team-1", platform: "FACEBOOK_PAGE", externalId: "page-1" } });
             expect(page.create).toMatchObject({ handle: "My Page", scopes: ["pages_manage_posts"], status: "CONNECTED", connectedById: "user-1" });
             expect(page.create.encryptedToken).toEqual({ v: 1, cipher: "page-token", iv: "iv", tag: "tag" });
+            expect(page.create.tokenExpiresAt).toBeNull();
             expect(ig.where.teamId_platform_externalId).toEqual({ teamId: "team-1", platform: "INSTAGRAM", externalId: "ig-1" });
             expect(ig.create).toMatchObject({ handle: "@mybrand", parentExternalId: "page-1" });
+            // Instagram publishing needs the User token (about 60 days), not the Page token.
+            expect(ig.create.encryptedToken).toEqual({ v: 1, cipher: "long-lived", iv: "iv", tag: "tag" });
+            expect(ig.create.tokenExpiresAt.getTime()).toBeGreaterThan(Date.now() + 59 * 24 * 60 * 60 * 1000);
             expect(page.select).toEqual({ id: true, platform: true, handle: true });
+        });
+
+        it("subscribes the Page to messages when pages_manage_metadata was granted, and keeps the connect if that fails", async () => {
+            const connect = (subscribeResponse: Response) => {
+                const fetchMock = vi.fn()
+                    .mockResolvedValueOnce(jsonResponse({ access_token: "short-lived" }))
+                    .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived" }))
+                    .mockResolvedValueOnce(jsonResponse({ data: [{ id: "page-1", name: "My Page", access_token: "page-token" }] }))
+                    .mockResolvedValueOnce(jsonResponse({ data: [{ permission: "pages_manage_metadata", status: "granted" }] }))
+                    .mockResolvedValueOnce(subscribeResponse)
+                    .mockResolvedValueOnce(jsonResponse({ id: "page-1" }));
+                global.fetch = fetchMock as any;
+                return fetchMock;
+            };
+            mockPrisma.socialAccount.upsert.mockResolvedValue({ id: "acc-page", platform: "FACEBOOK_PAGE", handle: "My Page" });
+
+            const fetchMock = connect(jsonResponse({ success: true }));
+            await connectFacebookPages({ code: "auth-code", state: socialState() });
+            const [url, init] = fetchMock.mock.calls[4];
+            expect(url).toBe("https://graph.facebook.com/v26.0/page-1/subscribed_apps");
+            expect(init.method).toBe("POST");
+            expect(Object.fromEntries(init.body)).toEqual({ subscribed_fields: "messages,feed", access_token: "page-token" });
+            expect(mockPrisma.socialAccount.update).not.toHaveBeenCalled();
+
+            connect(jsonResponse({ error: { message: "(#200) Permissions error" } }, false));
+            const result = await connectFacebookPages({ code: "auth-code", state: socialState() });
+            expect(result.pages).toHaveLength(1);
+            expect(mockPrisma.socialAccount.update).toHaveBeenCalledWith({
+                where: { id: "acc-page" },
+                data: { lastError: expect.stringContaining("(#200) Permissions error") },
+            });
         });
 
         it("connects a Page without an Instagram account on its own", async () => {
