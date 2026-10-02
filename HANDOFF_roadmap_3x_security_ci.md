@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `21a9302` (2026-10-02, ~20:30 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; #590 re-landed it with sanitize-html (see STEP 1). #588 and #589 added a boot-memory budget to CI, and #591-#594 followed; #595, #600, #601 and #614 came from other sessions.
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `dc331b5` (2026-10-02, ~21:05 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; #590 re-landed it with sanitize-html (see STEP 1). #588 and #589 added a boot-memory budget to CI, and #591-#594 followed; #595, #600, #601 and #614 came from other sessions.
 
 ---
 
@@ -8,7 +8,7 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. main is at 21a9302. Everything below went through "Register Docker Images to GHCR" ->
+work. main is at dc331b5. Everything below went through "Register Docker Images to GHCR" ->
 "Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it (the revert's
 deploy, run #315, passed its health check) and #590 re-landed it without jsdom. Start with:
   git checkout main && git pull
@@ -50,9 +50,9 @@ ALSO ON MAIN SINCE (other sessions)
   gate on main (like #593).
 
 OPEN PRS
-- #587 (draft) OPEN-318, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
+- #587 (draft) OPEN-319, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
   are also claimed in Redis (SET NX PX), so a replay sent to another api process is caught; it
-  falls back to the per-process cache when there is no Redis. Main merged in through #631. The owner
+  falls back to the per-process cache when there is no Redis. Main merged in through #632. The owner
   decides the merge and must confirm REDIS_URL is set on api-main (without it nothing changes).
 - #585 (draft): this handoff doc.
 
@@ -116,7 +116,7 @@ RULES AND GOTCHAS FROM THIS BATCH
   first and the PR's own entry last. Four times in this batch a merge silently dropped entries.
   OPEN-### IDs also collide: parallel sessions take the next number on their own, so after every
   main merge check the PR's ID is still free and renumber it to the next one if not (#587 went
-  278 -> 282 -> 283 -> 318).
+  278 -> 282 -> 283 -> 318 -> 319).
   Before pushing any merge of main, run this; it must print "ledger OK":
     node -e "const x=require('child_process').execSync;const ids=r=>new Set((x('git show '+r+':OPEN_ITEMS.md').toString().match(/^- \*\*OPEN-\d+ \(/gm)||[]).map(s=>s.slice(4,-2)));const m=ids('origin/main'),h=ids('HEAD');const lost=[...m].filter(i=>!h.has(i));console.log(lost.length?'DROPPED: '+lost.join(', '):'ledger OK')"
 - A PR must be up to date with main to merge; after merging main in, wait for CI Gate again.
