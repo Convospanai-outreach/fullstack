@@ -6100,7 +6100,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
-- **OPEN-314 (Open — AI model routing defaults):** checked 2026-10-02.
+- **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
+  STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults
+  are unchanged (no Gemini key in prod).
   - **Prod key:** prod has only `DEEPSEEK_API_KEY`, and no team has its own keys.
   - **Model names:** `GET /models` lists only `deepseek-flash` and `deepseek-v4-pro`. The legacy names still work: `deepseek-chat` is
     served by V4.1 Flash without thinking, and `deepseek-reasoner` by Flash with thinking (slower, billed reasoning tokens).

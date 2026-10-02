@@ -45,10 +45,14 @@ const DEFAULT_MODELS = {
         routine: "claude-3-5-sonnet",
         strategic: "claude-3-5-sonnet"
     },
+    // Every tier uses deepseek-chat: DeepSeek serves it with DeepSeek-V4.1-Flash in non-thinking
+    // mode, while deepseek-reasoner is the same model with thinking (slower, billed reasoning
+    // tokens; ~19s a call against LLM_TIMEOUT_MS). Checked 2026-10-02 at
+    // https://api-docs.deepseek.com/quick_start/pricing and GET https://api.deepseek.com/models.
     deepseek: {
         trivial: "deepseek-chat",
         routine: "deepseek-chat",
-        strategic: "deepseek-reasoner"
+        strategic: "deepseek-chat"
     }
 };
 
