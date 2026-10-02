@@ -486,6 +486,7 @@ model LandingLead {
   ipAddress     String?
   userAgent     String?
   socialToken   String? // creator funnel: the signed ?t= link the visitor came from (linkToken.ts); intake merges into that lead
+  whatsappConsent Boolean? // creator funnel: ticked the WhatsApp opt-in on a launch plan page (whatsappOptIn.ts); only kept with a phone
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)

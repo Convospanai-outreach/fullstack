@@ -16,10 +16,11 @@ export class ConsentService {
      */
     static async recordConsent(
         leadId: string,
-        userId: string,
+        userId: string | null, // null when the person consented themselves (a landing page form)
         method: ConsentMethod,
         notes?: string,
-        channel: string = "WHATSAPP"
+        channel: string = "WHATSAPP",
+        evidence?: { proof?: string; ipAddress?: string | null }
     ) {
         // 1. Create Ledger Entry (Source of Truth)
         await prisma.consentLedger.create({
@@ -29,8 +30,9 @@ export class ConsentService {
                 channel,
                 purpose: "MARKETING_AND_SUPPORT", // Default purpose for now
                 status: "GRANTED",
-                proof: null, // Can be added later
-                notes: notes || null
+                proof: evidence?.proof ?? null,
+                notes: notes || null,
+                ipAddress: evidence?.ipAddress ?? null
             }
         });
 

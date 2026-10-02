@@ -21,6 +21,7 @@ interface PublicPagePayload {
     title?: string | null;
     version: number;
     renderedJson: unknown;
+    whatsappOptIn?: string | null;
 }
 
 async function fetchPublicPage(slug: string): Promise<PublicPagePayload | null> {
@@ -68,6 +69,7 @@ export default async function PublicLandingPage({
             title={pageData.title ?? null}
             version={pageData.version}
             renderedJson={pageData.renderedJson}
+            whatsappOptIn={pageData.whatsappOptIn ?? null}
         />
     );
 }
