@@ -1,6 +1,6 @@
 # Handoff: Roadmap 3.x security + CI batch (CraftMyFunnel)
 
-Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `b86359b` (2026-09-29, ~09:50 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; #590 re-landed it with sanitize-html (see STEP 1). #588 and #589 added a boot-memory budget to CI, and #591-#594 followed.
+Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State is as of `main` @ `21a9302` (2026-10-02, ~20:30 UTC). Five PRs from this batch are live. #579 took the prod API down and was reverted by #586; #590 re-landed it with sanitize-html (see STEP 1). #588 and #589 added a boot-memory budget to CI, and #591-#594 followed; #595, #600, #601 and #614 came from other sessions.
 
 ---
 
@@ -8,7 +8,7 @@ Paste the prompt below into Claude Code at the repo root (`D:\fullstack`). State
 
 ```
 Context: a cloud Claude Code session just finished a batch of roadmap 3.x security and CI
-work. main is at b86359b. Everything below went through "Register Docker Images to GHCR" ->
+work. main is at 21a9302. Everything below went through "Register Docker Images to GHCR" ->
 "Deploy to Oracle VMs". #579's deploy took the prod API down, so #586 reverted it (the revert's
 deploy, run #315, passed its health check) and #590 re-landed it without jsdom. Start with:
   git checkout main && git pull
@@ -40,12 +40,19 @@ MERGED IN THIS BATCH (ledger entries in OPEN_ITEMS.md)
 - #593 OPEN-281: ip-address 10.5.1 and nodemailer ^10.0.2 for three new advisories that failed
   the npm audit gate.
 - #594 OPEN-282 (roadmap 3.6 part 1, S-17): web drops x-powered-by, sends X-XSS-Protection: 0, and
-  the unused Socket.IO server is removed; nonce CSP and the Mautic proxies are deferred.
+  the unused Socket.IO server is removed; nonce CSP and the Mautic proxies came later (#600, #595).
+
+ALSO ON MAIN SINCE (other sessions)
+- #595 OPEN-283: Mautic on AWS; closes S-17's MAUTIC_TRUSTED_PROXIES.
+- #600 OPEN-288 (roadmap 3.6 part 2, S-17): report-only nonce CSP for the signed-in app; the
+  enforced policy drops wss://*. See follow-up 11.
+- #601 OPEN-289 and #614 OPEN-303: dependency bumps for new advisories that failed the npm audit
+  gate on main (like #593).
 
 OPEN PRS
-- #587 (draft) OPEN-283, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
+- #587 (draft) OPEN-318, roadmap 3.1 / I-07: internal-auth nonces and scraper-ingest signatures
   are also claimed in Redis (SET NX PX), so a replay sent to another api process is caught; it
-  falls back to the per-process cache when there is no Redis. CI green, main merged in. The owner
+  falls back to the per-process cache when there is no Redis. Main merged in through #631. The owner
   decides the merge and must confirm REDIS_URL is set on api-main (without it nothing changes).
 - #585 (draft): this handoff doc.
 
@@ -100,6 +107,8 @@ STEP 3 - Follow-ups (ask the owner which to take; one PR each, smallest safe dif
    SettingsPanel.tsx -> settings/BillingSettings.tsx, modules/billing/ui/BillingPage.tsx have no
    importers. Their top-up buttons send only tierId (the API would 400) but are unreachable;
    the live /billing and /credits pages send country and state.
+11. Roadmap 3.6 next step (OPEN-288): once Sentry's CSP reports from signed-in pages are clean,
+   send #600's strict policy as the enforced Content-Security-Policy for those pages.
 
 RULES AND GOTCHAS FROM THIS BATCH
 - OPEN_ITEMS.md: every PR appends an OPEN-### bullet at the end of the sweep section, so
@@ -107,7 +116,7 @@ RULES AND GOTCHAS FROM THIS BATCH
   first and the PR's own entry last. Four times in this batch a merge silently dropped entries.
   OPEN-### IDs also collide: parallel sessions take the next number on their own, so after every
   main merge check the PR's ID is still free and renumber it to the next one if not (#587 went
-  278 -> 282 -> 283).
+  278 -> 282 -> 283 -> 318).
   Before pushing any merge of main, run this; it must print "ledger OK":
     node -e "const x=require('child_process').execSync;const ids=r=>new Set((x('git show '+r+':OPEN_ITEMS.md').toString().match(/^- \*\*OPEN-\d+ \(/gm)||[]).map(s=>s.slice(4,-2)));const m=ids('origin/main'),h=ids('HEAD');const lost=[...m].filter(i=>!h.has(i));console.log(lost.length?'DROPPED: '+lost.join(', '):'ledger OK')"
 - A PR must be up to date with main to merge; after merging main in, wait for CI Gate again.
