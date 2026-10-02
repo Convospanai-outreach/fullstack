@@ -58,6 +58,14 @@ describe("keywordTriggerService", () => {
         await expect(createTrigger("team-a", "user-1", input({ keywords: ["!!!"] }))).rejects.toMatchObject({ status: 400 });
     });
 
+    it("refuses an Instagram reply that its landing link would push past 1,000 bytes, but not on Facebook", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ id: "lp-1", slug: "a-long-free-guide-landing-page-slug" });
+        await expect(createTrigger("team-a", "user-1", input({ landingPageId: "lp-1", replyText: "x".repeat(700) }))).rejects.toThrow(/Shorten it by \d+ bytes/);
+        await expect(createTrigger("team-a", "user-1", input({ landingPageId: "lp-1", replyText: "x".repeat(600) }))).resolves.toBeTruthy();
+        mockDb.socialAccount.findFirst.mockResolvedValue({ ...igAccount, id: "acc-fb", platform: "FACEBOOK_PAGE" });
+        await expect(createTrigger("team-a", "user-1", input({ socialAccountId: "acc-fb", landingPageId: "lp-1", replyText: "x".repeat(700) }))).resolves.toBeTruthy();
+    });
+
     it("drops the public reply on a DM-only trigger", async () => {
         const trigger = await createTrigger("team-a", "user-1", input({ scope: "DM", publicCommentReply: "Check DMs" }));
         expect(trigger).toMatchObject({ scope: "DM", publicCommentReply: null });

@@ -86,6 +86,8 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(scripts[0]![1]).toContain('var slug = "my-campaign"');
         // Creator funnel: the auto-reply link's ?t= goes along with the sign-up.
         expect(scripts[0]![1]).toContain('socialToken: url.searchParams.get("t") || undefined');
+        // Attribution: every event carries the page URL's UTM.
+        expect(scripts[0]![1]).toContain('utmSource: utm("utm_source"), utmMedium: utm("utm_medium"), utmCampaign: utm("utm_campaign")');
     });
 
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {

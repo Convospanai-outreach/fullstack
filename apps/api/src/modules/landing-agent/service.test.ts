@@ -92,3 +92,16 @@ describe("landingAgentService.submitLeadBySlug", () => {
         expect(tx.landingLead.create).toHaveBeenCalledWith({ data: expect.objectContaining({ teamId: "team-1", socialToken: "abc.def" }) });
     });
 });
+
+describe("landingAgentService.trackEventBySlug", () => {
+    it("stores the page URL's UTM with the event", async () => {
+        (mockPrisma as any).landingEvent = { create: vi.fn().mockResolvedValue({ id: "ev-1" }) };
+        vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue({ id: "lp-1", campaignId: "lc-1", teamId: "team-1", slug: "guide", version: 1 } as any);
+
+        await landingAgentService.trackEventBySlug({ slug: "guide", eventName: "page_view", utmSource: "instagram", utmMedium: "comment", utmContent: "post-1" });
+
+        expect((mockPrisma as any).landingEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ teamId: "team-1", eventName: "page_view", utmSource: "instagram", utmMedium: "comment", utmCampaign: undefined, utmContent: "post-1" }),
+        });
+    });
+});

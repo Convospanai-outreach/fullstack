@@ -6100,6 +6100,52 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+  answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
+  `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
+  2026-10-02.
+
+- **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
+  (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
+  - **Per published post:**
+    - visits: distinct landing page sessions with `utm_content=<post>`, by event time;
+    - opt-ins: landing sign-ups with that `utm_content`, by sign-up time;
+    - purchases and revenue: paid orders from checkouts started in the window, by currency.
+  - **Order attribution:** the order's own `utm_content` post if it's one of the team's, else the buyer lead's new
+    `Lead.firstTouchPostId`. Each order counts once.
+  - **`firstTouchPostId`** is set once, only to a ContentPost of the same team (`utm_content` is public input). It
+    is written by the keyword auto-reply (the trigger's post or the commented post) and by landing intake on both
+    the merge and normal paths.
+  - **Stage conversion:** of the leads that reached a stage in the window (from `stage_change` activity), the share
+    that also reached the next one. Leads that skip a stage don't inflate it.
+  - **Ranking:** posts are sorted by revenue in the team's main currency.
+  - **Limits:**
+    - a buyer who pays with a different email than they opted in with stays unattributed (shown as a separate line);
+    - data only accumulates from 6b/6c onward (prod had 0 posts, orders and auto-replies on 2026-10-02, so there
+      was no backfill).
+  - **Schema:** migration `20261008120000_lead_first_touch_post`.
+
+- **OPEN-310 (Fixed — creator funnel phase 6b: UTM on outbound links, stored on events and orders):** one helper
+  (`apps/api/src/lib/utm.ts`, mirrored in `apps/web/src/lib/utm.ts` with a parity test) adds `utm_source`,
+  `utm_medium`, `utm_campaign` and `utm_content`. It never overwrites UTM a link already has, and keeps `?t=` and the
+  fragment.
+  - **Auto-reply links:** source `instagram`/`facebook`, medium `comment`/`dm`, campaign the trigger id. Content is
+    the trigger's post or, for an any-post trigger, the post the comment was on when CMf published it (new
+    `KeywordTriggerReply.mediaId`, matched to `ContentPostTarget.externalId`). Instagram triggers now check message
+    + full link against 1,000 bytes when saved.
+  - **Sequence emails** (user decision 2026-10-02): added at click-redirect time in
+    `apps/web/src/app/api/track/click/[trackingKey]`, only for CMf `/p/` links. Source `email`, medium `sequence`,
+    campaign the campaign id, content the sequence step id. The send path and stored email are unchanged. Emails
+    sent without click tracking get no UTM, and neither do links to Cloudflare-published pages (another origin,
+    served at `/<slug>`), so email attribution is thin if creators mostly share those.
+  - **Stored:** `LandingEvent` and `Order` get `utm*` columns (`LandingEvent` guarded with IF EXISTS); `LandingLead`
+    already had them. Both landing page scripts send the page URL's UTM with every event, and the checkout page
+    sends its URL's UTM with the session. Cloudflare-published pages need a republish to send event UTM.
+  - **Not tagged:** post captions (user-written; the Phase 5 wizard will use the helper) and the delivery link
+    (an external course URL).
+  - **Attribution note for 6c:** landing pages don't link to checkout today, so most purchases will be attributed
+    through `Order.leadId` and the lead's first touch, not through `Order` UTM.
+
 - **OPEN-309 (Fixed — creator funnel phase 6a: checkout hooks):** checkout and payment now move buyers through the
   funnel. Behind `creator-funnel`. User decisions 2026-10-02: existing leads only at checkout start, a per-product
   switch is the approval, and the OPEN-306 fix is included for the two checkout webhooks.

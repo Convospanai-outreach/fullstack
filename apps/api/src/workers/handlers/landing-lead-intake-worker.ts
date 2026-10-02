@@ -41,6 +41,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             logger.warn(`[LandingLeadIntake] Social link merge failed for ${landingLeadId}: ${error instanceof Error ? error.message : error}`);
         }
         if (mergedLeadId) {
+            await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
             await scoreNewLead(mergedLeadId);
             await pushToMautic(mergedLeadId, teamId);
             await advanceCreatorFunnel(mergedLeadId, teamId);
@@ -73,6 +74,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                 return { created: false, reason: "lead_not_found" };
             }
 
+            await recordFirstTouch(teamId, existing.id, landingLead.utmContent);
             await scoreNewLead(existing.id);
             await pushToMautic(existing.id, teamId);
             await advanceCreatorFunnel(existing.id, teamId);
@@ -94,10 +96,23 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         },
     });
 
+    await recordFirstTouch(teamId, createdLead.id, landingLead.utmContent);
     await scoreNewLead(createdLead.id);
     await pushToMautic(createdLead.id, teamId);
     await advanceCreatorFunnel(createdLead.id, teamId);
     return { created: true, leadId: createdLead.id };
+}
+
+// Creator funnel: when the page URL's utm_content names one of the team's posts and the lead has
+// no first touch yet, that post brought them in (Content ROI). Never fails the intake job.
+async function recordFirstTouch(teamId: string, leadId: string, utmContent: string | null) {
+    if (!utmContent) return;
+    try {
+        const { setFirstTouchPost } = await import("@/modules/creator-funnel/contentRoi");
+        await setFirstTouchPost(teamId, leadId, utmContent);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] First-touch attribution failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
 }
 
 // Creator funnel (teams with the flag on): a landing-page opt-in moves the lead to MOFU.

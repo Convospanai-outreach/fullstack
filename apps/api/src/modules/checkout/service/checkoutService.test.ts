@@ -28,6 +28,13 @@ describe("checkoutService creator funnel hook", () => {
         expect(mockDb.order.update.mock.invocationCallOrder[0]!).toBeLessThan(onCheckoutStarted.mock.invocationCallOrder[0]!);
     });
 
+    it("stores the checkout page's UTM on the order", async () => {
+        await checkoutService.createSession({ productId: "prod-1", gateway: "STRIPE", utmSource: "instagram", utmMedium: "dm", utmContent: "post-1" });
+        expect(mockDb.order.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ utmSource: "instagram", utmMedium: "dm", utmCampaign: undefined, utmContent: "post-1" }),
+        });
+    });
+
     it("never fails the checkout when the hook throws", async () => {
         onCheckoutStarted.mockRejectedValue(new Error("db down"));
         await expect(checkoutService.createSession({ productId: "prod-1", gateway: "STRIPE" })).resolves.toMatchObject({ orderId: "order-1", url: "https://checkout.stripe.com/x" });

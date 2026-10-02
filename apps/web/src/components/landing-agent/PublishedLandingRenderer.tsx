@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { readUtm } from "@/lib/utm";
 
 interface Props {
     slug: string;
@@ -18,10 +19,12 @@ function createSessionId() {
 }
 
 async function trackEvent(slug: string, payload: { eventName: string; eventData?: unknown; sessionId?: string; pageVersion?: number }) {
+    // The page URL's UTM goes with every event, so visits can be traced to the post/DM/email (attribution).
+    const utm = readUtm(new URL(window.location.href).searchParams);
     await fetch(`${API_BASE}/landing-agent/public/${slug}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, ...utm }),
     }).catch(() => null);
 }
 

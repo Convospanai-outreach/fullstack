@@ -23,6 +23,7 @@ const mockDb: any = vi.hoisted(() => ({
         updateMany: vi.fn(),
     },
     landingPage: { findFirst: vi.fn() },
+    contentPostTarget: { findMany: vi.fn() },
     message: { create: vi.fn() },
 }));
 const graphCall = vi.hoisted(() => vi.fn());
@@ -38,6 +39,8 @@ vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
 vi.mock("../funnelStageService", () => ({ applyFunnelEvent }));
 vi.mock("../socialInbox", async (importOriginal) => ({ ...(await importOriginal<typeof import("../socialInbox")>()), findOrCreateContact, pageTokenFor }));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
+const setFirstTouchPost = vi.hoisted(() => vi.fn());
+vi.mock("../contentRoi", () => ({ setFirstTouchPost }));
 
 import {
     ACCOUNT_HOURLY_LIMIT,
@@ -149,6 +152,7 @@ describe("queueing", () => {
                 personKey: "u9",
                 personHandle: "@asha",
                 commentId: "c1",
+                mediaId: "m1",
                 publicStatus: "PENDING",
             },
         });
@@ -212,6 +216,7 @@ describe("sendPendingAutoReplies", () => {
             personKey: "u9",
             personHandle: "@asha",
             commentId: "c1",
+            mediaId: null,
             leadId: null,
             status: "PENDING",
             publicStatus: null,
@@ -219,7 +224,7 @@ describe("sendPendingAutoReplies", () => {
             lastError: null,
             createdAt: new Date(NOW.getTime() - 60_000),
             updatedAt: new Date(NOW.getTime() - 60_000),
-            trigger: { id: "trig-1", teamId: "team-a", active: true, replyText: "Here's the guide", publicCommentReply: null, landingPageId: null, socialAccount: igAccount, ...triggerOverrides },
+            trigger: { id: "trig-1", teamId: "team-a", active: true, replyText: "Here's the guide", publicCommentReply: null, landingPageId: null, contentPostId: null, socialAccount: igAccount, ...triggerOverrides },
             ...overrides,
         };
         store.rows.set(r.id, r);
@@ -333,10 +338,55 @@ describe("sendPendingAutoReplies", () => {
         await sendPendingAutoReplies(NOW);
         expect(mockDb.landingPage.findFirst).toHaveBeenCalledWith({ where: { id: "lp-1", teamId: "team-a", status: "published" }, select: { slug: true } });
         const text: string = JSON.parse(graphCall.mock.calls[0][2].message).text;
-        const match = text.match(/^Here's the guide\n\nhttps:\/\/craftmyfunnel\.live\/p\/free-guide\?t=([A-Za-z0-9_.-]+)$/);
-        expect(match).toBeTruthy();
+        const [message, link] = text.split("\n\n");
+        expect(message).toBe("Here's the guide");
+        const url = new URL(link as string);
+        expect(url.origin + url.pathname).toBe("https://craftmyfunnel.live/p/free-guide");
         const { verifyLinkToken } = await import("../linkToken");
-        expect(verifyLinkToken(match![1] as string, NOW)).toBe(r.id);
+        expect(verifyLinkToken(url.searchParams.get("t") as string, NOW)).toBe(r.id);
+        expect(Object.fromEntries([...url.searchParams].filter(([key]) => key.startsWith("utm_")))).toEqual({
+            utm_source: "instagram",
+            utm_medium: "comment",
+            utm_campaign: "trig-1",
+        });
+    });
+
+    it("tags the link with the post the comment was on when CMf published it", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ slug: "free-guide" });
+        mockDb.contentPostTarget.findMany.mockResolvedValue([{ postId: "post-9", externalId: "page-1_44" }]);
+        row({ mediaId: "44" }, { landingPageId: "lp-1" });
+        await sendPendingAutoReplies(NOW);
+        expect(mockDb.contentPostTarget.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ socialAccountId: "acc-ig", post: { teamId: "team-a" } }),
+        }));
+        const link = JSON.parse(graphCall.mock.calls[0][2].message).text.split("\n\n")[1];
+        expect(new URL(link).searchParams.get("utm_content")).toBe("post-9");
+        // ...and that post is the new lead's first touch (Content ROI).
+        expect(setFirstTouchPost).toHaveBeenCalledWith("team-a", "lead-new", "post-9");
+    });
+
+    it("records the commented post as first touch even when the reply has no link", async () => {
+        mockDb.contentPostTarget.findMany.mockResolvedValue([{ postId: "post-9", externalId: "m1" }]);
+        row({ mediaId: "m1" });
+        await sendPendingAutoReplies(NOW);
+        expect(setFirstTouchPost).toHaveBeenCalledWith("team-a", "lead-new", "post-9");
+    });
+
+    it("records no first touch for a comment on a post CMf didn't publish", async () => {
+        mockDb.contentPostTarget.findMany.mockResolvedValue([]);
+        row({ mediaId: "m-elsewhere" });
+        await sendPendingAutoReplies(NOW);
+        expect(setFirstTouchPost).not.toHaveBeenCalled();
+    });
+
+    it("uses the trigger's own post and DM medium for DM replies", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ slug: "free-guide" });
+        row({ commentId: null, sourceKey: "dm:mid-1" }, { landingPageId: "lp-1", contentPostId: "post-1" });
+        await sendPendingAutoReplies(NOW);
+        const link = JSON.parse(graphCall.mock.calls[0][2].message).text.split("\n\n")[1];
+        const params = new URL(link).searchParams;
+        expect([params.get("utm_medium"), params.get("utm_content")]).toEqual(["dm", "post-1"]);
+        expect(mockDb.contentPostTarget.findMany).not.toHaveBeenCalled();
     });
 
     it("refuses to send an Instagram reply that the link pushes past 1,000 bytes", async () => {

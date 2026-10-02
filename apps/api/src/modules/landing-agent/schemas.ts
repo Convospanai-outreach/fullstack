@@ -99,6 +99,12 @@ export const landingEventPayloadSchema = z.object({
         .unknown()
         .refine((value) => isJsonWithinSize(value, 8000), "eventData exceeds 8k serialized size")
         .optional(),
+    // UTM of the page URL, for attribution (apps/api src/lib/utm.ts)
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
     website: z.string().max(500).optional(), // honeypot
 });
 

@@ -36,12 +36,18 @@ function buildLeadFormScript(slug: string): string {
   var sessionId = (crypto.randomUUID ? crypto.randomUUID() : "sess-" + Date.now() + "-" + Math.random().toString(36).slice(2));
   var version = ${Date.now()};
   var formStarted = false;
+  var pageParams = new URL(location.href).searchParams;
+  function utm(key) { return pageParams.get(key) || undefined; }
 
   function trackEvent(eventName, eventData) {
     fetch("/" + slug + "/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined }),
+      body: JSON.stringify({
+        eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined,
+        utmSource: utm("utm_source"), utmMedium: utm("utm_medium"), utmCampaign: utm("utm_campaign"),
+        utmTerm: utm("utm_term"), utmContent: utm("utm_content"),
+      }),
     }).catch(function () {});
   }
 

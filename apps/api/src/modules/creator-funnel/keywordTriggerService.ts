@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
-import { PRIVATE_SCOPES, PUBLIC_REPLY_SCOPE, REPLY_TEXT_MAX_BYTES, words } from "./keywordTriggers";
+import { PRIVATE_SCOPES, PUBLIC_REPLY_SCOPE, REPLY_TEXT_MAX_BYTES, replyLink, words } from "./keywordTriggers";
+import { LINK_TOKEN_MAX_LENGTH } from "./linkToken";
+import { INSTAGRAM_TEXT_MAX_BYTES } from "./socialInbox";
 import type { AccountPlatform } from "./socialInbox";
 
 // Create, edit, switch on/off and delete keyword auto-replies (keywordTriggers.ts sends them).
@@ -11,6 +13,7 @@ import type { AccountPlatform } from "./socialInbox";
 const SOCIAL_PLATFORMS = ["INSTAGRAM", "FACEBOOK_PAGE"] as const;
 const PUBLIC_REPLY_MAX = 500;
 const STATS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const UUID_LENGTH_ID = "0".repeat(36);
 
 const fields = {
     socialAccountId: z.string().max(64),
@@ -59,8 +62,22 @@ async function checkFields(teamId: string, input: TriggerFields) {
         if (!post) fail(400, "That post isn't live on this account.");
     }
     if (input.landingPageId) {
-        const page = await prisma.landingPage.findFirst({ where: { id: input.landingPageId, teamId, status: "published" }, select: { id: true } });
+        const page = await prisma.landingPage.findFirst({ where: { id: input.landingPageId, teamId, status: "published" }, select: { id: true, slug: true } });
         if (!page) fail(400, "Pick a published landing page.");
+        // Instagram counts the message and the link together. Size the longest link this trigger can
+        // send (uuid-length ids, the longest token) so it fails here, not at send time.
+        if (account?.platform === "INSTAGRAM") {
+            const link = replyLink({
+                slug: page!.slug,
+                token: "x".repeat(LINK_TOKEN_MAX_LENGTH),
+                platform: "INSTAGRAM",
+                kind: "COMMENT",
+                triggerId: UUID_LENGTH_ID,
+                contentPostId: UUID_LENGTH_ID,
+            });
+            const over = Buffer.byteLength(`${input.replyText}\n\n${link}`, "utf8") - INSTAGRAM_TEXT_MAX_BYTES;
+            if (over > 0) fail(400, `With the landing page link, this reply is over Instagram's 1,000-byte limit. Shorten it by ${over} bytes.`);
+        }
     }
 
     const { guardrailService } = await import("@/modules/governance/service/guardrailService");

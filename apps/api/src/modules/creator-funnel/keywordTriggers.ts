@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { withUtm } from "@/lib/utm";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { GraphError, graphCall, graphPostJson } from "./metaGraph";
 import {
@@ -40,6 +41,27 @@ export const ACCOUNT_HOURLY_LIMIT = 200;
 export const PRIVATE_REPLY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000; // Meta: 7 days; an hour's margin
 export const REPLY_TEXT_MAX_BYTES = 700; // leaves room for the landing link inside Instagram's 1,000 bytes
 const WEB_BASE_URL = (process.env["WEB_BASE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
+
+/**
+ * The landing page link in an auto-reply: the signed ?t= token (linkToken.ts) plus UTM. The
+ * trigger is the campaign and the commented post, when it's one of ours, the content.
+ */
+export function replyLink(input: {
+    slug: string;
+    token: string | null;
+    platform: string;
+    kind: "COMMENT" | "DM";
+    triggerId: string;
+    contentPostId: string | null;
+}) {
+    const base = `${WEB_BASE_URL}/p/${encodeURIComponent(input.slug)}${input.token ? `?t=${input.token}` : ""}`;
+    return withUtm(base, {
+        source: input.platform === "INSTAGRAM" ? "instagram" : "facebook",
+        medium: input.kind === "COMMENT" ? "comment" : "dm",
+        campaign: input.triggerId,
+        content: input.contentPostId,
+    });
+}
 const COMMENT_LEAD_SOURCE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_comment", FACEBOOK_PAGE: "facebook_comment" };
 const TICK_BUDGET_MS = 20_000;
 const ROWS_PER_TICK = 20;
@@ -73,7 +95,7 @@ export function matchesKeyword(text: string, keywords: string[], match: "EXACT" 
 }
 
 /** Facebook post ids come as "<page>_<post>" in some places and bare in others. */
-function samePostId(a: string, b: string) {
+export function samePostId(a: string, b: string) {
     const tail = (id: string) => id.split("_").pop() as string;
     return a === b || tail(a) === tail(b);
 }
@@ -177,6 +199,7 @@ async function claim(data: {
     personKey: string;
     personHandle?: string | null;
     commentId?: string | null;
+    mediaId?: string | null;
     leadId?: string | null;
     publicStatus?: string | null;
 }) {
@@ -205,6 +228,7 @@ export async function queueCommentReplies(event: CommentEvent, accounts: Receivi
             personKey: event.authorId,
             personHandle: event.authorHandle ?? event.authorName,
             commentId: event.commentId,
+            mediaId: event.objectId,
             publicStatus: trigger.publicCommentReply ? "PENDING" : null,
         });
         if (ok) queued++;
@@ -236,6 +260,7 @@ const REPLY_INCLUDE = {
             replyText: true,
             publicCommentReply: true,
             landingPageId: true,
+            contentPostId: true,
             socialAccount: {
                 select: { id: true, teamId: true, platform: true, externalId: true, parentExternalId: true, status: true, scopes: true, encryptedToken: true },
             },
@@ -251,6 +276,7 @@ type ReplyRow = {
     personKey: string;
     personHandle: string | null;
     commentId: string | null;
+    mediaId: string | null;
     leadId: string | null;
     status: string;
     publicStatus: string | null;
@@ -262,6 +288,7 @@ type ReplyRow = {
         replyText: string;
         publicCommentReply: string | null;
         landingPageId: string | null;
+        contentPostId: string | null;
         socialAccount: {
             id: string;
             teamId: string;
@@ -290,19 +317,43 @@ function missingScopes(granted: string[], needed: string[]) {
 // The link carries a signed token naming this auto-reply (linkToken.ts), so a sign-up on the page
 // merges into the person's lead (landing-lead-intake-worker). If signing isn't possible the
 // plain link still goes out; the sign-up then just becomes its own lead.
-async function replyText(row: ReplyRow, now: Date) {
+async function replyText(row: ReplyRow, now: Date, postId: string | null) {
     const { replyText: text, landingPageId } = row.trigger;
     if (!landingPageId) return text;
     const page = await prisma.landingPage.findFirst({ where: { id: landingPageId, teamId: row.teamId, status: "published" }, select: { slug: true } });
     if (!page) return null;
-    let query = "";
+    let token: string | null = null;
     try {
         const { signLinkToken } = await import("./linkToken");
-        query = `?t=${signLinkToken(row.id, now)}`;
+        token = signLinkToken(row.id, now);
     } catch (error) {
         console.error("[KeywordTriggers] Link signing failed; sending the plain link:", errorText(error));
     }
-    return `${text}\n\n${WEB_BASE_URL}/p/${encodeURIComponent(page.slug)}${query}`;
+    const link = replyLink({
+        slug: page.slug,
+        token,
+        platform: row.trigger.socialAccount.platform,
+        kind: row.commentId ? "COMMENT" : "DM",
+        triggerId: row.trigger.id,
+        contentPostId: postId,
+    });
+    return `${text}\n\n${link}`;
+}
+
+// The ContentPost a comment was left on, when CMf published it on this account (for utm_content).
+async function commentedPost(row: ReplyRow) {
+    if (!row.mediaId) return null;
+    const tail = row.mediaId.split("_").pop() as string;
+    const targets = await prisma.contentPostTarget.findMany({
+        where: {
+            socialAccountId: row.socialAccountId,
+            post: { teamId: row.teamId },
+            OR: [{ externalId: row.mediaId }, { externalId: tail }, { externalId: { endsWith: `_${tail}` } }],
+        },
+        select: { postId: true, externalId: true },
+        take: 5,
+    });
+    return targets.find((target) => target.externalId && samePostId(target.externalId, row.mediaId!))?.postId ?? null;
 }
 
 function errorText(error: unknown) {
@@ -330,7 +381,10 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     if (missing.length) return fail(`Reconnect the account and allow: ${missing.join(", ")}.`);
     const token = await pageTokenFor(account);
     if (!token) return fail("The Facebook Page this account uses isn't connected.");
-    const text = await replyText(row, now);
+    // The post this reply is about: the trigger's own, or the one the comment was on (when CMf
+    // published it). Tags the link (utm_content) and becomes the lead's first touch.
+    const postId = row.trigger.contentPostId ?? (await commentedPost(row));
+    const text = await replyText(row, now, postId);
     if (text === null) return fail("The landing page this auto-reply links to isn't published.");
     if (platform === "INSTAGRAM" && Buffer.byteLength(text, "utf8") > INSTAGRAM_TEXT_MAX_BYTES) {
         return fail("The message and link are over Instagram's 1,000-byte limit. Shorten the message.");
@@ -366,7 +420,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     const messageId = typeof result?.message_id === "string" ? result.message_id : null;
     await setStatus(row.id, "SENDING", { status: "SENT", messageId, lastError: null });
     try {
-        await recordSent(row, platform, text, messageId, typeof result?.recipient_id === "string" ? result.recipient_id : null);
+        await recordSent(row, platform, text, messageId, typeof result?.recipient_id === "string" ? result.recipient_id : null, postId);
     } catch (error) {
         console.error("[KeywordTriggers] Recording a sent auto-reply failed:", errorText(error));
     }
@@ -375,7 +429,7 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
 
 // The reply on the lead's thread. A commenter becomes a lead here, keyed by the id Meta returns
 // for them, so their later DMs land on the same lead.
-async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string, messageId: string | null, recipientId: string | null) {
+async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string, messageId: string | null, recipientId: string | null, postId: string | null) {
     const account: ReceivingAccount = { id: row.socialAccountId, teamId: row.teamId, platform };
     let leadId = row.leadId;
     if (!leadId && recipientId) {
@@ -392,6 +446,10 @@ async function recordSent(row: ReplyRow, platform: AccountPlatform, text: string
         }
     }
     if (!leadId) return;
+    if (postId) {
+        const { setFirstTouchPost } = await import("./contentRoi");
+        await setFirstTouchPost(row.teamId, leadId, postId).catch(() => undefined);
+    }
     await prisma.message.create({
         data: {
             leadId,
