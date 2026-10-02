@@ -69,6 +69,9 @@ type Props = {
 // happens once the post is approved (Inbox > Approvals, or the buttons below for approvers).
 export function PostComposer({ open, onClose, post, defaultWhen, accounts, onChanged }: Props) {
     const [body, setBody] = useState("");
+    const [igCaption, setIgCaption] = useState("");
+    const [linkedinCaption, setLinkedinCaption] = useState("");
+    const [visualBrief, setVisualBrief] = useState("");
     const [stage, setStage] = useState<FunnelStage>("TOFU");
     const [accountIds, setAccountIds] = useState<string[]>([]);
     const [mediaUrls, setMediaUrls] = useState<string[]>([]);
@@ -80,6 +83,9 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
     useEffect(() => {
         if (!open) return;
         setBody(post?.body ?? "");
+        setIgCaption(post?.channelCaptions?.INSTAGRAM ?? "");
+        setLinkedinCaption(post?.channelCaptions?.LINKEDIN ?? "");
+        setVisualBrief(post?.visualBrief ?? "");
         setStage(post?.funnelStage ?? "TOFU");
         setAccountIds(post ? post.targets.map((t) => t.socialAccount.id) : accounts.filter((a) => a.status === "CONNECTED").map((a) => a.id));
         setMediaUrls(post?.mediaUrls ?? []);
@@ -128,7 +134,16 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
 
     const save = async (): Promise<string | null> => {
         const scheduledAt = fromLocalInput(when);
-        const payload = { body, funnelStage: stage, mediaUrls, accountIds, scheduledAt: scheduledAt?.toISOString() ?? null, timezone };
+        const payload = {
+            body,
+            channelCaptions: { INSTAGRAM: igCaption, LINKEDIN: linkedinCaption },
+            visualBrief: visualBrief.trim() || null,
+            funnelStage: stage,
+            mediaUrls,
+            accountIds,
+            scheduledAt: scheduledAt?.toISOString() ?? null,
+            timezone,
+        };
         const res = await fetch(post ? `${POSTS_URL}/${encodeURIComponent(post.id)}` : POSTS_URL, {
             method: post ? "PATCH" : "POST",
             headers: { "Content-Type": "application/json" },
@@ -203,7 +218,9 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
     });
 
     const toggleAccount = (id: string) => setAccountIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
-    const captionLength = [...body].length;
+    // Instagram gets its own caption when there is one, else the post text.
+    const captionLength = [...(igCaption.trim() ? igCaption : body)].length;
+    const hasLinkedin = choices.some((a) => a.platform.startsWith("LINKEDIN") && accountIds.includes(a.id));
 
     return (
         <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -220,7 +237,7 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                 )}
                 {post && (post.status === "IN_REVIEW" || post.status === "APPROVED") && (
                     <p className="text-xs text-muted-foreground">
-                        Changing the text, images or accounts sends it back for approval. Moving it to another time doesn&apos;t.
+                        Changing the text (or a channel&apos;s own text), images or accounts sends it back for approval. Moving it to another time doesn&apos;t.
                     </p>
                 )}
                 {post && live.size > 0 && (
@@ -235,6 +252,9 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                 <fieldset disabled={!editable || busy !== null} className="space-y-5">
                     <div className="space-y-2">
                         <label htmlFor="post-body" className="text-sm font-medium text-foreground">Post text</label>
+                        {(hasInstagram || igCaption || linkedinCaption) && (
+                            <p className="text-xs text-muted-foreground">Used on Facebook, and anywhere below that has no text of its own.</p>
+                        )}
                         <textarea
                             id="post-body"
                             value={body}
@@ -243,12 +263,60 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                             className="w-full rounded-md border border-border bg-background p-3 text-sm"
                             placeholder="What do you want to say?"
                         />
-                        {hasInstagram && (
+                        {hasInstagram && !igCaption.trim() && (
                             <p className={`text-right text-xs ${captionLength > IG_CAPTION_MAX ? "text-destructive" : "text-muted-foreground"}`}>
                                 {captionLength} / {IG_CAPTION_MAX}
                             </p>
                         )}
                     </div>
+
+                    {(hasInstagram || igCaption || post?.channelCaptions?.INSTAGRAM) && (
+                        <div className="space-y-2">
+                            <label htmlFor="post-ig" className="text-sm font-medium text-foreground">Instagram caption (optional)</label>
+                            <textarea
+                                id="post-ig"
+                                value={igCaption}
+                                onChange={(e) => setIgCaption(e.target.value)}
+                                rows={5}
+                                className="w-full rounded-md border border-border bg-background p-3 text-sm"
+                                placeholder="Leave empty to use the post text"
+                            />
+                            {igCaption.trim() && (
+                                <p className={`text-right text-xs ${captionLength > IG_CAPTION_MAX ? "text-destructive" : "text-muted-foreground"}`}>
+                                    {captionLength} / {IG_CAPTION_MAX}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {(hasLinkedin || linkedinCaption || post?.channelCaptions?.LINKEDIN) && (
+                        <div className="space-y-2">
+                            <label htmlFor="post-linkedin" className="text-sm font-medium text-foreground">LinkedIn text (optional)</label>
+                            <textarea
+                                id="post-linkedin"
+                                value={linkedinCaption}
+                                onChange={(e) => setLinkedinCaption(e.target.value)}
+                                rows={5}
+                                className="w-full rounded-md border border-border bg-background p-3 text-sm"
+                                placeholder="Leave empty to use the post text"
+                            />
+                            <p className="text-xs text-muted-foreground">Kept for when LinkedIn posting is available.</p>
+                        </div>
+                    )}
+
+                    {(visualBrief || post?.visualBrief) && (
+                        <div className="space-y-2">
+                            <label htmlFor="post-visual" className="text-sm font-medium text-foreground">Suggested visual</label>
+                            <textarea
+                                id="post-visual"
+                                value={visualBrief}
+                                onChange={(e) => setVisualBrief(e.target.value)}
+                                rows={2}
+                                className="w-full rounded-md border border-border bg-background p-3 text-sm"
+                            />
+                            <p className="text-xs text-muted-foreground">A note for you; it isn&apos;t posted.</p>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <p className="text-sm font-medium text-foreground">Funnel stage</p>

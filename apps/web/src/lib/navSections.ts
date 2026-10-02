@@ -59,6 +59,7 @@ export const NAV_SECTIONS: NavSection[] = [
             { label: "Playbooks", href: "/playbooks", feature: "playbooks" },
             { label: "Knowledge", href: "/knowledge", feature: "knowledge" },
             { label: "Content calendar", href: "/content/calendar", feature: "creator-funnel" },
+            { label: "Launch plans", href: "/content/plans", feature: "creator-funnel" },
         ],
     },
     {
