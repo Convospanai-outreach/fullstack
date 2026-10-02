@@ -629,6 +629,7 @@ export const landingAgentService = {
             },
             include: {
                 campaign: true,
+                team: { select: { name: true } },
             },
         });
     },
@@ -651,6 +652,7 @@ export const landingAgentService = {
             utmContent?: string;
             referrer?: string;
             socialToken?: string;
+            whatsappConsent?: boolean;
         };
         ipAddress?: string;
         userAgent?: string;
@@ -681,6 +683,8 @@ export const landingAgentService = {
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
                     socialToken: input.payload.socialToken,
+                    // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
+                    ...(input.payload.whatsappConsent === true && page.funnelStage && input.payload.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },

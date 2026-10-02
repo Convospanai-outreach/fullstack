@@ -6100,6 +6100,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-316 (Fixed — creator funnel phase 5b-2: WhatsApp opt-in on launch plan pages):** pages a launch plan drafts
+  (`LandingPage.funnelStage` set) ask sign-ups for WhatsApp consent:
+  - **Checkbox:** unticked by default, under the phone field; the text names WhatsApp and the business (team name). It is built
+    once in the api (`whatsappOptIn.ts`) and used by the public page payload (`whatsappOptIn`), the Cloudflare page builder
+    (HTML-escaped, outside the hashed script) and the ledger note. Other pages show no checkbox.
+  - **Stored:** `LandingLead.whatsappConsent` (nullable, guarded ALTER), only when the page has a funnel stage and a phone was given.
+  - **Consent:** the intake records it with `ConsentService.recordConsent` (method WEB_FORM, no staff user, proof
+    `landing_lead:<id>`, the sign-up's IP, the wording and page version in the notes) only when the lead it became has that same
+    phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
+    repeat it. A failure never fails the intake.
+  - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
+  - **Known gap (not changed here):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+    The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
+    relies on the ledger alone.
+  - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
+
 - **OPEN-315 (Fixed — creator funnel phase 5b-1: plan landing pages and keyword trigger):** a launch plan also drafts:
   - **Pages:** a lead-magnet opt-in page (TOFU) and a sales page (BOFU), each through the landing agent (campaign, brief,
     wireframes, selected page).
@@ -6117,6 +6133,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
     switched-on trigger stay.
   - **Not here:** the WhatsApp consent checkbox (5b-2).
+  - **Prod check (2026-10-02, after deploy):** a SQL-enqueued run on a test team (2 posts a week, booking offer, no social
+    account) came out READY with 8 draft posts, both draft pages (TOFU and BOFU, real AI copy, not the fallback), sales page buttons
+    on the booking link, and the no-account note. Deleted afterwards. Two follow-ups, fixed in the 5b-2 PR: the footer's "back to
+    top" button was pointed at the booking link too, and the wizard's cost note said N+4 credits where the two pages cost about 14
+    (brief 2 + wireframes 5, each).
 
 - **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
   STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults

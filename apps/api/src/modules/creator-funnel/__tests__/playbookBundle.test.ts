@@ -43,6 +43,7 @@ const sections = [
     { id: "hero", type: "hero", heading: "Book a call", ctaLabel: "Book now" },
     { id: "proof", type: "proof", heading: "Results" },
     { id: "cta", type: "cta_form", heading: "Ready?" },
+    { id: "footer", type: "footer", heading: "Brand", ctaLabel: "Back to top" },
 ];
 
 describe("playbookBundle", () => {
@@ -65,7 +66,7 @@ describe("playbookBundle", () => {
             const update = mockDb.landingPage.updateMany.mock.calls[0][0];
             expect(update.where).toEqual({ id: "lp-1", teamId: "team-a" });
             expect(update.data.funnelStage).toBe("BOFU");
-            expect(update.data.renderedJson.map((s: any) => s.ctaHref)).toEqual(["https://cal.example/me", undefined, "https://cal.example/me"]);
+            expect(update.data.renderedJson.map((s: any) => s.ctaHref)).toEqual(["https://cal.example/me", undefined, "https://cal.example/me", undefined]);
             expect(mockDb.playbookRun.updateMany).toHaveBeenLastCalledWith({ where: { id: "run-1", status: "GENERATING" }, data: { salesPageId: "lp-1" } });
             expect(r.salesPageId).toBe("lp-1");
         });

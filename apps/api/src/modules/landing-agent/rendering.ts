@@ -158,7 +158,7 @@ function text(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
 }
 
-function escapeHtml(value: unknown): string {
+export function escapeHtml(value: unknown): string {
     return text(value)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
