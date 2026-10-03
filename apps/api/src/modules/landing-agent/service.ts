@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { APIError } from "@/lib/apiResponse";
 import { aiService } from "@/lib/aiService";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
 import { audit } from "@/lib/governance/audit";
@@ -659,7 +660,7 @@ export const landingAgentService = {
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
-            throw new Error("Published landing page not found");
+            throw new APIError("Published landing page not found", 404, "NOT_FOUND");
         }
 
         const lead = await prisma.$transaction(async (tx) => {
@@ -791,12 +792,12 @@ export const landingAgentService = {
         userAgent?: string;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
-            throw new Error("Invalid event name");
+            throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
         }
 
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
-            throw new Error("Published landing page not found");
+            throw new APIError("Published landing page not found", 404, "NOT_FOUND");
         }
 
         const event = await prisma.landingEvent.create({

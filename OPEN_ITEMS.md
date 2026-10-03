@@ -6362,10 +6362,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
     `playbookRunId` links.
 
-- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+- **OPEN-312 (Fixed 2026-10-03 — unknown landing slug returned 500; now 404, bad event name 400):** `POST /landing-agent/public/<slug>/event` and `/lead`
   answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
   `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
   2026-10-02.
+  - **Fixed:** `submitLeadBySlug` and `trackEventBySlug` throw `APIError` 404 for a missing published page and 400 for an
+    invalid event name, so `handleAPIError` no longer maps them to 500.
 
 - **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
   (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
