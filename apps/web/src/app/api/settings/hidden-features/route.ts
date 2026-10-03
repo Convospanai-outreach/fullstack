@@ -65,12 +65,15 @@ export async function GET() {
         const context = await loadFeatureContext(teamId);
         const enabledFeatures = resolveEnabledFeatureKeysFromContext(context);
         await seedEnabledFeaturesCookie(enabledFeatures);
+        const { checkTeamPermission, TeamRole } = await import("@/lib/permissions");
+        const canEdit = await checkTeamPermission(userId, teamId, TeamRole.ADMIN);
 
         const features = Object.values(HIDDEN_FEATURES).map((feature) => {
             const readiness = resolveReadiness(feature.key, context);
             return {
                 ...feature,
                 enabled: enabledFeatures.has(feature.key),
+                disabledByPlatform: context.platformDisabled.has(feature.key),
                 ready: readiness.ready,
                 readinessReason: readiness.reason,
                 recommendedAction: readiness.action,
@@ -80,6 +83,7 @@ export async function GET() {
         return NextResponse.json({
             defaults: Array.from(enabledFeatures),
             features,
+            canEdit,
         });
     } catch (error: any) {
         console.error("[settings:hidden-features:get]", error);
@@ -111,6 +115,11 @@ export async function PUT(req: NextRequest) {
     if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    // Team-wide setting, so team owners and admins only.
+    const { checkTeamPermission, TeamRole } = await import("@/lib/permissions");
+    if (!(await checkTeamPermission(userId, teamId, TeamRole.ADMIN))) {
+        return NextResponse.json({ error: "Only team owners and admins can change features." }, { status: 403 });
+    }
 
     try {
         const body = await req.json();
@@ -127,16 +136,27 @@ export async function PUT(req: NextRequest) {
         // team stops tracking readiness after customizing (explicit beats inference).
         const enabledArray = enabledFeatures ? enabledFeatures.split(",") : [];
         const { prisma } = await import("@/lib/db");
+        // A platform-disabled feature shows as off here, so keep the team's own choice
+        // for it rather than dropping it; it comes back if the platform switch is lifted.
+        const { loadPlatformDisabledFeatures } = await import("@/lib/hiddenFeatureSwitches");
+        const platformDisabled = await loadPlatformDisabledFeatures();
+        const current = await prisma.team.findUnique({ where: { id: teamId }, select: { enabledFeatures: true } });
+        if (Array.isArray(current?.enabledFeatures)) {
+            for (const key of current.enabledFeatures) {
+                if (platformDisabled.has(key as HiddenFeatureKey) && !enabledArray.includes(String(key))) enabledArray.push(String(key));
+            }
+        }
         await prisma.team.update({
             where: { id: teamId },
             data: { enabledFeatures: enabledArray },
         });
 
-        // Cache into the cookie for the proxy gate (best-effort, same as GET).
+        // Cache into the cookie for the proxy gate (best-effort, same as GET),
+        // minus anything switched off platform-wide.
         const cookieStore = await cookies();
         cookieStore.set({
             name: HIDDEN_FEATURES_COOKIE,
-            value: enabledFeatures,
+            value: enabledArray.filter((key) => !platformDisabled.has(key as HiddenFeatureKey)).join(","),
             httpOnly: false,
             maxAge: 60 * 60 * 24 * 30,
             path: "/",

@@ -1,4 +1,5 @@
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
+import { loadPlatformDisabledFeatures } from "@/lib/hiddenFeatureSwitches";
 import {
     getDefaultEnabledHiddenFeatureKeys,
     HiddenFeatureKey,
@@ -15,7 +16,7 @@ export type ReadinessState = {
 
 export async function loadFeatureContext(teamId: string) {
     const { prisma } = await import("@/lib/db");
-    const [team, callerCount, agentTaskCount, marketplaceTemplateCount, policy, edgeAvailability] = await Promise.all([
+    const [team, callerCount, agentTaskCount, marketplaceTemplateCount, policy, edgeAvailability, platformDisabled] = await Promise.all([
         prisma.team.findUnique({
             where: { id: teamId },
             select: {
@@ -52,6 +53,7 @@ export async function loadFeatureContext(teamId: string) {
             },
         }),
         getEdgeRuntimeAvailability(),
+        loadPlatformDisabledFeatures(),
     ]);
 
     if (!team) {
@@ -87,6 +89,7 @@ export async function loadFeatureContext(teamId: string) {
         hasLinkedInRuntime,
         hasScraperSecret,
         marketplaceTemplateCount,
+        platformDisabled,
         policy,
         strictSovereignty,
         team,
@@ -320,18 +323,18 @@ export function resolveEnabledFeatureKeysFromContext(
     const stored = context.team.enabledFeatures;
     const envDefaults = getDefaultEnabledHiddenFeatureKeys();
 
-    if (Array.isArray(stored)) {
-        return mergeEnabledHiddenFeatureKeys(
-            envDefaults,
-            parseEnabledHiddenFeatureKeys(stored.map((value) => String(value)).join(","))
-        );
-    }
+    const enabled = Array.isArray(stored)
+        ? mergeEnabledHiddenFeatureKeys(envDefaults, parseEnabledHiddenFeatureKeys(stored.map((value) => String(value)).join(",")))
+        : mergeEnabledHiddenFeatureKeys(
+              envDefaults,
+              Object.values(HIDDEN_FEATURES)
+                  .filter((feature) => resolveReadiness(feature.key, context).ready)
+                  .map((feature) => feature.key)
+          );
 
-    const readyKeys = Object.values(HIDDEN_FEATURES)
-        .filter((feature) => resolveReadiness(feature.key, context).ready)
-        .map((feature) => feature.key);
-
-    return mergeEnabledHiddenFeatureKeys(envDefaults, readyKeys);
+    // Superadmin platform switches win over the team's own choice.
+    for (const key of context.platformDisabled) enabled.delete(key);
+    return enabled;
 }
 
 export async function resolveEnabledFeatureKeys(teamId: string): Promise<Set<HiddenFeatureKey>> {

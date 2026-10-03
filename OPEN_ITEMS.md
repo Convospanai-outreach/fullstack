@@ -6142,6 +6142,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
       `emailId`; the worst case is a duplicate suggestion.
     Not started.
+- **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
+  2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
+  - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
+    `GET`/`POST /admin/super/flags` (SYSTEM_ADMIN) writes or deletes the global `FeatureFlag` row; only defined keys are accepted.
+  - **Optional-feature platform switch:** any of the 19 hidden features can be turned off for every team. It is stored as a
+    `FeatureFlag` row `hidden_feature:<key>` with `isEnabled=false` (`apps/web/src/lib/hiddenFeatureSwitches.ts`).
+    - `resolveEnabledFeatureKeysFromContext` removes it whatever the team chose, so the proxy cookie follows on the next page
+      load, and the settings PUT leaves it out of the cookie it writes.
+    - `isCreatorFunnelEnabled` (apps/api) checks the switch too.
+    - A team's own choice for a switched-off feature is kept, so it comes back when the switch is lifted.
+    - Known limit: keys in `NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES` are merged in by the proxy itself, so the switch hides them
+      from the menus but the proxy still lets their pages load.
+  - **Per team:** web `/api/superadmin/teams/[id]` reads or sets the team's optional features (or resets them to automatic)
+    and its `OrganizationPolicy`: product mode, product surface, the four limits and six switches, all validated.
+  - **Team-side setting:** `PUT /api/settings/hidden-features` now needs team owner or admin (any member could change it
+    before). GET returns `canEdit` and `disabledByPlatform`, and the settings page disables the toggle with a reason.
+  - **Audit rows:** `FLAG_SET`, `FEATURE_PLATFORM_OFF`/`ON`, `TEAM_FEATURES_SET` and `TEAM_POLICY_SET`, with before/after values.
+  - **Tests:** `routes/admin/super/flags/route.test.ts`, the platform-switch case in `funnelStageService.test.ts`,
+    `superadmin-features-routes.test.ts` and `beta-options-rework.test.ts`.
 - **OPEN-321 (Fixed — superadmin health tab shows live checks; job replay; links to admin tools):** 2026-10-03, phase B of the
   superadmin control work.
   - **Live tiles:** the PostgreSQL, API and worker tiles were fixed text ("Operational", "Healthy", "Active"). `/admin/super/overview`
