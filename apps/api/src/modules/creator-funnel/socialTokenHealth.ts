@@ -10,6 +10,11 @@ import { decryptCredential, type EncryptedCredential } from "@/lib/security/cred
 // https://developers.facebook.com/docs/graph-api/reference/debug_token, checked 2026-09-30.
 // Long-lived Page tokens report no expiry
 // (https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived).
+//
+// LinkedIn (profile and page) tokens last 60 days and can't be refreshed by us (programmatic
+// refresh is partner-only; authorization-code-flow, checked 2026-10-04), so the expiry saved at
+// connect drives the warning, a passed expiry means reconnect, and a cheap bearer call
+// (linkedinApi.tokenStillValid) catches a token the person revoked. No LinkedIn secret is needed here.
 
 const GRAPH_BASE_URL = "https://graph.facebook.com/v26.0";
 const CHECK_EVERY_MS = 24 * 60 * 60 * 1000;
@@ -17,7 +22,40 @@ const WARN_BEFORE_MS = 7 * 24 * 60 * 60 * 1000;
 const BATCH = 50;
 const TIMEOUT_MS = 10_000;
 
-const PLATFORM_LABEL: Record<string, string> = { FACEBOOK_PAGE: "Facebook Page", INSTAGRAM: "Instagram account" };
+const PLATFORM_LABEL: Record<string, string> = {
+    FACEBOOK_PAGE: "Facebook Page",
+    INSTAGRAM: "Instagram account",
+    LINKEDIN_MEMBER: "LinkedIn profile",
+    LINKEDIN_ORG: "LinkedIn page",
+};
+const LINKEDIN = ["LINKEDIN_MEMBER", "LINKEDIN_ORG"];
+
+type Verdict = { valid: boolean; expiresAt: Date | null; reason: string } | "unknown";
+
+async function checkMeta(token: string, appId: string, appSecret: string): Promise<Verdict> {
+    const res = await fetch(
+        `${GRAPH_BASE_URL}/debug_token?` + new URLSearchParams({ input_token: token, access_token: `${appId}|${appSecret}` }),
+        { signal: AbortSignal.timeout(TIMEOUT_MS) }
+    );
+    const json: any = await res.json().catch(() => null);
+    if (!res.ok || !json?.data) return "unknown"; // couldn't ask Meta; try again tomorrow
+    const expiries = [unixToDate(json.data.expires_at), unixToDate(json.data.data_access_expires_at)].filter((d): d is Date => d !== null);
+    return {
+        valid: json.data.is_valid === true,
+        reason: json.data.error?.message || "Meta reports the connection is no longer valid.",
+        expiresAt: expiries.length ? new Date(Math.min(...expiries.map((d) => d.getTime()))) : null,
+    };
+}
+
+async function checkLinkedIn(platform: string, token: string, expiresAt: Date | null, now: Date): Promise<Verdict> {
+    if (expiresAt && expiresAt.getTime() <= now.getTime()) {
+        return { valid: false, expiresAt, reason: "LinkedIn connections last 60 days and this one has ended." };
+    }
+    const { tokenStillValid } = await import("./linkedinApi");
+    const valid = await tokenStillValid(platform, token);
+    if (valid === null) return "unknown";
+    return { valid, expiresAt, reason: "LinkedIn reports the connection is no longer valid." };
+}
 
 async function notifyAdmins(teamId: string, title: string, message: string) {
     const admins = await prisma.teamMember.findMany({
@@ -38,17 +76,18 @@ export async function checkSocialTokens(now = new Date()) {
     const result = { checked: 0, needsReconnect: 0, warned: 0 };
     const appId = process.env["FACEBOOK_APP_ID"];
     const appSecret = process.env["FACEBOOK_APP_SECRET"];
-    if (!appId || !appSecret) return result;
+    // Meta accounts need the app credentials to be checked; LinkedIn accounts don't.
+    const platforms = appId && appSecret ? ["FACEBOOK_PAGE", "INSTAGRAM", ...LINKEDIN] : LINKEDIN;
 
     const accounts = await prisma.socialAccount.findMany({
         where: {
-            platform: { in: ["FACEBOOK_PAGE", "INSTAGRAM"] },
+            platform: { in: platforms as any },
             status: "CONNECTED",
             OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date(now.getTime() - CHECK_EVERY_MS) } }],
         },
         orderBy: { lastCheckedAt: { sort: "asc", nulls: "first" } },
         take: BATCH,
-        select: { id: true, teamId: true, platform: true, handle: true, encryptedToken: true, expiryWarnedAt: true },
+        select: { id: true, teamId: true, platform: true, handle: true, encryptedToken: true, expiryWarnedAt: true, tokenExpiresAt: true },
     });
 
     for (const account of accounts) {
@@ -56,26 +95,17 @@ export async function checkSocialTokens(now = new Date()) {
         const name = `${PLATFORM_LABEL[account.platform] ?? "Social account"} ${account.handle ?? ""}`.trim();
         try {
             const token = await decryptCredential(account.encryptedToken as unknown as EncryptedCredential).catch(() => undefined);
-            let valid = Boolean(token);
-            let expiresAt: Date | null = null;
-            let reason = "The saved token can't be read.";
-
-            if (token) {
-                const res = await fetch(
-                    `${GRAPH_BASE_URL}/debug_token?` + new URLSearchParams({ input_token: token, access_token: `${appId}|${appSecret}` }),
-                    { signal: AbortSignal.timeout(TIMEOUT_MS) }
-                );
-                const json: any = await res.json().catch(() => null);
-                if (!res.ok || !json?.data) {
-                    // Couldn't ask Meta; leave the status alone and try again tomorrow.
-                    await prisma.socialAccount.update({ where: { id: account.id }, data: { lastCheckedAt: now } });
-                    continue;
-                }
-                valid = json.data.is_valid === true;
-                reason = json.data.error?.message || "Meta reports the connection is no longer valid.";
-                const expiries = [unixToDate(json.data.expires_at), unixToDate(json.data.data_access_expires_at)].filter((d): d is Date => d !== null);
-                expiresAt = expiries.length ? new Date(Math.min(...expiries.map((d) => d.getTime()))) : null;
+            const verdict: Verdict = !token
+                ? { valid: false, expiresAt: null, reason: "The saved token can't be read." }
+                : LINKEDIN.includes(account.platform)
+                  ? await checkLinkedIn(account.platform, token, account.tokenExpiresAt, now)
+                  : await checkMeta(token, appId as string, appSecret as string);
+            if (verdict === "unknown") {
+                // Couldn't ask the platform; leave the status alone and try again tomorrow.
+                await prisma.socialAccount.update({ where: { id: account.id }, data: { lastCheckedAt: now } });
+                continue;
             }
+            const { valid, expiresAt, reason } = verdict;
 
             if (!valid) {
                 await prisma.socialAccount.update({

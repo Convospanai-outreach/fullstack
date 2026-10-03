@@ -45,8 +45,26 @@ const PLATFORM_LABEL: Record<SocialPlatform, string> = {
 //   caption "Maximum 2200 characters", "30 hashtags", "20 @ tags"; image "8 MB maximum",
 //   aspect ratio "within a 4:5 to 1.91:1 range" (size and ratio are checked at upload in apps/web).
 // The permission each platform needs to publish (Pages API posts: pages_manage_posts; Instagram
-// content publishing: instagram_content_publish; both checked 2026-10-01, see contentPublisher.ts).
-export const PUBLISH_SCOPE: Record<string, string> = { FACEBOOK_PAGE: "pages_manage_posts", INSTAGRAM: "instagram_content_publish" };
+// content publishing: instagram_content_publish; both checked 2026-10-01, see contentPublisher.ts;
+// LinkedIn Posts API: w_member_social / w_organization_social, checked 2026-10-04, see linkedinApi.ts).
+export const PUBLISH_SCOPE: Record<string, string> = {
+    FACEBOOK_PAGE: "pages_manage_posts",
+    INSTAGRAM: "instagram_content_publish",
+    LINKEDIN_MEMBER: "w_member_social",
+    LINKEDIN_ORG: "w_organization_social",
+};
+
+// LinkedIn: a MultiImage post holds 2 to 20 images (multiimage-post-api, checked 2026-10-04). The
+// Posts API documents no commentary maximum, only FIELD_LENGTH_TOO_LONG; 3000 characters is
+// LinkedIn's own post limit, so we hold posts to that.
+export const LINKEDIN_LIMITS = { text: 3000, media: 20 };
+
+export function linkedinProblems(text: string, mediaUrls: string[]): string[] {
+    const problems: string[] = [];
+    if ([...text].length > LINKEDIN_LIMITS.text) problems.push(`LinkedIn posts can be at most ${LINKEDIN_LIMITS.text} characters.`);
+    if (mediaUrls.length > LINKEDIN_LIMITS.media) problems.push(`LinkedIn allows at most ${LINKEDIN_LIMITS.media} images in one post.`);
+    return problems;
+}
 
 export const INSTAGRAM_LIMITS = { caption: 2200, hashtags: 30, mentions: 20, media: 10 };
 
@@ -340,6 +358,14 @@ export async function submitPost(teamId: string, postId: string, userId: string)
     if (targets.some((t) => t.socialAccount.platform === "INSTAGRAM")) {
         const problems = instagramProblems(captionFor(post, "INSTAGRAM"), post.mediaUrls);
         if (problems.length) throw new ContentPostError(400, problems.join(" "));
+    }
+    if (targets.some((t) => t.socialAccount.platform === "LINKEDIN_MEMBER" || t.socialAccount.platform === "LINKEDIN_ORG")) {
+        const problems = linkedinProblems(captionFor(post, "LINKEDIN_MEMBER"), post.mediaUrls);
+        if (problems.length) throw new ContentPostError(400, problems.join(" "));
+    }
+    if (targets.some((t) => t.socialAccount.platform === "LINKEDIN_ORG")) {
+        const { isLinkedInPagesEnabled } = await import("./featureGate");
+        if (!(await isLinkedInPagesEnabled())) throw new ContentPostError(400, "Posting to LinkedIn pages is switched off. Remove the LinkedIn page from this post.");
     }
 
     const tier = resolveApprovalTier(CONTENT_POST_ACTION);
