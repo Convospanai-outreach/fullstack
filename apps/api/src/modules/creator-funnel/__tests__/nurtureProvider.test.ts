@@ -11,8 +11,10 @@ const stopEnrollmentsForLead = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({ SequenceService: { stopEnrollmentsForLead } }));
+const checkTemplate = vi.hoisted(() => vi.fn());
+vi.mock("@/modules/whatsapp/whatsappTemplates", () => ({ checkTemplate }));
 
-import { CmfSequenceProvider, enrollInNurture, MauticJourneyProvider, NurtureNotConfiguredError, stopNurture } from "../nurtureProvider";
+import { CmfSequenceProvider, enrollInNurture, MauticJourneyProvider, NurtureNotConfiguredError, nurtureCanRunSteps, stopNurture, whatsappStepProblem } from "../nurtureProvider";
 
 const sequence = (overrides: any = {}) => ({
     id: "seq-1",
@@ -99,5 +101,25 @@ describe("nurture providers", () => {
         await expect(mautic.enroll(lead, "j")).rejects.toBeInstanceOf(NurtureNotConfiguredError);
         await expect(mautic.stop(lead, "x")).rejects.toBeInstanceOf(NurtureNotConfiguredError);
         await expect(mautic.status(lead)).rejects.toBeInstanceOf(NurtureNotConfiguredError);
+    });
+    describe("WhatsApp steps (5c-2)", () => {
+        it("lets a nurture run WhatsApp steps only when they send a template", () => {
+            expect(nurtureCanRunSteps([{ stepType: "EMAIL" }, { stepType: "WHATSAPP", whatsappTemplateName: "guide_ready" }])).toBe(true);
+            expect(nurtureCanRunSteps([{ stepType: "EMAIL" }, { stepType: "WHATSAPP", whatsappTemplateName: null }])).toBe(false);
+            expect(nurtureCanRunSteps([{ stepType: "WHATSAPP", whatsappTemplateName: "  " }])).toBe(false);
+            expect(nurtureCanRunSteps([])).toBe(false);
+        });
+
+        it("before switching on, every template must be approved and sendable", async () => {
+            expect(await whatsappStepProblem("team-a", [{ stepType: "EMAIL" }])).toBeNull();
+            expect(checkTemplate).not.toHaveBeenCalled();
+            checkTemplate.mockResolvedValue({ ok: false, code: "WHATSAPP_TEMPLATE_NOT_APPROVED", reason: "The template \"guide_ready\" isn't approved (status PENDING)." });
+            expect(await whatsappStepProblem("team-a", [{ stepType: "WHATSAPP", whatsappTemplateName: "guide_ready", whatsappTemplateLanguage: "en_US" }]))
+                .toBe("WhatsApp step: The template \"guide_ready\" isn't approved (status PENDING).");
+            expect(checkTemplate).toHaveBeenCalledWith("team-a", "guide_ready", "en_US");
+            expect(await whatsappStepProblem("team-a", [{ stepType: "WHATSAPP", whatsappTemplateName: "guide_ready", whatsappTemplateLanguage: "" }])).toMatch(/no template language/);
+            checkTemplate.mockResolvedValue({ ok: true, variables: 1 });
+            expect(await whatsappStepProblem("team-a", [{ stepType: "WHATSAPP", whatsappTemplateName: "guide_ready", whatsappTemplateLanguage: "en_US" }])).toBeNull();
+        });
     });
 });

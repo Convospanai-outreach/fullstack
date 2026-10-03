@@ -25,6 +25,9 @@ const StepSchema = z.object({
     delayHours: z.number().int().min(0).default(0),
     subject: z.string().optional(),
     body: z.string().optional(),
+    // WhatsApp steps: an approved Meta template (lowercase letters, digits, underscores) and its language code.
+    whatsappTemplateName: z.string().regex(/^[a-z0-9_]{1,512}$/, "Template names use lowercase letters, numbers and underscores").nullable().optional(),
+    whatsappTemplateLanguage: z.string().regex(/^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})?$/, "Use a language code like en_US").nullable().optional(),
 });
 
 const SaveSequenceSchema = z.object({
@@ -179,6 +182,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                         delayHours: s.delayHours,
                         subject: s.subject ?? null,
                         body: s.body ?? null,
+                        whatsappTemplateName: s.whatsappTemplateName ?? null,
+                        whatsappTemplateLanguage: s.whatsappTemplateLanguage ?? null,
                     },
                 });
             }
@@ -194,6 +199,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                         delayHours: s.delayHours,
                         subject: s.subject ?? null,
                         body: s.body ?? null,
+                        whatsappTemplateName: s.whatsappTemplateName ?? null,
+                        whatsappTemplateLanguage: s.whatsappTemplateLanguage ?? null,
                     },
                 });
             }

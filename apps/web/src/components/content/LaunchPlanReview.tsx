@@ -37,6 +37,9 @@ export type PlanDetail = Omit<PlanSummary, "_count"> & {
     salesPage: PlanPage | null;
     keywordTrigger: { id: string; keywords: string[]; active: boolean; socialAccount: { platform: string; handle: string | null } } | null;
     sequences: PlanSequence[];
+    nurtureActivatedAt: string | null;
+    mailboxes: { id: string; email: string }[];
+    productAutomation: { automationsActive: boolean; cartAbandonSequenceId: string | null; postPurchaseSequenceId: string | null } | null;
     bookingUrl: string | null;
     icpCreated: boolean;
     product: { id: string; name: string } | null;
@@ -63,6 +66,7 @@ export function LaunchPlanReview({ id }: { id: string }) {
         refreshInterval: (latest) => (latest?.status === "GENERATING" && !latest.stale ? 4000 : 0),
     });
     const [busy, setBusy] = useState<string | null>(null);
+    const [mailboxId, setMailboxId] = useState("");
 
     if (error instanceof NotFound) return <p className="text-sm text-muted-foreground">This plan doesn&apos;t exist, or the creator funnel isn&apos;t on for this workspace.</p>;
     if (error) return <p className="text-sm text-destructive">Couldn&apos;t load the plan.</p>;
@@ -106,6 +110,29 @@ export function LaunchPlanReview({ id }: { id: string }) {
             setBusy(null);
         }
     };
+
+    const post = async (path: string, body: unknown, done: (result: any) => string) => {
+        setBusy(path);
+        try {
+            const res = await fetch(`${url}/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const result = await res.json().catch(() => null);
+            if (!res.ok) toast.error(typeof result?.error === "string" ? result.error : "Couldn't save. Try again.");
+            else toast.success(done(result));
+            await mutate();
+        } finally {
+            setBusy(null);
+        }
+    };
+    const nurtureOn = Boolean(data.nurtureActivatedAt);
+    const nurtureSeq = data.sequences.find((s) => s.funnelStage === "MOFU");
+    const productSeqs = data.sequences.filter((s) => s.funnelStage === "BOFU" || s.funnelStage === "POST");
+    const productUses = (id: string) => data.productAutomation?.cartAbandonSequenceId === id || data.productAutomation?.postPurchaseSequenceId === id;
+    const mailboxPicker = (
+        <select aria-label="Send the emails from" value={mailboxId} onChange={(e) => setMailboxId(e.target.value)} className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground">
+            <option value="">Send from...</option>
+            {data.mailboxes.map((m) => <option key={m.id} value={m.id}>{m.email}</option>)}
+        </select>
+    );
 
     const counts = STAGES.map((s) => [s, data.contentPosts.filter((p) => p.funnelStage === s).length] as const).filter(([, n]) => n > 0);
     const canRetry = data.status === "FAILED" || data.stale;
@@ -177,6 +204,62 @@ export function LaunchPlanReview({ id }: { id: string }) {
                     <p className="text-sm text-muted-foreground">
                         Email sequences, saved as draft campaigns. Nobody is added to them and nothing is sent until you switch them on.
                     </p>
+                    {data.status === "READY" && (nurtureSeq || (data.product && productSeqs.length > 0)) && (
+                        <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
+                            {data.mailboxes.length === 0 ? (
+                                <p className="text-muted-foreground">
+                                    Connect a mailbox in <Link href="/settings/mailboxes" className="text-primary hover:underline">Settings</Link> to send these emails.
+                                </p>
+                            ) : (
+                                <>
+                                    {nurtureSeq && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-foreground">
+                                                Nurture emails: <strong>{nurtureOn ? "On" : "Off"}</strong>
+                                                <span className="text-muted-foreground">
+                                                    {nurtureOn
+                                                        ? " · new sign-ups on the lead-magnet page join them. Switching off stops new sign-ups joining; people already in carry on."
+                                                        : " · switch on to add new sign-ups on the lead-magnet page."}
+                                                </span>
+                                            </span>
+                                            {!nurtureOn && mailboxPicker}
+                                            <button type="button" disabled={busy !== null || (!nurtureOn && !mailboxId)}
+                                                onClick={() => post("nurture", nurtureOn ? { active: false } : { active: true, mailboxId }, (r) => (r?.active ? "Nurture emails switched on." : "Nurture emails switched off."))}
+                                                className="h-9 rounded-md border border-border px-3 text-sm text-foreground disabled:opacity-50">
+                                                {nurtureOn ? "Switch off" : "Switch on"}
+                                            </button>
+                                        </div>
+                                    )}
+                                    {data.product && productSeqs.length > 0 && (
+                                        productSeqs.every((s) => productUses(s.id)) ? (
+                                            <p className="text-muted-foreground">
+                                                {data.product.name} uses the checkout reminder and after-purchase sequences. They send while its automations are on
+                                                (<Link href="/settings/payments" className="text-primary hover:underline">Settings &gt; Payments</Link>).
+                                            </p>
+                                        ) : data.productAutomation?.automationsActive ? (
+                                            <p className="text-muted-foreground">
+                                                To use these on {data.product.name}, switch its automations off in{" "}
+                                                <Link href="/settings/payments" className="text-primary hover:underline">Settings &gt; Payments</Link> first.
+                                            </p>
+                                        ) : (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-foreground">Use the checkout reminder and after-purchase sequences on {data.product.name}</span>
+                                                {!nurtureSeq || nurtureOn ? mailboxPicker : null}
+                                                <button type="button" disabled={busy !== null || !mailboxId}
+                                                    onClick={() => post("product", { mailboxId }, (r) =>
+                                                        r?.cartAbandon || r?.postPurchase
+                                                            ? "Added to the product. They send once you switch its automations on in Settings > Payments."
+                                                            : "The product already uses other sequences; nothing changed.")}
+                                                    className="h-9 rounded-md border border-border px-3 text-sm text-foreground disabled:opacity-50">
+                                                    Use on product
+                                                </button>
+                                            </div>
+                                        )
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
                     <div className="grid gap-3 md:grid-cols-3">
                         {data.sequences.map((seq) => (
                             <div key={seq.id} className="space-y-2 rounded-lg border border-border p-4 text-sm">

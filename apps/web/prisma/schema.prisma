@@ -607,6 +607,7 @@ model Product {
   deliveryMailboxId        String? // ConnectedMailbox the delivery email goes from
   cartAbandonSequenceId    String? // CampaignSequence a lead joins when checkout isn't paid in time
   cartAbandonHours         Int?
+  postPurchaseSequenceId   String? // CampaignSequence a buyer joins after payment (e.g. a testimonial request)
   automationsActive        Boolean   @default(false)
   automationsActivatedById String?
   automationsActivatedAt   DateTime?
@@ -993,6 +994,9 @@ model SequenceStep {
   delayHours Int      @default(0)
   subject    String?
   body       String?  @db.Text
+  // WhatsApp steps: an approved Meta template to send instead of free text (body = its values, one per line).
+  whatsappTemplateName     String?
+  whatsappTemplateLanguage String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1380,6 +1384,7 @@ model Team {
   whatsappPhoneNumberId       String?
   whatsappAccessTokenEnc      Json?
   whatsappWabaConfiguredAt    DateTime?
+  whatsappBusinessAccountId String? // WABA id, verified against the token; needed to check a template is approved before sending it
 
   // Crystal Knows (DISC personality data) API key, set at setup time. See
   // crystal-knows/crystalCredentials.ts. Unset = enrichment/personality
@@ -1670,6 +1675,9 @@ model PlaybookRun {
   nurtureCampaignId      String? // MOFU nurture: lead magnet, teaching, then the offer (booking offers end with the booking emails)
   cartAbandonCampaignId  String? // BOFU checkout reminders (product offers)
   postPurchaseCampaignId String? // POST testimonial request (product offers)
+  // 5c-1b: the nurture switch. Set = new sign-ups on the plan's lead-magnet page join the nurture sequence (who and when = the approval).
+  nurtureActivatedAt   DateTime?
+  nurtureActivatedById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

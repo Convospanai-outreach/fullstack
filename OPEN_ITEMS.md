@@ -6100,6 +6100,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-319 (Fixed — creator funnel phase 5c-2: WhatsApp template steps in sequences):** checked 2026-10-03 against
+  https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview,
+  https://developers.facebook.com/docs/graph-api/reference/whats-app-business-account/message_templates/ and
+  https://developers.facebook.com/docs/graph-api/changelog/versions.
+  - **Template steps:** a WhatsApp step can name an approved Meta template and language (`SequenceStep.whatsappTemplateName` and
+    `whatsappTemplateLanguage`); its body holds the values, one per line, with `{first_name}`. After the existing consent checks,
+    the engine looks the template up on the team's WhatsApp Business Account. It must be APPROVED, match name and language
+    exactly, and use only numbered body variables (no header media or variables, no dynamic buttons). The cleaned values must
+    match its variable count. Then it sends the template.
+  - **Skip, don't stall:** anything that stops a template step skips only that step with a specific error code, and the
+    sequence carries on with no manual task. That covers no WhatsApp Business, no account id, a template that isn't approved
+    or doesn't fit, wrong values, no language, or a phone without a country code. Free-text WhatsApp steps are unchanged
+    (manual task when a template is needed).
+  - **Business Account id:** `Team.whatsappBusinessAccountId` is optional in the WABA setup card. It's verified by listing a
+    template with the token, which needs `whatsapp_business_management`.
+  - **Nurtures:** they may now include WhatsApp steps that send a template; free-text WhatsApp steps still can't be in one.
+    Switching a plan nurture on, or a product's automations, checks each template with WhatsApp first.
+  - **Consent:** `ConsentService.validateConsent` now goes by the lead's latest ledger entry for the channel, so an opt-out
+    after a grant blocks sends. It used to find any GRANTED row. Callers: the sequence engine and `/whatsapp/send`.
+  - **Opt-out by reply:** `/webhooks/whatsapp` now gets the exact signed bytes (OPEN-306). Before, every delivery failed the
+    signature check, so a STOP reply never revoked consent and inbound WhatsApp messages were never saved.
+  - **Graph version:** every WhatsApp call moves from v19.0 (expired 2026-05-21) to v26.0, through one constant.
+  - **Recipient numbers:** only numbers stored with a country code are sent to (a leading + or 00, or 11+ digits). Nothing is
+    guessed.
+  - **Not here:** launch plans don't add WhatsApp steps by themselves (no template is known). The web campaign "Start outreach"
+    enroller still refuses WhatsApp steps. Not tested live: no prod team has WhatsApp Business connected.
+
+- **OPEN-318 (Fixed — creator funnel phase 5c-1b: switching the plan's email sequences on):** the explicit steps that let the
+  5c-1a drafts send:
+  - **Nurture switch** (plan page, admin only): needs a finished plan, a nurture sequence a nurture can run, and a connected team
+    mailbox, which becomes the sequence's sender (never the system sender). Who and when are recorded on `PlaybookRun`, which is
+    the approval. New sign-ups on the plan's lead-magnet page then join through `NurtureProvider`, on all three intake paths, when
+    the flag is on, the lead isn't at BOFU/POST, and nothing else is emailing it. No backfill of earlier sign-ups. Switching off
+    stops new sign-ups joining; people already in carry on. A failure never fails the intake.
+  - **Use on product** (plan page, admin only): fills only empty cart-abandon (2h) and after-purchase fields of a product whose
+    automations are off, with the picked mailbox as sender. Sends start only when someone switches the product on in
+    Settings > Payments (the existing who/when approval).
+  - **`Product.postPurchaseSequenceId`** (nullable): checked like the cart-abandon sequence and editable in Settings > Payments. It
+    counts toward what a product needs before switching on. After payment, the buyer joins it once nurture has been stopped. A
+    repeat buyer who was in it before isn't added again.
+
 - **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
   sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
   - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
@@ -6126,7 +6167,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
     repeat it. A failure never fails the intake.
   - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
-  - **Known gap (not changed here):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+  - **Known gap (fixed 2026-10-03 in OPEN-319):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
     The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
     relies on the ledger alone.
   - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
@@ -6320,7 +6361,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
 
 - **OPEN-306 (Partly fixed 2026-10-02 — signed JSON webhooks other than Meta DMs get a re-serialized body):**
   `/webhooks/stripe-connect` and `/webhooks/razorpay` now get the exact bytes (OPEN-309, user sign-off 2026-10-02;
-  handler logic unchanged). Still open: `/webhooks/stripe-billing`, `/webhooks/whatsapp` and `/webhooks/resend`.
+  handler logic unchanged). `/webhooks/whatsapp` too (OPEN-319, 2026-10-03). Still open: `/webhooks/stripe-billing` and
+  `/webhooks/resend`.
   apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
   route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
   `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the

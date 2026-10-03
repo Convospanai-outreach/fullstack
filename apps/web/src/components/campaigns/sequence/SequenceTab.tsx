@@ -16,7 +16,20 @@ interface SequenceStepFromApi {
     delayHours: number;
     subject: string | null;
     body: string | null;
+    whatsappTemplateName?: string | null;
+    whatsappTemplateLanguage?: string | null;
 }
+
+const toItem = (s: SequenceStepFromApi): SequenceStepItem => ({
+    id: s.id,
+    stepType: s.stepType,
+    delayDays: s.delayDays,
+    delayHours: s.delayHours,
+    subject: s.subject,
+    body: s.body,
+    whatsappTemplateName: s.whatsappTemplateName ?? null,
+    whatsappTemplateLanguage: s.whatsappTemplateLanguage ?? null,
+});
 
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [loading, setLoading] = useState(true);
@@ -46,16 +59,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 if (cancelled) return;
 
                 const loadedSteps: SequenceStepFromApi[] = sequenceData.steps || [];
-                setSteps(
-                    loadedSteps.map((s) => ({
-                        id: s.id,
-                        stepType: s.stepType,
-                        delayDays: s.delayDays,
-                        delayHours: s.delayHours,
-                        subject: s.subject,
-                        body: s.body,
-                    }))
-                );
+                setSteps(loadedSteps.map(toItem));
                 setSenderMailboxIds(sequenceData.sequence?.senderMailboxIds || []);
                 setTimezone(sequenceData.sequence?.timezone || "UTC");
                 setLinkedinLocked(Boolean(sequenceData.linkedinLocked));
@@ -93,6 +97,8 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         delayHours: s.delayHours,
                         subject: s.subject ?? undefined,
                         body: s.body ?? undefined,
+                        whatsappTemplateName: s.whatsappTemplateName ?? null,
+                        whatsappTemplateLanguage: s.whatsappTemplateLanguage ?? null,
                     })),
                     senderMailboxIds,
                     timezone,
@@ -104,16 +110,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 return;
             }
             const savedSteps: SequenceStepFromApi[] = data.steps || [];
-            setSteps(
-                savedSteps.map((s) => ({
-                    id: s.id,
-                    stepType: s.stepType,
-                    delayDays: s.delayDays,
-                    delayHours: s.delayHours,
-                    subject: s.subject,
-                    body: s.body,
-                }))
-            );
+            setSteps(savedSteps.map(toItem));
             toast.success("Sequence saved");
         } catch (error: any) {
             toast.error(error?.message || "Failed to save sequence");

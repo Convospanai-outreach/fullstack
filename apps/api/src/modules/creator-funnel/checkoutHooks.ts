@@ -71,10 +71,17 @@ export async function onOrderCaptured(teamId: string, orderId: string) {
             await applyFunnelEvent(teamId, leadId, "payment_succeeded").catch((error) =>
                 console.warn(`[CheckoutHooks] Stage update failed for lead ${leadId}: ${errorText(error)}`),
             );
-            const { stopNurture } = await import("./nurtureProvider");
+            const { stopNurture, enrollInNurture } = await import("./nurtureProvider");
             await stopNurture(teamId, leadId, "purchased").catch((error) =>
                 console.warn(`[CheckoutHooks] Stopping nurture failed for lead ${leadId}: ${errorText(error)}`),
             );
+            // After stopping, so the buyer's after-purchase sequence isn't the one stopped. A repeat
+            // buyer who was in it before isn't enrolled again (one enrollment per sequence and lead).
+            if (order.product.automationsActive && order.product.postPurchaseSequenceId) {
+                await enrollInNurture(teamId, leadId, order.product.postPurchaseSequenceId).catch((error) =>
+                    console.warn(`[CheckoutHooks] After-purchase sequence failed for lead ${leadId}: ${errorText(error)}`),
+                );
+            }
         }
         await sendDelivery(order, leadId);
     } catch (error) {

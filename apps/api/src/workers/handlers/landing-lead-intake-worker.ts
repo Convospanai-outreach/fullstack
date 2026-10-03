@@ -49,6 +49,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await pushToMautic(mergedLeadId, teamId);
             await advanceCreatorFunnel(mergedLeadId, teamId);
             await recordOptIn(landingLead, mergedLeadId);
+            await joinPlanNurture(landingLead, mergedLeadId);
             return { created: false, leadId: mergedLeadId, merged: true };
         }
     }
@@ -83,6 +84,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await pushToMautic(existing.id, teamId);
             await advanceCreatorFunnel(existing.id, teamId);
             await recordOptIn(landingLead, existing.id);
+            await joinPlanNurture(landingLead, existing.id);
             return { created: false, leadId: existing.id };
         }
     }
@@ -106,7 +108,20 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     await pushToMautic(createdLead.id, teamId);
     await advanceCreatorFunnel(createdLead.id, teamId);
     await recordOptIn(landingLead, createdLead.id);
+    await joinPlanNurture(landingLead, createdLead.id);
     return { created: true, leadId: createdLead.id };
+}
+
+// Creator funnel: a sign-up on a launch plan's lead-magnet page joins the plan's nurture emails
+// when that plan's nurture is switched on (playbookSwitches.ts). Never fails the intake job.
+async function joinPlanNurture(landingLead: { teamId: string; landingPageId: string }, leadId: string) {
+    try {
+        const { enrollPlanNurture } = await import("@/modules/creator-funnel/playbookSwitches");
+        const skipped = await enrollPlanNurture(landingLead, leadId);
+        if (skipped && skipped !== "no switched-on plan for this page") logger.info(`[LandingLeadIntake] Plan nurture skipped for lead ${leadId}: ${skipped}`);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Plan nurture enrollment failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
 }
 
 // Creator funnel: the page's WhatsApp opt-in, recorded as consent when the lead kept the phone

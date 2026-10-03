@@ -14,6 +14,7 @@ type Automation = {
     deliveryMailboxId: string | null;
     cartAbandonSequenceId: string | null;
     cartAbandonHours: number | null;
+    postPurchaseSequenceId: string | null;
     active: boolean;
     activatedAt: string | null;
 };
@@ -25,7 +26,7 @@ type AutomationData = {
     recentDeliveries: { id: string; deliveryStatus: string; deliveryError: string | null; updatedAt: string }[];
 };
 
-type Draft = { deliveryUrl: string; deliveryMailboxId: string; cartAbandonSequenceId: string; cartAbandonHours: string };
+type Draft = { deliveryUrl: string; deliveryMailboxId: string; cartAbandonSequenceId: string; cartAbandonHours: string; postPurchaseSequenceId: string };
 
 // 404 = the creator funnel isn't on for this team: show nothing.
 const fetcher = async (url: string) => {
@@ -47,6 +48,7 @@ const toDraft = (a: Automation): Draft => ({
     deliveryMailboxId: a.deliveryMailboxId ?? "",
     cartAbandonSequenceId: a.cartAbandonSequenceId ?? "",
     cartAbandonHours: a.cartAbandonHours != null ? String(a.cartAbandonHours) : "",
+    postPurchaseSequenceId: a.postPurchaseSequenceId ?? "",
 });
 
 const fieldClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
@@ -83,6 +85,7 @@ export function ProductAutomations({ productId }: { productId: string }) {
                 deliveryMailboxId: draft.deliveryMailboxId || null,
                 cartAbandonSequenceId: draft.cartAbandonSequenceId || null,
                 cartAbandonHours: hours ? Number(hours) : null,
+                postPurchaseSequenceId: draft.postPurchaseSequenceId || null,
             },
             automation.active ? "Saved." : "Saved. Switch it on when you're ready.",
         );
@@ -98,6 +101,7 @@ export function ProductAutomations({ productId }: { productId: string }) {
                     Funnel automations: <strong className="text-foreground">{automation.active ? "On" : "Off"}</strong>
                     {automation.deliveryUrl ? " · delivery email" : ""}
                     {automation.cartAbandonSequenceId ? ` · cart-abandon after ${automation.cartAbandonHours}h` : ""}
+                    {automation.postPurchaseSequenceId ? " · after-purchase sequence" : ""}
                 </span>
                 <span className="flex gap-2">
                     <button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={busy} onClick={() => setDraft(draft ? null : toDraft(automation))}>
@@ -114,7 +118,8 @@ export function ProductAutomations({ productId }: { productId: string }) {
                     <p className="text-xs text-muted-foreground">
                         After payment, the buyer gets an email with the delivery link from the mailbox you pick. If someone starts checkout
                         and doesn&apos;t pay within the hours you set, they join the cart-abandon sequence. Only buyers who are already
-                        leads get the cart-abandon sequence.
+                        leads get the cart-abandon sequence. Buyers join the after-purchase sequence (for example a testimonial request)
+                        once they&apos;ve paid.
                     </p>
                     <div className="space-y-1">
                         <label htmlFor={`delivery-url-${productId}`} className="text-xs text-muted-foreground">Delivery link (https)</label>
@@ -145,6 +150,16 @@ export function ProductAutomations({ productId }: { productId: string }) {
                             <input id={`abandon-hours-${productId}`} type="number" min={1} max={168} className={fieldClass} value={draft.cartAbandonHours}
                                 onChange={(e) => setDraft({ ...draft, cartAbandonHours: e.target.value })} />
                         </div>
+                    </div>
+                    <div className="space-y-1">
+                        <label htmlFor={`post-seq-${productId}`} className="text-xs text-muted-foreground">After-purchase sequence</label>
+                        <select id={`post-seq-${productId}`} className={fieldClass} value={draft.postPurchaseSequenceId}
+                            onChange={(e) => setDraft({ ...draft, postPurchaseSequenceId: e.target.value })}>
+                            <option value="">None</option>
+                            {data.sequences.map((s) => (
+                                <option key={s.id} value={s.id} disabled={!s.usable}>{s.name}{s.usable ? "" : " (has steps a nurture can't run)"}</option>
+                            ))}
+                        </select>
                     </div>
                     <button type="button" className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50" disabled={busy} onClick={save}>
                         {busy ? "Saving..." : "Save"}

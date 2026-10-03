@@ -69,6 +69,9 @@ const plan = (over: Partial<PlanDetail> = {}): PlanDetail => ({
             steps: [{ delayDays: 0, subject: "Your meal plan" }, { delayDays: 2, subject: "One more idea" }], _count: { enrollments: 0 },
         },
     ],
+    nurtureActivatedAt: null,
+    mailboxes: [{ id: "mb-1", email: "me@maker.test" }],
+    productAutomation: { automationsActive: false, cartAbandonSequenceId: null, postPurchaseSequenceId: null },
     icpCreated: true,
     product: { id: "prod-1", name: "Batch Cooking Course" },
     icp: { id: "icp-1", name: "Audience: busy parents" },
@@ -183,6 +186,33 @@ describe("launch plans", () => {
         expect(toast.success).toHaveBeenCalledWith("Deleted 11 drafts and 1 draft page and 1 email sequence. Kept 1 live post, 1 published page.");
         expect(push).toHaveBeenCalledWith("/content/plans");
         confirm.mockRestore();
+    });
+
+    it("switches the nurture on from a picked mailbox, and points the product at its sequences", async () => {
+        route({
+            "GET /api/proxy/content/playbooks/run-1": () => json(200, { run: plan({ sequences: [
+                { id: "seq-n", campaignId: "camp-n", name: "Nurture", status: "DRAFT", funnelStage: "MOFU", steps: [{ delayDays: 0, subject: "Hi" }], _count: { enrollments: 0 } },
+                { id: "seq-c", campaignId: "camp-c", name: "Reminders", status: "DRAFT", funnelStage: "BOFU", steps: [{ delayDays: 0, subject: "Still there?" }], _count: { enrollments: 0 } },
+            ] }) }),
+            "POST /api/proxy/content/playbooks/run-1/nurture": () => json(200, { active: true }),
+            "POST /api/proxy/content/playbooks/run-1/product": () => json(200, { cartAbandon: true, postPurchase: false }),
+        });
+        await render(<LaunchPlanReview id="run-1" />);
+        expect(container.textContent).toContain("Nurture emails: Off");
+        expect(byText("Switch on")!.hasAttribute("disabled")).toBe(true); // a mailbox first
+        const picker = document.querySelector<HTMLSelectElement>("[aria-label='Send the emails from']")!;
+        await act(async () => {
+            picker.value = "mb-1";
+            picker.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        await click(byText("Switch on"));
+        const sent = (path: string) => JSON.parse(fetchMock.mock.calls.find((c) => c[0] === `/api/proxy/content/playbooks/run-1/${path}`)![1].body);
+        expect(sent("nurture")).toEqual({ active: true, mailboxId: "mb-1" });
+        expect(toast.success).toHaveBeenCalledWith("Nurture emails switched on.");
+
+        await click(byText("Use on product"));
+        expect(sent("product")).toEqual({ mailboxId: "mb-1" });
+        expect(toast.success).toHaveBeenLastCalledWith("Added to the product. They send once you switch its automations on in Settings > Payments.");
     });
 
     it("shows what the plan couldn't make", async () => {
