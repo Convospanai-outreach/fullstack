@@ -6141,7 +6141,67 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     - **Not covered:** WhatsApp and LinkedIn replies.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
       `emailId`; the worst case is a duplicate suggestion.
+    - **Review follow-up (2026-10-03, CodeAnt on #617):** the inbox only shows PENDING_REVIEW trackers, so a reviewed
+      suggestion no longer reappears; non-string `reasoning`/`draftResponse` from the AI are stored as null; a failed
+      suggestion read returns the inbox without suggestions; a spent suggestion is hidden once an outcome is set; the
+      classification enqueue and the alert now run side by side. Declined: prompt-injection hardening (output is
+      suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
+    - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
+      sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
+  2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
+  - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
+    objective "communicate effectively with this person") and read by batch and reply drafts; only legacy leads fall back
+    to a live Crystal call, 10 at a time.
+  - **Lead page:** one Enrichment card per real source; enrich no longer overwrites `enrichedData`; `icpFitScore` shows in
+    the leads list and lead detail. The page refetches 5s and 15s after queuing an enrichment (the endpoint only enqueues).
+  - **Campaigns:** `draftGenerationMode` (Instant or Batch) is settable only while the campaign is a draft (409 after), and
+    can be sent together with `status: "active"`; the mode is applied first. Campaign detail returns the latest draft batch
+    and tolerates that lookup failing.
+  - **Review:** CodeAnt's "objective ignored once guidance is stored" was declined: the stored text is generic by design.
+  - **Schema:** none.
+
+- **OPEN-330 (Fixed — email + password signup alongside Google; PR #624):** 2026-10-01. Merged 2026-10-03.
+  - **Flow:** register (first/last/company/phone, password) -> verification email -> team is provisioned at verification,
+    not at registration, so a pending invitation or domain claim only goes to whoever controls the inbox. Google sign-in
+    on an unverified password account takes it over (clears the password, verifies, provisions). Users without
+    `profileCompletedAt` are sent to `/complete-profile` from the dashboard layout.
+  - **Limits:** passwords 10 to 72 UTF-8 bytes (bcrypt ignores more); login is rate limited per ip+email and per email
+    across IPs; verified-email gate; SSO-enforced domains refused.
+  - **Review follow-up (CodeAnt):** byte-length cap; profile update and default-team rename in one transaction, renaming
+    only the exact generated name ("My Team" or "<old name>'s Team"); provisioning takes a row lock and re-checks
+    membership so verification and first login can't create two teams; on Google takeover provisioning runs before the
+    verified flag is set so a failure retries; network errors on the profile form show a message. Declined: spoofable
+    `x-forwarded-for` (the per-email cap already bounds it).
+  - **Schema:** additive `User` columns `firstName`, `lastName`, `company`, `phone`, `profileCompletedAt` (migration
+    `20261007120000_user_profile_fields`, already applied to prod via Web Prisma Migrate).
+  - **Owed by the user:** production `SMTP_*` env on apps/web is unverified; `sendVerificationEmail` falls back to
+    localhost without it, so verification emails won't arrive until it is set.
+
     Not started.
+- **OPEN-323 (Fixed — superadmin user control: suspend/reactivate, sign out everywhere, platform role):** 2026-10-03,
+  phase D of the superadmin control work. The user signed off on the auth-path changes.
+  - **Schema:** `User.suspendedAt`, `suspendedReason` and `sessionVersion` (default 0), in migration `20261016120000_user_suspension`.
+  - **Panel:** the user detail modal gets account controls, and suspended users are marked in the list. Every action is audited:
+    - suspend (reason required), reactivate, sign out everywhere, change platform role;
+    - `USER_SUSPEND`, `USER_REACTIVATE`, `USER_SIGN_OUT`, `USER_ROLE_SET`;
+    - web route: `PATCH /api/superadmin/users/[id]`.
+    - The signed-in superadmin can't suspend or re-role their own account.
+  - **What suspend and sign-out do:** both bump `sessionVersion`. `lib/userAccess.ts` (web and api) reads `suspendedAt` and
+    `sessionVersion`, cached for 30s per user.
+    - **Web:** the `signIn` callback refuses suspended accounts (`/login?error=suspended`, which shows a notice). The `jwt`
+      callback stamps `sessionVersion` at sign-in, and empties the token when the account is suspended or deleted or the
+      version no longer matches. Tokens issued before this change count as version 0.
+    - **API:** `server.ts` returns 403 for a suspended user and 401 for a browser session token with an old version.
+      Signed internal calls from web are only checked for suspension, since web has already checked their session.
+    - **Extension:** `validateExtensionAuth` refuses suspended users.
+    - A DB error during these checks lets the request through rather than signing everyone out.
+  - **Known limits:**
+    - Changes reach other processes within about 30s.
+    - `proxy.ts` is unchanged, so a suspended user's open tab can still load page shells. Their data calls fail and the session ends.
+    - API keys are team-scoped and are not tied to the suspension.
+    - Password sign-in (#624) is covered: `authorizeCredentials` throws `ACCOUNT_SUSPENDED` after the password checks out, and the login page explains it.
+  - **Tests:** `auth.accountAccess.test.ts`, api `userAccess.test.ts`, `superadmin-user-controls-route.test.ts`.
 - **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
   2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
   - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
@@ -6326,10 +6386,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
     `playbookRunId` links.
 
-- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+- **OPEN-312 (Fixed 2026-10-03 — unknown landing slug returned 500; now 404, bad event name 400):** `POST /landing-agent/public/<slug>/event` and `/lead`
   answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
   `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
   2026-10-02.
+  - **Fixed:** `submitLeadBySlug` and `trackEventBySlug` throw `APIError` 404 for a missing published page and 400 for an
+    invalid event name, so `handleAPIError` no longer maps them to 500.
 
 - **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
   (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
@@ -6522,7 +6584,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Schema:** migration `20261002130000_content_publishing` adds `ContentPost.publishLeaseUntil` and
     `ContentPostTarget.containerId` (additive).
 
-- **OPEN-302 (Open — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
+- **OPEN-302 (Fixed 2026-10-03 — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
   (apps/api) writes the sweep's pseudo reviewer `"system-timeout"` into `ApprovalRequest.reviewerId`, which is a
   foreign key to `User(id)` (`ApprovalRequest_reviewerId_fkey`, confirmed in prod 2026-10-01; no `system-%` users
   exist). The first non-post QUEUED request to pass its `autoDenyAt` will make the update throw, and
@@ -6530,6 +6592,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   2026-10-01 no request has ever been auto-denied and none is overdue. `requestEntityApproval`'s AUTO path
   (`"system-auto"`) has the same shape, but no action type is AUTO today. Content-post decisions (OPEN-301) already
   skip the pseudo reviewer. Fix: leave `reviewerId` null for system decisions and catch per item in the sweep.
+  - **Fixed:** `ApprovalService.approve/reject` store any `system-*` reviewer as null. The sweep catches per item and
+    returns only the number it denied. `breakerService` used to count timeout denials by `reviewerId === "system-timeout"`;
+    it now counts REJECTED rows with no reviewer, so the circuit-breaker deny rate keeps working (tests cover both).
 
 - **OPEN-301 (Fixed — creator funnel phase 3a: content calendar and post approval):** plan Instagram/Facebook
   posts per funnel stage and send them for approval. Nothing publishes yet (phase 3b). Behind `creator-funnel`.
@@ -6735,7 +6800,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
   `Content-Security-Policy` for those pages.
 
-- **OPEN-323 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+- **OPEN-332 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
@@ -6746,8 +6811,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
   second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
   not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
-  rejects a request another process already claimed (verified to fail on the old route). apps/api 323
-  files / 2128 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 324
+  files / 2136 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main
   and the superadmin Redis switch (OPEN-320) is on; without both this changes nothing. **Follow-up:**
   the `@fastify/rate-limit` backstop (OPEN-274) is still per-process. Its built-in Redis store either
   fails open or 500s every request when Redis errors, so it needs a store with a local fallback.

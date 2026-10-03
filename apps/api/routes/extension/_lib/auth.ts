@@ -8,7 +8,8 @@ export type ExtensionAuthFailureCode =
   | "MISSING_TOKEN"
   | "LEGACY_IDENTITY_DISABLED"
   | "INVALID_TOKEN"
-  | "USER_NOT_FOUND";
+  | "USER_NOT_FOUND"
+  | "ACCOUNT_SUSPENDED";
 
 type ExtensionAuthResult =
   | {
@@ -146,12 +147,17 @@ export async function validateExtensionAuth(req: NextRequest): Promise<Extension
       id: true,
       email: true,
       name: true,
+      suspendedAt: true,
       memberships: { where: { status: "active" }, select: { teamId: true } },
     },
   });
 
   if (!user) {
     return failure(401, "USER_NOT_FOUND", "User not found");
+  }
+  // Suspended from the superadmin panel.
+  if (user.suspendedAt) {
+    return failure(403, "ACCOUNT_SUSPENDED", "Account suspended");
   }
 
   const teamIds = Array.from(new Set(user.memberships.map((m) => m.teamId).filter(Boolean)));

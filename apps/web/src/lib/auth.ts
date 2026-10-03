@@ -14,6 +14,7 @@ import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 import { authorizeCredentials } from "@/lib/passwordAuth";
 import { provisionUserTeam } from "@/lib/passwordOnboarding";
+import { forgetUserAccess, getUserAccess, sessionVersionMatches } from "@/lib/userAccess";
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -74,10 +75,14 @@ export const authOptions: NextAuthOptions = {
 
             const existingUser = await prisma.user.findUnique({
                 where: { email },
-                select: { id: true, emailVerified: true }
+                select: { id: true, emailVerified: true, suspendedAt: true }
             });
 
             if (existingUser) {
+                // Suspended from the superadmin panel.
+                if (existingUser.suspendedAt) {
+                    return "/login?error=suspended";
+                }
                 if (await isSsoEnforcedForEmail(email)) {
                     return "/login?error=sso-required";
                 }
@@ -144,6 +149,18 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.id = user.id;
                 token.claimsRefreshedAt = 0;
+                forgetUserAccess(user.id);
+                token["sessionVersion"] = (await getUserAccess(user.id).catch(() => null))?.sessionVersion ?? 0;
+            }
+
+            // A suspended account, or a session ended from the superadmin panel
+            // ("sign out everywhere" bumps User.sessionVersion), loses its session
+            // here. Checked at most every 30s per user; a DB error keeps the session.
+            if (token.id) {
+                const access = await getUserAccess(token.id as string).catch(() => undefined);
+                if (access === null || (access && (access.suspended || !sessionVersionMatches(access, token["sessionVersion"])))) {
+                    return {} as JWT;
+                }
             }
 
             if (token.id) {

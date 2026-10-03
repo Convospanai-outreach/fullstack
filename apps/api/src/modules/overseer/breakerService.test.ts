@@ -71,6 +71,24 @@ describe("evaluateBreakers", () => {
         expect(mockPrisma.notification.create).toHaveBeenCalledTimes(1);
     });
 
+    it("counts reviewer-less rejections (the auto-deny sweep) as timeout denials and trips on the deny rate", async () => {
+        const at = new Date();
+        mockPrisma.approvalRequest.findMany
+            .mockResolvedValueOnce([{ teamId: "team-1" }])
+            .mockResolvedValueOnce([
+                { createdAt: at, reviewedAt: at, reviewerId: null, status: "REJECTED" },
+                { createdAt: at, reviewedAt: at, reviewerId: null, status: "REJECTED" },
+                { createdAt: at, reviewedAt: at, reviewerId: "user-1", status: "APPROVED" },
+            ]);
+        mockPrisma.approvalRequest.count.mockResolvedValue(3);
+        mockPrisma.breakerState.findUnique.mockResolvedValue(null);
+        mockPrisma.breakerState.upsert.mockResolvedValue({});
+
+        const result = await evaluateBreakers();
+
+        expect(result.tripped).toBe(1); // 2 of 3 resolved were timeouts: 0.67 > 0.40
+    });
+
     it("stays CLOSED and never alerts when metrics are within normal bounds", async () => {
         mockPrisma.approvalRequest.findMany
             .mockResolvedValueOnce([{ teamId: "team-1" }])
