@@ -398,6 +398,22 @@ describe("publishDuePosts", () => {
             expect(store.targets.get("t-li")!.status).toBe("PUBLISHED");
         });
 
+        it("doesn't post while any of the images is still processing, and fails if one failed", async () => {
+            const staged = JSON.stringify({ images: ["urn:li:image:0", "urn:li:image:1"] });
+            li.imageState.mockImplementation(async (urn: string) => (urn.endsWith(":0") ? "PROCESSING" : "AVAILABLE"));
+            target("t-li", liProfile, { containerId: staged, updatedAt: new Date(NOW.getTime() - MIN) });
+            due({}, { mediaUrls: media(2) });
+            await publishDuePosts(NOW);
+            expect(li.imageState).toHaveBeenCalledTimes(2);
+            expect(li.createPost).not.toHaveBeenCalled();
+            expect(store.targets.get("t-li")!.status).toBe("PENDING");
+
+            li.imageState.mockImplementation(async (urn: string) => (urn.endsWith(":0") ? "FAILED" : "AVAILABLE"));
+            await publishDuePosts(NOW);
+            expect(li.createPost).not.toHaveBeenCalled();
+            expect(store.targets.get("t-li")!.status).toBe("FAILED");
+        });
+
         it("waits two minutes after the uploads when the profile can't read the image state", async () => {
             li.imageState.mockResolvedValue("UNKNOWN");
             const staged = JSON.stringify({ images: ["urn:li:image:0"] });
