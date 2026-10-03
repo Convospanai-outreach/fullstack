@@ -133,6 +133,25 @@ describe("linkedinConnect", () => {
         expect(mockPrisma.socialAccount.upsert.mock.calls[0]![0].create.scopes).toEqual(["openid", "profile", "w_member_social"]);
     });
 
+    it("reads every page of page roles", async () => {
+        process.env["LINKEDIN_PAGES_CLIENT_ID"] = "pages-client";
+        process.env["LINKEDIN_PAGES_CLIENT_SECRET"] = "pages-secret";
+        const roles = (from: number, n: number) => ({
+            elements: Array.from({ length: n }, (_, i) => ({ role: "ADMINISTRATOR", organization: `urn:li:organization:${from + i}`, state: "APPROVED" })),
+        });
+        fetchMock
+            .mockResolvedValueOnce(json({ access_token: "pages-token", expires_in: 5184000 }))
+            .mockResolvedValueOnce(json(roles(1, 100)))
+            .mockResolvedValueOnce(json(roles(101, 1)))
+            .mockResolvedValueOnce(json({ results: {} }));
+
+        const count = await connectLinkedIn({ code: "code-1", state: { teamId: "team-1", userId: "user-1", kind: "pages", nonce: "n", ts: Date.now() } });
+
+        expect(count).toBe(101);
+        expect(fetchMock.mock.calls[1]![0]).toContain("count=100&start=0");
+        expect(fetchMock.mock.calls[2]![0]).toContain("count=100&start=100");
+    });
+
     it("fails without saving when LinkedIn refuses the code", async () => {
         fetchMock.mockResolvedValueOnce(json({ error: "invalid_request" }, 400));
         await expect(connectLinkedIn({ code: "bad", state: { teamId: "team-1", userId: "user-1", kind: "profile", nonce: "n", ts: Date.now() } })).rejects.toThrow(

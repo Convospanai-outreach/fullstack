@@ -2,6 +2,7 @@ import { FunnelStage, Prisma, SocialPlatform } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { computeAutoDenyAt, resolveApprovalTier } from "@/modules/governance/approvalPolicy";
 import { getBreakerState } from "@/modules/overseer/breakerService";
+import { escapeLittleText } from "./linkedinApi";
 
 // Creator funnel content calendar. A post is a DRAFT until someone sends it for approval
 // (IN_REVIEW, backed by an ApprovalRequest that shows in Inbox > Approvals). Only an APPROVED
@@ -56,12 +57,15 @@ export const PUBLISH_SCOPE: Record<string, string> = {
 
 // LinkedIn: a MultiImage post holds 2 to 20 images (multiimage-post-api, checked 2026-10-04). The
 // Posts API documents no commentary maximum, only FIELD_LENGTH_TOO_LONG; 3000 characters is
-// LinkedIn's own post limit, so we hold posts to that.
+// LinkedIn's own post limit, so we hold posts to that, counted on the text as it's sent (with the
+// backslashes publishing adds before reserved characters) so an approved post can't fail on length.
 export const LINKEDIN_LIMITS = { text: 3000, media: 20 };
 
 export function linkedinProblems(text: string, mediaUrls: string[]): string[] {
     const problems: string[] = [];
-    if ([...text].length > LINKEDIN_LIMITS.text) problems.push(`LinkedIn posts can be at most ${LINKEDIN_LIMITS.text} characters.`);
+    if ([...escapeLittleText(text)].length > LINKEDIN_LIMITS.text) {
+        problems.push(`LinkedIn posts can be at most ${LINKEDIN_LIMITS.text} characters (symbols like ( ) @ * _ count as two).`);
+    }
     if (mediaUrls.length > LINKEDIN_LIMITS.media) problems.push(`LinkedIn allows at most ${LINKEDIN_LIMITS.media} images in one post.`);
     return problems;
 }
