@@ -6141,6 +6141,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     - **Not covered:** WhatsApp and LinkedIn replies.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
       `emailId`; the worst case is a duplicate suggestion.
+    Not started.
+- **OPEN-321 (Fixed — superadmin health tab shows live checks; job replay; links to admin tools):** 2026-10-03, phase B of the
+  superadmin control work.
+  - **Live tiles:** the PostgreSQL, API and worker tiles were fixed text ("Operational", "Healthy", "Active"). `/admin/super/overview`
+    now returns `system`: a timed `SELECT 1`, this API process's uptime and memory, the worker's last heartbeat, and overdue jobs
+    (queued or pending more than 5 minutes past `processAt`). The worker shows "Not responding" after 3 missed beats, and
+    "Behind" when jobs are overdue.
+  - **Worker heartbeat:** new table `ServiceHeartbeat` (migration `20261015120000_service_heartbeat`). The worker upserts its row
+    (`service = "worker"`, with uptime, memory and active jobs) once a minute from its maintenance tick. Failures only log.
+  - **Job failures:** the tile and list counted status `failed`, which the queue never sets; failed jobs are `dead_lettered`.
+    They now use `dead_lettered`, and completed jobs count `succeeded`.
+  - **Replay:** each dead-lettered job has a Replay button. It calls web `/api/superadmin/jobs/[id]/replay`, which calls the existing
+    `/admin/jobs/replay/[id]`, writes a `JOB_REPLAY` audit row, and returns only id, type and status (no job payload).
+  - **Admin tools:** the panel links to the existing `/admin/*` pages (users and roles, invites, site content, rate limits, client
+    errors, observability, runtime health, audit trail).
+  - **Shared helpers:** `lib/superadmin/actor.ts` (`getSuperAdminActor`, `auditSuperAdmin`) and `superAdminApi()` in `apiClient.ts`.
+  - **Tests:** overview route (system block, stale/unknown worker, dead-lettered counts), worker-manager heartbeat, web replay route.
 - **OPEN-320 (Fixed — Redis: no request waits on a connection; superadmin on/off switch):** found 2026-10-03.
   - **Problem:** both API VMs had `REDIS_URL` pointing at a hostname that no longer exists. `getRedisClient()` waited up to
     2s on every call and never remembered the failure, and the global rate limiter in `server.ts` calls it on every request.

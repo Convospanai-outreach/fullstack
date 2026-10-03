@@ -3,6 +3,7 @@ import { JobQueue } from "@/lib/queue";
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { worker } from "../job-processor";
 import { runRetentionSweep } from "../handlers/retentionSweep";
+import { recordHeartbeat } from "@/lib/serviceHeartbeat";
 import { WorkerManager } from "../worker-manager";
 
 vi.mock("@/lib/queue", () => ({
@@ -88,6 +89,11 @@ vi.mock("../handlers/shadowSignalReconciliationWorker", () => ({
 
 vi.mock("../handlers/retentionSweep", () => ({
     runRetentionSweep: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/lib/serviceHeartbeat", () => ({
+    recordHeartbeat: vi.fn().mockResolvedValue(undefined),
+    processStats: () => ({ uptimeSec: 1, rssMb: 100, heapUsedMb: 50 }),
 }));
 
 describe("WorkerManager claim propagation", () => {
@@ -177,6 +183,16 @@ describe("WorkerManager maintenance tick", () => {
         await (manager as any).handleMaintenanceTick();
 
         expect(SequenceService.processDue).toHaveBeenCalledWith({});
+    });
+
+    it("records a worker heartbeat once a minute", async () => {
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(recordHeartbeat).toHaveBeenCalledTimes(1);
+        expect(recordHeartbeat).toHaveBeenCalledWith("worker", expect.any(Date), { uptimeSec: 1, rssMb: 100, heapUsedMb: 50, activeJobs: 0 });
     });
 
     it("does not re-run sequence processing before its interval elapses", async () => {

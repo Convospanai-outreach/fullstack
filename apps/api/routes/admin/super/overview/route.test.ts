@@ -12,7 +12,8 @@ const { mockCheckAdmin, mockPrisma } = vi.hoisted(() => ({
         systemEvent: { count: vi.fn(), findMany: vi.fn() },
         subscription: { findMany: vi.fn() },
         invoice: { findMany: vi.fn() },
-        job: { groupBy: vi.fn(), findMany: vi.fn() },
+        job: { groupBy: vi.fn(), findMany: vi.fn(), count: vi.fn(), findFirst: vi.fn() },
+        serviceHeartbeat: { findUnique: vi.fn() },
         shadowSignal: { count: vi.fn(), findFirst: vi.fn() },
         email: { count: vi.fn() },
         $queryRaw: vi.fn(),
@@ -72,6 +73,9 @@ describe("super admin overview route", () => {
         mockPrisma.invoice.findMany.mockResolvedValue([]);
         mockPrisma.job.groupBy.mockResolvedValue([]);
         mockPrisma.job.findMany.mockResolvedValue([]);
+        mockPrisma.job.count.mockResolvedValue(0);
+        mockPrisma.job.findFirst.mockResolvedValue(null);
+        mockPrisma.serviceHeartbeat.findUnique.mockResolvedValue(null);
         mockPrisma.shadowSignal.count.mockResolvedValue(0);
         mockPrisma.shadowSignal.findFirst.mockResolvedValue(null);
         mockPrisma.email.count.mockResolvedValue(0);
@@ -141,6 +145,45 @@ describe("super admin overview route", () => {
             warmSignalsInWindow: 1,
             lastReceivedAt: receivedAt.toISOString(),
         });
+    });
+
+    it("reports live system health and counts dead-lettered jobs as failures", async () => {
+        mockPrisma.serviceHeartbeat.findUnique.mockResolvedValue({
+            service: "worker",
+            startedAt: new Date(Date.now() - 3600_000),
+            lastSeenAt: new Date(Date.now() - 30_000),
+            meta: { rssMb: 210, activeJobs: 0 },
+        });
+        mockPrisma.job.groupBy.mockResolvedValue([
+            { status: "dead_lettered", _count: { _all: 2 } },
+            { status: "succeeded", _count: { _all: 5 } },
+        ]);
+        mockPrisma.job.count.mockResolvedValue(3);
+        mockPrisma.job.findFirst.mockResolvedValue({ processAt: new Date("2026-10-03T08:00:00.000Z") });
+
+        const { GET } = await import("./route");
+        const body = await (await GET(new Request("http://localhost/api/admin/super/overview?range=30d"))).json();
+
+        expect(body.system.database.ok).toBe(true);
+        expect(body.system.api.rssMb).toBeGreaterThan(0);
+        expect(body.system.worker).toMatchObject({ state: "active", stats: { rssMb: 210, activeJobs: 0 } });
+        expect(body.system.queue).toEqual({ overdueJobs: 3, oldestOverdueAt: "2026-10-03T08:00:00.000Z" });
+        expect(body.totals).toMatchObject({ failedJobsCount: 2, completedJobsCount: 5 });
+        expect(mockPrisma.job.findMany.mock.calls.some(([q]: any[]) => q.where?.status === "dead_lettered")).toBe(true);
+    });
+
+    it("shows the worker as stale after missed heartbeats, and unknown with none", async () => {
+        mockPrisma.serviceHeartbeat.findUnique.mockResolvedValueOnce({
+            service: "worker",
+            startedAt: new Date(),
+            lastSeenAt: new Date(Date.now() - 10 * 60_000),
+            meta: null,
+        });
+        const { GET } = await import("./route");
+        let body = await (await GET(new Request("http://localhost/api/admin/super/overview"))).json();
+        expect(body.system.worker.state).toBe("stale");
+        body = await (await GET(new Request("http://localhost/api/admin/super/overview"))).json();
+        expect(body.system.worker.state).toBe("unknown");
     });
 
     it("reports database size, row counts, and unconfigured infra integrations", async () => {
