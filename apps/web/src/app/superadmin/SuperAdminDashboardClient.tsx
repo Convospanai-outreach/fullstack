@@ -27,6 +27,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Telemetry } from "@/lib/analytics/telemetry";
 import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
+import SystemTiles, { type SystemHealth } from "./SystemTiles";
 
 type SuperOverview = {
   range: string;
@@ -116,6 +117,7 @@ type SuperOverview = {
       userEmail?: string | null;
     }>;
   };
+  system?: SystemHealth;
   jobHealth?: {
     counts: Record<string, number>;
     recentFailed: Array<{
@@ -254,6 +256,17 @@ function dateLabel(value?: string | null) {
   });
 }
 
+const ADMIN_TOOLS = [
+  { href: "/admin/users", label: "Users and roles" },
+  { href: "/admin/invites", label: "Invites" },
+  { href: "/admin/cms", label: "Site content" },
+  { href: "/admin/rate-limits", label: "Rate limits" },
+  { href: "/admin/client-errors", label: "Client errors" },
+  { href: "/admin/observability", label: "Observability" },
+  { href: "/admin/health", label: "Runtime health" },
+  { href: "/admin/audit", label: "Audit trail" },
+];
+
 type TabType = "activity" | "usage" | "billing" | "api" | "health" | "auditLog";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
@@ -272,6 +285,15 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
   const [redis, setRedis] = useState<RedisStatus | null>(null);
   const [redisError, setRedisError] = useState<string | null>(null);
   const [redisSaving, setRedisSaving] = useState(false);
+  const [replayed, setReplayed] = useState<Record<string, string>>({});
+
+  const replayJob = async (jobId: string) => {
+    setReplayed((prev) => ({ ...prev, [jobId]: "Replaying..." }));
+    const response = await fetch(`/api/superadmin/jobs/${encodeURIComponent(jobId)}/replay`, { method: "POST" }).catch(() => null);
+    if (response?.status === 401) return onLoggedOut();
+    const json = await response?.json().catch(() => ({}));
+    setReplayed((prev) => ({ ...prev, [jobId]: response?.ok ? "Queued again" : `Failed: ${json?.error || "request failed"}` }));
+  };
 
   const loadRedis = async () => {
     try {
@@ -483,6 +505,15 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             Failed to load admin overview: {error}
           </GlassCard>
         )}
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>More tools (need your regular sign-in as a system admin):</span>
+          {ADMIN_TOOLS.map((tool) => (
+            <a key={tool.href} href={tool.href} className="text-cyan-400 hover:underline">
+              {tool.label}
+            </a>
+          ))}
+        </div>
 
         {redisNotice(redis) && (
           <button
@@ -860,24 +891,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 <RedisCard status={redis} error={redisError} saving={redisSaving} onToggle={(enabled) => void toggleRedis(enabled)} />
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                  <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Supabase)</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Operational
-                    </p>
-                  </GlassCard>
-                  <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-muted-foreground">API Gateway (Oracle VM)</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Healthy
-                    </p>
-                  </GlassCard>
-                  <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-muted-foreground">Background Worker</p>
-                    <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> Active
-                    </p>
-                  </GlassCard>
+                  <SystemTiles system={data.system} />
                   <GlassCard
                     className={`p-4 ${
                       !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0
@@ -907,7 +921,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                     </p>
                   </GlassCard>
                   <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-rose-500/30 bg-rose-500/10" : "border-border"}`}>
-                    <p className="text-xs uppercase text-muted-foreground">Job Failures</p>
+                    <p className="text-xs uppercase text-muted-foreground">Dead-lettered jobs</p>
                     <p className={`mt-1 text-lg font-bold ${data.totals.failedJobsCount ? "text-destructive" : "text-foreground"}`}>
                       {data.totals.failedJobsCount || 0} in {range}
                     </p>
@@ -948,11 +962,11 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                   <GlassCard className="p-5">
                     <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-destructive" />
-                      Recent Failed Worker Jobs
+                      Dead-lettered jobs
                     </h3>
                     <div className="space-y-2 text-xs">
                       {(!data.jobHealth?.recentFailed || data.jobHealth.recentFailed.length === 0) && (
-                        <p className="text-muted-foreground">No failed worker jobs recorded in this window.</p>
+                        <p className="text-muted-foreground">No dead-lettered jobs in this window.</p>
                       )}
                       {data.jobHealth?.recentFailed.map((job) => (
                         <div
@@ -964,9 +978,18 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                             <span className="text-[10px] text-muted-foreground">{dateLabel(job.createdAt)}</span>
                           </div>
                           <p className="mt-1 font-mono text-[11px] text-destructive">{job.error || "Unknown error"}</p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            Attempts: {job.attempts} · Team: {job.teamId || "None"}
-                          </p>
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <p className="text-[10px] text-muted-foreground">
+                              Attempts: {job.attempts} · Team: {job.teamId || "None"}
+                            </p>
+                            {replayed[job.id] ? (
+                              <span className="text-[10px] text-emerald-400">{replayed[job.id]}</span>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => void replayJob(job.id)}>
+                                Replay
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

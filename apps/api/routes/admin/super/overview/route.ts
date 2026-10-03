@@ -3,6 +3,8 @@ import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { checkAdmin } from "@/lib/admin";
+import { processStats } from "@/lib/serviceHeartbeat";
+import { JOB_STATUS } from "@/lib/queue";
 
 function rangeStart(range: string) {
     const now = new Date();
@@ -11,6 +13,44 @@ function rangeStart(range: string) {
     else if (range === "90d") start.setDate(now.getDate() - 90);
     else start.setDate(now.getDate() - 30);
     return start;
+}
+
+const WORKER_STALE_MS = 3 * 60 * 1000;
+const JOB_BACKLOG_GRACE_MS = 5 * 60 * 1000;
+
+// Live checks behind the Health tab tiles: a timed database round trip, this API
+// process's own numbers, the worker's last heartbeat, and jobs overdue in the queue.
+async function systemHealth() {
+    const dbStarted = Date.now();
+    const database = await prisma.$queryRaw`SELECT 1`
+        .then(() => ({ ok: true, latencyMs: Date.now() - dbStarted }))
+        .catch(() => ({ ok: false, latencyMs: Date.now() - dbStarted }));
+
+    const [heartbeat, overdueJobs, oldestOverdue] = await Promise.all([
+        prisma.serviceHeartbeat.findUnique({ where: { service: "worker" } }).catch(() => null),
+        prisma.job.count({
+            where: { status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.PENDING] }, processAt: { lte: new Date(Date.now() - JOB_BACKLOG_GRACE_MS) } },
+        }),
+        prisma.job.findFirst({
+            where: { status: { in: [JOB_STATUS.QUEUED, JOB_STATUS.PENDING] }, processAt: { lte: new Date(Date.now() - JOB_BACKLOG_GRACE_MS) } },
+            orderBy: { processAt: "asc" },
+            select: { processAt: true },
+        }),
+    ]);
+
+    return {
+        database,
+        api: { ...processStats(), nodeVersion: process.version },
+        worker: heartbeat
+            ? {
+                  state: Date.now() - heartbeat.lastSeenAt.getTime() <= WORKER_STALE_MS ? "active" : "stale",
+                  lastSeenAt: heartbeat.lastSeenAt.toISOString(),
+                  startedAt: heartbeat.startedAt.toISOString(),
+                  stats: heartbeat.meta,
+              }
+            : { state: "unknown", lastSeenAt: null, startedAt: null, stats: null },
+        queue: { overdueJobs, oldestOverdueAt: oldestOverdue?.processAt.toISOString() ?? null },
+    };
 }
 
 function latestDate(values: Array<Date | null | undefined>) {
@@ -29,6 +69,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const range = searchParams.get("range") || "30d";
         const startDate = rangeStart(range);
+        const systemPromise = systemHealth();
 
         const [
             users,
@@ -210,7 +251,7 @@ export async function GET(req: Request) {
                 _count: { _all: true },
             }),
             prisma.job.findMany({
-                where: { status: "failed", createdAt: { gte: startDate } },
+                where: { status: JOB_STATUS.DEAD_LETTERED, createdAt: { gte: startDate } },
                 orderBy: { createdAt: "desc" },
                 take: 10,
                 select: {
@@ -407,8 +448,8 @@ export async function GET(req: Request) {
             totalRevenueCents,
             subscriptionsCount: subscriptions.length,
             activeSubscriptionsCount: subscriptions.filter((s) => s.status === "active").length,
-            failedJobsCount: jobStatusMap["failed"] || 0,
-            completedJobsCount: jobStatusMap["completed"] || 0,
+            failedJobsCount: jobStatusMap[JOB_STATUS.DEAD_LETTERED] || 0,
+            completedJobsCount: jobStatusMap[JOB_STATUS.SUCCEEDED] || 0,
             queuedJobsCount: jobStatusMap["queued"] || 0,
         };
 
@@ -446,6 +487,7 @@ export async function GET(req: Request) {
                     userEmail: inv.user?.email || null,
                 })),
             },
+            system: await systemPromise,
             jobHealth: {
                 counts: jobStatusMap,
                 recentFailed: recentFailedJobs.map((j) => ({

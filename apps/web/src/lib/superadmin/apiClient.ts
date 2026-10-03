@@ -54,23 +54,23 @@ export async function fetchSuperAdminUserDetail(
     return { status: res.status, body };
 }
 
-// Redis status / on-off switch (apps/api routes/admin/super/redis). POST only when
-// `enabled` is given.
-export async function superAdminRedis(
+// Calls an apps/api admin route as the superadmin. `body` makes it a JSON request.
+export async function superAdminApi(
     actor: { id: string; email: string; enterpriseRole: string },
-    enabled?: boolean
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+    path: string,
+    body?: unknown
 ): Promise<{ status: number; body: unknown }> {
-    const url = new URL("/admin/super/redis", INTERNAL_API_ORIGIN);
-    const method = enabled === undefined ? "GET" : "POST";
+    const url = new URL(path, INTERNAL_API_ORIGIN);
     const res = await fetch(url, {
         method,
         headers: {
             ...signInternalAdminHeaders(actor, url, method),
-            ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         },
-        ...(method === "POST" ? { body: JSON.stringify({ enabled }) } : {}),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
         cache: "no-store",
     });
-    const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
-    return { status: res.status, body };
+    const json = await res.json().catch(() => ({ error: "Invalid upstream response" }));
+    return { status: res.status, body: json };
 }

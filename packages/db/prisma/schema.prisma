@@ -2306,6 +2306,15 @@ model SuperAdminAuditLog {
   @@index([action])
 }
 
+// Last-seen time for each long-running process (e.g. the background worker),
+// written about once a minute so the superadmin panel can show real liveness.
+model ServiceHeartbeat {
+  service    String   @id // e.g. "worker"
+  startedAt  DateTime
+  lastSeenAt DateTime
+  meta       Json?
+}
+
 model MarketplaceTemplate {
   id          String   @id @default(uuid())
   name        String
