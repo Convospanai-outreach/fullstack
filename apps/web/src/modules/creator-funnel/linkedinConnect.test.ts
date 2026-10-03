@@ -72,7 +72,11 @@ describe("linkedinConnect", () => {
             expect(await linkedInAvailable("pages")).toBe(true);
         });
 
-        it("offers nothing when the profile app isn't configured", async () => {
+        it("offers nothing when the profile app isn't configured, or in production without a redirect URL", async () => {
+            delete process.env["LINKEDIN_REDIRECT_URI"];
+            (process.env as Record<string, string>)["NODE_ENV"] = "production";
+            expect(await linkedInAvailable("profile")).toBe(false);
+            process.env["LINKEDIN_REDIRECT_URI"] = "https://app.test/cb";
             delete process.env["LINKEDIN_CLIENT_SECRET"];
             expect(await linkedInAvailable("profile")).toBe(false);
         });
@@ -121,6 +125,12 @@ describe("linkedinConnect", () => {
             ["LINKEDIN_ORG", "urn:li:organization:111", "Maker Co", null],
             ["LINKEDIN_ORG", "urn:li:organization:222", null, null],
         ]);
+    });
+
+    it("records all requested scopes when the token response doesn't list them", async () => {
+        fetchMock.mockResolvedValueOnce(json({ access_token: "member-token", expires_in: 5184000 })).mockResolvedValueOnce(json({ sub: "abc123" }));
+        await connectLinkedIn({ code: "code-1", state: { teamId: "team-1", userId: "user-1", kind: "profile", nonce: "n", ts: Date.now() } });
+        expect(mockPrisma.socialAccount.upsert.mock.calls[0]![0].create.scopes).toEqual(["openid", "profile", "w_member_social"]);
     });
 
     it("fails without saving when LinkedIn refuses the code", async () => {

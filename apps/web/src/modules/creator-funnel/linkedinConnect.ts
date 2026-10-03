@@ -72,6 +72,7 @@ function redirectUri() {
 /** Whether this kind of LinkedIn connection can be started here (app configured, and the pages switch on for pages). */
 export async function linkedInAvailable(kind: LinkedInConnectKind): Promise<boolean> {
     if (!clientFor(kind)) return false;
+    if (!process.env["LINKEDIN_REDIRECT_URI"] && process.env["NODE_ENV"] === "production") return false;
     if (kind === "profile") return true;
     const row = await prisma.featureFlag.findUnique({ where: { key: LINKEDIN_PAGES_SWITCH }, select: { isEnabled: true } });
     return row?.isEnabled === true;
@@ -170,9 +171,11 @@ async function exchangeCode(kind: LinkedInConnectKind, code: string) {
         throw new LinkedInConnectError("LinkedIn didn't accept the sign-in. Try again.");
     }
     const expiresIn = typeof json.expires_in === "number" && json.expires_in > 0 ? json.expires_in : null;
+    // Members consent to every requested scope or none, so a response without "scope" means all of them.
+    const granted = parseScopes(json.scope);
     return {
         accessToken: json.access_token as string,
-        scopes: parseScopes(json.scope),
+        scopes: granted.length ? granted : SCOPES[kind],
         expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
     };
 }
