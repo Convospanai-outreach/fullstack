@@ -40,11 +40,26 @@ type InboundReply = {
 };
 
 export async function onInboundReply(message: InboundReply) {
-    try {
-        await notifyInboundReply(message);
-    } catch (error) {
-        console.error("[InboxAlerts] Reply alert failed:", error instanceof Error ? error.message : error);
-    }
+    // Queue the AI reply suggestion first: it is independent of the alert's sentiment/dedupe
+    // early returns. It swallows its own errors.
+    // Run side by side so a slow enqueue never delays the alert.
+    await Promise.all([
+        (async () => {
+            try {
+                const { enqueueReplyClassification } = await import("./replyClassificationService");
+                await enqueueReplyClassification(message);
+            } catch (error) {
+                console.error("[InboxAlerts] Reply classification enqueue failed:", error instanceof Error ? error.message : error);
+            }
+        })(),
+        (async () => {
+            try {
+                await notifyInboundReply(message);
+            } catch (error) {
+                console.error("[InboxAlerts] Reply alert failed:", error instanceof Error ? error.message : error);
+            }
+        })(),
+    ]);
 }
 
 async function notifyInboundReply(message: InboundReply) {

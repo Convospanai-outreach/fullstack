@@ -62,6 +62,7 @@ export async function updateCampaign(
         status?: string;
         targetCount?: number;
         completedCount?: number;
+        draftGenerationMode?: "REALTIME" | "BATCH";
     }
 ) {
     if (!id || id === "undefined") throw new Error("Invalid campaign ID");

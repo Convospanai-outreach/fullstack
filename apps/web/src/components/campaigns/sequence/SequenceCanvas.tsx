@@ -16,6 +16,8 @@ export interface SequenceStepItem {
     delayHours: number;
     subject: string | null;
     body: string | null;
+    whatsappTemplateName?: string | null;
+    whatsappTemplateLanguage?: string | null;
 }
 
 interface SequenceStepNodeData {

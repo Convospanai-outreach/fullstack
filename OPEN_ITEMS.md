@@ -6100,6 +6100,108 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-305 (Fixed — the reply classifier is never called; wire it into the Action Inbox as suggestions only):**
+  `ReplyAnalyzerAgent` (`apps/api/src/lib/ai/agents/ReplyAnalyzerAgent.ts`, plus a copy in apps/web) labels a reply
+  INTERESTED / NOT_INTERESTED / OOO / QUESTION / DNC, with a confidence score, its reasoning and a suggested reply,
+  and writes them to `ReplyTracker`. Nothing calls it (checked on `c3f59fd9`). Apart from the agent, the only use of
+  `ReplyTracker` is a count in `routes/admin/runtime-overview`. Meanwhile the Action Inbox (OPEN-290..297, #599)
+  only has manual outcomes: `markReplyOutcome` (`modules/inbox/actionInboxService.ts`) sets `Lead.replyOutcome`
+  (interested / not_interested / meeting_booked / wrong_person), moves the lead's stage and stops its sequences.
+  - **Decision (user, 2026-10-01): suggestions only.** Run the classifier when a reply comes in. In the inbox,
+    pre-select the matching outcome and show the confidence, the reasoning and the suggested reply. The rep's
+    existing click is still what applies the outcome. OOO and QUESTION are shown as labels and set no outcome.
+  - **Remove the agent's side effects:** it must not mark leads do-not-contact or write learned memory by itself. A
+    wrong label must never suppress a real prospect or stop a sequence.
+  - Map the two vocabularies in one place. Keep it team-scoped: the reply's lead must belong to the caller's team.
+  - **Fixed:**
+    - **Side effects removed:** `ReplyAnalyzerAgent` lost its auto-DNC/blacklist, OOO auto-handling and
+      `saveMemory`. Every row is stored as `PENDING_REVIEW`.
+    - **Scoped and billed:** the agent requires the lead to be in `teamId` and calls `askAI` with that team.
+      Before, `askAI` got no team, so the call was unmetered.
+    - **Failures store nothing:** a failed or unusable AI result throws and saves no row.
+    - **Where it runs:** `onInboundReply` (Gmail sync, IMAP/SMTP, Resend inbound) queues a
+      `reply_classification` job, keyed per message (`ReplyTracker.emailId` = inbound `Message.id`; no
+      migration). Ingestion never waits on it or fails because of it. Out of credits does not retry.
+    - **Shared mapping:** `modules/inbox/replySuggestions.ts`. INTERESTED → interested,
+      NOT_INTERESTED → not_interested, DNC → not_interested plus an "asked not to be contacted" note. OOO and
+      QUESTION are labels only.
+    - **Inbox UI:** `getInbox` returns a team-scoped `suggestion` per reply. The inbox shows it, highlights the
+      suggested outcome and can put the suggested reply in the composer. It never sends.
+    - **Dead copy deleted:** `apps/web/src/lib/ai/agents/ReplyAnalyzerAgent.ts` had no callers and still
+      auto-DNC'd.
+    - **One-click do not contact:** when a reply is flagged "asked not to be contacted", the inbox shows a "Do not
+      contact" button. `POST /inbox/replies/:id/do-not-contact` → `markReplyDoNotContact` adds the lead's email to
+      the team `SuppressionEntry` list (reason UNSUBSCRIBE, source INBOX, `createdBy` = the rep), then applies
+      not_interested.
+      - Any team member can do it, the same as the unsubscribe link. Settings → manual suppression needs ADMIN.
+      - Undo is admin-only: Settings → Do-not-contact list (`/settings/suppressions`) lists the team's
+        entries, and admins get a Remove button. `DELETE /email/suppressions?id=` requires ADMIN, is scoped to the
+        team, and writes an audit-log entry (`REMOVE_SUPPRESSION`). Before this, nothing in the UI showed the list.
+    - **Billing (user, 2026-10-01):** on for every team, using AI credits per inbound email reply.
+    - **Not covered:** WhatsApp and LinkedIn replies.
+    - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
+      `emailId`; the worst case is a duplicate suggestion.
+    Not started.
+- **OPEN-321 (Fixed — superadmin health tab shows live checks; job replay; links to admin tools):** 2026-10-03, phase B of the
+  superadmin control work.
+  - **Live tiles:** the PostgreSQL, API and worker tiles were fixed text ("Operational", "Healthy", "Active"). `/admin/super/overview`
+    now returns `system`: a timed `SELECT 1`, this API process's uptime and memory, the worker's last heartbeat, and overdue jobs
+    (queued or pending more than 5 minutes past `processAt`). The worker shows "Not responding" after 3 missed beats, and
+    "Behind" when jobs are overdue.
+  - **Worker heartbeat:** new table `ServiceHeartbeat` (migration `20261015120000_service_heartbeat`). The worker upserts its row
+    (`service = "worker"`, with uptime, memory and active jobs) once a minute from its maintenance tick. Failures only log.
+  - **Job failures:** the tile and list counted status `failed`, which the queue never sets; failed jobs are `dead_lettered`.
+    They now use `dead_lettered`, and completed jobs count `succeeded`.
+  - **Replay:** each dead-lettered job has a Replay button. It calls web `/api/superadmin/jobs/[id]/replay`, which calls the existing
+    `/admin/jobs/replay/[id]`, writes a `JOB_REPLAY` audit row, and returns only id, type and status (no job payload).
+  - **Admin tools:** the panel links to the existing `/admin/*` pages (users and roles, invites, site content, rate limits, client
+    errors, observability, runtime health, audit trail).
+  - **Shared helpers:** `lib/superadmin/actor.ts` (`getSuperAdminActor`, `auditSuperAdmin`) and `superAdminApi()` in `apiClient.ts`.
+  - **Tests:** overview route (system block, stale/unknown worker, dead-lettered counts), worker-manager heartbeat, web replay route.
+- **OPEN-320 (Fixed — Redis: no request waits on a connection; superadmin on/off switch):** found 2026-10-03.
+  - **Problem:** both API VMs had `REDIS_URL` pointing at a hostname that no longer exists. `getRedisClient()` waited up to
+    2s on every call and never remembered the failure, and the global rate limiter in `server.ts` calls it on every request.
+    So every API request took about 2s longer (24h median 2,041 ms on api-main). `routes/admin/runtime-overview` also opened
+    its own untimed connection.
+  - **Fix (`apps/api/src/lib/redis.ts`):** `getRedisClient()` returns a ready client or `null` at once. If not connected, it
+    starts one background attempt (2s connect timeout), at most once a minute after a failure. Callers keep using their
+    existing non-Redis fallbacks. The production "REDIS_URL is missing" error logs once instead of on every call.
+  - **Switch:** a global `FeatureFlag` row `system_redis`. No row means follow the env. It is read in the background every
+    30s and never on the request path; turning it off disconnects. `GET`/`POST /admin/super/redis` (SYSTEM_ADMIN) and
+    web `/api/superadmin/redis` (superadmin session, audit rows `REDIS_ENABLE`/`REDIS_DISABLE`). It returns state and
+    booleans only, never the URL; the URL stays a server env setting.
+  - **Panel:** a Redis card on the superadmin "Outages & Job Health" tab, plus a notice on every tab while Redis is off or
+    unreachable. Turning it on is disabled until a Redis URL is configured on the server.
+  - **runtime-overview:** now reports from the shared client state, with no extra connection.
+  - **Ops (2026-10-03):** the stale `REDIS_URL` line must be commented out on both VMs. There is no Redis server today.
+  - **Tests:** `src/lib/__tests__/redis.test.ts`, `routes/admin/super/redis/route.test.ts`, web `superadmin-redis-route.test.ts`.
+- **OPEN-319 (Fixed — creator funnel phase 5c-2: WhatsApp template steps in sequences):** checked 2026-10-03 against
+  https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview,
+  https://developers.facebook.com/docs/graph-api/reference/whats-app-business-account/message_templates/ and
+  https://developers.facebook.com/docs/graph-api/changelog/versions.
+  - **Template steps:** a WhatsApp step can name an approved Meta template and language (`SequenceStep.whatsappTemplateName` and
+    `whatsappTemplateLanguage`); its body holds the values, one per line, with `{first_name}`. After the existing consent checks,
+    the engine looks the template up on the team's WhatsApp Business Account. It must be APPROVED, match name and language
+    exactly, and use only numbered body variables (no header media or variables, no dynamic buttons). The cleaned values must
+    match its variable count. Then it sends the template.
+  - **Skip, don't stall:** anything that stops a template step skips only that step with a specific error code, and the
+    sequence carries on with no manual task. That covers no WhatsApp Business, no account id, a template that isn't approved
+    or doesn't fit, wrong values, no language, or a phone without a country code. Free-text WhatsApp steps are unchanged
+    (manual task when a template is needed).
+  - **Business Account id:** `Team.whatsappBusinessAccountId` is optional in the WABA setup card. It's verified by listing a
+    template with the token, which needs `whatsapp_business_management`.
+  - **Nurtures:** they may now include WhatsApp steps that send a template; free-text WhatsApp steps still can't be in one.
+    Switching a plan nurture on, or a product's automations, checks each template with WhatsApp first.
+  - **Consent:** `ConsentService.validateConsent` now goes by the lead's latest ledger entry for the channel, so an opt-out
+    after a grant blocks sends. It used to find any GRANTED row. Callers: the sequence engine and `/whatsapp/send`.
+  - **Opt-out by reply:** `/webhooks/whatsapp` now gets the exact signed bytes (OPEN-306). Before, every delivery failed the
+    signature check, so a STOP reply never revoked consent and inbound WhatsApp messages were never saved.
+  - **Graph version:** every WhatsApp call moves from v19.0 (expired 2026-05-21) to v26.0, through one constant.
+  - **Recipient numbers:** only numbers stored with a country code are sent to (a leading + or 00, or 11+ digits). Nothing is
+    guessed.
+  - **Not here:** launch plans don't add WhatsApp steps by themselves (no template is known). The web campaign "Start outreach"
+    enroller still refuses WhatsApp steps. Not tested live: no prod team has WhatsApp Business connected.
+
 - **OPEN-318 (Fixed — creator funnel phase 5c-1b: switching the plan's email sequences on):** the explicit steps that let the
   5c-1a drafts send:
   - **Nurture switch** (plan page, admin only): needs a finished plan, a nurture sequence a nurture can run, and a connected team
@@ -6140,7 +6242,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
     repeat it. A failure never fails the intake.
   - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
-  - **Known gap (not changed here):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+  - **Known gap (fixed 2026-10-03 in OPEN-319):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
     The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
     relies on the ledger alone.
   - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
@@ -6334,7 +6436,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
 
 - **OPEN-306 (Partly fixed 2026-10-02 — signed JSON webhooks other than Meta DMs get a re-serialized body):**
   `/webhooks/stripe-connect` and `/webhooks/razorpay` now get the exact bytes (OPEN-309, user sign-off 2026-10-02;
-  handler logic unchanged). Still open: `/webhooks/stripe-billing`, `/webhooks/whatsapp` and `/webhooks/resend`.
+  handler logic unchanged). `/webhooks/whatsapp` too (OPEN-319, 2026-10-03). Still open: `/webhooks/stripe-billing` and
+  `/webhooks/resend`.
   apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
   route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
   `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the
@@ -6613,7 +6716,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
   `Content-Security-Policy` for those pages.
 
-- **OPEN-319 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+- **OPEN-322 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
@@ -6624,11 +6727,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
   second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
   not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
-  rejects a request another process already claimed (verified to fail on the old route). apps/api 314
-  files / 2049 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main;
-  without it this changes nothing. **Follow-up:** the `@fastify/rate-limit` backstop (OPEN-274) is
-  still per-process. Its built-in Redis store either fails open or 500s every request when Redis errors,
-  so it needs a store with a local fallback.
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 322
+  files / 2123 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main
+  and the superadmin Redis switch (OPEN-320) is on; without both this changes nothing. **Follow-up:**
+  the `@fastify/rate-limit` backstop (OPEN-274) is still per-process. Its built-in Redis store either
+  fails open or 500s every request when Redis errors, so it needs a store with a local fallback.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

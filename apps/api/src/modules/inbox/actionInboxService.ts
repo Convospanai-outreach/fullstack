@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { localDayRange } from "./localDay";
 import { REPLY_WINDOW_MS, sendSocialReply } from "@/modules/creator-funnel/socialInbox";
+import { getSuggestionsForReplies, type ReplySuggestion } from "./replySuggestions";
 
 // Action Inbox: one team-scoped view of inbound replies, open Overseer nudges and
 // upcoming meetings. Message has no teamId of its own, so every Message query here is
@@ -129,6 +130,11 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
         getInboxCounts(teamId, now),
     ]);
 
+    // Suggestions are an extra: a failure reading them must not hide the whole inbox.
+    const suggestions = await getSuggestionsForReplies(teamId, replies.map((reply) => reply.id)).catch(
+        () => new Map<string, ReplySuggestion>()
+    );
+
     return {
         replies: {
             items: replies.map((reply) => {
@@ -151,6 +157,7 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
                     isRead: reply.isRead,
                     sentimentScore: reply.sentimentScore,
                     createdAt: reply.createdAt,
+                    suggestion: suggestions.get(reply.id) ?? null,
                 };
             }),
             page,
@@ -348,4 +355,19 @@ export async function markReplyOutcome(teamId: string, messageId: string, outcom
 
     await prisma.message.update({ where: { id: reply.id }, data: { isRead: true } });
     return { leadId, outcome, stoppedEnrollments: stopped };
+}
+
+// The rep's one click for "asked not to be contacted": adds the lead's email to the team
+// suppression list (checked by campaign sends, sequence runs and inbox replies), then
+// applies the not_interested outcome so the lead is closed and its sequences stop.
+export async function markReplyDoNotContact(teamId: string, messageId: string, userId: string) {
+    const reply = await findTeamReply(teamId, messageId);
+    const email = reply.lead.email;
+    if (!email) throw new APIError("Lead has no email address to suppress", 400, "LEAD_EMAIL_MISSING");
+
+    const { recordSuppression } = await import("@/modules/email-campaigner/service/googleMailboxService");
+    await recordSuppression({ teamId, email, reason: "UNSUBSCRIBE", source: "INBOX", leadId: reply.leadId, createdBy: userId });
+
+    const result = await markReplyOutcome(teamId, messageId, "not_interested");
+    return { ...result, suppressed: true };
 }

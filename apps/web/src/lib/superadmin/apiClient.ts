@@ -9,7 +9,7 @@ const INTERNAL_API_ORIGIN =
 // apps/api's checkAdmin() (apps/api/src/lib/admin.ts) only understands a NextAuth
 // session or this exact HMAC header scheme, and that gate is intentionally not
 // being touched for the new standalone superadmin login.
-function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }, url: URL): HeadersInit {
+function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }, url: URL, method = "GET"): HeadersInit {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) throw new Error("NEXTAUTH_SECRET is not configured");
 
@@ -18,7 +18,7 @@ function signInternalAdminHeaders(user: { id: string; email: string; enterpriseR
         userId: user.id,
         email: user.email,
         role: user.enterpriseRole,
-        method: "GET",
+        method,
         path: url.pathname,
     });
 }
@@ -52,4 +52,25 @@ export async function fetchSuperAdminUserDetail(
     });
     const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
     return { status: res.status, body };
+}
+
+// Calls an apps/api admin route as the superadmin. `body` makes it a JSON request.
+export async function superAdminApi(
+    actor: { id: string; email: string; enterpriseRole: string },
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+    path: string,
+    body?: unknown
+): Promise<{ status: number; body: unknown }> {
+    const url = new URL(path, INTERNAL_API_ORIGIN);
+    const res = await fetch(url, {
+        method,
+        headers: {
+            ...signInternalAdminHeaders(actor, url, method),
+            ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({ error: "Invalid upstream response" }));
+    return { status: res.status, body: json };
 }

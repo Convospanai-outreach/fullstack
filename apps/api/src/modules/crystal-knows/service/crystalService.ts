@@ -95,4 +95,35 @@ export class CrystalService {
             return null;
         }
     }
+
+    /** Like generatePersonalityPrompt but also returns the DISC type/archetype, for persisting at enrichment time. */
+    static async generatePersonalityGuidance(
+        teamId: string,
+        params: { id: string; objective?: string }
+    ): Promise<{ prompt: string; discType: string | null; archetype: string | null } | null> {
+        try {
+            const apiKey = await getTeamCrystalApiKey(teamId);
+            if (!apiKey) return null;
+            const res = await new CrystalClient(apiKey).generatePrompt(params);
+            if (!res.prompt) return null;
+            return { prompt: res.prompt, discType: res.disc_type || null, archetype: res.archetype || null };
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Personality guidance text for drafting to a lead. Prefers the guidance
+     * persisted by enrichment (no network call); falls back to the free live
+     * generate_prompt call for leads enriched before it was stored. Returns ""
+     * when the lead has no Crystal profile. Scoped to `teamId` like every other
+     * Crystal call.
+     */
+    static async getGuidanceForLead(teamId: string | undefined, lead: any, objective: string): Promise<string> {
+        const crystal = lead?.enrichedData?.crystalKnows;
+        if (!teamId || !crystal) return "";
+        if (typeof crystal.guidance?.prompt === "string" && crystal.guidance.prompt) return crystal.guidance.prompt;
+        if (!crystal.profileId) return "";
+        return (await CrystalService.generatePersonalityPrompt(teamId, { id: crystal.profileId, objective })) || "";
+    }
 }

@@ -13,12 +13,14 @@ const API_BASE = getBrowserApiBase();
 export interface WabaSettings {
     hasWaba: boolean;
     phoneNumberId: string | null;
+    businessAccountId?: string | null;
 }
 
 export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; onSaved: (next: WabaSettings) => void }) {
     const [editing, setEditing] = useState(false);
     const [phoneNumberId, setPhoneNumberId] = useState("");
     const [accessToken, setAccessToken] = useState("");
+    const [businessAccountId, setBusinessAccountId] = useState("");
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
 
@@ -29,7 +31,7 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
             const res = await fetch(`${API_BASE}/whatsapp/settings`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(hasWaba ? { hasWaba, phoneNumberId, accessToken } : { hasWaba: false }),
+                body: JSON.stringify(hasWaba ? { hasWaba, phoneNumberId, accessToken, businessAccountId: businessAccountId.trim() || undefined } : { hasWaba: false }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
@@ -54,6 +56,11 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
             {settings.hasWaba && !editing ? (
                 <div className="text-sm text-muted-foreground space-y-2">
                     <p>Sequence WhatsApp steps send automatically via phone number ID <code>{settings.phoneNumberId}</code>.</p>
+                    <p>
+                        {settings.businessAccountId
+                            ? <>Template steps are checked against Business Account <code>{settings.businessAccountId}</code>.</>
+                            : "Add the Business Account ID (Change credentials) to send approved templates from sequences."}
+                    </p>
                     <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Change credentials</Button>
                         <Button size="sm" variant="outline" onClick={() => save(false)} disabled={saving}>Disable automation</Button>
@@ -64,6 +71,7 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
                     <p className="text-xs text-muted-foreground">Enter your Meta WhatsApp Business phone number ID and access token. We verify them before saving.</p>
                     <Input placeholder="Phone number ID" value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} />
                     <Input placeholder="Access token" type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} />
+                    <Input placeholder="Business Account ID (for templates, optional)" inputMode="numeric" value={businessAccountId} onChange={(e) => setBusinessAccountId(e.target.value)} />
                     {formError && <p className="text-xs text-destructive">{formError}</p>}
                     <div className="flex gap-2">
                         <Button size="sm" onClick={() => save(true)} disabled={saving || !phoneNumberId || !accessToken}>

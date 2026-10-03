@@ -6,6 +6,7 @@ import { WhatsAppService } from "@/services/WhatsAppService";
 import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
+import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -540,6 +541,9 @@ export class SequenceService {
             return { runId: run.id, status: "SKIPPED_NO_CONSENT" };
         }
 
+        const templateName = typeof run.step?.whatsappTemplateName === "string" ? run.step.whatsappTemplateName.trim() : "";
+        if (templateName) return this.executeWhatsAppTemplateRun(run, lead, templateName, now);
+
         const message = typeof run.step?.body === "string" && run.step.body.trim() ? run.step.body.trim() : "";
         if (!message) {
             await this.failRun(run.id, "MISSING_BODY", "WhatsApp sequence step has no message.", false, now);
@@ -601,6 +605,57 @@ export class SequenceService {
             // Lead stage advancement is best-effort - the send itself already succeeded.
         }
 
+        await this.scheduleNextStep(run, now);
+        return { runId: run.id, status: "SENT" };
+    }
+
+    // Creator funnel 5c-2: a WhatsApp step with an approved Meta template, sent automatically (consent
+    // was checked by the caller). Anything that stops it - no WhatsApp Business account or id, a
+    // template that isn't approved or doesn't fit, values that don't match its variables, a phone
+    // number without a country code - skips just this step and carries on, so a nurture never
+    // stalls on WhatsApp. The step's values are lead data and are never logged.
+    private static async executeWhatsAppTemplateRun(run: any, lead: any, name: string, now: Date) {
+        const client = db();
+        const skip = async (errorCode: string, errorMessage: string) => {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: { status: "SKIPPED_WHATSAPP", completedAt: now, errorCode, errorMessage },
+            });
+            await this.scheduleNextStep(run, now);
+            return { runId: run.id, status: "SKIPPED_WHATSAPP", errorCode };
+        };
+
+        const language = typeof run.step?.whatsappTemplateLanguage === "string" ? run.step.whatsappTemplateLanguage.trim() : "";
+        if (!language) return skip("WHATSAPP_TEMPLATE_NO_LANGUAGE", "The step has no template language.");
+        const to = whatsappRecipient(lead.phone);
+        if (!to) return skip("WHATSAPP_PHONE_NOT_INTERNATIONAL", "The lead's phone number has no country code.");
+        const check = await checkTemplate(run.teamId, name, language);
+        if (!check.ok) return skip(check.code, check.reason);
+        const values = templateValues(run.step?.body, lead);
+        if (values.length !== check.variables) {
+            return skip("WHATSAPP_TEMPLATE_VALUES", `The template has ${check.variables} variable(s); the step gives ${values.length} value(s).`);
+        }
+        const wabaConfig = await getTeamWabaConfig(run.teamId);
+        if (!wabaConfig) return skip("WHATSAPP_NOT_CONNECTED", "WhatsApp Business isn't connected.");
+
+        let messageId: string | null;
+        try {
+            messageId = await WhatsAppService.sendTemplate(to, { name, language, values }, wabaConfig);
+        } catch (error: any) {
+            await this.failRun(run.id, "WHATSAPP_SEND_FAILED", error?.message || "WhatsApp send failed.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "WHATSAPP_SEND_FAILED" };
+        }
+
+        await TemplateGuard.recordMessageSent(run.leadId, `[template] ${name}`, true);
+        await client.sequenceStepRun.update({
+            where: { id: run.id },
+            data: { status: "SENT", completedAt: now, errorCode: null, errorMessage: null, ...(messageId ? { providerMessageId: messageId } : {}) },
+        });
+        try {
+            await advanceLeadAfterEmailSent(prisma, { leadId: run.leadId, teamId: run.teamId, campaignId: run.campaignId });
+        } catch {
+            // Lead stage advancement is best-effort - the send itself already succeeded.
+        }
         await this.scheduleNextStep(run, now);
         return { runId: run.id, status: "SENT" };
     }

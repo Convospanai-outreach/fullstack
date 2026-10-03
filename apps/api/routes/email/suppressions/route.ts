@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { recordSuppression } from "@/modules/email-campaigner/service/googleMailboxService";
+import { audit } from "@/lib/governance/audit";
 import { z } from "zod";
 
 const SuppressionSchema = z.object({
@@ -50,4 +51,39 @@ export async function POST(req: NextRequest) {
         createdBy: ctx.userId,
     });
     return NextResponse.json({ suppression });
+}
+
+// Lets this address be emailed again, so admin-only and audit-logged.
+export async function DELETE(req: NextRequest) {
+    const ctx = await getCurrentContextFromRequest(req);
+    if (!ctx.userId || !ctx.teamId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+        return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    const entry = await prisma.suppressionEntry.findFirst({
+        where: { id, teamId: ctx.teamId },
+        select: { id: true, email: true, reason: true, source: true },
+    });
+    if (!entry) {
+        return NextResponse.json({ error: "Suppression not found" }, { status: 404 });
+    }
+
+    await prisma.suppressionEntry.deleteMany({ where: { id: entry.id, teamId: ctx.teamId } });
+    await audit({
+        actorId: ctx.userId,
+        orgId: ctx.teamId,
+        action: "REMOVE_SUPPRESSION",
+        entity: "SuppressionEntry",
+        entityId: entry.id,
+        metadata: { email: entry.email, reason: entry.reason, source: entry.source },
+    });
+    return NextResponse.json({ removed: true });
 }
