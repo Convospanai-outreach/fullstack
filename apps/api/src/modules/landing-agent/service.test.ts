@@ -123,3 +123,13 @@ describe("landingAgentService.trackEventBySlug", () => {
         });
     });
 });
+
+describe("landingAgentService public slug errors", () => {
+    it("answers 404 for a slug with no published page and 400 for an unknown event name", async () => {
+        vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue(null as any);
+
+        await expect(landingAgentService.submitLeadBySlug({ slug: "nope", payload: {} })).rejects.toMatchObject({ statusCode: 404 });
+        await expect(landingAgentService.trackEventBySlug({ slug: "nope", eventName: "page_view" })).rejects.toMatchObject({ statusCode: 404 });
+        await expect(landingAgentService.trackEventBySlug({ slug: "nope", eventName: "not-an-event" })).rejects.toMatchObject({ statusCode: 400 });
+    });
+});
