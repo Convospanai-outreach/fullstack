@@ -100,7 +100,7 @@ describe("getInbox", () => {
         const inbox = await getInbox("team-a", { page: 1, limit: 20 });
 
         expect(mockDb.replyTracker.findMany).toHaveBeenCalledWith(expect.objectContaining({
-            where: { emailId: { in: ["msg-1", "msg-2"] }, lead: { teamId: "team-a" } },
+            where: { emailId: { in: ["msg-1", "msg-2"] }, status: "PENDING_REVIEW", lead: { teamId: "team-a" } },
         }));
         expect(inbox.replies.items[0]!.suggestion).toEqual({
             classification: "DNC", suggestedOutcome: "not_interested", askedNotToContact: true,

@@ -136,7 +136,7 @@ describe("getSuggestionsForReplies", () => {
 
         const result = await getSuggestionsForReplies("team-a", ["msg-1"]);
 
-        expect(mockDb.replyTracker.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { emailId: { in: ["msg-1"] }, lead: { teamId: "team-a" } } }));
+        expect(mockDb.replyTracker.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { emailId: { in: ["msg-1"] }, status: "PENDING_REVIEW", lead: { teamId: "team-a" } } }));
         expect(result.size).toBe(0);
     });
 
