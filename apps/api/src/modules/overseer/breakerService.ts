@@ -36,14 +36,15 @@ async function computeTeamMetrics(teamId: string, windowStart: Date): Promise<Te
                 status: { in: ["APPROVED", "REJECTED"] },
                 reviewedAt: { gte: windowStart }
             },
-            select: { createdAt: true, reviewedAt: true, reviewerId: true }
+            select: { createdAt: true, reviewedAt: true, reviewerId: true, status: true }
         })
     ]);
 
     const tatHours = resolved
         .filter((r) => r.reviewedAt)
         .map((r) => (r.reviewedAt!.getTime() - r.createdAt.getTime()) / (60 * 60 * 1000));
-    const timeoutDenials = resolved.filter((r) => r.reviewerId === "system-timeout").length;
+    // A rejection with no reviewer is the auto-deny sweep (its pseudo reviewer has no User row, so it is stored as null).
+    const timeoutDenials = resolved.filter((r) => r.status === "REJECTED" && r.reviewerId === null).length;
 
     return {
         depth,
