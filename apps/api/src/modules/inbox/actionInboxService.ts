@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { localDayRange } from "./localDay";
 import { REPLY_WINDOW_MS, sendSocialReply } from "@/modules/creator-funnel/socialInbox";
-import { getSuggestionsForReplies } from "./replySuggestions";
+import { getSuggestionsForReplies, type ReplySuggestion } from "./replySuggestions";
 
 // Action Inbox: one team-scoped view of inbound replies, open Overseer nudges and
 // upcoming meetings. Message has no teamId of its own, so every Message query here is
@@ -130,7 +130,10 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
         getInboxCounts(teamId, now),
     ]);
 
-    const suggestions = await getSuggestionsForReplies(teamId, replies.map((reply) => reply.id));
+    // Suggestions are an extra: a failure reading them must not hide the whole inbox.
+    const suggestions = await getSuggestionsForReplies(teamId, replies.map((reply) => reply.id)).catch(
+        () => new Map<string, ReplySuggestion>()
+    );
 
     return {
         replies: {

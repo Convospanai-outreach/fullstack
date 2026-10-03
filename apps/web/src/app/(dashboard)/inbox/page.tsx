@@ -189,7 +189,8 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
 
     const lead = thread?.lead;
     const currentOutcome = outcomeLabel(lead?.replyOutcome ?? reply.outcome);
-    const suggestion = reply.suggestion;
+    // Once the rep has set an outcome the suggestion is spent: don't keep offering its stale draft.
+    const suggestion = lead?.replyOutcome || reply.outcome ? null : reply.suggestion;
 
     return (
         <GlassCard className="p-0 flex flex-col min-h-[520px]">

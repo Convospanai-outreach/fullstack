@@ -34,7 +34,8 @@ export async function getSuggestionsForReplies(teamId: string, messageIds: strin
     if (messageIds.length === 0) return suggestions;
 
     const rows = await prisma.replyTracker.findMany({
-        where: { emailId: { in: messageIds }, lead: { teamId } },
+        // PENDING_REVIEW only: a reviewed (approved / rejected / auto-handled) tracker is no longer a live suggestion.
+        where: { emailId: { in: messageIds }, status: "PENDING_REVIEW", lead: { teamId } },
         orderBy: { receivedAt: "asc" },
         select: { emailId: true, aiClassification: true, aiConfidence: true, aiReasoning: true, replyDraft: true },
     });

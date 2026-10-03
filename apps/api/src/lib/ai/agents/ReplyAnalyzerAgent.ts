@@ -141,9 +141,9 @@ ${personalityGuidance ? `
                 body,
                 aiClassification: analysis.classification,
                 aiConfidence: analysis.confidence,
-                aiReasoning: analysis.reasoning ?? null,
+                aiReasoning: typeof analysis.reasoning === "string" ? analysis.reasoning : null,
                 status: "PENDING_REVIEW",
-                replyDraft: analysis.draftResponse ?? null
+                replyDraft: typeof analysis.draftResponse === "string" ? analysis.draftResponse : null
             }
         });
         logger.info(`[ReplyAnalyzer] Tracked reply as ${analysis.classification}`);
