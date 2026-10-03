@@ -5,11 +5,27 @@ import { InviteRequestForm } from "@/components/marketing/InviteRequestForm";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 const navGroups = [
-  { label: "Product", href: "#workflow", items: ["Buyer Signals", "Sequences", "Approvals", "Human Calling"] },
+  { label: "Product", href: "#workflow", items: ["Fluid Funnel Engine", "Buyer Signals", "AI Outreach", "Human Layer", "Covospan EDGE"] },
   { label: "Use Cases", href: "#industries", items: ["Facility Management", "Security", "Staffing", "L&D", "Consulting"] },
   { label: "Platform", href: "#platform", items: ["NetJana", "CMF Core", "Human Layer", "Covospan EDGE"] },
   { label: "Join Pilot", href: "#pilot", items: ["30-Day Launch", "Setup", "Qualification", "Meetings"] },
 ];
+
+const productItemLinks: Record<string, string> = {
+  "Fluid Funnel Engine": "/products/fluid-funnel-engine",
+  "Buyer Signals": "/products/buyer-signals",
+  "NetJana": "/products/buyer-signals",
+  "AI Outreach": "/products/ai-outreach",
+  "CMF Core": "/products/ai-outreach",
+  "Human Calling": "/products/human-layer",
+  "Human Layer": "/products/human-layer",
+  "Covospan EDGE": "/products/covospan-edge",
+  "Facility Management": "/use-cases/facility-management",
+  "Security": "/use-cases/security-services",
+  "Staffing": "/use-cases/staffing",
+  "L&D": "/use-cases/training",
+  "Consulting": "/use-cases/consulting",
+};
 
 const trustBadges = ["Gmail + SMTP connected", "LinkedIn profile sync", "Every action human-approved", "Sovereign edge optional"];
 const serviceTeams = ["Facility Management", "Security Services", "Staffing", "Consulting", "L&D", "Managed Services"];
@@ -83,7 +99,19 @@ function Header() {
             <div key={group.label} className="group relative">
               <a href={group.href} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white">{group.label}<ChevronDown className="h-3.5 w-3.5" /></a>
               <div className="invisible absolute left-0 top-full mt-3 w-64 translate-y-2 rounded-2xl border border-white/10 bg-[#11152a]/95 p-3 opacity-0 shadow-2xl shadow-black/40 backdrop-blur-2xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                {group.items.map((item) => <a key={item} href={group.href} className="block rounded-xl px-4 py-3 text-sm font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">{item}</a>)}
+                {group.items.map((item) => {
+                  const itemHref = productItemLinks[item] || group.href;
+                  const isInternal = itemHref.startsWith("/");
+                  return isInternal ? (
+                    <Link key={item} href={itemHref} className="block rounded-xl px-4 py-3 text-sm font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">
+                      {item}
+                    </Link>
+                  ) : (
+                    <a key={item} href={itemHref} className="block rounded-xl px-4 py-3 text-sm font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">
+                      {item}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -149,7 +177,7 @@ export default function Home() {
 
       <section id="platform" className="bg-[#080b1a] py-24"><div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[0.8fr_1.2fr]"><div><div className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200"><Network className="mr-2 h-4 w-4" />NetJana</div><h2 className="text-4xl font-black text-white sm:text-5xl">Buyer signals before your competitors notice them.</h2><p className="mt-4 text-lg text-slate-300">B2B service deals don't come from cold lists. They come from reaching the right company the week they actually have a need. NetJana watches the signals your competitors ignore.</p></div><div className="grid gap-4 sm:grid-cols-2">{netjanaSignals.map((signal, index) => <GlassCard key={signal} className="p-6"><TrendingUp className="mb-4 h-5 w-5 text-cyan-300" /><h3 className="font-black text-white">{signal}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{netjanaSignalDescriptions[index]}</p></GlassCard>)}</div></div></section>
 
-      <section id="workflow" className="bg-[#0b1020] py-24 text-white"><div className="mx-auto max-w-7xl px-6"><p className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">The CMF Ecosystem</p><h2 className="text-4xl font-black sm:text-5xl">This isn't a CRM. It's four components working as one governed funnel.</h2><p className="mt-4 max-w-2xl text-lg text-slate-300">HubSpot stores your contacts. CraftMyFunnel governs every action taken on them — who drafted it, who approved it, which channel it went through, and what happened next. Four components. One audit trail.</p><div className="mt-12 grid gap-5 lg:grid-cols-4">{architectureLayers.map((layer, index) => <GlassCard key={layer.title} className="p-6"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">{index === 0 ? <Network className="h-5 w-5" /> : index === 1 ? <Sparkles className="h-5 w-5" /> : index === 2 ? <PhoneCall className="h-5 w-5" /> : <HardDrive className="h-5 w-5" />}</div><h3 className="text-2xl font-black">{layer.title}</h3><p className="mt-2 inline-flex rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200">{layer.tag}</p><p className="mt-5 text-sm font-bold text-slate-200">Solves: {layer.solves}</p><ul className="mt-4 space-y-3 text-sm text-slate-300">{layer.points.map((point) => <li key={point} className="flex gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />{point}</li>)}</ul></GlassCard>)}</div></div></section>
+      <section id="workflow" className="bg-[#0b1020] py-24 text-white"><div className="mx-auto max-w-7xl px-6"><p className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">The CMF Ecosystem</p><h2 className="text-4xl font-black sm:text-5xl">This isn't a CRM. It's four components working as one governed funnel.</h2><p className="mt-4 max-w-2xl text-lg text-slate-300">HubSpot stores your contacts. CraftMyFunnel governs every action taken on them — who drafted it, who approved it, which channel it went through, and what happened next. Four components. One audit trail.</p><div className="mt-12 grid gap-5 lg:grid-cols-4">{architectureLayers.map((layer, index) => <GlassCard key={layer.title} className="p-6"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">{index === 0 ? <Network className="h-5 w-5" /> : index === 1 ? <Sparkles className="h-5 w-5" /> : index === 2 ? <PhoneCall className="h-5 w-5" /> : <HardDrive className="h-5 w-5" />}</div><h3 className="text-2xl font-black">{productItemLinks[layer.title] ? <Link href={productItemLinks[layer.title]} className="hover:text-cyan-300 transition-colors">{layer.title}</Link> : layer.title}</h3><p className="mt-2 inline-flex rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200">{layer.tag}</p><p className="mt-5 text-sm font-bold text-slate-200">Solves: {layer.solves}</p><ul className="mt-4 space-y-3 text-sm text-slate-300">{layer.points.map((point) => <li key={point} className="flex gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />{point}</li>)}</ul></GlassCard>)}</div></div></section>
 
       <section className="bg-[#11174a] py-24"><div className="mx-auto max-w-7xl px-6"><div className="max-w-3xl"><div className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-200"><Cpu className="mr-2 h-4 w-4" />Covospan EDGE</div><h2 className="text-4xl font-black text-white sm:text-5xl">Run your outreach AI close to your data. Not in someone else's cloud.</h2><p className="mt-4 text-lg text-slate-300">For service companies handling facility contracts, security deployments, or confidential staffing agreements — putting client data through a shared cloud AI is a risk you don't need to take. Covospan EDGE keeps sensitive processing where it belongs: with you.</p></div><div className="mt-10 grid gap-5 lg:grid-cols-3">{edgeTiers.map((tier, index) => <GlassCard key={tier.title} className="p-6"><Database className="mb-4 h-6 w-6 text-cyan-300" /><h3 className="text-xl font-black text-white">{tier.title}</h3><p className="mt-3 text-sm leading-7 text-slate-300">{edgeTierDescriptions[index]}</p></GlassCard>)}</div></div></section>
 
