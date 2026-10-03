@@ -26,6 +26,7 @@ const inputClass =
 const AUTH_ERRORS: Record<string, string> = {
     EMAIL_NOT_VERIFIED: "Please verify your email first. Check your inbox for the link.",
     SSO_REQUIRED: "Your organization requires single sign-on.",
+    ACCOUNT_SUSPENDED: "This account has been suspended. Contact support if you think this is a mistake.",
     RATE_LIMITED: "Too many attempts. Please wait a few minutes and try again.",
 };
 
@@ -126,9 +127,18 @@ function SsoRequiredNotice() {
     );
 }
 
+function SuspendedNotice() {
+    return (
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-sm text-amber-100">
+            <p>This account has been suspended. Contact support if you think this is a mistake.</p>
+        </div>
+    );
+}
+
 export default function LoginPage() {
     const searchParams = useSearchParams();
     const ssoRequired = searchParams.get("error") === "sso-required";
+    const suspended = searchParams.get("error") === "suspended";
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
@@ -137,7 +147,7 @@ export default function LoginPage() {
                     <LogoMark priority className="h-9 w-9" />
                     CraftMyFunnel AI
                 </Link>
-                {ssoRequired ? <SsoRequiredNotice /> : <LoginForm />}
+                {suspended ? <SuspendedNotice /> : ssoRequired ? <SsoRequiredNotice /> : <LoginForm />}
             </div>
         </div>
     );

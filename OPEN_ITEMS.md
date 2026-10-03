@@ -6178,6 +6178,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Owed by the user:** production `SMTP_*` env on apps/web is unverified; `sendVerificationEmail` falls back to
     localhost without it, so verification emails won't arrive until it is set.
 
+    Not started.
+- **OPEN-323 (Fixed — superadmin user control: suspend/reactivate, sign out everywhere, platform role):** 2026-10-03,
+  phase D of the superadmin control work. The user signed off on the auth-path changes.
+  - **Schema:** `User.suspendedAt`, `suspendedReason` and `sessionVersion` (default 0), in migration `20261016120000_user_suspension`.
+  - **Panel:** the user detail modal gets account controls, and suspended users are marked in the list. Every action is audited:
+    - suspend (reason required), reactivate, sign out everywhere, change platform role;
+    - `USER_SUSPEND`, `USER_REACTIVATE`, `USER_SIGN_OUT`, `USER_ROLE_SET`;
+    - web route: `PATCH /api/superadmin/users/[id]`.
+    - The signed-in superadmin can't suspend or re-role their own account.
+  - **What suspend and sign-out do:** both bump `sessionVersion`. `lib/userAccess.ts` (web and api) reads `suspendedAt` and
+    `sessionVersion`, cached for 30s per user.
+    - **Web:** the `signIn` callback refuses suspended accounts (`/login?error=suspended`, which shows a notice). The `jwt`
+      callback stamps `sessionVersion` at sign-in, and empties the token when the account is suspended or deleted or the
+      version no longer matches. Tokens issued before this change count as version 0.
+    - **API:** `server.ts` returns 403 for a suspended user and 401 for a browser session token with an old version.
+      Signed internal calls from web are only checked for suspension, since web has already checked their session.
+    - **Extension:** `validateExtensionAuth` refuses suspended users.
+    - A DB error during these checks lets the request through rather than signing everyone out.
+  - **Known limits:**
+    - Changes reach other processes within about 30s.
+    - `proxy.ts` is unchanged, so a suspended user's open tab can still load page shells. Their data calls fail and the session ends.
+    - API keys are team-scoped and are not tied to the suspension.
+    - Password sign-in (#624) is covered: `authorizeCredentials` throws `ACCOUNT_SUSPENDED` after the password checks out, and the login page explains it.
+  - **Tests:** `auth.accountAccess.test.ts`, api `userAccess.test.ts`, `superadmin-user-controls-route.test.ts`.
 - **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
   2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
   - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
