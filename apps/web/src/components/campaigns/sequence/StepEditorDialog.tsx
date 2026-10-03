@@ -149,12 +149,16 @@ export default function StepEditorDialog({
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
     const [condition, setCondition] = useState<ConditionConfig>({});
+    const [templateName, setTemplateName] = useState("");
+    const [templateLanguage, setTemplateLanguage] = useState("en_US");
 
     useEffect(() => {
         if (!step) return;
         setDelayDays(step.delayDays || 0);
         setDelayHours(step.delayHours || 0);
         setSubject(step.subject || "");
+        setTemplateName(step.whatsappTemplateName || "");
+        setTemplateLanguage(step.whatsappTemplateLanguage || "en_US");
         if (def?.isCondition) {
             setCondition(parseCondition(step.body));
             setBody("");
@@ -165,11 +169,21 @@ export default function StepEditorDialog({
     }, [step, def?.isCondition]);
 
     if (!step || !def) return null;
+    const isWhatsApp = step.stepType === "WHATSAPP";
+    const template = templateName.trim();
+    const templateError = isWhatsApp && template
+        ? !/^[a-z0-9_]{1,512}$/.test(template)
+            ? "Template names use lowercase letters, numbers and underscores."
+            : !/^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})?$/.test(templateLanguage.trim())
+                ? "Use a language code like en_US."
+                : null
+        : null;
 
     function handleSave() {
-        if (!step) return;
+        if (!step || templateError) return;
         onSave({
             ...step,
+            ...(isWhatsApp ? { whatsappTemplateName: template || null, whatsappTemplateLanguage: template ? templateLanguage.trim() : null } : {}),
             delayDays: Math.max(0, delayDays),
             delayHours: Math.max(0, Math.min(23, delayHours)),
             subject: def?.hasSubject ? subject.trim() || null : step.subject,
@@ -217,9 +231,30 @@ export default function StepEditorDialog({
                         </div>
                     )}
 
+                    {isWhatsApp && (
+                        <div className="space-y-1.5">
+                            <div className="grid grid-cols-[1fr_7rem] gap-2">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="wa-template" className="text-sm text-gray-400">Approved template (optional)</label>
+                                    <Input id="wa-template" value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="guide_ready" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label htmlFor="wa-template-language" className="text-sm text-gray-400">Language</label>
+                                    <Input id="wa-template-language" value={templateLanguage} onChange={(e) => setTemplateLanguage(e.target.value)} placeholder="en_US" />
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                With a template, the step sends it automatically to leads who opted in to WhatsApp; the message box below holds its
+                                values, one per line ({"{first_name}"} works). If the template isn&apos;t approved or the lead can&apos;t get it, the step is
+                                skipped. Without a template, a free-text message needs a person to send it.
+                            </p>
+                            {templateError && <p className="text-xs text-destructive">{templateError}</p>}
+                        </div>
+                    )}
+
                     {def.hasMessageBody && (
                         <div className="space-y-1.5">
-                            <label className="text-sm text-gray-400">{def.hasSubject ? "Body" : "Message"}</label>
+                            <label className="text-sm text-gray-400">{isWhatsApp && template ? "Template values (one per line)" : def.hasSubject ? "Body" : "Message"}</label>
                             <Textarea
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
@@ -348,7 +383,7 @@ export default function StepEditorDialog({
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave}>Save step</Button>
+                    <Button onClick={handleSave} disabled={Boolean(templateError)}>Save step</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
-import { nurtureCanRunSteps } from "./nurtureProvider";
+import { nurtureCanRunSteps, whatsappStepProblem } from "./nurtureProvider";
 
 // Turning a launch plan's email sequences on (spec phase 5c-1b). The plan drafts them switched
 // off (playbookSequences.ts); these are the explicit steps that let them send:
@@ -42,12 +42,14 @@ async function runnableSequence(teamId: string, campaignId: string | null, what:
     const sequence = await prisma.campaignSequence.findFirst({
         where: { teamId, campaignId },
         orderBy: { createdAt: "asc" },
-        select: { id: true, steps: { where: { status: "ACTIVE" }, select: { stepType: true } } },
+        select: { id: true, steps: { where: { status: "ACTIVE" }, select: { stepType: true, whatsappTemplateName: true, whatsappTemplateLanguage: true } } },
     });
     if (!sequence) return null;
-    if (!nurtureCanRunSteps(sequence.steps.map((s) => s.stepType))) {
-        fail(400, `The ${what} sequence has no steps, or has steps a nurture can't run yet (email, delay, condition and manual review only).`);
+    if (!nurtureCanRunSteps(sequence.steps)) {
+        fail(400, `The ${what} sequence has no steps, or has steps a nurture can't run (email, delay, condition, manual review and WhatsApp template steps only).`);
     }
+    const problem = await whatsappStepProblem(teamId, sequence.steps);
+    if (problem) fail(400, problem);
     return sequence.id;
 }
 

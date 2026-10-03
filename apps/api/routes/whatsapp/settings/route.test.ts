@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockPrisma, mockSetTeamWaba, mockClearTeamWaba, mockVerifyWabaCredentials } = vi.hoisted(() => ({
+const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockPrisma, mockSetTeamWaba, mockClearTeamWaba, mockVerifyWabaCredentials, mockVerifyWabaAccount } = vi.hoisted(() => ({
     mockGetCurrentContextFromRequest: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
     mockPrisma: {
@@ -9,6 +9,7 @@ const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockPrisma, m
     mockSetTeamWaba: vi.fn(),
     mockClearTeamWaba: vi.fn(),
     mockVerifyWabaCredentials: vi.fn(),
+    mockVerifyWabaAccount: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: mockGetCurrentContextFromRequest }));
@@ -21,6 +22,7 @@ vi.mock("@/modules/whatsapp/wabaCredentials", () => ({
     setTeamWaba: mockSetTeamWaba,
     clearTeamWaba: mockClearTeamWaba,
     verifyWabaCredentials: mockVerifyWabaCredentials,
+    verifyWabaAccount: mockVerifyWabaAccount,
 }));
 
 import { GET, POST } from "./route";
@@ -78,6 +80,25 @@ describe("/whatsapp/settings - requires ADMIN (OPEN-210)", () => {
         const res = await POST(postRequest({ phoneNumberId: "123", accessToken: "secret" }));
 
         expect(res.status).toBe(200);
-        expect(mockSetTeamWaba).toHaveBeenCalledWith("team-1", "123", "secret");
+        expect(mockSetTeamWaba).toHaveBeenCalledWith("team-1", "123", "secret", null);
+        expect(mockVerifyWabaAccount).not.toHaveBeenCalled();
+    });
+
+    it("POST verifies and saves a WhatsApp Business Account id for template sends", async () => {
+        mockVerifyWabaCredentials.mockResolvedValue({ ok: true });
+        mockVerifyWabaAccount.mockResolvedValue({ ok: true });
+        const res = await POST(postRequest({ phoneNumberId: "123", accessToken: "secret", businessAccountId: "102290129340398" }));
+        expect(res.status).toBe(200);
+        expect(mockVerifyWabaAccount).toHaveBeenCalledWith("102290129340398", "secret");
+        expect(mockSetTeamWaba).toHaveBeenCalledWith("team-1", "123", "secret", "102290129340398");
+    });
+
+    it("POST refuses a Business Account id that isn't a number, or that WhatsApp rejects", async () => {
+        mockVerifyWabaCredentials.mockResolvedValue({ ok: true });
+        expect((await POST(postRequest({ phoneNumberId: "123", accessToken: "secret", businessAccountId: "abc" }))).status).toBe(400);
+        mockVerifyWabaAccount.mockResolvedValue({ ok: false, reason: "nope" });
+        const res = await POST(postRequest({ phoneNumberId: "123", accessToken: "secret", businessAccountId: "102290129340398" }));
+        expect(res.status).toBe(422);
+        expect(mockSetTeamWaba).not.toHaveBeenCalled();
     });
 });

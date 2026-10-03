@@ -994,6 +994,9 @@ model SequenceStep {
   delayHours Int      @default(0)
   subject    String?
   body       String?  @db.Text
+  // WhatsApp steps: an approved Meta template to send instead of free text (body = its values, one per line).
+  whatsappTemplateName     String?
+  whatsappTemplateLanguage String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1381,6 +1384,7 @@ model Team {
   whatsappPhoneNumberId       String?
   whatsappAccessTokenEnc      Json?
   whatsappWabaConfiguredAt    DateTime?
+  whatsappBusinessAccountId String? // WABA id, verified against the token; needed to check a template is approved before sending it
 
   // Crystal Knows (DISC personality data) API key, set at setup time. See
   // crystal-knows/crystalCredentials.ts. Unset = enrichment/personality
