@@ -159,6 +159,35 @@ describe("ApprovalService.autoDenyExpiredApprovals", () => {
         );
     });
 
+    it("stores the system's decision with no reviewer (reviewerId is a User FK)", async () => {
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([{ id: "req-a", teamId: "team-1" }]);
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "req-a", teamId: "team-1", actionType: "SOMETHING" });
+        mockPrisma.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+
+        await ApprovalService.autoDenyExpiredApprovals();
+
+        expect(mockPrisma.approvalRequest.updateMany).toHaveBeenCalledWith({
+            where: { id: "req-a", teamId: "team-1" },
+            data: expect.objectContaining({ status: "REJECTED", reviewerId: null }),
+        });
+    });
+
+    it("keeps sweeping after one request fails and only counts the ones it denied", async () => {
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([
+            { id: "req-a", teamId: "team-1" },
+            { id: "req-b", teamId: "team-2" },
+        ]);
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "x", actionType: "SOMETHING" });
+        mockPrisma.approvalRequest.updateMany
+            .mockRejectedValueOnce(new Error("boom"))
+            .mockResolvedValueOnce({ count: 1 });
+
+        const count = await ApprovalService.autoDenyExpiredApprovals();
+
+        expect(count).toBe(1);
+        expect(mockPrisma.approvalRequest.updateMany).toHaveBeenCalledTimes(2);
+    });
+
     it("returns 0 and updates nothing when no requests are expired", async () => {
         mockPrisma.approvalRequest.findMany.mockResolvedValue([]);
 
