@@ -6148,6 +6148,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
     - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
       sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-334 (Fixed — creator funnel phase 7: posting approved calendar posts to LinkedIn):** 2026-10-04.
+  - **Two LinkedIn apps:** LinkedIn grants the Community Management API (company pages) only to an app with no other
+    product, so profiles and pages sign in through separate apps. Setup and limits: `docs/linkedin-api-access.md`.
+    - Profile: `LINKEDIN_CLIENT_ID/SECRET`, scopes `openid profile w_member_social`, one `LINKEDIN_MEMBER` row
+      (`urn:li:person:{sub}`).
+    - Pages: `LINKEDIN_PAGES_CLIENT_ID/SECRET`, scopes `w_organization_social rw_organization_admin`, one `LINKEDIN_ORG`
+      row per page the member administers. Behind the platform switch `linkedin_pages` (Superadmin > Flags, default
+      off); while it's off, pages can't be connected, sent for approval or posted to.
+  - **Connect:** `apps/web` `/api/integrations/linkedin/oauth/{start,callback}` and `/available`. The callback only
+    finishes for the signed-in user who started it, within 30 minutes, and re-checks admin role and the creator funnel.
+    Settings > Social accounts shows "Connect LinkedIn profile" / "Connect LinkedIn page", and Reconnect on a LinkedIn
+    row starts the LinkedIn sign-in.
+  - **Publishing:** `apps/api` `linkedinApi.ts` (lazy-loaded) + `contentPublisher.ts`. Text is one `POST /rest/posts`
+    with the LinkedIn caption escaped as "little" text (`#word` stays a hashtag). Images are uploaded three per tick and
+    posted on a later tick, once the last image reads AVAILABLE or 2 minutes after upload when a profile token can't read
+    it. Same at-most-once rule as Meta: a timeout or 5xx on the post call is never resent; a 201 without an id still
+    counts as published. Submit checks 3000 characters and at most 20 images.
+  - **Token check:** `socialTokenHealth.ts` now checks LinkedIn rows even without the Meta app credentials: expiry from
+    the saved `tokenExpiresAt` (60 days, no refresh), plus a bearer call (`/v2/userinfo` for profiles, the page-role
+    finder for pages).
+  - **Not built:** LinkedIn DMs and comments (no open API), video, programmatic token refresh (partner-only).
+  - **Owner-owed:** create the two LinkedIn apps, set the env vars and `LINKEDIN_REDIRECT_URI` on Render, request
+    Community Management API access, then turn on `linkedin_pages`. Bump `LINKEDIN_VERSION` (`202609`) in both apps
+    before LinkedIn retires it (about a year).
+  - **Tests:** `linkedinConnect.test.ts`, `linkedin/oauth/callback/route.test.ts`, `linkedinApi.test.ts`, LinkedIn cases
+    in `contentPublisher.test.ts`, `contentPostService.test.ts` and `socialTokenHealth.test.ts`.
 - **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
   2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
   - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
