@@ -6149,6 +6149,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `.playwright-mcp/` and `progress.json` are now ignored. **Not done:** deleting zero-importer components, marking or
   deleting historical docs, replacing the stale compose files (`docker-compose.*.yml` at the root) and `db/schema.sql`
   - each needs a per-file check that nothing still uses it.
+    - **Review follow-up (2026-10-03, CodeAnt on #617):** the inbox only shows PENDING_REVIEW trackers, so a reviewed
+      suggestion no longer reappears; non-string `reasoning`/`draftResponse` from the AI are stored as null; a failed
+      suggestion read returns the inbox without suggestions; a spent suggestion is hidden once an outcome is set; the
+      classification enqueue and the alert now run side by side. Declined: prompt-injection hardening (output is
+      suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
+    - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
+      sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
+  2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
+  - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
+    objective "communicate effectively with this person") and read by batch and reply drafts; only legacy leads fall back
+    to a live Crystal call, 10 at a time.
+  - **Lead page:** one Enrichment card per real source; enrich no longer overwrites `enrichedData`; `icpFitScore` shows in
+    the leads list and lead detail. The page refetches 5s and 15s after queuing an enrichment (the endpoint only enqueues).
+  - **Campaigns:** `draftGenerationMode` (Instant or Batch) is settable only while the campaign is a draft (409 after), and
+    can be sent together with `status: "active"`; the mode is applied first. Campaign detail returns the latest draft batch
+    and tolerates that lookup failing.
+  - **Review:** CodeAnt's "objective ignored once guidance is stored" was declined: the stored text is generic by design.
+  - **Schema:** none.
+
+- **OPEN-330 (Fixed — email + password signup alongside Google; PR #624):** 2026-10-01. Merged 2026-10-03.
+  - **Flow:** register (first/last/company/phone, password) -> verification email -> team is provisioned at verification,
+    not at registration, so a pending invitation or domain claim only goes to whoever controls the inbox. Google sign-in
+    on an unverified password account takes it over (clears the password, verifies, provisions). Users without
+    `profileCompletedAt` are sent to `/complete-profile` from the dashboard layout.
+  - **Limits:** passwords 10 to 72 UTF-8 bytes (bcrypt ignores more); login is rate limited per ip+email and per email
+    across IPs; verified-email gate; SSO-enforced domains refused.
+  - **Review follow-up (CodeAnt):** byte-length cap; profile update and default-team rename in one transaction, renaming
+    only the exact generated name ("My Team" or "<old name>'s Team"); provisioning takes a row lock and re-checks
+    membership so verification and first login can't create two teams; on Google takeover provisioning runs before the
+    verified flag is set so a failure retries; network errors on the profile form show a message. Declined: spoofable
+    `x-forwarded-for` (the per-email cap already bounds it).
+  - **Schema:** additive `User` columns `firstName`, `lastName`, `company`, `phone`, `profileCompletedAt` (migration
+    `20261007120000_user_profile_fields`, already applied to prod via Web Prisma Migrate).
+  - **Owed by the user:** production `SMTP_*` env on apps/web is unverified; `sendVerificationEmail` falls back to
+    localhost without it, so verification emails won't arrive until it is set.
 
 - **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
   2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
