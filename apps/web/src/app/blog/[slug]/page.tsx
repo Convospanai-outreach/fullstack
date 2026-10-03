@@ -154,8 +154,42 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <ReactMarkdown>{post.content}</ReactMarkdown>
         </div>
 
+        {/* Related Product Solutions Cross-Links for SEO & Internal Equity */}
+        <div className="mt-16 pt-10 border-t border-slate-800">
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-foreground">Explore Governed Outreach Solutions</h3>
+            <p className="text-sm text-muted-foreground">Discover dedicated systems designed for signal capture, AI personalization, and deliverability control.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Link href="/products/fluid-funnel-engine" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-blue-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-blue-400 text-sm mb-1">Fluid Funnel Engine &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Adaptive multi-stage sequence routing that shifts cadences based on prospect engagement.</p>
+            </Link>
+            <Link href="/products/buyer-signals" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-emerald-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-emerald-400 text-sm mb-1">Buyer Signals — NetJana &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Zero-latency intent capture across job postings, executive moves, and tech migrations.</p>
+            </Link>
+            <Link href="/products/ai-outreach" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-purple-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-purple-400 text-sm mb-1">AI Outreach — CMF Core &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Multi-model draft generation with strict prompt guardrails and deliverability headers.</p>
+            </Link>
+            <Link href="/products/human-layer" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-amber-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-amber-400 text-sm mb-1">Human Layer &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Mandatory human review and batch approval queue to ensure 100% brand voice alignment.</p>
+            </Link>
+            <Link href="/products/covospan-edge" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-cyan-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-cyan-400 text-sm mb-1">Covospan EDGE &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Sub-100ms inference runtime for local tenant data isolation and zero external leakage.</p>
+            </Link>
+            <Link href="/use-cases" className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-indigo-500/40 hover:bg-slate-900 transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-indigo-400 text-sm mb-1">Vertical Playbooks &rarr;</div>
+              <p className="text-xs text-muted-foreground line-clamp-2">Pre-engineered outbound playbooks for SaaS, staffing, consulting, IT MSPs, and FM.</p>
+            </Link>
+          </div>
+        </div>
+
         {/* In-Article Conversion & Backlink Box */}
-        <div className="mt-16 p-8 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900 border border-blue-500/20 text-center space-y-4">
+        <div className="mt-12 p-8 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900 border border-blue-500/20 text-center space-y-4">
           <h3 className="text-2xl font-bold text-white">Scale Your Outbound with Governed AI Agents</h3>
           <p className="text-muted-foreground max-w-xl mx-auto text-sm">
             Put these AI sales strategies into production with built-in human-in-the-loop review queues, mailbox deliverability protection, and multi-channel workflow automation.

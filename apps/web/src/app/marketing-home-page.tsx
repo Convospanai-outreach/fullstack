@@ -14,8 +14,10 @@ const navGroups = [
 const productItemLinks: Record<string, string> = {
   "Fluid Funnel Engine": "/products/fluid-funnel-engine",
   "Buyer Signals": "/products/buyer-signals",
+  "Buyer Signals — NetJana": "/products/buyer-signals",
   "NetJana": "/products/buyer-signals",
   "AI Outreach": "/products/ai-outreach",
+  "AI Outreach — CMF Core": "/products/ai-outreach",
   "CMF Core": "/products/ai-outreach",
   "Human Calling": "/products/human-layer",
   "Human Layer": "/products/human-layer",
