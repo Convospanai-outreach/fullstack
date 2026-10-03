@@ -1,6 +1,7 @@
 import { JobClaim, JobClaimLostError, JobQueue } from "@/lib/queue";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
 import { worker } from "./job-processor";
+import { processStats, recordHeartbeat } from "@/lib/serviceHeartbeat";
 
 function safeErrorType(error: unknown) {
     return error instanceof Error && error.name ? error.name : "UnknownError";
@@ -56,6 +57,9 @@ export class WorkerManager {
     private lastRetentionTick: number = 0;
     private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastDigestHourSlot: number | null = null;
+    private startedAt: Date = new Date();
+    private lastHeartbeatTick: number = 0;
+    private heartbeatInterval: number = 60 * 1000; // superadmin panel shows the worker stale after 3 missed beats
 
     async start() {
         if (this.isRunning) return;
@@ -90,6 +94,11 @@ export class WorkerManager {
 
     private async handleMaintenanceTick() {
         const now = Date.now();
+
+        if (now - this.lastHeartbeatTick >= this.heartbeatInterval) {
+            this.lastHeartbeatTick = now;
+            await recordHeartbeat("worker", this.startedAt, { ...processStats(), activeJobs: this.activeJobs.size });
+        }
 
         // Run scheduler every minute
         if (now - this.lastScheduleTick >= this.scheduleInterval) {
