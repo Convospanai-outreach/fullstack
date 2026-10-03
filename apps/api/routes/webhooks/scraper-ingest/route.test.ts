@@ -3,7 +3,7 @@ import crypto from "crypto";
 
 const SCRAPER_SECRET = "test-scraper-secret";
 
-const { mockScrapingJob, mockGetClient, mockEvaluate, mockMask, mockGetRegionFromContext, mockProcessWebhookData, mockRecordPulse } =
+const { mockScrapingJob, mockGetClient, mockEvaluate, mockMask, mockGetRegionFromContext, mockProcessWebhookData, mockRecordPulse, mockGetRedisClient } =
     vi.hoisted(() => ({
         mockScrapingJob: { findUnique: vi.fn(), upsert: vi.fn() },
         mockGetClient: vi.fn(),
@@ -12,6 +12,7 @@ const { mockScrapingJob, mockGetClient, mockEvaluate, mockMask, mockGetRegionFro
         mockGetRegionFromContext: vi.fn(),
         mockProcessWebhookData: vi.fn(),
         mockRecordPulse: vi.fn(),
+        mockGetRedisClient: vi.fn(),
     }));
 
 vi.mock("@/lib/dbFactory", () => ({
@@ -32,6 +33,7 @@ vi.mock("@/services/IntentScoring", () => ({
 vi.mock("@/modules/audit/ServiceWatcher", () => ({
     serviceWatcher: { recordPulse: mockRecordPulse },
 }));
+vi.mock("@/lib/redis", () => ({ getRedisClient: mockGetRedisClient }));
 
 import { POST } from "./route";
 
@@ -70,6 +72,7 @@ describe("POST /webhooks/scraper-ingest", () => {
         mockScrapingJob.findUnique.mockResolvedValue(null);
         mockScrapingJob.upsert.mockResolvedValue({ id: "job-1" });
         mockProcessWebhookData.mockResolvedValue(undefined);
+        mockGetRedisClient.mockResolvedValue(null);
     });
 
     it("rejects a request with an invalid compliance hash", async () => {
@@ -119,6 +122,20 @@ describe("POST /webhooks/scraper-ingest", () => {
         expect(upper.status).toBe(401);
         expect(junk.status).toBe(401);
         expect(mockScrapingJob.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a signed request another api process already took (roadmap 3.1 / I-07)", async () => {
+        const set = vi.fn().mockResolvedValue(null); // SET NX: the key is already there
+        mockGetRedisClient.mockResolvedValue({ status: "ready", set });
+
+        const res = await POST(signedRequest({ jobId: "job-other-process", url: "https://example.com", teamId: "team-1" }));
+
+        expect(res.status).toBe(401);
+        expect(await res.json()).toEqual({ error: "Unauthorized: Replayed request" });
+        expect(set).toHaveBeenCalledWith(
+            expect.stringMatching(/^replay:scraper-ingest:[0-9a-f]{64}$/), "1", "PX", expect.any(Number), "NX",
+        );
+        expect(mockScrapingJob.upsert).not.toHaveBeenCalled();
     });
 
     it("accepts two distinct signed requests with the same body", async () => {
