@@ -14,6 +14,7 @@ import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
+import { getUserAccess, sessionVersionMatches } from '@/lib/userAccess';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
 import { keepRawJsonBody } from '@/lib/rawJsonBody';
@@ -299,10 +300,11 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
         return;
       }
       
-      const token = await getToken({
+      const sessionToken = await getToken({
         req: request.raw,
         secret
-      }) || internalIdentity;
+      });
+      const token = sessionToken || internalIdentity;
       
       if (!token) {
         reply.status(401).send({ error: 'Unauthorized' });
@@ -310,6 +312,20 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       }
       authUserId = typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;
       authTeamId = typeof (token as any).teamId === 'string' ? (token as any).teamId : undefined;
+
+      // Suspended accounts, and browser sessions ended from the superadmin panel
+      // (lib/userAccess.ts: cached up to 30s per user; a DB error lets the request through).
+      if (authUserId) {
+        const access = await getUserAccess(authUserId).catch(() => undefined);
+        if (access?.suspended) {
+          reply.status(403).send({ error: 'Account suspended' });
+          return;
+        }
+        if (access && sessionToken && !sessionVersionMatches(access, sessionToken.sessionVersion)) {
+          reply.status(401).send({ error: 'Session ended' });
+          return;
+        }
+      }
       
       if (registeredPath.startsWith('/admin')) {
         const role = token.enterpriseRole as string;

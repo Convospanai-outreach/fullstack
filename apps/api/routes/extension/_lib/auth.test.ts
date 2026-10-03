@@ -139,8 +139,27 @@ describe("validateExtensionAuth", () => {
         id: true,
         email: true,
         name: true,
+        suspendedAt: true,
         memberships: { where: { status: "active" }, select: { teamId: true } },
       },
     });
+  });
+
+  it("refuses a user suspended from the superadmin panel", async () => {
+    mockPrisma.session.findUnique.mockResolvedValue({
+      userId: "user-1",
+      expires: new Date(Date.now() + 60_000),
+    });
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "u@example.com",
+      name: "User",
+      suspendedAt: new Date(),
+      memberships: [{ teamId: "team-a" }],
+    });
+
+    const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+
+    expect(result).toMatchObject({ ok: false, status: 403, code: "ACCOUNT_SUSPENDED" });
   });
 });

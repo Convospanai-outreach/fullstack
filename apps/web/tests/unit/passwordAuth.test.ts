@@ -59,6 +59,12 @@ describe("authorizeCredentials", () => {
         expect(await authorizeCredentials({ email: "a@b.com", password: "wrong-password-123" })).toBeNull();
     });
 
+    it("rejects a suspended account, but only once the password is right", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue({ ...verifiedUser, suspendedAt: new Date() });
+        await expect(authorizeCredentials({ email: "a@b.com", password: goodPassword })).rejects.toThrow("ACCOUNT_SUSPENDED");
+        expect(await authorizeCredentials({ email: "a@b.com", password: "wrong-password-123" })).toBeNull();
+    });
+
     it("rejects when SSO is enforced for the email's domain", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(verifiedUser);
         mockIsSsoEnforcedForEmail.mockResolvedValue(true);

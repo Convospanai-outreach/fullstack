@@ -20,6 +20,7 @@ type SocialAccount = {
 };
 
 const ACCOUNTS_URL = getBrowserApiUrl("/social/accounts");
+const LINKEDIN_AVAILABLE_URL = "/api/integrations/linkedin/available";
 const PLATFORMS = {
     FACEBOOK_PAGE: { label: "Facebook Page", Icon: Facebook },
     INSTAGRAM: { label: "Instagram", Icon: Instagram },
@@ -33,11 +34,13 @@ const fetcher = async (url: string) => {
     return res.json();
 };
 
-// Creator funnel: the Instagram accounts and Facebook Pages CraftMyFunnel posts from and reads
-// DMs and comments on. Connecting uses the same Meta sign-in as Lead Ads, with extra permissions.
+// Creator funnel: the Instagram accounts, Facebook Pages and LinkedIn profiles/pages CraftMyFunnel
+// posts from (and, for Meta, reads DMs and comments on). Meta uses the same sign-in as Lead Ads,
+// with extra permissions; LinkedIn has its own sign-in, and company pages use a second LinkedIn app.
 export default function SocialAccountsPage() {
     const params = useSearchParams();
     const { data, error, mutate } = useSWR<{ accounts: SocialAccount[] }>(ACCOUNTS_URL, fetcher);
+    const { data: linkedin } = useSWR<{ profile: boolean; pages: boolean }>(LINKEDIN_AVAILABLE_URL, fetcher);
     const [busy, setBusy] = useState<string | null>(null);
 
     useEffect(() => {
@@ -45,10 +48,10 @@ export default function SocialAccountsPage() {
         if (params.get("connected") === "false") toast.error(params.get("error") || "Couldn't connect. Try again.");
     }, [params]);
 
-    const connect = async () => {
-        setBusy("connect");
+    const startSignIn = async (busyKey: string, startUrl: string) => {
+        setBusy(busyKey);
         try {
-            const res = await fetch("/api/integrations/facebook/oauth/start?purpose=social&next=/settings/social");
+            const res = await fetch(startUrl);
             const body = await res.json().catch(() => null);
             if (!res.ok || !body?.authUrl) throw new Error(body?.error || "Couldn't start the connection.");
             window.location.assign(body.authUrl);
@@ -57,6 +60,10 @@ export default function SocialAccountsPage() {
             setBusy(null);
         }
     };
+    const connect = () => startSignIn("connect", "/api/integrations/facebook/oauth/start?purpose=social&next=/settings/social");
+    const connectLinkedIn = (kind: "profile" | "pages") => startSignIn(`linkedin-${kind}`, `/api/integrations/linkedin/oauth/start?kind=${kind}`);
+    const reconnect = (account: SocialAccount) =>
+        account.platform === "LINKEDIN_MEMBER" ? connectLinkedIn("profile") : account.platform === "LINKEDIN_ORG" ? connectLinkedIn("pages") : connect();
 
     const disconnect = async (account: SocialAccount) => {
         setBusy(account.id);
@@ -76,7 +83,7 @@ export default function SocialAccountsPage() {
 
     return (
         <div className="space-y-6">
-            <SectionHeader title="Social accounts" subtitle="Instagram and Facebook Pages you post from and get messages on." />
+            <SectionHeader title="Social accounts" subtitle="Instagram, Facebook Pages and LinkedIn you post from, and the Meta accounts you get messages on." />
 
             <GlassCard className="p-6 space-y-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -92,6 +99,36 @@ export default function SocialAccountsPage() {
                         {busy === "connect" ? "Opening Facebook..." : accounts.length ? "Connect more or reconnect" : "Connect Instagram and Facebook"}
                     </button>
                 </div>
+
+                {(linkedin?.profile || linkedin?.pages) && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-muted-foreground">
+                            Sign in with LinkedIn to post to your profile{linkedin.pages ? " or to company pages you manage" : ""}. LinkedIn asks you to sign in again every 60 days.
+                        </p>
+                        <div className="flex shrink-0 gap-2">
+                            {linkedin.profile && (
+                                <button
+                                    type="button"
+                                    onClick={() => connectLinkedIn("profile")}
+                                    disabled={busy !== null}
+                                    className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                                >
+                                    {busy === "linkedin-profile" ? "Opening LinkedIn..." : "Connect LinkedIn profile"}
+                                </button>
+                            )}
+                            {linkedin.pages && (
+                                <button
+                                    type="button"
+                                    onClick={() => connectLinkedIn("pages")}
+                                    disabled={busy !== null}
+                                    className="h-9 rounded-md border border-border px-4 text-sm font-medium text-foreground disabled:opacity-50"
+                                >
+                                    {busy === "linkedin-pages" ? "Opening LinkedIn..." : "Connect LinkedIn page"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {error && <p className="text-sm text-destructive">Couldn&apos;t load your accounts.</p>}
                 {!error && data && accounts.length === 0 && <p className="text-sm text-muted-foreground">No accounts connected yet.</p>}
@@ -116,7 +153,7 @@ export default function SocialAccountsPage() {
                                     </div>
                                     <div className="flex gap-3 text-xs">
                                         {warning && (
-                                            <button type="button" onClick={connect} disabled={busy !== null} className="font-medium text-primary hover:underline disabled:opacity-50">
+                                            <button type="button" onClick={() => reconnect(account)} disabled={busy !== null} className="font-medium text-primary hover:underline disabled:opacity-50">
                                                 Reconnect
                                             </button>
                                         )}

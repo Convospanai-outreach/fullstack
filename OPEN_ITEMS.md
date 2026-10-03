@@ -6156,6 +6156,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
     - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
       sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-334 (Fixed — creator funnel phase 7: posting approved calendar posts to LinkedIn):** 2026-10-04.
+  - **Two LinkedIn apps:** LinkedIn grants the Community Management API (company pages) only to an app with no other
+    product, so profiles and pages sign in through separate apps. Setup and limits: `docs/linkedin-api-access.md`.
+    - Profile: `LINKEDIN_CLIENT_ID/SECRET`, scopes `openid profile w_member_social`, one `LINKEDIN_MEMBER` row
+      (`urn:li:person:{sub}`).
+    - Pages: `LINKEDIN_PAGES_CLIENT_ID/SECRET`, scopes `w_organization_social rw_organization_admin`, one `LINKEDIN_ORG`
+      row per page the member administers. Behind the platform switch `linkedin_pages` (Superadmin > Flags, default
+      off); while it's off, pages can't be connected, sent for approval or posted to.
+  - **Connect:** `apps/web` `/api/integrations/linkedin/oauth/{start,callback}` and `/available`. The callback only
+    finishes for the signed-in user who started it, within 30 minutes, and re-checks admin role and the creator funnel.
+    Settings > Social accounts shows "Connect LinkedIn profile" / "Connect LinkedIn page", and Reconnect on a LinkedIn
+    row starts the LinkedIn sign-in.
+  - **Publishing:** `apps/api` `linkedinApi.ts` (lazy-loaded) + `contentPublisher.ts`. Text is one `POST /rest/posts`
+    with the LinkedIn caption escaped as "little" text (`#word` stays a hashtag). Images are uploaded three per tick and
+    posted on a later tick, once the last image reads AVAILABLE or 2 minutes after upload when a profile token can't read
+    it. Same at-most-once rule as Meta: a timeout or 5xx on the post call is never resent; a 201 without an id still
+    counts as published. Submit checks 3000 characters and at most 20 images.
+  - **Token check:** `socialTokenHealth.ts` now checks LinkedIn rows even without the Meta app credentials: expiry from
+    the saved `tokenExpiresAt` (60 days, no refresh), plus a bearer call (`/v2/userinfo` for profiles, the page-role
+    finder for pages).
+  - **Not built:** LinkedIn DMs and comments (no open API), video, programmatic token refresh (partner-only).
+  - **Owner-owed:** create the two LinkedIn apps, set the env vars and `LINKEDIN_REDIRECT_URI` on Render, request
+    Community Management API access, then turn on `linkedin_pages`. Bump `LINKEDIN_VERSION` (`202609`) in both apps
+    before LinkedIn retires it (about a year).
+  - **Tests:** `linkedinConnect.test.ts`, `linkedin/oauth/callback/route.test.ts`, `linkedinApi.test.ts`, LinkedIn cases
+    in `contentPublisher.test.ts`, `contentPostService.test.ts` and `socialTokenHealth.test.ts`.
 - **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
   2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
   - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
@@ -6186,6 +6212,56 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Owed by the user:** production `SMTP_*` env on apps/web is unverified; `sendVerificationEmail` falls back to
     localhost without it, so verification emails won't arrive until it is set.
 
+    Not started.
+- **OPEN-325 (Fixed — site-wide notice to all users, set from the superadmin panel):** 2026-10-03, phase F of the superadmin
+  control work.
+  - **Table:** new single-row `SiteBanner` (`id = "site"`: message, level info/warning/maintenance, active, `updatedById`),
+    migration `20261017120000_site_banner`.
+  - **Panel:** a "Notice to all users" card on the superadmin "Outages & Job Health" tab (`PUT /api/superadmin/banner`;
+    message up to 500 characters). Audited as `BANNER_SET` or `BANNER_OFF`.
+  - **Users:** `components/dashboard/SiteBanner.tsx` sits at the top of every dashboard page. It reads signed-in-only
+    `GET /api/site-banner`, which is cached for 30s per process, and refetches every 60s.
+    - Info and warning notices can be dismissed for the visit; maintenance notices can't.
+    - The notice is a message only and doesn't put the app in read-only mode.
+  - **Tests:** `site-banner-routes.test.ts`.
+- **OPEN-324 (Fixed — superadmin billing overrides: team credit adjustments and manual plans):** 2026-10-03, phase E of the
+  superadmin control work. The user signed off on the billing changes.
+  - **Credits:** "Features & Teams", then team settings: add or remove credits with a reason required
+    (`POST /api/superadmin/teams/[id]/credits`).
+    - One transaction updates `Team.credits` and writes a `CreditTransaction` of type `admin_adjustment` naming the superadmin.
+    - The balance can't go below zero, and any one change is at most 1,000,000.
+    - Audited as `CREDITS_ADJUST`, with the balance before and after.
+  - **Plans:** in the user detail modal, put a user on any plan for 1 to 3650 days without payment, or end their plan
+    (`PUT /api/superadmin/users/[id]/plan`, plans from `GET /api/superadmin/plans`).
+    - It writes the user's `Subscription` with `gateway = "MANUAL"`.
+    - A live Stripe-billed subscription is refused (409), since changing it here wouldn't change what Stripe charges.
+    - A reason is required. Audited as `PLAN_SET` or `PLAN_END`.
+    - Monthly plan credits are not added automatically.
+    - The web session's `plan` claim refreshes within its usual 5 minutes.
+  - **Tests:** `superadmin-billing-routes.test.ts`.
+- **OPEN-323 (Fixed — superadmin user control: suspend/reactivate, sign out everywhere, platform role):** 2026-10-03,
+  phase D of the superadmin control work. The user signed off on the auth-path changes.
+  - **Schema:** `User.suspendedAt`, `suspendedReason` and `sessionVersion` (default 0), in migration `20261016120000_user_suspension`.
+  - **Panel:** the user detail modal gets account controls, and suspended users are marked in the list. Every action is audited:
+    - suspend (reason required), reactivate, sign out everywhere, change platform role;
+    - `USER_SUSPEND`, `USER_REACTIVATE`, `USER_SIGN_OUT`, `USER_ROLE_SET`;
+    - web route: `PATCH /api/superadmin/users/[id]`.
+    - The signed-in superadmin can't suspend or re-role their own account.
+  - **What suspend and sign-out do:** both bump `sessionVersion`. `lib/userAccess.ts` (web and api) reads `suspendedAt` and
+    `sessionVersion`, cached for 30s per user.
+    - **Web:** the `signIn` callback refuses suspended accounts (`/login?error=suspended`, which shows a notice). The `jwt`
+      callback stamps `sessionVersion` at sign-in, and empties the token when the account is suspended or deleted or the
+      version no longer matches. Tokens issued before this change count as version 0.
+    - **API:** `server.ts` returns 403 for a suspended user and 401 for a browser session token with an old version.
+      Signed internal calls from web are only checked for suspension, since web has already checked their session.
+    - **Extension:** `validateExtensionAuth` refuses suspended users.
+    - A DB error during these checks lets the request through rather than signing everyone out.
+  - **Known limits:**
+    - Changes reach other processes within about 30s.
+    - `proxy.ts` is unchanged, so a suspended user's open tab can still load page shells. Their data calls fail and the session ends.
+    - API keys are team-scoped and are not tied to the suspension.
+    - Password sign-in (#624) is covered: `authorizeCredentials` throws `ACCOUNT_SUSPENDED` after the password checks out, and the login page explains it.
+  - **Tests:** `auth.accountAccess.test.ts`, api `userAccess.test.ts`, `superadmin-user-controls-route.test.ts`.
 - **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
   2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
   - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
@@ -6370,10 +6446,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
     `playbookRunId` links.
 
-- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+- **OPEN-312 (Fixed 2026-10-03 — unknown landing slug returned 500; now 404, bad event name 400):** `POST /landing-agent/public/<slug>/event` and `/lead`
   answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
   `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
   2026-10-02.
+  - **Fixed:** `submitLeadBySlug` and `trackEventBySlug` throw `APIError` 404 for a missing published page and 400 for an
+    invalid event name, so `handleAPIError` no longer maps them to 500.
 
 - **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
   (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.

@@ -24,7 +24,7 @@ const SWITCH_FIELDS = ["allowInMail", "allowScraping", "allowUploads", "requires
 
 async function teamState(teamId: string) {
     const { prisma } = await import("@/lib/db");
-    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, enabledFeatures: true } });
+    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, credits: true, enabledFeatures: true } });
     if (!team) return null;
     const [policy, { resolveEnabledFeatureKeys }] = await Promise.all([
         prisma.organizationPolicy.findUnique({ where: { organizationId: teamId }, select: POLICY_SELECT }),
@@ -33,6 +33,7 @@ async function teamState(teamId: string) {
     return {
         id: team.id,
         name: team.name,
+        credits: team.credits,
         // null = the team never customized, so readiness decides.
         storedFeatures: Array.isArray(team.enabledFeatures) ? team.enabledFeatures.map(String) : null,
         effectiveFeatures: Array.from(await resolveEnabledFeatureKeys(teamId)),
