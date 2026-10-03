@@ -30,6 +30,8 @@ import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 import SystemTiles, { type SystemHealth } from "./SystemTiles";
 import FeaturesTab from "./FeaturesTab";
 import UserControls from "./UserControls";
+import PlanOverride from "./PlanOverride";
+import BannerCard from "./BannerCard";
 
 type SuperOverview = {
   range: string;
@@ -903,6 +905,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             {activeTab === "health" && (
               <div className="space-y-6">
                 <RedisCard status={redis} error={redisError} saving={redisSaving} onToggle={(enabled) => void toggleRedis(enabled)} />
+                <BannerCard onLoggedOut={onLoggedOut} />
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <SystemTiles system={data.system} />
@@ -1151,6 +1154,7 @@ function UserDetailModal({
         {detail && (
           <div className="space-y-5">
             <UserControls key={`${detail.id}:${detail.enterpriseRole}:${detail.suspendedAt ?? ""}`} user={detail} onChanged={onChanged} onLoggedOut={onLoggedOut} />
+            <PlanOverride userId={detail.id} subscription={detail.subscription} onChanged={onChanged} onLoggedOut={onLoggedOut} />
 
             <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
               <div className="rounded-lg border border-border bg-muted p-2.5">

@@ -23,6 +23,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Omnibox } from "@/components/dashboard/Omnibox";
 import { SectionTabs } from "@/components/dashboard/SectionTabs";
+import { SiteBanner } from "@/components/dashboard/SiteBanner";
 import WelcomeTour from "@/components/onboarding/WelcomeTour";
 
 export default function DashboardShell({
@@ -58,6 +59,7 @@ export default function DashboardShell({
                     </div>
 
                     <div className="relative z-10">
+                        <SiteBanner />
                         <SectionTabs />
                         {children}
                     </div>

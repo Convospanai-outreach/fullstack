@@ -6179,6 +6179,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     localhost without it, so verification emails won't arrive until it is set.
 
     Not started.
+- **OPEN-325 (Fixed — site-wide notice to all users, set from the superadmin panel):** 2026-10-03, phase F of the superadmin
+  control work.
+  - **Table:** new single-row `SiteBanner` (`id = "site"`: message, level info/warning/maintenance, active, `updatedById`),
+    migration `20261017120000_site_banner`.
+  - **Panel:** a "Notice to all users" card on the superadmin "Outages & Job Health" tab (`PUT /api/superadmin/banner`;
+    message up to 500 characters). Audited as `BANNER_SET` or `BANNER_OFF`.
+  - **Users:** `components/dashboard/SiteBanner.tsx` sits at the top of every dashboard page. It reads signed-in-only
+    `GET /api/site-banner`, which is cached for 30s per process, and refetches every 60s.
+    - Info and warning notices can be dismissed for the visit; maintenance notices can't.
+    - The notice is a message only and doesn't put the app in read-only mode.
+  - **Tests:** `site-banner-routes.test.ts`.
+- **OPEN-324 (Fixed — superadmin billing overrides: team credit adjustments and manual plans):** 2026-10-03, phase E of the
+  superadmin control work. The user signed off on the billing changes.
+  - **Credits:** "Features & Teams", then team settings: add or remove credits with a reason required
+    (`POST /api/superadmin/teams/[id]/credits`).
+    - One transaction updates `Team.credits` and writes a `CreditTransaction` of type `admin_adjustment` naming the superadmin.
+    - The balance can't go below zero, and any one change is at most 1,000,000.
+    - Audited as `CREDITS_ADJUST`, with the balance before and after.
+  - **Plans:** in the user detail modal, put a user on any plan for 1 to 3650 days without payment, or end their plan
+    (`PUT /api/superadmin/users/[id]/plan`, plans from `GET /api/superadmin/plans`).
+    - It writes the user's `Subscription` with `gateway = "MANUAL"`.
+    - A live Stripe-billed subscription is refused (409), since changing it here wouldn't change what Stripe charges.
+    - A reason is required. Audited as `PLAN_SET` or `PLAN_END`.
+    - Monthly plan credits are not added automatically.
+    - The web session's `plan` claim refreshes within its usual 5 minutes.
+  - **Tests:** `superadmin-billing-routes.test.ts`.
 - **OPEN-323 (Fixed — superadmin user control: suspend/reactivate, sign out everywhere, platform role):** 2026-10-03,
   phase D of the superadmin control work. The user signed off on the auth-path changes.
   - **Schema:** `User.suspendedAt`, `suspendedReason` and `sessionVersion` (default 0), in migration `20261016120000_user_suspension`.

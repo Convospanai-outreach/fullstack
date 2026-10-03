@@ -21,7 +21,7 @@ type Policy = {
   requiresApprovalForOverage: boolean;
   detectPII: boolean;
 };
-type TeamState = { id: string; name: string; storedFeatures: string[] | null; effectiveFeatures: string[]; policy: Policy | null };
+type TeamState = { id: string; name: string; credits: number; storedFeatures: string[] | null; effectiveFeatures: string[]; policy: Policy | null };
 
 // Schema defaults for a team that has no OrganizationPolicy row yet.
 const DEFAULT_POLICY: Policy = {
@@ -77,6 +77,8 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
   const [policy, setPolicy] = useState<Policy>(DEFAULT_POLICY);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -134,6 +136,21 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
     run(async () => {
       showTeam(await call<TeamState>(`/api/superadmin/teams/${teamId}`, { method: "PUT", body: JSON.stringify(body) }, onLoggedOut));
       setMessage("Saved.");
+    });
+
+  const adjustCredits = () =>
+    run(async () => {
+      const amount = Number(creditAmount);
+      if (!window.confirm(`${amount > 0 ? "Add" : "Remove"} ${Math.abs(amount)} credits ${amount > 0 ? "to" : "from"} ${team?.name}?`)) return;
+      const res = await call<{ credits: number }>(
+        `/api/superadmin/teams/${teamId}/credits`,
+        { method: "POST", body: JSON.stringify({ amount, reason: creditReason }) },
+        onLoggedOut
+      );
+      setTeam((prev) => (prev ? { ...prev, credits: res.credits } : prev));
+      setCreditAmount("");
+      setCreditReason("");
+      setMessage(`Credits now ${res.credits}.`);
     });
 
   const platformOff = new Set(features.filter((f) => f.disabledByPlatform).map((f) => f.key));
@@ -220,6 +237,37 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
             </option>
           ))}
         </select>
+
+        {team && (
+          <div className="mb-6 flex flex-wrap items-end gap-2 rounded-lg border border-border p-3 text-xs">
+            <div className="mr-4">
+              <p className="uppercase text-muted-foreground">Credits</p>
+              <p className="text-lg font-bold text-foreground">{team.credits.toLocaleString()}</p>
+            </div>
+            <input
+              type="number"
+              aria-label="Credit change"
+              value={creditAmount}
+              onChange={(e) => setCreditAmount(e.target.value)}
+              placeholder="+500 or -100"
+              className="w-32 rounded border border-input bg-background px-2 py-1"
+            />
+            <input
+              aria-label="Reason"
+              value={creditReason}
+              onChange={(e) => setCreditReason(e.target.value)}
+              placeholder="Reason (required)"
+              className="min-w-[14rem] flex-1 rounded border border-input bg-background px-2 py-1"
+            />
+            <Button
+              size="sm"
+              disabled={busy || !creditReason.trim() || !Number.isInteger(Number(creditAmount)) || Number(creditAmount) === 0}
+              onClick={() => void adjustCredits()}
+            >
+              Adjust credits
+            </Button>
+          </div>
+        )}
 
         {team && (
           <div className="grid gap-6 lg:grid-cols-2">
