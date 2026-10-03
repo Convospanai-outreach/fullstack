@@ -19,7 +19,10 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
 
     const landingLead = await prisma.landingLead.findFirst({
         where: { id: landingLeadId, teamId },
-        include: { campaign: { select: { linkedCampaignId: true } } },
+        include: {
+            campaign: { select: { linkedCampaignId: true } },
+            landingPage: { select: { slug: true, team: { select: { name: true } } } },
+        },
     });
 
     if (!landingLead) {
@@ -29,6 +32,27 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
 
     const email = landingLead.email?.trim().toLowerCase() || undefined;
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
+
+    // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
+    // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
+    if (landingLead.socialToken) {
+        let mergedLeadId: string | null = null;
+        try {
+            const { mergeSignupIntoSocialLead } = await import("@/modules/creator-funnel/socialLinkMerge");
+            mergedLeadId = await mergeSignupIntoSocialLead(landingLead, campaignId);
+        } catch (error) {
+            logger.warn(`[LandingLeadIntake] Social link merge failed for ${landingLeadId}: ${error instanceof Error ? error.message : error}`);
+        }
+        if (mergedLeadId) {
+            await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
+            await scoreNewLead(mergedLeadId);
+            await pushToMautic(mergedLeadId, teamId);
+            await advanceCreatorFunnel(mergedLeadId, teamId);
+            await recordOptIn(landingLead, mergedLeadId);
+            await joinPlanNurture(landingLead, mergedLeadId);
+            return { created: false, leadId: mergedLeadId, merged: true };
+        }
+    }
 
     if (email) {
         const existing = await prisma.lead.findFirst({
@@ -55,9 +79,12 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                 return { created: false, reason: "lead_not_found" };
             }
 
+            await recordFirstTouch(teamId, existing.id, landingLead.utmContent);
             await scoreNewLead(existing.id);
             await pushToMautic(existing.id, teamId);
             await advanceCreatorFunnel(existing.id, teamId);
+            await recordOptIn(landingLead, existing.id);
+            await joinPlanNurture(landingLead, existing.id);
             return { created: false, leadId: existing.id };
         }
     }
@@ -76,10 +103,49 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         },
     });
 
+    await recordFirstTouch(teamId, createdLead.id, landingLead.utmContent);
     await scoreNewLead(createdLead.id);
     await pushToMautic(createdLead.id, teamId);
     await advanceCreatorFunnel(createdLead.id, teamId);
+    await recordOptIn(landingLead, createdLead.id);
+    await joinPlanNurture(landingLead, createdLead.id);
     return { created: true, leadId: createdLead.id };
+}
+
+// Creator funnel: a sign-up on a launch plan's lead-magnet page joins the plan's nurture emails
+// when that plan's nurture is switched on (playbookSwitches.ts). Never fails the intake job.
+async function joinPlanNurture(landingLead: { teamId: string; landingPageId: string }, leadId: string) {
+    try {
+        const { enrollPlanNurture } = await import("@/modules/creator-funnel/playbookSwitches");
+        const skipped = await enrollPlanNurture(landingLead, leadId);
+        if (skipped && skipped !== "no switched-on plan for this page") logger.info(`[LandingLeadIntake] Plan nurture skipped for lead ${leadId}: ${skipped}`);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Plan nurture enrollment failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
+// Creator funnel: the page's WhatsApp opt-in, recorded as consent when the lead kept the phone
+// number it was given for (whatsappOptIn.ts). Never fails the intake job; the lead is already saved.
+async function recordOptIn(landingLead: Parameters<typeof import("@/modules/creator-funnel/whatsappOptIn").recordWhatsappOptIn>[0], leadId: string) {
+    if (!landingLead.whatsappConsent) return;
+    try {
+        const { recordWhatsappOptIn } = await import("@/modules/creator-funnel/whatsappOptIn");
+        if (!(await recordWhatsappOptIn(landingLead, leadId))) logger.info(`[LandingLeadIntake] WhatsApp opt-in for ${landingLead.id} not recorded on lead ${leadId} (no matching phone, or already recorded)`);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] WhatsApp opt-in failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
+// Creator funnel: when the page URL's utm_content names one of the team's posts and the lead has
+// no first touch yet, that post brought them in (Content ROI). Never fails the intake job.
+async function recordFirstTouch(teamId: string, leadId: string, utmContent: string | null) {
+    if (!utmContent) return;
+    try {
+        const { setFirstTouchPost } = await import("@/modules/creator-funnel/contentRoi");
+        await setFirstTouchPost(teamId, leadId, utmContent);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] First-touch attribution failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
 }
 
 // Creator funnel (teams with the flag on): a landing-page opt-in moves the lead to MOFU.

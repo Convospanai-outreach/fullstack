@@ -1,7 +1,8 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { getLandingRenderPayload } from "../rendering";
+import { escapeHtml, getLandingRenderPayload } from "../rendering";
+import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -36,12 +37,18 @@ function buildLeadFormScript(slug: string): string {
   var sessionId = (crypto.randomUUID ? crypto.randomUUID() : "sess-" + Date.now() + "-" + Math.random().toString(36).slice(2));
   var version = ${Date.now()};
   var formStarted = false;
+  var pageParams = new URL(location.href).searchParams;
+  function utm(key) { return pageParams.get(key) || undefined; }
 
   function trackEvent(eventName, eventData) {
     fetch("/" + slug + "/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined }),
+      body: JSON.stringify({
+        eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined,
+        utmSource: utm("utm_source"), utmMedium: utm("utm_medium"), utmCampaign: utm("utm_campaign"),
+        utmTerm: utm("utm_term"), utmContent: utm("utm_content"),
+      }),
     }).catch(function () {});
   }
 
@@ -83,6 +90,8 @@ function buildLeadFormScript(slug: string): string {
         utmTerm: url.searchParams.get("utm_term") || undefined,
         utmContent: url.searchParams.get("utm_content") || undefined,
         referrer: document.referrer || undefined,
+        socialToken: url.searchParams.get("t") || undefined,
+        whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
       }),
     })
       .then(function (res) {
@@ -99,7 +108,8 @@ function buildLeadFormScript(slug: string): string {
 `;
 }
 
-function buildLeadFormMarkup(): string {
+// whatsappOptIn: the creator funnel opt-in checkbox text (whatsappOptIn.ts), or null for none.
+function buildLeadFormMarkup(whatsappOptIn: string | null): string {
     return `
 <section class="la-section" style="max-width:640px;margin:40px auto">
     <span id="lead-form"></span>
@@ -108,7 +118,12 @@ function buildLeadFormMarkup(): string {
     <form id="la-lead-form" style="display:grid;gap:12px;margin-top:16px">
         <input type="text" name="name" placeholder="Name" />
         <input type="email" name="email" placeholder="Work email" required />
-        <input type="text" name="phone" placeholder="Phone" />
+        <input type="text" name="phone" placeholder="Phone" />${
+            whatsappOptIn
+                ? `
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px"><input type="checkbox" name="whatsappConsent" style="margin-top:3px" />${escapeHtml(whatsappOptIn)}</label>`
+                : ""
+        }
         <input type="text" name="company" placeholder="Company" />
         <input type="text" name="title" placeholder="Title" />
         <input type="text" name="website" tabindex="-1" autocomplete="off" style="display:none" />
@@ -118,7 +133,7 @@ function buildLeadFormMarkup(): string {
 </section>`;
 }
 
-function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string }): string {
+function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string; whatsappOptIn: string | null }): string {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -129,7 +144,7 @@ function buildFullDocument(input: { title?: string | null; css: string; html: st
 </head>
 <body class="la-page">
 ${input.html}
-${buildLeadFormMarkup()}
+${buildLeadFormMarkup(input.whatsappOptIn)}
 <script>${input.script}</script>
 </body>
 </html>`;
@@ -145,7 +160,7 @@ class CloudflarePagesService {
         try {
             const page = await prisma.landingPage.findUnique({
                 where: { id: pageId },
-                include: { campaign: { select: { teamId: true } } },
+                include: { campaign: { select: { teamId: true } }, team: { select: { name: true } } },
             });
             if (!page || !page.slug) {
                 return { status: "error", details: "Landing page not found or missing a slug" };
@@ -153,7 +168,8 @@ class CloudflarePagesService {
 
             const payload = getLandingRenderPayload(page.renderedJson);
             const script = buildLeadFormScript(page.slug);
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script });
+            const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn });
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;

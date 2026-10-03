@@ -28,6 +28,8 @@ interface InboxReply {
     campaignName: string | null;
     sequenceName: string | null;
     snippet: string;
+    handle: string | null; // Instagram @username, for DMs
+    replyWindowEndsAt: string | null; // Instagram/Facebook: replies are allowed until then
     isRead: boolean;
     sentimentScore: number | null;
     createdAt: string;
@@ -79,6 +81,16 @@ async function postJson(path: string, body?: unknown) {
     return data;
 }
 
+// Instagram/Facebook DMs (creator funnel). Meta allows replies for 24 hours after the person's
+// last message, and Instagram text must be 1,000 bytes or less; the API enforces both too.
+const SOCIAL_LABEL: Record<string, string> = { INSTAGRAM: "Instagram", FACEBOOK: "Facebook" };
+const INSTAGRAM_MAX_BYTES = 1000;
+
+function displayName(reply: InboxReply) {
+    const social = SOCIAL_LABEL[reply.platform];
+    return reply.leadName || reply.handle || reply.email || (social ? `${social} contact` : "Unknown lead");
+}
+
 function outcomeLabel(outcome: string | null) {
     return OUTCOMES.find((o) => o.value === outcome)?.label ?? null;
 }
@@ -106,6 +118,11 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
     const [marking, setMarking] = useState<string | null>(null);
+    const [openedAt] = useState(() => Date.now());
+    const socialLabel = SOCIAL_LABEL[reply.platform];
+    const windowOpen = reply.replyWindowEndsAt !== null && new Date(reply.replyWindowEndsAt).getTime() > openedAt;
+    const draftBytes = new TextEncoder().encode(draft).length;
+    const tooLong = reply.platform === "INSTAGRAM" && draftBytes > INSTAGRAM_MAX_BYTES;
 
     const sendReply = async () => {
         if (!draft.trim()) return;
@@ -144,11 +161,12 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
         <GlassCard className="p-0 flex flex-col min-h-[520px]">
             <div className="border-b border-border p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">{reply.leadName || reply.email || "Unknown lead"}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{displayName(reply)}</h3>
+                    {socialLabel && <Badge variant="outline">{socialLabel}</Badge>}
                     {currentOutcome && <Badge variant="info">{currentOutcome}</Badge>}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                    {[reply.company, reply.email].filter(Boolean).join(" · ")}
+                    {[reply.handle, reply.company, reply.email].filter(Boolean).join(" · ")}
                 </p>
                 {(reply.campaignName || reply.sequenceName) && (
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -205,8 +223,32 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                             </Button>
                         </div>
                     </>
+                ) : socialLabel && windowOpen ? (
+                    <>
+                        <Textarea
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            placeholder={`Write a reply. It's sent as a ${socialLabel} message.`}
+                            maxLength={2200}
+                            rows={4}
+                        />
+                        <div className="flex items-center justify-between gap-3">
+                            <p className={`text-xs ${tooLong ? "text-destructive" : "text-muted-foreground"}`}>
+                                {reply.platform === "INSTAGRAM" && `${draftBytes} / ${INSTAGRAM_MAX_BYTES} bytes · `}
+                                You can reply until {format(new Date(reply.replyWindowEndsAt as string), "d MMM, h:mm a")}
+                            </p>
+                            <Button onClick={sendReply} disabled={sending || !draft.trim() || tooLong}>
+                                <Send className="w-4 h-4 mr-2" />
+                                {sending ? "Sending..." : "Send reply"}
+                            </Button>
+                        </div>
+                    </>
+                ) : socialLabel ? (
+                    <p className="text-xs text-muted-foreground">
+                        {socialLabel} only allows replies within 24 hours of the person&apos;s last message. You can reply once they message you again.
+                    </p>
                 ) : (
-                    <p className="text-xs text-muted-foreground">Replying from the inbox is available for email conversations only.</p>
+                    <p className="text-xs text-muted-foreground">Replying from the inbox is available for email, Instagram and Facebook conversations.</p>
                 )}
             </div>
         </GlassCard>
@@ -307,13 +349,17 @@ export default function InboxPage() {
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-baseline justify-between gap-2">
                                                     <span className={`truncate text-sm ${reply.isRead ? "text-foreground" : "font-semibold text-foreground"}`}>
-                                                        {reply.leadName || reply.email || "Unknown lead"}
+                                                        {displayName(reply)}
                                                     </span>
                                                     <span className="shrink-0 text-[11px] text-muted-foreground">
                                                         {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                                                     </span>
                                                 </div>
-                                                {reply.company && <p className="truncate text-xs text-muted-foreground">{reply.company}</p>}
+                                                {(SOCIAL_LABEL[reply.platform] || reply.company) && (
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {[SOCIAL_LABEL[reply.platform], reply.company].filter(Boolean).join(" · ")}
+                                                    </p>
+                                                )}
                                                 <p className={`mt-0.5 line-clamp-2 text-xs ${reply.isRead ? "text-muted-foreground" : "text-foreground"}`}>
                                                     {reply.snippet}
                                                 </p>

@@ -6114,6 +6114,306 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     wrong label must never suppress a real prospect or stop a sequence.
   - Map the two vocabularies in one place. Keep it team-scoped: the reply's lead must belong to the caller's team.
     Not started.
+- **OPEN-319 (Fixed — creator funnel phase 5c-2: WhatsApp template steps in sequences):** checked 2026-10-03 against
+  https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview,
+  https://developers.facebook.com/docs/graph-api/reference/whats-app-business-account/message_templates/ and
+  https://developers.facebook.com/docs/graph-api/changelog/versions.
+  - **Template steps:** a WhatsApp step can name an approved Meta template and language (`SequenceStep.whatsappTemplateName` and
+    `whatsappTemplateLanguage`); its body holds the values, one per line, with `{first_name}`. After the existing consent checks,
+    the engine looks the template up on the team's WhatsApp Business Account. It must be APPROVED, match name and language
+    exactly, and use only numbered body variables (no header media or variables, no dynamic buttons). The cleaned values must
+    match its variable count. Then it sends the template.
+  - **Skip, don't stall:** anything that stops a template step skips only that step with a specific error code, and the
+    sequence carries on with no manual task. That covers no WhatsApp Business, no account id, a template that isn't approved
+    or doesn't fit, wrong values, no language, or a phone without a country code. Free-text WhatsApp steps are unchanged
+    (manual task when a template is needed).
+  - **Business Account id:** `Team.whatsappBusinessAccountId` is optional in the WABA setup card. It's verified by listing a
+    template with the token, which needs `whatsapp_business_management`.
+  - **Nurtures:** they may now include WhatsApp steps that send a template; free-text WhatsApp steps still can't be in one.
+    Switching a plan nurture on, or a product's automations, checks each template with WhatsApp first.
+  - **Consent:** `ConsentService.validateConsent` now goes by the lead's latest ledger entry for the channel, so an opt-out
+    after a grant blocks sends. It used to find any GRANTED row. Callers: the sequence engine and `/whatsapp/send`.
+  - **Opt-out by reply:** `/webhooks/whatsapp` now gets the exact signed bytes (OPEN-306). Before, every delivery failed the
+    signature check, so a STOP reply never revoked consent and inbound WhatsApp messages were never saved.
+  - **Graph version:** every WhatsApp call moves from v19.0 (expired 2026-05-21) to v26.0, through one constant.
+  - **Recipient numbers:** only numbers stored with a country code are sent to (a leading + or 00, or 11+ digits). Nothing is
+    guessed.
+  - **Not here:** launch plans don't add WhatsApp steps by themselves (no template is known). The web campaign "Start outreach"
+    enroller still refuses WhatsApp steps. Not tested live: no prod team has WhatsApp Business connected.
+
+- **OPEN-318 (Fixed — creator funnel phase 5c-1b: switching the plan's email sequences on):** the explicit steps that let the
+  5c-1a drafts send:
+  - **Nurture switch** (plan page, admin only): needs a finished plan, a nurture sequence a nurture can run, and a connected team
+    mailbox, which becomes the sequence's sender (never the system sender). Who and when are recorded on `PlaybookRun`, which is
+    the approval. New sign-ups on the plan's lead-magnet page then join through `NurtureProvider`, on all three intake paths, when
+    the flag is on, the lead isn't at BOFU/POST, and nothing else is emailing it. No backfill of earlier sign-ups. Switching off
+    stops new sign-ups joining; people already in carry on. A failure never fails the intake.
+  - **Use on product** (plan page, admin only): fills only empty cart-abandon (2h) and after-purchase fields of a product whose
+    automations are off, with the picked mailbox as sender. Sends start only when someone switches the product on in
+    Settings > Payments (the existing who/when approval).
+  - **`Product.postPurchaseSequenceId`** (nullable): checked like the cart-abandon sequence and editable in Settings > Payments. It
+    counts toward what a product needs before switching on. After payment, the buyer joins it once nurture has been stopped. A
+    repeat buyer who was in it before isn't added again.
+
+- **OPEN-317 (Fixed — creator funnel phase 5c-1a: launch plan email sequence drafts):** a launch plan also drafts email
+  sequences, each as a DRAFT `CampaignSequence` in its own draft Campaign (the campaign editor edits one sequence per campaign):
+  - **Nurture (MOFU):** delivers the lead magnet (nothing else delivers it today; the AI writes it from the plan's idea), teaches,
+    then invites to the offer (sales page link). A booking offer ends with two call-booking emails (booking link) instead of a
+    separate BOFU sequence, since there's no checkout event to start one.
+  - **Product offers also get:** checkout reminders (BOFU, checkout link) and a testimonial request 7 days after buying (POST). The
+    delivery email isn't repeated; the product's own automation sends it.
+  - **Copy:** one ROUTINE AI call per email (6 for a product, 4 for a booking). Links are added by code, never written by the AI.
+    Bodies are stored as escaped HTML paragraphs, since the engine sends a step's body as HTML.
+  - **Ids:** plain campaign ids on `PlaybookRun`, saved in the same transaction as the campaign, sequence and steps, so a retry carries on.
+  - **Nothing sends:** no enrollment and no product wiring here. The switches (MOFU auto-enroll of new opt-ins, product cart-abandon
+    and post-purchase wiring) are 5c-1b.
+  - **Delete:** removes sequences nobody joined, with their campaigns (only while the campaign has no emails or leads), unpointing a
+    switched-off product first. A sequence someone joined, or one a switched-on product sends, stays.
+
+- **OPEN-316 (Fixed — creator funnel phase 5b-2: WhatsApp opt-in on launch plan pages):** pages a launch plan drafts
+  (`LandingPage.funnelStage` set) ask sign-ups for WhatsApp consent:
+  - **Checkbox:** unticked by default, under the phone field; the text names WhatsApp and the business (team name). It is built
+    once in the api (`whatsappOptIn.ts`) and used by the public page payload (`whatsappOptIn`), the Cloudflare page builder
+    (HTML-escaped, outside the hashed script) and the ledger note. Other pages show no checkbox.
+  - **Stored:** `LandingLead.whatsappConsent` (nullable, guarded ALTER), only when the page has a funnel stage and a phone was given.
+  - **Consent:** the intake records it with `ConsentService.recordConsent` (method WEB_FORM, no staff user, proof
+    `landing_lead:<id>`, the sign-up's IP, the wording and page version in the notes) only when the lead it became has that same
+    phone number (digits compared), on the merge, existing and new paths. One ledger row per sign-up, so a retried job doesn't
+    repeat it. A failure never fails the intake.
+  - **`recordConsent`:** now takes a null recorder and optional proof and IP; existing callers are unchanged.
+  - **Known gap (fixed 2026-10-03 in OPEN-319):** `ConsentService.validateConsent` finds any GRANTED ledger row and ignores a later REVOKED one.
+    The WhatsApp sequence step also checks `Lead.whatsappConsent`, which revocation clears, so sends still stop. Fix before 5c
+    relies on the ledger alone.
+  - **Cloudflare pages:** the checkbox text is fixed at publish time; a renamed team shows the new name after a republish.
+
+- **OPEN-315 (Fixed — creator funnel phase 5b-1: plan landing pages and keyword trigger):** a launch plan also drafts:
+  - **Pages:** a lead-magnet opt-in page (TOFU) and a sales page (BOFU), each through the landing agent (campaign, brief,
+    wireframes, selected page).
+  - **Sales page buttons:** they open the booking link, or `<WEB_BASE_URL>/checkout/<productId>`. They use a new section `ctaHref`,
+    rendered only when it is https, in both renderer copies; anything else keeps `#lead-form`.
+  - **Keyword trigger:** a switched-off comment keyword auto-reply (an Instagram account preferred, else a Facebook Page of the
+    plan) that sends the lead-magnet page.
+  - **Post prompts:** TOFU and MOFU posts ask readers to comment the keyword (default GUIDE).
+  - **Ids:** plain id columns on `PlaybookRun` (no FK; Landing* tables aren't in migrations), saved as soon as each exists, so a
+    retry carries on.
+  - **Order:** pages are made before the READY claim; the trigger after it, through `createTrigger`'s own checks.
+  - **Notes:** if there's no account, or the trigger is refused, `PlaybookRun.notes` says so.
+  - **Triggers and draft pages:** a switched-off trigger may point at a draft page. Switching one on, or pointing an active one at a
+    page, needs the page published. The trigger editor lists linked draft pages.
+  - **Delete:** removes draft pages (withdrawing pending publish approvals) and a switched-off trigger. Published pages and a
+    switched-on trigger stay.
+  - **Not here:** the WhatsApp consent checkbox (5b-2).
+  - **Prod check (2026-10-02, after deploy):** a SQL-enqueued run on a test team (2 posts a week, booking offer, no social
+    account) came out READY with 8 draft posts, both draft pages (TOFU and BOFU, real AI copy, not the fallback), sales page buttons
+    on the booking link, and the no-account note. Deleted afterwards. Two follow-ups, fixed in the 5b-2 PR: the footer's "back to
+    top" button was pointed at the booking link too, and the wizard's cost note said N+4 credits where the two pages cost about 14
+    (brief 2 + wireframes 5, each).
+
+- **OPEN-314 (Fixed — AI model routing defaults):** checked 2026-10-02. Fixed the same day at the user's request: every DeepSeek tier,
+  STRATEGIC included, now uses `deepseek-chat` (`aiService.ts` DEFAULT_MODELS; test in `aiService.test.ts`). The Gemini defaults
+  are unchanged (no Gemini key in prod).
+  - **Prod key:** prod has only `DEEPSEEK_API_KEY`, and no team has its own keys.
+  - **Model names:** `GET /models` lists only `deepseek-flash` and `deepseek-v4-pro`. The legacy names still work: `deepseek-chat` is
+    served by V4.1 Flash without thinking, and `deepseek-reasoner` by Flash with thinking (slower, billed reasoning tokens).
+  - **Every askAI caller without an explicit complexity:**
+    - it defaults to STRATEGIC, which is `deepseek-reasoner`;
+    - the one logged call took 19s, close to the 30s timeout.
+  - **Gemini defaults:** they still name the retired `gemini-1.5-*` models. That only matters if a Gemini key is added.
+  - **The playbook wizard opts into ROUTINE** (`deepseek-chat`).
+  - **Open question:** should the other callers move as well, or should `DEEPSEEK_MODEL` be pinned? That's a product decision,
+    left open.
+
+- **OPEN-313 (Fixed — creator funnel phase 5a: playbook wizard, post drafts):** Content > Launch plans
+  (`/content/plans`, `GET/POST /content/playbooks`, `GET/DELETE /content/playbooks/:id`, `POST .../retry`), behind
+  `creator-funnel`.
+  - **Inputs:** an offer (an active checkout Product, or a call through the team's own https booking link), an
+    audience (an existing ICP, or a description that creates a simple ICP), a lead magnet, a tone, a start date
+    (tomorrow to 60 days out), 2-5 posts a week, and accounts.
+  - **Output:** a `PlaybookRun` plus 4 weeks of DRAFT ContentPosts at 10:00 local (DST-safe), spread over the
+    team's stage mix by largest remainder. Each post has Facebook text (`body`), Instagram and LinkedIn text
+    (`channelCaptions`), and a `visualBrief`. Every post points back with `playbookRunId` (SetNull), so the
+    set is reviewed and deleted in one place.
+  - **Job:** the AI writing runs as a `playbook_generate` job (the dashboard proxy waits 15s), with one short call per post, 4 at a time. askAI's Anthropic path caps replies at 800 tokens and each call at 30s, so a week per call would be cut off.
+    The job writes everything first, then saves all posts in one transaction that claims GENERATING -> READY, so a
+    repeated job saves nothing twice. It never throws: AI calls are billed, so a failure becomes FAILED with a
+    manual "Try again". There is one GENERATING plan per team; one stuck for 15 minutes can be retried.
+  - **Captions are content:** the publisher sends the Instagram caption on Instagram. `submitPost` checks
+    Instagram's limits on that caption, and the approval card shows each channel's text. Editing a channel
+    caption withdraws an approval like editing the body does. The visual brief isn't posted.
+  - **Delete:** deletes each draft through `deletePost` (approvals withdrawn). Posts already live are kept and
+    detached. An ICP the wizard created stays.
+  - **Nothing publishes:** every post is a DRAFT and goes through the existing approval flow.
+  - **Next:** 5b (landing pages, inactive keyword trigger, WhatsApp consent) and 5c (sequences) will add their own
+    `playbookRunId` links.
+
+- **OPEN-312 (Open — unknown landing slug returns 500):** `POST /landing-agent/public/<slug>/event` and `/lead`
+  answer 500 for a slug with no published page: `getPublicPageBySlug` returns null and the service throws a plain
+  `Error`, which `handleAPIError` maps to 500. It should be a 404. Pre-existing; found in the 6b smoke check
+  2026-10-02.
+
+- **OPEN-311 (Fixed — creator funnel phase 6c: Content ROI report):** Reports > Content ROI
+  (`/analytics/content`, `GET /content/roi?days=7|30|90`), behind `creator-funnel`.
+  - **Per published post:**
+    - visits: distinct landing page sessions with `utm_content=<post>`, by event time;
+    - opt-ins: landing sign-ups with that `utm_content`, by sign-up time;
+    - purchases and revenue: paid orders from checkouts started in the window, by currency.
+  - **Order attribution:** the order's own `utm_content` post if it's one of the team's, else the buyer lead's new
+    `Lead.firstTouchPostId`. Each order counts once.
+  - **`firstTouchPostId`** is set once, only to a ContentPost of the same team (`utm_content` is public input). It
+    is written by the keyword auto-reply (the trigger's post or the commented post) and by landing intake on both
+    the merge and normal paths.
+  - **Stage conversion:** of the leads that reached a stage in the window (from `stage_change` activity), the share
+    that also reached the next one. Leads that skip a stage don't inflate it.
+  - **Ranking:** posts are sorted by revenue in the team's main currency.
+  - **Limits:**
+    - a buyer who pays with a different email than they opted in with stays unattributed (shown as a separate line);
+    - data only accumulates from 6b/6c onward (prod had 0 posts, orders and auto-replies on 2026-10-02, so there
+      was no backfill).
+  - **Schema:** migration `20261008120000_lead_first_touch_post`.
+
+- **OPEN-310 (Fixed — creator funnel phase 6b: UTM on outbound links, stored on events and orders):** one helper
+  (`apps/api/src/lib/utm.ts`, mirrored in `apps/web/src/lib/utm.ts` with a parity test) adds `utm_source`,
+  `utm_medium`, `utm_campaign` and `utm_content`. It never overwrites UTM a link already has, and keeps `?t=` and the
+  fragment.
+  - **Auto-reply links:** source `instagram`/`facebook`, medium `comment`/`dm`, campaign the trigger id. Content is
+    the trigger's post or, for an any-post trigger, the post the comment was on when CMf published it (new
+    `KeywordTriggerReply.mediaId`, matched to `ContentPostTarget.externalId`). Instagram triggers now check message
+    + full link against 1,000 bytes when saved.
+  - **Sequence emails** (user decision 2026-10-02): added at click-redirect time in
+    `apps/web/src/app/api/track/click/[trackingKey]`, only for CMf `/p/` links. Source `email`, medium `sequence`,
+    campaign the campaign id, content the sequence step id. The send path and stored email are unchanged. Emails
+    sent without click tracking get no UTM, and neither do links to Cloudflare-published pages (another origin,
+    served at `/<slug>`), so email attribution is thin if creators mostly share those.
+  - **Stored:** `LandingEvent` and `Order` get `utm*` columns (`LandingEvent` guarded with IF EXISTS); `LandingLead`
+    already had them. Both landing page scripts send the page URL's UTM with every event, and the checkout page
+    sends its URL's UTM with the session. Cloudflare-published pages need a republish to send event UTM.
+  - **Not tagged:** post captions (user-written; the Phase 5 wizard will use the helper) and the delivery link
+    (an external course URL).
+  - **Attribution note for 6c:** landing pages don't link to checkout today, so most purchases will be attributed
+    through `Order.leadId` and the lead's first touch, not through `Order` UTM.
+
+- **OPEN-309 (Fixed — creator funnel phase 6a: checkout hooks):** checkout and payment now move buyers through the
+  funnel. Behind `creator-funnel`. User decisions 2026-10-02: existing leads only at checkout start, a per-product
+  switch is the approval, and the OPEN-306 fix is included for the two checkout webhooks.
+  - **Checkout start** (`checkoutService.createSession`, after the gateway session is saved, never failing checkout):
+    the public checkout's email is unverified, so this acts only on a lead the team already has with that email
+    (case-insensitive). The order is linked to that lead and the lead moves to BOFU.
+  - **Payment** (the `order_captured` job, after the audit log):
+    - The buyer's lead is used, or created from the verified payment. It moves to POST and its nurture stops.
+    - The product's delivery link is emailed from the product's chosen mailbox. The order goes to SENDING right
+      before the one send and is never retried; Resend sends also carry an idempotency key.
+    - The delivery email checks the suppression list, escapes names, and refuses links that aren't https.
+  - **Cart abandon** (5-minute worker tick): an unpaid checkout older than the product's hours (1-168), started after
+    the automations were switched on and at most 7 days old, is claimed once. If the lead hasn't paid for the product
+    since, its current nurture stops and it joins the product's cart-abandon sequence through `NurtureProvider`.
+  - **Approval:** Settings > Payments > a product > Funnel automations. Delivery link, mailbox, sequence and hours
+    are saved switched off. Switching on checks the setup and records who and when; only orders started after that
+    get these emails.
+  - **Schema:** migration `20261006120000_checkout_funnel_hooks`, additive:
+    - `Product`: delivery and cart-abandon settings, plus `automationsActive` (default false) and who/when.
+    - `Order`: `leadId` (FK, SetNull), delivery status/error/time, and `abandonHandledAt`.
+  - **Razorpay checkout orders:** `/webhooks/razorpay` now finds the order by the Razorpay order id it was created
+    with (`Order.gatewaySessionId`) and requires the captured amount to match. It no longer relies on payment notes:
+    Razorpay's docs (checked 2026-10-02) don't say an order's notes reach the payment, and the checkout page sets
+    none. The billing branches of that route are unchanged, but with exact bytes they'll process real events for
+    the first time, so watch the first one.
+  - **Note:** stopping nurture (`stopEnrollmentsForLead`) ends every active sequence the lead is in, not only nurture.
+    A delivery that crashed mid-send stays "sending" and is never retried; check the mailbox's Sent folder.
+  - **Pre-existing, not fixed:** Stripe's default `successUrl` is `/checkout/<id>/success`, but that page doesn't
+    exist, so Stripe buyers land on a 404 after paying.
+
+- **OPEN-308 (Fixed — creator funnel phase 4c: auto-reply link sign-ups merge into the same lead):** the
+  landing page link in a keyword auto-reply now carries `?t=<token>`. A sign-up through it is added to the lead
+  the auto-reply went to, instead of becoming a second lead.
+  - **Token (`linkToken.ts`):** HMAC-SHA256 with `NEXTAUTH_SECRET` (domain-separated) over the `KeywordTriggerReply`
+    id and an expiry. It lasts 72 hours and is about 70 characters. It names the auto-reply, not the lead, because
+    a commenter's lead is only created after the DM is sent. If signing fails, the plain link goes out.
+  - **Forwarding:** the web `/p/<slug>` renderer and the Cloudflare edge form script both send `t` as `socialToken`.
+    It is stored on the new nullable `LandingLead.socialToken` column (migration
+    `20261005120000_landing_lead_social_token`, guarded with IF EXISTS like other Landing* changes). Pages
+    already published to Cloudflare keep the old script until they are republished.
+  - **Merge (`socialLinkMerge.ts`, run by `landing-lead-intake-worker`):** the merge only runs when all of these
+    hold, otherwise the sign-up takes the old create-or-update-by-email path:
+    - the token checks out;
+    - it hadn't expired when the person signed up;
+    - the auto-reply and its lead belong to the page's team.
+
+    The merge fills only the lead's empty fields. It sets a name only when the lead is unnamed or still called by
+    its @handle. Then it moves the lead to MOFU (`landing_opt_in`). It never replaces an email the lead already
+    has, and never adds an email another lead in the team has (case-insensitive). The update is conditional on
+    the email it read.
+  - **Limit:** a forwarded link can attach a friend's email to the original lead within the 72 hours. Only the
+    first email sticks; any later different email falls back to a new lead.
+  - **Instagram:** a reply whose text plus link is over 1,000 bytes fails with a clear error instead of sending.
+  - **Deferred:** the WhatsApp consent checkbox is deferred to Phase 5 (playbook), per the user's decision on
+    2026-10-01.
+
+- **OPEN-307 (Fixed — creator funnel phase 4b: keyword auto-replies on comments and DMs):** a comment or DM containing
+  one of an active trigger's keywords gets an automatic DM, and comments can also get a public reply. Behind
+  `creator-funnel`.
+  - **Approval:** triggers are saved switched off. Switching one on checks the account is connected and has the
+    permissions its sends need, and records who switched it on (`activatedById`/`activatedAt`).
+  - **Queue, then send:** the webhook only writes a `KeywordTriggerReply` claim, unique per (account, comment or DM),
+    so Meta's retries never queue twice. A 10-second worker tick (`sendPendingAutoReplies`) does the Graph calls.
+    - Each row moves to SENDING right before its one call; a row Meta didn't confirm is never retried.
+    - One reply per person per trigger per 24h; at most 200 per account per hour (Instagram allows 750 private
+      replies an hour).
+    - Comments older than 7 days are skipped (Meta's private-reply limit).
+  - **Comments:** Instagram `comments` and Page `feed` (comment adds) are read from `changes[]`. The account's own
+    comments, including CMf's public replies, are skipped so a reply can't trigger itself. A trigger can be limited
+    to one published post. Comments aren't stored or shown in the inbox (user decision 2026-10-01).
+  - **Leads:** a commenter becomes a lead only when an auto-reply is sent, keyed by the Instagram/Messenger id Meta
+    returns, so their later DMs land on the same lead (TOFU, source `instagram_comment`/`facebook_comment`). The
+    auto-reply is recorded on the lead's thread.
+  - **Link:** a plain `https://craftmyfunnel.live/p/<slug>` link to a published landing page. The signed link and
+    opt-in merge are phase 4c.
+  - **Connect:** Pages now subscribe to `messages,feed`. Pages connected before this need a Reconnect.
+  - **Schema:** migration `20261004120000_keyword_triggers` adds the `KeywordTrigger` and `KeywordTriggerReply`
+    tables (additive; `landingPageId` has no FK because Landing* tables aren't created by migrations).
+  - **UI:** Settings > Social > Keyword auto-replies, plus a "Comment keyword → DM" link on live posts in the
+    calendar.
+
+- **OPEN-306 (Partly fixed 2026-10-02 — signed JSON webhooks other than Meta DMs get a re-serialized body):**
+  `/webhooks/stripe-connect` and `/webhooks/razorpay` now get the exact bytes (OPEN-309, user sign-off 2026-10-02;
+  handler logic unchanged). `/webhooks/whatsapp` too (OPEN-319, 2026-10-03). Still open: `/webhooks/stripe-billing` and
+  `/webhooks/resend`.
+  apps/api's Fastify default JSON parser keeps only the parsed object, and `server.ts` `getAdaptedRequestBody` hands
+  route handlers `JSON.stringify(request.body)` for `application/json`. Handlers that verify a signature over
+  `await req.text()` therefore check a body that isn't byte-identical to what the provider signed whenever the
+  provider's JSON has whitespace, escaped characters or `\uXXXX` escapes. Affected: `/webhooks/stripe-billing`
+  (Stripe payloads are pretty-printed, so this likely fails every delivery), `/webhooks/stripe-connect`,
+  `/webhooks/razorpay`, `/webhooks/whatsapp` and `/webhooks/resend`. It fails closed (deliveries rejected), not
+  open. Prod on 2026-10-01 had 0 `Invoice` and 0 paid `CreditTransaction` rows, so there's no evidence either way.
+  - **Fix:** add these paths to `RAW_JSON_BODY_PATHS` in `apps/api/src/lib/rawJsonBody.ts` (OPEN-305), after checking
+    each provider dashboard's delivery log. Resend inbound is a do-not-touch path, so it needs explicit sign-off.
+- **OPEN-305 (Fixed — creator funnel phase 4a: Instagram and Facebook DMs in the Action Inbox):** one Meta webhook
+  (`apps/api/routes/webhooks/meta-social`) receives Instagram Direct and Facebook Page messages; they appear in
+  the Action Inbox and can be answered from there. Behind `creator-funnel`.
+  - **Signed bytes:** `src/lib/rawJsonBody.ts` keeps the exact request bytes for `/webhooks/meta-social` only (same
+    parser and poisoning options as Fastify's default). The route rejects missing or wrong `X-Hub-Signature-256`
+    (HMAC-SHA256 with `FACEBOOK_APP_SECRET`) with 401 before parsing, and 503s without the secret.
+  - **Ingestion (`creator-funnel/socialInbox.ts`):** every CONNECTED account row for the receiving Instagram account
+    or Page, in teams with the flag on, gets the message. A new person gets a Lead (`instagram_dm`/`facebook_dm`)
+    and a `SocialContact` in one transaction (a concurrent create is handled) and moves to TOFU
+    (`social_first_touch`). `Message.externalId` (`<accountId>:<mid>`) makes Meta's retries no-ops. Media URLs are
+    never stored (placeholders like "[Photo]"). Echoes, reactions, reads and postbacks are skipped. A deleted
+    message deletes CMf's copy. Any failed event returns 500 so Meta retries. The person's name/handle is looked up
+    after the reply, best effort.
+  - **Replies:** `sendReply` hands INSTAGRAM/FACEBOOK replies to `sendSocialReply`. It enforces:
+    - the 24-hour window from `SocialContact.lastInboundAt` (no message tags);
+    - Instagram's 1,000-byte limit;
+    - the messaging permission;
+    - guardrails;
+    - the linked Page's token.
+    A reply Meta refused or didn't confirm isn't recorded as sent. The legacy `/inbox/reply` route refuses these
+    platforms, since it only records messages.
+  - **Connect:** the Page is subscribed with `POST /{page-id}/subscribed_apps?subscribed_fields=messages`. A failure
+    is shown on Settings > Social and Reconnect retries it.
+  - **Schema:** migration `20261003120000_social_dms` adds the `SocialContact` table and a nullable unique
+    `Message.externalId` (additive).
+  - **Owed by the user:** `META_WEBHOOK_VERIFY_TOKEN` on both Oracle VMs, plus `FACEBOOK_APP_SECRET` there. The
+    webhook subscriptions (Page and Instagram objects, `messages`) go in the App Dashboard. The app must be
+    published to receive webhooks.
 
 - **OPEN-304 (Fixed — creator funnel phase 3b: publishing approved posts to Facebook Pages and Instagram):**
   a 1-minute worker tick (`creator-funnel/contentPublisher.ts`) publishes APPROVED posts once their time comes.

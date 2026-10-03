@@ -16,10 +16,11 @@ export class ConsentService {
      */
     static async recordConsent(
         leadId: string,
-        userId: string,
+        userId: string | null, // null when the person consented themselves (a landing page form)
         method: ConsentMethod,
         notes?: string,
-        channel: string = "WHATSAPP"
+        channel: string = "WHATSAPP",
+        evidence?: { proof?: string; ipAddress?: string | null }
     ) {
         // 1. Create Ledger Entry (Source of Truth)
         await prisma.consentLedger.create({
@@ -29,8 +30,9 @@ export class ConsentService {
                 channel,
                 purpose: "MARKETING_AND_SUPPORT", // Default purpose for now
                 status: "GRANTED",
-                proof: null, // Can be added later
-                notes: notes || null
+                proof: evidence?.proof ?? null,
+                notes: notes || null,
+                ipAddress: evidence?.ipAddress ?? null
             }
         });
 
@@ -77,18 +79,16 @@ export class ConsentService {
         hasConsent: boolean;
         reason?: string;
     }> {
-        // GDPR / DPDP Compliance: Check Ledger for active consent
-        const activeConsent = await prisma.consentLedger.findFirst({
-            where: {
-                leadId,
-                channel,
-                status: "GRANTED"
-            },
-            orderBy: { grantedAt: "desc" }
+        // GDPR / DPDP Compliance: the lead's latest ledger entry for the channel decides, so an
+        // opt-out after a grant blocks sends (revocations are new rows; revokedAt isn't set).
+        const latest = await prisma.consentLedger.findFirst({
+            where: { leadId, channel },
+            orderBy: [{ grantedAt: "desc" }, { id: "desc" }],
+            select: { status: true }
         });
 
-        if (!activeConsent) {
-            return { hasConsent: false, reason: `No active ${channel} consent found in ledger` };
+        if (latest?.status !== "GRANTED") {
+            return { hasConsent: false, reason: latest ? `${channel} consent was revoked` : `No active ${channel} consent found in ledger` };
         }
 
         return { hasConsent: true };

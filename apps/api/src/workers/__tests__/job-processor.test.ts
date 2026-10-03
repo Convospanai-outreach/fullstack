@@ -53,6 +53,8 @@ vi.mock("@/lib/workflowService", () => ({
     },
 }));
 
+vi.mock("@/modules/creator-funnel/checkoutHooks", () => ({ onOrderCaptured: vi.fn() }));
+
 vi.mock("@/modules/audit/auditService", () => ({
     AuditService: {
         log: vi.fn(),
@@ -312,7 +314,7 @@ describe("job-processor", () => {
         expect(result).toEqual({ acknowledged: true, eventType: "PAYMENT_CAPTURED" });
     });
 
-    it("dispatches order_captured jobs to an audit log", async () => {
+    it("dispatches order_captured jobs to an audit log, then the creator funnel hooks", async () => {
         const mockJob = {
             id: "job-order-1",
             status: "running",
@@ -332,6 +334,8 @@ describe("job-processor", () => {
             "order_1",
             mockJob.payload
         );
+        const { onOrderCaptured } = await import("@/modules/creator-funnel/checkoutHooks");
+        expect(onOrderCaptured).toHaveBeenCalledWith("t1", "order_1");
         expect(result).toEqual({ acknowledged: true });
     });
 

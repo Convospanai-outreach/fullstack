@@ -16,6 +16,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         invoice: { findFirst: vi.fn() },
         auditLog: { create: vi.fn() },
         outboxEvent: { create: vi.fn(), findUnique: vi.fn() },
+        order: { findFirst: vi.fn() },
         $transaction: vi.fn(),
     };
     return { mockPrisma, mockTx };
@@ -50,6 +51,7 @@ describe("/webhooks/razorpay", () => {
         mockTx.creditTransaction.create.mockResolvedValue({});
         mockTx.invoice.create.mockResolvedValue({});
         mockTx.$queryRaw.mockResolvedValue([{ id: "sub-1" }]);
+        mockPrisma.order.findFirst.mockResolvedValue(null);
     });
 
     it("rejects a mismatched-length signature with 400 instead of throwing", async () => {
@@ -417,8 +419,9 @@ describe("/webhooks/razorpay", () => {
         expect(response.status).toBe(500);
     });
 
-    describe("Route checkout orders (notes.checkoutOrderId)", () => {
+    describe("Route checkout orders", () => {
         it("captures the order and publishes ORDER_CAPTURED, bypassing the credit-grant flow entirely", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-1" });
             mockTx.order.updateMany.mockResolvedValue({ count: 1 });
             mockTx.order.findUnique.mockResolvedValue({
                 id: "order-1", teamId: "team-1", productId: "prod-1", customerEmail: "buyer@example.com", amount: 5000,
@@ -435,8 +438,9 @@ describe("/webhooks/razorpay", () => {
             }) as any);
 
             expect(response.status).toBe(200);
+            expect(mockPrisma.order.findFirst).toHaveBeenCalledWith({ where: { gateway: "RAZORPAY", gatewaySessionId: "rzp_order_1" }, select: { id: true } });
             expect(mockTx.order.updateMany).toHaveBeenCalledWith({
-                where: { id: "order-1", status: "PENDING" },
+                where: { id: "order-1", status: "PENDING", gateway: "RAZORPAY", gatewaySessionId: "rzp_order_1", amount: 5000 },
                 data: { status: "CAPTURED", gatewayPaymentId: "pay_route_1" },
             });
             expect(mockTx.outboxEvent.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -445,7 +449,38 @@ describe("/webhooks/razorpay", () => {
             expect(mockPrisma.creditTransaction.findFirst).not.toHaveBeenCalled();
         });
 
-        it("does not re-publish when the order is no longer PENDING (retry no-op)", async () => {
+        it("finds the order by its Razorpay order id even when the payment carries no notes", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-3" });
+            mockTx.order.updateMany.mockResolvedValue({ count: 1 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-3", teamId: "team-1", productId: "prod-1", customerEmail: null, amount: 5000 });
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_route_3", order_id: "rzp_order_3", amount: 5000, notes: [] } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockTx.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "order-3" }) }));
+            expect(mockTx.outboxEvent.create).toHaveBeenCalled();
+            expect(mockPrisma.creditTransaction.findFirst).not.toHaveBeenCalled();
+        });
+
+        it("never captures an order named only in payment notes, and doesn't fall into the billing flow", async () => {
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_x", order_id: "rzp_order_other", amount: 100, notes: { checkoutOrderId: "order-victim" } } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+            expect(mockTx.order.updateMany).not.toHaveBeenCalled();
+            expect(mockPrisma.creditTransaction.findFirst).not.toHaveBeenCalled();
+        });
+
+        it("does not re-publish when the order is no longer PENDING or the amount differs (no-op)", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-2" });
             mockTx.order.updateMany.mockResolvedValue({ count: 0 });
 
             const { POST } = await import("./route");

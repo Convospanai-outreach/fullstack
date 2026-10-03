@@ -24,9 +24,37 @@ export class NurtureNotConfiguredError extends Error {
     }
 }
 
-// Mirrors apps/web lib/campaigns/enrollment.ts: the only step types the sequence engine runs.
+// Mirrors apps/web lib/campaigns/enrollment.ts: the only step types the sequence engine runs. A
+// nurture may also have WhatsApp steps that send an approved template (5c-2): free-text WhatsApp
+// steps would hand every lead to a person, so they aren't allowed in a nurture.
 const SUPPORTED_STEP_TYPES = new Set(["email", "condition", "delay", "manual_review"]);
 const LIVE_ENROLLMENT_STATUSES = ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"];
+
+export type NurtureStep = { stepType: string; whatsappTemplateName?: string | null };
+const stepKind = (stepType: string) => stepType.trim().toLowerCase().replace(/-/g, "_");
+const canRun = (step: NurtureStep) =>
+    SUPPORTED_STEP_TYPES.has(stepKind(step.stepType)) || (stepKind(step.stepType) === "whatsapp" && Boolean(step.whatsappTemplateName?.trim()));
+
+/** True when CmfSequenceProvider.enroll can run every one of these (ACTIVE) steps. */
+export function nurtureCanRunSteps(steps: NurtureStep[]) {
+    return steps.length > 0 && steps.every(canRun);
+}
+
+/**
+ * Before switching a nurture on: every WhatsApp template step's template must be approved and
+ * sendable on the team's WhatsApp Business Account. Returns the problem, or null.
+ */
+export async function whatsappStepProblem(teamId: string, steps: (NurtureStep & { whatsappTemplateLanguage?: string | null })[]) {
+    const templates = steps.filter((s) => stepKind(s.stepType) === "whatsapp" && s.whatsappTemplateName?.trim());
+    if (!templates.length) return null;
+    const { checkTemplate } = await import("@/modules/whatsapp/whatsappTemplates");
+    for (const step of templates) {
+        if (!step.whatsappTemplateLanguage?.trim()) return `The WhatsApp step "${step.whatsappTemplateName}" has no template language.`;
+        const check = await checkTemplate(teamId, step.whatsappTemplateName!.trim(), step.whatsappTemplateLanguage.trim());
+        if (!check.ok) return `WhatsApp step: ${check.reason}`;
+    }
+    return null;
+}
 
 /** CMf sequences. journeyKey is a CampaignSequence id in the lead's team. */
 export class CmfSequenceProvider implements NurtureProvider {
@@ -39,7 +67,7 @@ export class CmfSequenceProvider implements NurtureProvider {
         });
         const firstStep = sequence?.steps[0];
         if (!sequence || !firstStep) throw new Error("Nurture sequence not found or has no active steps");
-        const unsupported = sequence.steps.find((step) => !SUPPORTED_STEP_TYPES.has(step.stepType.trim().toLowerCase().replace(/-/g, "_")));
+        const unsupported = sequence.steps.find((step) => !canRun(step));
         if (unsupported) throw new Error(`Nurture sequence step "${unsupported.stepType}" can't run yet`);
 
         const mailbox = sequence.senderMailboxIds.length

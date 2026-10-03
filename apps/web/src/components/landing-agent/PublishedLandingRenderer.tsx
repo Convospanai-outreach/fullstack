@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { readUtm } from "@/lib/utm";
 
 interface Props {
     slug: string;
     title?: string | null;
     version: number;
     renderedJson: unknown;
+    // Creator funnel pages: the WhatsApp opt-in checkbox text from the API, or null for none.
+    whatsappOptIn?: string | null;
 }
 
 const API_BASE = getBrowserApiBase();
@@ -18,14 +21,16 @@ function createSessionId() {
 }
 
 async function trackEvent(slug: string, payload: { eventName: string; eventData?: unknown; sessionId?: string; pageVersion?: number }) {
+    // The page URL's UTM goes with every event, so visits can be traced to the post/DM/email (attribution).
+    const utm = readUtm(new URL(window.location.href).searchParams);
     await fetch(`${API_BASE}/landing-agent/public/${slug}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, ...utm }),
     }).catch(() => null);
 }
 
-export default function PublishedLandingRenderer({ slug, title, version, renderedJson }: Props) {
+export default function PublishedLandingRenderer({ slug, title, version, renderedJson, whatsappOptIn }: Props) {
     const [submitting, setSubmitting] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [formStarted, setFormStarted] = useState(false);
@@ -92,6 +97,10 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                                         utmTerm: url.searchParams.get("utm_term") || undefined,
                                         utmContent: url.searchParams.get("utm_content") || undefined,
                                         referrer: document.referrer || undefined,
+                                        // Creator funnel: the signed ?t= from an auto-reply link, so the
+                                        // sign-up merges into the lead that got it.
+                                        socialToken: url.searchParams.get("t") || undefined,
+                                        whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
                                     }),
                                 });
                                 if (!res.ok) {
@@ -115,6 +124,12 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                         <input type="text" name="name" placeholder="Name" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="email" name="email" placeholder="Work email" required className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="phone" placeholder="Phone" className="rounded-md border border-slate-300 px-3 py-2" />
+                        {whatsappOptIn ? (
+                            <label className="flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="whatsappConsent" className="mt-1" />
+                                {whatsappOptIn}
+                            </label>
+                        ) : null}
                         <input type="text" name="company" placeholder="Company" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="title" placeholder="Title" className="rounded-md border border-slate-300 px-3 py-2" />
                         <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />

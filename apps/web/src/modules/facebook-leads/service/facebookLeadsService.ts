@@ -247,6 +247,29 @@ async function grantedScopes(userToken: string) {
     return (json?.data || []).filter((row: any) => row?.status === "granted").map((row: any) => String(row.permission));
 }
 
+// Subscribes the app to the Page's messages and feed, so its Messenger conversations, its
+// linked Instagram account's DMs and its post comments (keyword auto-replies) reach apps/api's
+// /webhooks/meta-social: POST /{page-id}/subscribed_apps with subscribed_fields=messages,feed and
+// the Page token (needs pages_manage_metadata; Instagram subscribes "through the linked Facebook
+// Page"). The call replaces the app's field list, so both fields go every time. Checked 2026-10-01:
+// https://developers.facebook.com/documentation/business-messaging/messenger-platform/webhooks
+// https://developers.facebook.com/docs/graph-api/webhooks/reference/page/ (feed: comments)
+// Returns Meta's error, or null on success.
+async function subscribePageToMessages(pageId: string, pageToken: string) {
+    try {
+        const res = await fetch(`${SOCIAL_GRAPH_BASE_URL}/${encodeURIComponent(pageId)}/subscribed_apps`, {
+            method: "POST",
+            body: new URLSearchParams({ subscribed_fields: "messages,feed", access_token: pageToken }),
+            signal: AbortSignal.timeout(15_000),
+        });
+        const json: any = await res.json().catch(() => null);
+        if (res.ok && json?.success !== false) return null;
+        return String(json?.error?.message || `Meta returned HTTP ${res.status}.`).slice(0, 300);
+    } catch {
+        return "Meta didn't answer in time.";
+    }
+}
+
 // One FACEBOOK_PAGE account per Page (with the Page's token, which doesn't expire), plus an
 // INSTAGRAM account for each Page with a linked Instagram professional account. Instagram
 // account rows hold the long-lived User token instead: the Instagram API with Facebook Login
@@ -293,7 +316,19 @@ async function connectSocialAccounts(
     const accounts = [];
     for (const page of pages) {
         const token = await encryptCredential(page.access_token);
-        accounts.push(await upsert("FACEBOOK_PAGE", page.id, page.name ?? null, null, token, null));
+        const pageAccount = await upsert("FACEBOOK_PAGE", page.id, page.name ?? null, null, token, null);
+        accounts.push(pageAccount);
+
+        // DMs are optional: a failed subscription doesn't fail the connect, it's shown on the account.
+        if (scopes.includes("pages_manage_metadata")) {
+            const subscribeError = await subscribePageToMessages(page.id, page.access_token);
+            if (subscribeError) {
+                await prisma.socialAccount.update({
+                    where: { id: pageAccount.id },
+                    data: { lastError: `Messages and comments from this Page and its Instagram account won't reach CMf: ${subscribeError}` },
+                });
+            }
+        }
 
         // GET /{page-id}?fields=instagram_business_account (Instagram API with Facebook Login, get started)
         const igRes = await fetch(

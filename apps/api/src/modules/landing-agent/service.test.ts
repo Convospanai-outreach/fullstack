@@ -12,8 +12,8 @@ vi.mock("@/lib/aiService", () => ({ aiService: { askAI: vi.fn(), generateImage: 
 vi.mock("@/modules/learning/EventStore", () => ({ EventStore: { record: vi.fn() }, SystemEventType: {} }));
 vi.mock("@/lib/governance/audit", () => ({ audit: vi.fn() }));
 vi.mock("@/lib/governance/guard", () => ({ enforcePolicy: vi.fn() }));
-vi.mock("@/lib/outboxService", () => ({ OutboxService: { enqueue: vi.fn() } }));
-vi.mock("@/lib/blindIndexService", () => ({ BlindIndexService: { hash: vi.fn() } }));
+vi.mock("@/lib/outboxService", () => ({ OutboxService: { enqueue: vi.fn(), publishEvent: vi.fn() } }));
+vi.mock("@/lib/blindIndexService", () => ({ BlindIndexService: { hash: vi.fn(), createBlindIndex: vi.fn() } }));
 vi.mock("@/modules/governance/ApprovalService", () => ({ ApprovalService: { requestEntityApproval: vi.fn() } }));
 vi.mock("./service/imageGenerationService", () => ({
     imageGenerationService: { generateSectionImage: vi.fn() },
@@ -78,5 +78,48 @@ describe("landingAgentService's mutations scope by teamId, not just the campaign
             expect.objectContaining({ where: { id: "page-1", teamId: "team-a" } })
         );
         expect(result).toEqual({ ...page, renderedJson: { sections: [] } });
+    });
+});
+
+describe("landingAgentService.submitLeadBySlug", () => {
+    it("stores the creator funnel link token with the sign-up so the intake can merge it", async () => {
+        const tx = { landingLead: { create: vi.fn().mockResolvedValue({ id: "ll-1" }) }, landingEvent: { create: vi.fn() } };
+        (mockPrisma as any).$transaction = vi.fn((run: (t: typeof tx) => unknown) => run(tx));
+        vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue({ id: "lp-1", campaignId: "lc-1", teamId: "team-1", slug: "guide", version: 1 } as any);
+
+        await landingAgentService.submitLeadBySlug({ slug: "guide", payload: { name: "Asha", socialToken: "abc.def" } });
+
+        expect(tx.landingLead.create).toHaveBeenCalledWith({ data: expect.objectContaining({ teamId: "team-1", socialToken: "abc.def" }) });
+    });
+
+    it("keeps a WhatsApp opt-in tick only from a creator funnel page and with a phone number", async () => {
+        const tx = { landingLead: { create: vi.fn().mockResolvedValue({ id: "ll-1" }) }, landingEvent: { create: vi.fn() } };
+        (mockPrisma as any).$transaction = vi.fn((run: (t: typeof tx) => unknown) => run(tx));
+        const page = { id: "lp-1", campaignId: "lc-1", teamId: "team-1", slug: "guide", version: 1 };
+        const spy = vi.spyOn(landingAgentService, "getPublicPageBySlug");
+        const stored = () => tx.landingLead.create.mock.calls.at(-1)![0].data.whatsappConsent;
+
+        spy.mockResolvedValue({ ...page, funnelStage: "TOFU" } as any);
+        await landingAgentService.submitLeadBySlug({ slug: "guide", payload: { phone: "+91 98765 43210", whatsappConsent: true } });
+        expect(stored()).toBe(true);
+        await landingAgentService.submitLeadBySlug({ slug: "guide", payload: { phone: " ", whatsappConsent: true } });
+        expect(stored()).toBeUndefined();
+
+        spy.mockResolvedValue({ ...page, funnelStage: null } as any);
+        await landingAgentService.submitLeadBySlug({ slug: "guide", payload: { phone: "+91 98765 43210", whatsappConsent: true } });
+        expect(stored()).toBeUndefined();
+    });
+});
+
+describe("landingAgentService.trackEventBySlug", () => {
+    it("stores the page URL's UTM with the event", async () => {
+        (mockPrisma as any).landingEvent = { create: vi.fn().mockResolvedValue({ id: "ev-1" }) };
+        vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue({ id: "lp-1", campaignId: "lc-1", teamId: "team-1", slug: "guide", version: 1 } as any);
+
+        await landingAgentService.trackEventBySlug({ slug: "guide", eventName: "page_view", utmSource: "instagram", utmMedium: "comment", utmContent: "post-1" });
+
+        expect((mockPrisma as any).landingEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ teamId: "team-1", eventName: "page_view", utmSource: "instagram", utmMedium: "comment", utmCampaign: undefined, utmContent: "post-1" }),
+        });
     });
 });

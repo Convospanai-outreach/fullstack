@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { localDayRange } from "./localDay";
+import { REPLY_WINDOW_MS, sendSocialReply } from "@/modules/creator-funnel/socialInbox";
 
 // Action Inbox: one team-scoped view of inbound replies, open Overseer nudges and
 // upcoming meetings. Message has no teamId of its own, so every Message query here is
@@ -50,6 +51,12 @@ function escapeHtml(value: string) {
 
 const inboundReplyWhere = (teamId: string) => ({ direction: "INBOUND", lead: { teamId } });
 
+// Instagram/Facebook DMs (creator funnel, socialInbox.ts) can be answered for 24 hours after
+// the person's last message.
+const SOCIAL_PLATFORMS = ["INSTAGRAM", "FACEBOOK"] as const;
+const isSocialPlatform = (platform: string): platform is (typeof SOCIAL_PLATFORMS)[number] =>
+    (SOCIAL_PLATFORMS as readonly string[]).includes(platform);
+
 export async function getInboxCounts(teamId: string, now = new Date()) {
     const today = localDayRange(now);
     const [unreadReplies, openNudges, meetingsToday] = await Promise.all([
@@ -76,7 +83,15 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
                 isRead: true,
                 sentimentScore: true,
                 createdAt: true,
-                lead: { select: { fullName: true, company: true, email: true, replyOutcome: true } },
+                lead: {
+                    select: {
+                        fullName: true,
+                        company: true,
+                        email: true,
+                        replyOutcome: true,
+                        socialContacts: { orderBy: { lastInboundAt: "desc" }, take: 1, select: { handle: true, lastInboundAt: true } },
+                    },
+                },
                 emailEvent: {
                     select: {
                         email: {
@@ -118,6 +133,7 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
         replies: {
             items: replies.map((reply) => {
                 const email = reply.emailEvent?.email;
+                const social = isSocialPlatform(reply.platform) ? reply.lead.socialContacts[0] : undefined;
                 return {
                     id: reply.id,
                     leadId: reply.leadId,
@@ -130,6 +146,8 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
                     campaignName: email?.campaign?.name ?? null,
                     sequenceName: email?.sequenceStepRuns[0]?.enrollment?.sequence?.name ?? null,
                     snippet: toSnippet(reply.content),
+                    handle: social?.handle ?? null,
+                    replyWindowEndsAt: social?.lastInboundAt ? new Date(social.lastInboundAt.getTime() + REPLY_WINDOW_MS) : null,
                     isRead: reply.isRead,
                     sentimentScore: reply.sentimentScore,
                     createdAt: reply.createdAt,
@@ -222,6 +240,9 @@ async function findTeamReply(teamId: string, messageId: string) {
 export async function sendReply(input: { teamId: string; userId: string; messageId: string; content: string }) {
     const { teamId, userId, messageId, content } = input;
     const reply = await findTeamReply(teamId, messageId);
+    if (isSocialPlatform(reply.platform)) {
+        return sendSocialReply({ teamId, userId, leadId: reply.leadId, replyMessageId: reply.id, platform: reply.platform, content });
+    }
     if (reply.platform !== "EMAIL") {
         throw new APIError("Only email replies can be answered from the inbox", 400, "UNSUPPORTED_PLATFORM");
     }

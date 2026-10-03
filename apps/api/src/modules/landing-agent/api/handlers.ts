@@ -14,6 +14,7 @@ import {
 } from "../schemas";
 import { landingAgentService } from "../service";
 import { sanitizeRenderedJsonHtml } from "../rendering";
+import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 
 type ParamContext = { params?: Promise<Record<string, string>> };
 
@@ -273,6 +274,8 @@ export async function getPublicPage(req: Request, ctx?: ParamContext) {
             version: page.version,
             renderedJson: sanitizeRenderedJsonHtml(page.renderedJson),
             campaignId: page.campaignId,
+            // Creator funnel pages ask for a WhatsApp opt-in; this is the checkbox text, or null for none.
+            whatsappOptIn: page.funnelStage ? whatsappOptInText(page.team.name) : null,
         });
     } catch (error) {
         return handleAPIError(error);
@@ -337,6 +340,11 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             sessionId: parsed.data.sessionId,
             pageVersion: parsed.data.pageVersion,
             eventData: parsed.data.eventData,
+            utmSource: parsed.data.utmSource,
+            utmMedium: parsed.data.utmMedium,
+            utmCampaign: parsed.data.utmCampaign,
+            utmTerm: parsed.data.utmTerm,
+            utmContent: parsed.data.utmContent,
             ipAddress,
             userAgent,
         });

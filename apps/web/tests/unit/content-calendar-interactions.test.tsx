@@ -111,6 +111,32 @@ describe("content calendar interactions", () => {
             expect(onClose).toHaveBeenCalled();
         });
 
+        it("edits a drafted post's Instagram and LinkedIn text and visual, and saves them with the post", async () => {
+            fetchMock.mockResolvedValueOnce(json(200, { post: { id: "post-1" } }));
+            const ig: CalendarAccount = { id: "acc-ig", platform: "INSTAGRAM", handle: "@maker", status: "CONNECTED" };
+            const drafted = post({
+                channelCaptions: { INSTAGRAM: "IG text", LINKEDIN: "LI text" },
+                visualBrief: "Flat lay of the meal plan",
+                targets: [{ id: "t-2", status: "PENDING", lastError: null, socialAccount: ig }],
+            });
+            const { node } = open({ post: drafted, accounts: [account, ig] });
+            await render(node);
+
+            const igBox = document.querySelector<HTMLTextAreaElement>("#post-ig")!;
+            expect(igBox.value).toBe("IG text");
+            expect(document.querySelector<HTMLTextAreaElement>("#post-linkedin")!.value).toBe("LI text");
+            expect(document.querySelector<HTMLTextAreaElement>("#post-visual")!.value).toBe("Flat lay of the meal plan");
+            expect(document.body.textContent).toContain("7 / 2200"); // the counter follows the Instagram caption
+            await type(igBox, "New IG text");
+            await click(byText("Save draft"));
+
+            expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+                body: "Hello",
+                channelCaptions: { INSTAGRAM: "New IG text", LINKEDIN: "LI text" },
+                visualBrief: "Flat lay of the meal plan",
+            });
+        });
+
         it("keeps the panel open and shows the reason when sending fails", async () => {
             fetchMock
                 .mockResolvedValueOnce(json(200, { post: { id: "post-1" } }))
