@@ -6148,6 +6148,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
     - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
       sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-332 (Partly fixed 2026-10-03 — repo hygiene, part of the audit's 3.14):** untracked 35 files that were
+  committed by accident: `.playwright-mcp/` page snapshots, five login/setup screenshots in the
+  repo root, `build_tail.txt`, `progress.json`, `audit-report.json` and `db/custom.db` (none referenced by code or CI;
+  `progress.json` is written by `scripts/progress-report.ts`, `audit-report.json` was already in `.gitignore`).
+  `.playwright-mcp/` and `progress.json` are now ignored. **Not done:** deleting zero-importer components, marking or
+  deleting historical docs, replacing the stale compose files (`docker-compose.*.yml` at the root) and `db/schema.sql`
+  - each needs a per-file check that nothing still uses it. The two design `.zip` files at the root stay tracked: they
+  are the owner's working material.
 - **OPEN-334 (Fixed — creator funnel phase 7: posting approved calendar posts to LinkedIn):** 2026-10-04.
   - **Two LinkedIn apps:** LinkedIn grants the Community Management API (company pages) only to an app with no other
     product, so profiles and pages sign in through separate apps. Setup and limits: `docs/linkedin-api-access.md`.
