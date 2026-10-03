@@ -6100,7 +6100,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
-- **OPEN-305 (Open — the reply classifier is never called; wire it into the Action Inbox as suggestions only):**
+- **OPEN-305 (Fixed — the reply classifier is never called; wire it into the Action Inbox as suggestions only):**
   `ReplyAnalyzerAgent` (`apps/api/src/lib/ai/agents/ReplyAnalyzerAgent.ts`, plus a copy in apps/web) labels a reply
   INTERESTED / NOT_INTERESTED / OOO / QUESTION / DNC, with a confidence score, its reasoning and a suggested reply,
   and writes them to `ReplyTracker`. Nothing calls it (checked on `c3f59fd9`). Apart from the agent, the only use of
@@ -6113,7 +6113,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Remove the agent's side effects:** it must not mark leads do-not-contact or write learned memory by itself. A
     wrong label must never suppress a real prospect or stop a sequence.
   - Map the two vocabularies in one place. Keep it team-scoped: the reply's lead must belong to the caller's team.
-    Not started.
+  - **Fixed:**
+    - **Side effects removed:** `ReplyAnalyzerAgent` lost its auto-DNC/blacklist, OOO auto-handling and
+      `saveMemory`. Every row is stored as `PENDING_REVIEW`.
+    - **Scoped and billed:** the agent requires the lead to be in `teamId` and calls `askAI` with that team.
+      Before, `askAI` got no team, so the call was unmetered.
+    - **Failures store nothing:** a failed or unusable AI result throws and saves no row.
+    - **Where it runs:** `onInboundReply` (Gmail sync, IMAP/SMTP, Resend inbound) queues a
+      `reply_classification` job, keyed per message (`ReplyTracker.emailId` = inbound `Message.id`; no
+      migration). Ingestion never waits on it or fails because of it. Out of credits does not retry.
+    - **Shared mapping:** `modules/inbox/replySuggestions.ts`. INTERESTED → interested,
+      NOT_INTERESTED → not_interested, DNC → not_interested plus an "asked not to be contacted" note. OOO and
+      QUESTION are labels only.
+    - **Inbox UI:** `getInbox` returns a team-scoped `suggestion` per reply. The inbox shows it, highlights the
+      suggested outcome and can put the suggested reply in the composer. It never sends.
+    - **Dead copy deleted:** `apps/web/src/lib/ai/agents/ReplyAnalyzerAgent.ts` had no callers and still
+      auto-DNC'd.
+    - **One-click do not contact:** when a reply is flagged "asked not to be contacted", the inbox shows a "Do not
+      contact" button. `POST /inbox/replies/:id/do-not-contact` → `markReplyDoNotContact` adds the lead's email to
+      the team `SuppressionEntry` list (reason UNSUBSCRIBE, source INBOX, `createdBy` = the rep), then applies
+      not_interested.
+      - Any team member can do it, the same as the unsubscribe link. Settings → manual suppression needs ADMIN.
+      - Undo is admin-only: Settings → Do-not-contact list (`/settings/suppressions`) lists the team's
+        entries, and admins get a Remove button. `DELETE /email/suppressions?id=` requires ADMIN, is scoped to the
+        team, and writes an audit-log entry (`REMOVE_SUPPRESSION`). Before this, nothing in the UI showed the list.
+    - **Billing (user, 2026-10-01):** on for every team, using AI credits per inbound email reply.
+    - **Not covered:** WhatsApp and LinkedIn replies.
+    - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
+      `emailId`; the worst case is a duplicate suggestion.
 - **OPEN-320 (Fixed — Redis: no request waits on a connection; superadmin on/off switch):** found 2026-10-03.
   - **Problem:** both API VMs had `REDIS_URL` pointing at a hostname that no longer exists. `getRedisClient()` waited up to
     2s on every call and never remembered the failure, and the global rate limiter in `server.ts` calls it on every request.

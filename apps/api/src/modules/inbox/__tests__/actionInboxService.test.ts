@@ -8,11 +8,13 @@ const mockDb: any = vi.hoisted(() => ({
     email: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
+    replyTracker: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
     isSuppressed: vi.fn(),
+    recordSuppression: vi.fn(),
     sendViaGmailMailbox: vi.fn(),
 }));
 vi.mock("@/modules/email-campaigner/service/resendMailboxService", () => ({ sendViaResendMailbox: vi.fn() }));
@@ -35,12 +37,13 @@ vi.mock("@/lib/crm/leadStageTransitions", () => ({
 import {
     getInbox,
     getThread,
+    markReplyDoNotContact,
     markReplyOutcome,
     markReplyRead,
     sendReply,
     toSnippet,
 } from "../actionInboxService";
-import { isSuppressed, sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import { isSuppressed, recordSuppression, sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 import { sendViaResendMailbox } from "@/modules/email-campaigner/service/resendMailboxService";
 import { sendViaSmtpMailbox } from "@/modules/email-campaigner/service/smtpConfigService";
 import { guardrailService } from "@/modules/governance/service/guardrailService";
@@ -79,6 +82,31 @@ describe("getInbox", () => {
         mockDb.overseerNudge.count.mockResolvedValue(0);
         mockDb.meeting.findMany.mockResolvedValue([]);
         mockDb.meeting.count.mockResolvedValue(0);
+        mockDb.replyTracker.findMany.mockResolvedValue([]);
+    });
+
+    it("attaches the AI suggestion for each reply, read through the caller's team", async () => {
+        mockDb.message.findMany.mockResolvedValue([{
+            id: "msg-1", leadId: "lead-1", content: "Stop emailing me", platform: "EMAIL", isRead: false, sentimentScore: null,
+            createdAt: new Date(), lead: { fullName: "A", company: null, email: "a@x.test", replyOutcome: null }, emailEvent: null,
+        }, {
+            id: "msg-2", leadId: "lead-2", content: "hello", platform: "EMAIL", isRead: false, sentimentScore: null,
+            createdAt: new Date(), lead: { fullName: "B", company: null, email: "b@x.test", replyOutcome: null }, emailEvent: null,
+        }]);
+        mockDb.replyTracker.findMany.mockResolvedValue([
+            { emailId: "msg-1", aiClassification: "DNC", aiConfidence: 0.95, aiReasoning: "asked to stop", replyDraft: null },
+        ]);
+
+        const inbox = await getInbox("team-a", { page: 1, limit: 20 });
+
+        expect(mockDb.replyTracker.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { emailId: { in: ["msg-1", "msg-2"] }, status: "PENDING_REVIEW", lead: { teamId: "team-a" } },
+        }));
+        expect(inbox.replies.items[0]!.suggestion).toEqual({
+            classification: "DNC", suggestedOutcome: "not_interested", askedNotToContact: true,
+            confidence: 0.95, reasoning: "asked to stop", suggestedReply: null,
+        });
+        expect(inbox.replies.items[1]!.suggestion).toBeNull();
     });
 
     it("scopes every list to the caller's team and paginates replies newest-first", async () => {
@@ -363,5 +391,46 @@ describe("markReplyOutcome", () => {
 
         await markReplyOutcome("team-a", "msg-1", "not_interested");
         expect(advanceLeadToLost).toHaveBeenCalledWith(mockDb, { leadId: "lead-1", teamId: "team-a" });
+    });
+});
+
+describe("markReplyDoNotContact", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.message.findFirst.mockResolvedValue(inboundReply());
+        (SequenceService.stopEnrollmentsForLead as any).mockResolvedValue({ stopped: 2 });
+    });
+
+    it("404s for a reply outside the caller's team and suppresses nothing", async () => {
+        mockDb.message.findFirst.mockResolvedValue(null);
+
+        await expect(markReplyDoNotContact("team-a", "msg-from-team-b", "user-1")).rejects.toMatchObject({ statusCode: 404 });
+        expect(recordSuppression).not.toHaveBeenCalled();
+        expect(mockDb.lead.update).not.toHaveBeenCalled();
+    });
+
+    it("suppresses the lead's email for the team, then marks not_interested and stops sequences", async () => {
+        const result = await markReplyDoNotContact("team-a", "msg-1", "user-1");
+
+        expect(recordSuppression).toHaveBeenCalledWith({
+            teamId: "team-a",
+            email: "lead@example.test",
+            reason: "UNSUBSCRIBE",
+            source: "INBOX",
+            leadId: "lead-1",
+            createdBy: "user-1",
+        });
+        expect(mockDb.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { replyOutcome: "not_interested" } });
+        expect(advanceLeadToLost).toHaveBeenCalledWith(mockDb, { leadId: "lead-1", teamId: "team-a" });
+        expect(SequenceService.stopEnrollmentsForLead).toHaveBeenCalledWith("team-a", "lead-1", "EXIT_REPLY_NOT_INTERESTED");
+        expect(result).toEqual({ leadId: "lead-1", outcome: "not_interested", stoppedEnrollments: 2, suppressed: true });
+    });
+
+    it("refuses a lead with no email address without changing the outcome", async () => {
+        mockDb.message.findFirst.mockResolvedValue(inboundReply({ lead: { email: null } }));
+
+        await expect(markReplyDoNotContact("team-a", "msg-1", "user-1")).rejects.toMatchObject({ statusCode: 400 });
+        expect(recordSuppression).not.toHaveBeenCalled();
+        expect(mockDb.lead.update).not.toHaveBeenCalled();
     });
 });

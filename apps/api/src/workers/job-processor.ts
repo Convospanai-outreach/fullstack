@@ -79,6 +79,24 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
         case "invoice_pdf_render":
             return handleInvoicePdfRender(payload);
 
+        case "reply_classification": {
+            const teamId = asString(payload.teamId);
+            const messageId = asString(payload.messageId);
+            if (!teamId || !messageId) {
+                throw new NonRetryableJobError("reply_classification payload is missing teamId/messageId");
+            }
+            const { classifyInboundReply } = await import("@/modules/inbox/replyClassificationService");
+            try {
+                return await classifyInboundReply(teamId, messageId);
+            } catch (error) {
+                // A team out of credits would fail identically on every retry.
+                if (error instanceof Error && /insufficient credits/i.test(error.message)) {
+                    throw new NonRetryableJobError(error.message);
+                }
+                throw error;
+            }
+        }
+
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);
             if (!filePath) {
