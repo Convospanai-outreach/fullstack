@@ -56,5 +56,14 @@ export const FEATURE_DEFINITIONS: Record<string, FeatureDefinition> = {
         description: "Outbound WhatsApp messaging",
         layer: CapabilityLayer.ADVANCED_OPS,
         defaultValue: false
+    },
+
+    // Platform-wide switch, read directly (not per product mode): creator funnel posting to
+    // LinkedIn company pages. Turn on only after LinkedIn approves the Community Management API app.
+    "linkedin_pages": {
+        key: "linkedin_pages",
+        description: "LinkedIn company pages (needs LinkedIn's Community Management API approval)",
+        layer: CapabilityLayer.ADVANCED_OPS,
+        defaultValue: false
     }
 };

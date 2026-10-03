@@ -15,3 +15,12 @@ export async function isCreatorFunnelEnabled(teamId: string) {
     const enabled = team?.enabledFeatures;
     return Array.isArray(enabled) && enabled.includes(CREATOR_FUNNEL_FEATURE);
 }
+
+// Superadmin platform switch for LinkedIn company pages (lib/flags/config.ts "linkedin_pages",
+// default off). Off means page accounts can't be connected, sent for approval or posted to.
+export const LINKEDIN_PAGES_SWITCH = "linkedin_pages";
+
+export async function isLinkedInPagesEnabled() {
+    const row = await prisma.featureFlag.findUnique({ where: { key: LINKEDIN_PAGES_SWITCH }, select: { isEnabled: true } });
+    return row?.isEnabled === true;
+}
