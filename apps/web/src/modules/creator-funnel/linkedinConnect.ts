@@ -38,6 +38,8 @@ const LINKEDIN_VERSION = "202609";
 const TIMEOUT_MS = 15_000;
 const STATE_MAX_AGE_MS = 30 * 60 * 1000;
 const NEXT_PATH = "/settings/social";
+const ACL_PAGE_SIZE = 100;
+const ACL_MAX_PAGES = 10; // a safety cap; 1000 page roles is far beyond any real member
 const PAGE_ROLES = new Set(["ADMINISTRATOR", "CONTENT_ADMINISTRATOR", "CONTENT_ADMIN", "DIRECT_SPONSORED_CONTENT_POSTER"]);
 
 export const LINKEDIN_PAGES_SWITCH = "linkedin_pages";
@@ -210,11 +212,15 @@ async function upsertAccount(
 }
 
 async function administeredPages(token: string): Promise<Array<{ urn: string; name: string | null }>> {
-    const acls = await linkedInGet("/rest/organizationAcls?q=roleAssignee&state=APPROVED&count=100", token, true);
     const urns = new Set<string>();
-    for (const el of Array.isArray(acls?.elements) ? acls.elements : []) {
-        const urn = typeof el?.organization === "string" ? el.organization : el?.organizationTarget;
-        if (typeof urn === "string" && /^urn:li:organization:\d+$/.test(urn) && PAGE_ROLES.has(el?.role)) urns.add(urn);
+    for (let start = 0; start < ACL_PAGE_SIZE * ACL_MAX_PAGES; start += ACL_PAGE_SIZE) {
+        const acls = await linkedInGet(`/rest/organizationAcls?q=roleAssignee&state=APPROVED&count=${ACL_PAGE_SIZE}&start=${start}`, token, true);
+        const elements: any[] = Array.isArray(acls?.elements) ? acls.elements : [];
+        for (const el of elements) {
+            const urn = typeof el?.organization === "string" ? el.organization : el?.organizationTarget;
+            if (typeof urn === "string" && /^urn:li:organization:\d+$/.test(urn) && PAGE_ROLES.has(el?.role)) urns.add(urn);
+        }
+        if (elements.length < ACL_PAGE_SIZE) break;
     }
     if (urns.size === 0) return [];
     const ids = [...urns].map((urn) => urn.slice("urn:li:organization:".length));

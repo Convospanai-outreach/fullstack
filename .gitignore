@@ -47,3 +47,7 @@ ds-bundle/
 .design-sync/node_modules
 .design-sync/pkg/dist/
 .design-sync/pkg/node_modules/
+
+# Playwright MCP page snapshots and generated reports
+.playwright-mcp/
+progress.json

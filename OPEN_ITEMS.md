@@ -6147,6 +6147,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
     - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
       sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-332 (Partly fixed 2026-10-03 — repo hygiene, part of the audit's 3.14):** untracked 35 files that were
+  committed by accident: `.playwright-mcp/` page snapshots, five login/setup screenshots in the
+  repo root, `build_tail.txt`, `progress.json`, `audit-report.json` and `db/custom.db` (none referenced by code or CI;
+  `progress.json` is written by `scripts/progress-report.ts`, `audit-report.json` was already in `.gitignore`).
+  `.playwright-mcp/` and `progress.json` are now ignored. **Not done:** deleting zero-importer components, marking or
+  deleting historical docs, replacing the stale compose files (`docker-compose.*.yml` at the root) and `db/schema.sql`
+  - each needs a per-file check that nothing still uses it. The two design `.zip` files at the root stay tracked: they
+  are the owner's working material.
 - **OPEN-333 (Fixed — baseline migration for the six `Landing*` tables; boot-job exception removed):** 2026-10-03.
   `LandingCampaign`, `LandingAsset`, `LandingWireframeOption`, `LandingPage`, `LandingLead` and `LandingEvent` had no
   `CREATE TABLE` in any migration. Production got them from an out-of-band `prisma db push` (its `_prisma_migrations`
@@ -6194,6 +6202,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     before LinkedIn retires it (about a year).
   - **Tests:** `linkedinConnect.test.ts`, `linkedin/oauth/callback/route.test.ts`, `linkedinApi.test.ts`, LinkedIn cases
     in `contentPublisher.test.ts`, `contentPostService.test.ts` and `socialTokenHealth.test.ts`.
+  - **Follow-up (review on #645):** the 3000-character check counts the text as sent (escaped); the publisher waits for
+    every staged image, checked in parallel, not just the last; connecting pages reads every page of page roles; the
+    `/available` route logs and returns 500 on errors instead of a silent "not available".
 - **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
   2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
   - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic

@@ -262,6 +262,9 @@ describe("contentPostService", () => {
 
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [profile], mediaUrls: [], channelCaptions: { LINKEDIN: "x".repeat(3001) } }));
             expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/3000 characters/);
+            // 2000 characters as typed, but each "(" goes out as "\(" - over the limit as sent.
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [profile], mediaUrls: [], channelCaptions: { LINKEDIN: "(".repeat(2000) } }));
+            expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/3000 characters/);
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [profile], mediaUrls: Array(21).fill(media()) }));
             expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/at most 20 images/);
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [liTarget("LINKEDIN_MEMBER", ["openid", "profile"])], mediaUrls: [] }));
