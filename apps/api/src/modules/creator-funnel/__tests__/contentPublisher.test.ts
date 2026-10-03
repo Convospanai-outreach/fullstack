@@ -31,15 +31,19 @@ const mockDb: any = vi.hoisted(() => ({
 const graphCall = vi.hoisted(() => vi.fn());
 const isCreatorFunnelEnabled = vi.hoisted(() => vi.fn());
 const send = vi.hoisted(() => vi.fn());
+const isLinkedInPagesEnabled = vi.hoisted(() => vi.fn());
+const li = vi.hoisted(() => ({ uploadImage: vi.fn(), imageState: vi.fn(), createPost: vi.fn() }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: vi.fn(async (secret: any) => secret?.plain) }));
-vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
+vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled, isLinkedInPagesEnabled }));
+vi.mock("../linkedinApi", async (importOriginal) => ({ ...(await importOriginal<typeof import("../linkedinApi")>()), ...li }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send } }));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall }));
 
 import { publishDuePosts } from "../contentPublisher";
 import { GraphError } from "../metaGraph";
+import { LinkedInError } from "../linkedinApi";
 
 const NOW = new Date("2030-01-07T10:00:00Z");
 const MIN = 60 * 1000;
@@ -322,6 +326,113 @@ describe("publishDuePosts", () => {
             await publishDuePosts(NOW);
             expect(graphCall).toHaveBeenCalledTimes(1);
             expect(store.targets.get("t-ig")).toMatchObject({ status: "FAILED", lastError: expect.stringMatching(/daily posting limit/) });
+        });
+    });
+    describe("LinkedIn", () => {
+        const liProfile = { platform: "LINKEDIN_MEMBER", externalId: "urn:li:person:p1", handle: "Asha Rao", status: "CONNECTED", scopes: ["w_member_social"], encryptedToken: { plain: "li-token" } };
+        const liPage = { ...liProfile, platform: "LINKEDIN_ORG", externalId: "urn:li:organization:42", handle: "Maker Co", scopes: ["w_organization_social"] };
+        const media = (n: number) => Array.from({ length: n }, (_, i) => `https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/content-media/team-a/00000000-0000-0000-0000-00000000000${i}.jpg`);
+
+        beforeEach(() => {
+            delete process.env["SUPABASE_URL"];
+            isLinkedInPagesEnabled.mockResolvedValue(true);
+            li.createPost.mockResolvedValue("urn:li:share:9");
+            li.uploadImage.mockImplementation(async (_owner: string, url: string) => `urn:li:image:${url.slice(-5, -4)}`);
+            li.imageState.mockResolvedValue("AVAILABLE");
+        });
+
+        it("posts text as the profile, using the LinkedIn caption as escaped little text", async () => {
+            target("t-li", liProfile);
+            due({}, { body: "Hello", channelCaptions: { LINKEDIN: "Big (news) #launch" } });
+
+            await publishDuePosts(NOW);
+
+            const [token, body] = li.createPost.mock.calls[0]!;
+            expect(token).toBe("li-token");
+            expect(body).toMatchObject({ author: "urn:li:person:p1", commentary: "Big \\(news\\) #launch" });
+            expect(body).not.toHaveProperty("content");
+            expect(store.targets.get("t-li")).toMatchObject({ status: "PUBLISHED", externalId: "urn:li:share:9" });
+            expect(finalStatus()).toBe("PUBLISHED");
+        });
+
+        it("counts a 201 without an id as published rather than inviting a resend", async () => {
+            li.createPost.mockResolvedValue(null);
+            target("t-li", liProfile);
+            due();
+            await publishDuePosts(NOW);
+            expect(store.targets.get("t-li")).toMatchObject({ status: "PUBLISHED", externalId: null });
+        });
+
+        it("marks an uncertain post call unconfirmed and never sends it again", async () => {
+            li.createPost.mockRejectedValue(new LinkedInError("LinkedIn didn't answer in time.", true));
+            target("t-li", liProfile);
+            due();
+            await publishDuePosts(NOW);
+            expect(store.targets.get("t-li")!.lastError).toMatch(/couldn't confirm/);
+
+            li.createPost.mockClear();
+            target("t-li2", liProfile, { status: "SENDING" });
+            due({ status: "PUBLISHING" });
+            await publishDuePosts(NOW);
+            expect(li.createPost).not.toHaveBeenCalled();
+            expect(store.targets.get("t-li2")!.status).toBe("FAILED");
+        });
+
+        it("uploads images three per tick, then posts them all once LinkedIn has processed them", async () => {
+            target("t-li", liProfile);
+            due({}, { mediaUrls: media(4) });
+
+            await publishDuePosts(NOW);
+            expect(li.uploadImage).toHaveBeenCalledTimes(3);
+            expect(li.uploadImage.mock.calls[0]![0]).toBe("urn:li:person:p1");
+            expect(li.createPost).not.toHaveBeenCalled();
+            expect(JSON.parse(store.targets.get("t-li")!.containerId!).images).toHaveLength(3);
+
+            await publishDuePosts(NOW);
+            expect(li.uploadImage).toHaveBeenCalledTimes(4);
+            expect(li.createPost).not.toHaveBeenCalled();
+
+            await publishDuePosts(NOW);
+            expect(li.imageState).toHaveBeenCalledWith("urn:li:image:3", "li-token");
+            expect(li.createPost.mock.calls[0]![1].content.multiImage.images.map((i: any) => i.id)).toEqual(["urn:li:image:0", "urn:li:image:1", "urn:li:image:2", "urn:li:image:3"]);
+            expect(store.targets.get("t-li")!.status).toBe("PUBLISHED");
+        });
+
+        it("waits two minutes after the uploads when the profile can't read the image state", async () => {
+            li.imageState.mockResolvedValue("UNKNOWN");
+            const staged = JSON.stringify({ images: ["urn:li:image:0"] });
+            target("t-li", liProfile, { containerId: staged, updatedAt: new Date(NOW.getTime() - MIN) });
+            due({}, { mediaUrls: media(1) });
+            await publishDuePosts(NOW);
+            expect(li.createPost).not.toHaveBeenCalled();
+
+            store.targets.get("t-li")!.updatedAt = new Date(NOW.getTime() - 3 * MIN);
+            await publishDuePosts(NOW);
+            expect(li.createPost.mock.calls[0]![1].content).toEqual({ media: { id: "urn:li:image:0" } });
+        });
+
+        it("fails without uploading an image that didn't come from the team's media folder", async () => {
+            target("t-li", liProfile);
+            due({}, { mediaUrls: ["https://evil.example/a.jpg"] });
+            await publishDuePosts(NOW);
+            expect(li.uploadImage).not.toHaveBeenCalled();
+            expect(store.targets.get("t-li")).toMatchObject({ status: "FAILED" });
+        });
+
+        it("posts as the page, and refuses while the LinkedIn pages switch is off", async () => {
+            target("t-page", liPage);
+            due();
+            await publishDuePosts(NOW);
+            expect(li.createPost.mock.calls[0]![1].author).toBe("urn:li:organization:42");
+
+            store.targets.clear();
+            li.createPost.mockClear();
+            isLinkedInPagesEnabled.mockResolvedValue(false);
+            target("t-page", liPage);
+            due();
+            await publishDuePosts(NOW);
+            expect(li.createPost).not.toHaveBeenCalled();
+            expect(store.targets.get("t-page")).toMatchObject({ status: "FAILED", lastError: "Posting to LinkedIn pages is switched off." });
         });
     });
 });

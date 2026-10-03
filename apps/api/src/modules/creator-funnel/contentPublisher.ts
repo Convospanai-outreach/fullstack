@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
-import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE, captionFor } from "./contentPostService";
+import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE, captionFor, isOwnMediaUrl } from "./contentPostService";
 import { GraphError, graphCall } from "./metaGraph";
 
 // Creator funnel publisher (phase 3b). Runs every minute from the worker tick and only ever
@@ -35,6 +35,12 @@ import { GraphError, graphCall } from "./metaGraph";
 //   (https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/content_publishing_limit).
 //   So we read quota_usage and config.quota_total instead of hard-coding either, and if that
 //   read fails we publish anyway and let Meta enforce it.
+// - LinkedIn (linkedinApi.ts, checked 2026-10-04): a text post is one POST /rest/posts. Images are
+//   uploaded first (nothing is public), at most LINKEDIN_IMAGES_PER_PASS per tick so one pass
+//   stays inside the per-target budget above (each upload is up to 15s + 15s + 30s), and the image
+//   ids are kept in containerId. LinkedIn processes uploads asynchronously and profile tokens can't
+//   read image status, so the post call comes on a later tick: once the last image reads
+//   AVAILABLE, or, when it can't be read, LINKEDIN_IMAGE_WAIT_MS after the uploads finished.
 
 const LEASE_MS = 10 * 60 * 1000;
 const TICK_BUDGET_MS = 60 * 1000;
@@ -42,6 +48,8 @@ const MAX_POSTS_PER_TICK = 5;
 const LATE_LIMIT_MS = 24 * 60 * 60 * 1000;
 const CONTAINER_TIMEOUT_MS = 10 * 60 * 1000;
 const CALENDAR_URL = "https://craftmyfunnel.live/content/calendar";
+const LINKEDIN_IMAGES_PER_PASS = 3;
+const LINKEDIN_IMAGE_WAIT_MS = 2 * 60 * 1000;
 
 const PLATFORM_LABEL: Record<string, string> = {
     FACEBOOK_PAGE: "Facebook Page",
@@ -188,6 +196,48 @@ async function publishToInstagram(post: Post, t: Target, token: string, now: Dat
     }
 }
 
+function stagedImages(containerId: string | null): string[] {
+    if (!containerId) return [];
+    try {
+        const images = JSON.parse(containerId)?.images;
+        return Array.isArray(images) ? images.filter((id: unknown): id is string => typeof id === "string") : [];
+    } catch {
+        return [];
+    }
+}
+
+async function publishToLinkedIn(post: Post, t: Target, token: string, now: Date) {
+    if (t.status === "SENDING") return fail(t, unconfirmed(t));
+    const li = await import("./linkedinApi");
+    const author = t.socialAccount.externalId;
+    const text = li.escapeLittleText(captionFor(post, t.socialAccount.platform));
+    if (post.mediaUrls.length === 0) return send(t, () => li.createPost(token, li.postBody(author, text, [])));
+
+    const staged = stagedImages(t.containerId);
+    if (staged.length < post.mediaUrls.length) {
+        const images = [...staged];
+        try {
+            for (const url of post.mediaUrls.slice(images.length, images.length + LINKEDIN_IMAGES_PER_PASS)) {
+                if (!isOwnMediaUrl(url, post.teamId)) return fail(t, "One of the images wasn't uploaded through CraftMyFunnel. Remove it and send the post again.");
+                images.push(await li.uploadImage(author, url, token));
+            }
+        } catch (error) {
+            return fail(t, messageOf(error));
+        }
+        await prisma.contentPostTarget.updateMany({ where: { id: t.id, status: "PENDING", containerId: t.containerId }, data: { containerId: JSON.stringify({ images }) } });
+        return; // posted on a later tick, once LinkedIn has processed the images
+    }
+
+    const waited = now.getTime() - t.updatedAt.getTime();
+    const state = await li.imageState(staged[staged.length - 1]!, token);
+    if (state === "FAILED") return fail(t, "LinkedIn couldn't process the images. Check they're JPEG or PNG, then send it again.");
+    if (state === "PROCESSING" || (state === "UNKNOWN" && waited < LINKEDIN_IMAGE_WAIT_MS)) {
+        if (waited > CONTAINER_TIMEOUT_MS) return fail(t, "LinkedIn took too long to process the images. Send it again.");
+        return; // checked again next minute
+    }
+    return send(t, () => li.createPost(token, li.postBody(author, text, staged)));
+}
+
 async function publishTarget(post: Post, t: Target, now: Date) {
     const account = t.socialAccount;
     if (account.status !== "CONNECTED") return fail(t, `${labelOf(t)} needs reconnecting in Settings > Social accounts.`);
@@ -196,7 +246,13 @@ async function publishTarget(post: Post, t: Target, now: Date) {
     if (!account.scopes.includes(scope)) return fail(t, `${labelOf(t)} wasn't given permission to post. Reconnect it in Settings > Social accounts.`);
     const token = await decryptCredential(account.encryptedToken as EncryptedCredential).catch(() => undefined);
     if (!token) return fail(t, `${labelOf(t)} needs reconnecting in Settings > Social accounts.`);
-    return account.platform === "FACEBOOK_PAGE" ? publishToPage(post, t, token) : publishToInstagram(post, t, token, now);
+    if (account.platform === "FACEBOOK_PAGE") return publishToPage(post, t, token);
+    if (account.platform === "INSTAGRAM") return publishToInstagram(post, t, token, now);
+    if (account.platform === "LINKEDIN_ORG") {
+        const { isLinkedInPagesEnabled } = await import("./featureGate");
+        if (!(await isLinkedInPagesEnabled())) return fail(t, "Posting to LinkedIn pages is switched off.");
+    }
+    return publishToLinkedIn(post, t, token, now);
 }
 
 async function notifyAuthor(post: { teamId: string; createdById: string | null }) {
