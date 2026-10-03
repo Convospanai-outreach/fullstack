@@ -39,8 +39,9 @@ import { GraphError, graphCall } from "./metaGraph";
 //   uploaded first (nothing is public), at most LINKEDIN_IMAGES_PER_PASS per tick so one pass
 //   stays inside the per-target budget above (each upload is up to 15s + 15s + 30s), and the image
 //   ids are kept in containerId. LinkedIn processes uploads asynchronously and profile tokens can't
-//   read image status, so the post call comes on a later tick: once the last image reads
-//   AVAILABLE, or, when it can't be read, LINKEDIN_IMAGE_WAIT_MS after the uploads finished.
+//   read image status, so the post call comes on a later tick: once every image reads AVAILABLE
+//   (checked in parallel, so 20 images still take one call's time), or, when they can't be read,
+//   LINKEDIN_IMAGE_WAIT_MS after the uploads finished.
 
 const LEASE_MS = 10 * 60 * 1000;
 const TICK_BUDGET_MS = 60 * 1000;
@@ -229,9 +230,9 @@ async function publishToLinkedIn(post: Post, t: Target, token: string, now: Date
     }
 
     const waited = now.getTime() - t.updatedAt.getTime();
-    const state = await li.imageState(staged[staged.length - 1]!, token);
-    if (state === "FAILED") return fail(t, "LinkedIn couldn't process the images. Check they're JPEG or PNG, then send it again.");
-    if (state === "PROCESSING" || (state === "UNKNOWN" && waited < LINKEDIN_IMAGE_WAIT_MS)) {
+    const states = await Promise.all(staged.map((image) => li.imageState(image, token)));
+    if (states.includes("FAILED")) return fail(t, "LinkedIn couldn't process the images. Check they're JPEG or PNG, then send it again.");
+    if (states.includes("PROCESSING") || (states.includes("UNKNOWN") && waited < LINKEDIN_IMAGE_WAIT_MS)) {
         if (waited > CONTAINER_TIMEOUT_MS) return fail(t, "LinkedIn took too long to process the images. Send it again.");
         return; // checked again next minute
     }

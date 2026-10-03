@@ -6182,6 +6182,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     before LinkedIn retires it (about a year).
   - **Tests:** `linkedinConnect.test.ts`, `linkedin/oauth/callback/route.test.ts`, `linkedinApi.test.ts`, LinkedIn cases
     in `contentPublisher.test.ts`, `contentPostService.test.ts` and `socialTokenHealth.test.ts`.
+  - **Follow-up (review on #645):** the 3000-character check counts the text as sent (escaped); the publisher waits for
+    every staged image, checked in parallel, not just the last; connecting pages reads every page of page roles; the
+    `/available` route logs and returns 500 on errors instead of a silent "not available".
 - **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
   2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
   - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
