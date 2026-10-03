@@ -6100,6 +6100,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     follows the new sidebar.
   - **Tests:** `tests/unit/nav-sections.test.ts` covers the ≤ 8-entry cap, that every tab and settings link resolves
     to a page, reachability of former sidebar pages, nested-path section matching, and flag-gated tabs.
+- **OPEN-320 (Fixed — Redis: no request waits on a connection; superadmin on/off switch):** found 2026-10-03.
+  - **Problem:** both API VMs had `REDIS_URL` pointing at a hostname that no longer exists. `getRedisClient()` waited up to
+    2s on every call and never remembered the failure, and the global rate limiter in `server.ts` calls it on every request.
+    So every API request took about 2s longer (24h median 2,041 ms on api-main). `routes/admin/runtime-overview` also opened
+    its own untimed connection.
+  - **Fix (`apps/api/src/lib/redis.ts`):** `getRedisClient()` returns a ready client or `null` at once. If not connected, it
+    starts one background attempt (2s connect timeout), at most once a minute after a failure. Callers keep using their
+    existing non-Redis fallbacks. The production "REDIS_URL is missing" error logs once instead of on every call.
+  - **Switch:** a global `FeatureFlag` row `system_redis`. No row means follow the env. It is read in the background every
+    30s and never on the request path; turning it off disconnects. `GET`/`POST /admin/super/redis` (SYSTEM_ADMIN) and
+    web `/api/superadmin/redis` (superadmin session, audit rows `REDIS_ENABLE`/`REDIS_DISABLE`). It returns state and
+    booleans only, never the URL; the URL stays a server env setting.
+  - **Panel:** a Redis card on the superadmin "Outages & Job Health" tab, plus a notice on every tab while Redis is off or
+    unreachable. Turning it on is disabled until a Redis URL is configured on the server.
+  - **runtime-overview:** now reports from the shared client state, with no extra connection.
+  - **Ops (2026-10-03):** the stale `REDIS_URL` line must be commented out on both VMs. There is no Redis server today.
+  - **Tests:** `src/lib/__tests__/redis.test.ts`, `routes/admin/super/redis/route.test.ts`, web `superadmin-redis-route.test.ts`.
 - **OPEN-319 (Fixed — creator funnel phase 5c-2: WhatsApp template steps in sequences):** checked 2026-10-03 against
   https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview,
   https://developers.facebook.com/docs/graph-api/reference/whats-app-business-account/message_templates/ and

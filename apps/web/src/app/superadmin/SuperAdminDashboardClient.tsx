@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Telemetry } from "@/lib/analytics/telemetry";
+import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 
 type SuperOverview = {
   range: string;
@@ -268,6 +269,42 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
   const [userDetailError, setUserDetailError] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<SuperAdminAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [redis, setRedis] = useState<RedisStatus | null>(null);
+  const [redisError, setRedisError] = useState<string | null>(null);
+  const [redisSaving, setRedisSaving] = useState(false);
+
+  const loadRedis = async () => {
+    try {
+      const response = await fetch("/api/superadmin/redis", { cache: "no-store" });
+      if (response.status === 401) return onLoggedOut();
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || `HTTP ${response.status}`);
+      setRedis(json);
+      setRedisError(null);
+    } catch (redisLoadError: any) {
+      setRedisError(redisLoadError?.message || "Failed to load Redis status");
+    }
+  };
+
+  const toggleRedis = async (enabled: boolean) => {
+    setRedisSaving(true);
+    try {
+      const response = await fetch("/api/superadmin/redis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (response.status === 401) return onLoggedOut();
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || `HTTP ${response.status}`);
+      setRedis(json);
+      setRedisError(null);
+    } catch (redisSaveError: any) {
+      setRedisError(redisSaveError?.message || "Failed to change Redis");
+    } finally {
+      setRedisSaving(false);
+    }
+  };
 
   const load = async (nextRange = range) => {
     setLoading(true);
@@ -296,6 +333,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
 
   useEffect(() => {
     void load(range);
+    void loadRedis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
@@ -444,6 +482,17 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
           <GlassCard className="border-red-500/30 bg-red-500/10 p-6 text-red-200">
             Failed to load admin overview: {error}
           </GlassCard>
+        )}
+
+        {redisNotice(redis) && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("health")}
+            className="flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-left text-xs text-warning"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {redisNotice(redis)} Manage it under Outages &amp; Job Health.
+          </button>
         )}
 
         {data && (
@@ -808,6 +857,8 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             {/* TAB 5: Outages, Service Health & Job Failures */}
             {activeTab === "health" && (
               <div className="space-y-6">
+                <RedisCard status={redis} error={redisError} saving={redisSaving} onToggle={(enabled) => void toggleRedis(enabled)} />
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
                     <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Supabase)</p>

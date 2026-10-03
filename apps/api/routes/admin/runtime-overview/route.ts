@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import Redis from "ioredis";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
+import { getRedisClient, getRedisStatus } from "@/lib/redis";
 
 type ServiceStatus = "UP" | "DOWN" | "DEGRADED" | "NOT_CONFIGURED";
 
@@ -74,37 +74,24 @@ const checkDatabase = async (): Promise<ServiceHealth> => {
     }
 };
 
+// From the app's shared client state rather than a fresh connection: no wait on a
+// dead host, and the URL (which can carry a password) is never returned.
 const checkRedis = async (): Promise<ServiceHealth> => {
-    const redisUrl = process.env["REDIS_URL"];
-    if (!redisUrl) {
-        return { status: "NOT_CONFIGURED", message: "REDIS_URL not set" };
-    }
-
-    const started = Date.now();
-    const client = new Redis(redisUrl, {
-        lazyConnect: true,
-        maxRetriesPerRequest: 1,
-        enableReadyCheck: false,
-    });
-
-    try {
-        await client.connect();
-        const pong = await client.ping();
-        return {
-            status: pong === "PONG" ? "UP" : "DEGRADED",
-            message: pong === "PONG" ? "connected" : `unexpected ping response: ${pong}`,
-            latencyMs: Date.now() - started,
-            endpoint: redisUrl,
-        };
-    } catch (error: any) {
-        return {
-            status: "DOWN",
-            message: error?.message || "connection failed",
-            latencyMs: Date.now() - started,
-            endpoint: redisUrl,
-        };
-    } finally {
-        client.disconnect();
+    await getRedisClient();
+    const redis = getRedisStatus();
+    switch (redis.state) {
+        case "connected":
+            return { status: "UP", message: "connected" };
+        case "connecting":
+            return { status: "DEGRADED", message: "connecting" };
+        case "unreachable":
+            return { status: "DOWN", message: redis.lastFailure?.message || "connection failed" };
+        case "off":
+            return { status: "NOT_CONFIGURED", message: "turned off in the superadmin panel" };
+        case "disabled_by_server":
+            return { status: "NOT_CONFIGURED", message: "disabled on the server (DISABLE_REDIS)" };
+        default:
+            return { status: "NOT_CONFIGURED", message: "REDIS_URL not set" };
     }
 };
 
