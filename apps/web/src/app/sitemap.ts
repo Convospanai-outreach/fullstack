@@ -71,6 +71,36 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.9,
         },
         {
+            url: `${baseUrl}/products/fluid-funnel-engine`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/products/buyer-signals`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/products/ai-outreach`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/products/human-layer`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/products/covospan-edge`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
             url: `${baseUrl}/use-cases`,
             lastModified,
             changeFrequency: "weekly",
