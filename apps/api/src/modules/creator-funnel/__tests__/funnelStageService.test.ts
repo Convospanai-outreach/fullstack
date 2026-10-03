@@ -4,6 +4,7 @@ const mockDb: any = vi.hoisted(() => ({
     lead: { findFirst: vi.fn(), updateMany: vi.fn() },
     leadActivity: { create: vi.fn() },
     team: { findUnique: vi.fn() },
+    featureFlag: { findUnique: vi.fn().mockResolvedValue(null) },
 }));
 const tagFunnelStage = vi.hoisted(() => vi.fn());
 
@@ -96,5 +97,12 @@ describe("isCreatorFunnelEnabled", () => {
 
         mockDb.team.findUnique.mockResolvedValueOnce({ enabledFeatures: null });
         expect(await isCreatorFunnelEnabled("team-a")).toBe(false);
+    });
+
+    it("is off for every team when the superadmin switches it off platform-wide", async () => {
+        mockDb.team.findUnique.mockResolvedValueOnce({ enabledFeatures: ["creator-funnel"] });
+        mockDb.featureFlag.findUnique.mockResolvedValueOnce({ isEnabled: false });
+        expect(await isCreatorFunnelEnabled("team-a")).toBe(false);
+        expect(mockDb.featureFlag.findUnique).toHaveBeenCalledWith({ where: { key: "hidden_feature:creator-funnel" }, select: { isEnabled: true } });
     });
 });
