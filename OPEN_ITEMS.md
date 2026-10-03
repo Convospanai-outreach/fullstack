@@ -6142,6 +6142,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
       `emailId`; the worst case is a duplicate suggestion.
     Not started.
+- **OPEN-332 (Partly fixed 2026-10-03 — repo hygiene, part of the audit's 3.14):** untracked 37 files that were
+  committed by accident: `.playwright-mcp/` page snapshots, two design `.zip` files, five login/setup screenshots in the
+  repo root, `build_tail.txt`, `progress.json`, `audit-report.json` and `db/custom.db` (none referenced by code or CI;
+  `progress.json` is written by `scripts/progress-report.ts`, `audit-report.json` was already in `.gitignore`).
+  `.playwright-mcp/` and `progress.json` are now ignored. **Not done:** deleting zero-importer components, marking or
+  deleting historical docs, replacing the stale compose files (`docker-compose.*.yml` at the root) and `db/schema.sql`
+  - each needs a per-file check that nothing still uses it.
+
 - **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
   2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
   - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
