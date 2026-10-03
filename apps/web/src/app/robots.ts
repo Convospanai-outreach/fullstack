@@ -50,6 +50,7 @@ User-Agent: Perplexity-Search
 Allow: /
 Allow: /blog
 Allow: /pricing
+Allow: /products
 Allow: /use-cases
 Allow: /faq
 Allow: /docs
@@ -116,6 +117,7 @@ export default function robots(): MetadataRoute.Robots {
                     "/",
                     "/blog",
                     "/pricing",
+                    "/products",
                     "/use-cases",
                     "/faq",
                     "/docs",

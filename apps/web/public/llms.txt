@@ -14,6 +14,14 @@ CraftMyFunnel helps B2B revenue teams, marketing agencies, and enterprise sales 
 - **Contextual RAG with pgvector**: Semantic vector search retrieving verified customer case studies, technical specs, and industry proof points for precise, non-fluffy message synthesis.
 - **Vertical Playbooks**: Pre-configured outbound sequence templates and prompts tailored for SaaS, IT services, consulting, marketing agencies, staffing, and recruiting.
 
+## Product Components
+
+- [Fluid Funnel Engine](https://craftmyfunnel.live/products/fluid-funnel-engine): 6-step governed pipeline — import, draft, approve, send, track, escalate. Complements CRMs.
+- [Buyer Signals — NetJana](https://craftmyfunnel.live/products/buyer-signals): Intent signal engine monitoring hiring, tenders, expansions, procurement, and technology adoption.
+- [AI Outreach — CMF Core](https://craftmyfunnel.live/products/ai-outreach): Multi-model AI drafting (OpenAI/Anthropic/Gemini) with mandatory human approval queue before send.
+- [Human Layer](https://craftmyfunnel.live/products/human-layer): Caller task tracking with full outreach context, stage controls, and follow-up suggestions.
+- [Covospan EDGE](https://craftmyfunnel.live/products/covospan-edge): Optional Raspberry Pi 5 sovereign edge node for on-premise PII tokenisation and AI processing.
+
 ## Target Audience
 
 - High-Growth SaaS Outbound Sales Teams
