@@ -5779,9 +5779,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   the worker command. Both runs use its own user, `NODE_ENV=production`, throwaway secrets, a real
   Postgres service migrated first (as deploy-oracle.yml does) and the CA file bind-mounted the way the
   VMs mount it (read-only, root-owned, 644). It then requires `GET /health` → 200 (readiness runs
-  `SELECT 1`), one full worker maintenance pass with no loop or retention errors (one
-  exception: no migration creates the `Landing*` tables, since production got them from an earlier
-  out-of-band `prisma db push`, so the fresh CI database's missing `LandingEvent` is only a warning), a
+  `SELECT 1`), one full worker maintenance pass with no loop or retention errors (the fresh CI database's
+  missing `LandingEvent` was let through as a warning until OPEN-333 added the `Landing*` migration), a
   non-zero uid in both containers with the CA mount readable, and Chromium to render a PDF in the
   worker with `invoicePdfRenderer.ts`'s launch args (CodeAnt review on the PR). Checked locally without Docker (AGENT_RULES): a
   `--omit=dev` install booted in production mode and registered all 432 routes; booted again as uid
@@ -5791,8 +5790,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `chmod 644`). If it's 600/root, DB TLS fails, and the deploy's health-check rolls back. **Not done
   (follow-ups):** splitting the image so api-main doesn't carry Chromium (the worker uses the same image
   and needs it); a Trivy scan of the API image (docker-ghcr.yml scans only web); pinning the base image by
-  digest (no Dependabot config to keep it fresh); a baseline migration for the `Landing*` tables (older than
-  this change). **Assumption:** roadmap.md is not in the repo, so 3.7's
+  digest (no Dependabot config to keep it fresh); a baseline migration for the `Landing*` tables (done in
+  OPEN-333). **Assumption:** roadmap.md is not in the repo, so 3.7's
   image scope was inferred.
 
 - **OPEN-269 (Fixed — S-13..S-16 hardening; legacy-HMAC removal + in-memory caches are follow-ups):**
@@ -6148,6 +6147,27 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
       suggest-only and never acts) and the unique constraint above (needs a migration for a duplicate-row worst case).
     - **ID note:** OPEN-305 is also the ID of the phase 4a entry below. Both were claimed on 2026-10-01 by parallel
       sessions. Refer to this one as "OPEN-305 (reply classifier)".
+- **OPEN-333 (Fixed — baseline migration for the six `Landing*` tables; boot-job exception removed):** 2026-10-03.
+  `LandingCampaign`, `LandingAsset`, `LandingWireframeOption`, `LandingPage`, `LandingLead` and `LandingEvent` had no
+  `CREATE TABLE` in any migration. Production got them from an out-of-band `prisma db push` (its `_prisma_migrations`
+  has a `manual_add_landing_page_builder_tables` row from 2026-09-11). A from-scratch `migrate deploy` had none of
+  them, the five guarded `Landing*` ALTERs skipped, and the worker's retention sweep failed on `LandingEvent`.
+  - **Migration** `20261016120000_landing_tables_baseline`, in all three trees: `CREATE TABLE IF NOT EXISTS` for the
+    six tables, then each index and foreign key only when the catalog lacks it. The DDL is `prisma migrate diff`
+    output with columns in production's order.
+  - **Production read first** (read-only; Supabase `wrnpiyvloncfvqesguou`, the host `deploy-oracle.yml`'s migrate
+    job logs). Columns, types, defaults, indexes and foreign keys all match the schema. Only the column order differs:
+    later ALTERs appended `icpId`, `funnelStage`, `socialToken`, `whatsappConsent` and the `LandingEvent` UTM columns.
+  - **No-op on production:** the migration's 42 guards (6 tables, 22 indexes, 14 foreign keys), evaluated read-only
+    on production, all skip. Plain `CREATE INDEX IF NOT EXISTS` isn't used because it takes a SHARE lock on the table
+    before it finds the index. Locally it waited on an open write; the guarded migration took no lock.
+  - **Fresh database:** `migrate deploy` creates the six tables. Their catalog (136 lines: columns with positions,
+    indexes, constraints) hashes the same as production's. `migrate diff` from the migrations to the schema has no
+    `Landing*` statements; its 10 other statements predate this change (3 index drops, `EdgeNodeOrphanAudit`, 6
+    index renames).
+  - **CI:** `API Image Boot (/health)` no longer lets `LandingEvent sweep failed ... does not exist` through.
+  - **Now stale, left as is:** schema comments on `KeywordTrigger.landingPageId` and `PlaybookRun`'s page ids give
+    "Landing* tables aren't created by migrations" as the reason those columns have no foreign key.
 - **OPEN-331 (Fixed — Crystal DISC guidance, one Enrichment card, ICP fit and batch draft mode surfaced; PR #616):**
   2026-10-01 "invisible features" work. Merged 2026-10-03 after CodeAnt review.
   - **Crystal guidance** is persisted at enrichment under `enrichedData.crystalKnows.guidance` (generated with the generic
