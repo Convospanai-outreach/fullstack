@@ -2318,6 +2318,17 @@ model SuperAdminAuditLog {
 
 // Last-seen time for each long-running process (e.g. the background worker),
 // written about once a minute so the superadmin panel can show real liveness.
+// Site-wide notice shown to every signed-in user, set from the superadmin panel.
+// A single row with id "site".
+model SiteBanner {
+  id          String   @id @default("site")
+  message     String
+  level       String   @default("info") // info | warning | maintenance
+  active      Boolean  @default(false)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
 model ServiceHeartbeat {
   service    String   @id // e.g. "worker"
   startedAt  DateTime
