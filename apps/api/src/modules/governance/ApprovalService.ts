@@ -42,6 +42,13 @@ async function recordDraftFeedback(request: { entityType: string; entityId: stri
     }
 }
 
+// ApprovalRequest.reviewerId is a foreign key to User(id). The system's own decisions ("system-timeout"
+// from the auto-deny sweep, "system-auto" for AUTO-tier requests) have no User row, so they are stored as
+// null: a REJECTED row with no reviewer is a system denial (see breakerService).
+function reviewerFk(reviewerId: string): string | null {
+    return reviewerId.startsWith("system-") ? null : reviewerId;
+}
+
 export class ApprovalService {
 
     /**
@@ -114,11 +121,18 @@ export class ApprovalService {
             select: { id: true, teamId: true }
         });
 
+        let denied = 0;
         for (const { id, teamId } of expired) {
-            await this.reject(id, "system-timeout", teamId, "Auto-denied: no reviewer action within the approval window");
+            // One bad request must not stop the rest of the sweep.
+            try {
+                await this.reject(id, "system-timeout", teamId, "Auto-denied: no reviewer action within the approval window");
+                denied++;
+            } catch (error) {
+                console.error(`[ApprovalService] Auto-deny failed for request ${id}:`, error instanceof Error ? error.message : error);
+            }
         }
 
-        return expired.length;
+        return denied;
     }
 
     /**
@@ -267,7 +281,7 @@ export class ApprovalService {
 
         const updateData: any = { 
             status: ApprovalStatus.APPROVED, 
-            reviewerId, 
+            reviewerId: reviewerFk(reviewerId), 
             reviewedAt: new Date() 
         };
 
@@ -307,7 +321,7 @@ export class ApprovalService {
             return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         }
 
-        const data: any = { status: ApprovalStatus.REJECTED, reviewerId, reviewedAt: new Date() };
+        const data: any = { status: ApprovalStatus.REJECTED, reviewerId: reviewerFk(reviewerId), reviewedAt: new Date() };
         if (reason) {
             data.reviewNote = reason;
         }
