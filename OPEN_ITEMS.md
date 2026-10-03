@@ -6852,7 +6852,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
   `Content-Security-Policy` for those pages.
 
-- **OPEN-332 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+- **OPEN-335 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):** (first
+  filed as OPEN-332, which #640's repo-hygiene entry also took; renumbered on merge.)
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
