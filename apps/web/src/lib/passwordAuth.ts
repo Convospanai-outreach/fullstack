@@ -7,7 +7,8 @@ import { allowForEmail } from "@/lib/botCheck";
 
 export const PASSWORD_MIN_LENGTH = 10;
 // bcrypt silently ignores everything past 72 bytes, so longer passwords would
-// all collapse to the same hash prefix - reject them instead.
+// all collapse to the same hash prefix - reject them instead. Measured in UTF-8
+// bytes, not characters: a multibyte password can be under 72 characters and over 72 bytes.
 export const PASSWORD_MAX_LENGTH = 72;
 const BCRYPT_COST = 12;
 
@@ -38,7 +39,7 @@ export const registerSchema = profileFieldsSchema.extend({
     password: z
         .string()
         .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
-        .max(PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} characters`),
+        .refine((v) => Buffer.byteLength(v, "utf8") <= PASSWORD_MAX_LENGTH, `Password must be at most ${PASSWORD_MAX_LENGTH} bytes`),
 });
 
 export function hashPassword(password: string) {
@@ -67,7 +68,7 @@ export async function authorizeCredentials(
 ) {
     const email = typeof credentials?.["email"] === "string" ? credentials["email"].trim().toLowerCase() : "";
     const password = typeof credentials?.["password"] === "string" ? credentials["password"] : "";
-    if (!email || !password || password.length > PASSWORD_MAX_LENGTH) return null;
+    if (!email || !password || Buffer.byteLength(password, "utf8") > PASSWORD_MAX_LENGTH) return null;
 
     // Keyed on ip+email (not email alone) so an attacker can't lock a victim out
     // of their own account just by guessing at it.

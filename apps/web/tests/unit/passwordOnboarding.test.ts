@@ -4,8 +4,9 @@ const { mockPrisma, tx } = vi.hoisted(() => {
     const tx = {
         userInvitation: { updateMany: vi.fn() },
         user: { update: vi.fn() },
-        teamMember: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+        teamMember: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), count: vi.fn() },
         team: { create: vi.fn() },
+        $queryRaw: vi.fn(),
     };
     return {
         tx,
@@ -31,6 +32,13 @@ describe("provisionUserTeam", () => {
         mockPrisma.user.findUnique.mockResolvedValue(user);
         mockPrisma.userInvitation.findFirst.mockResolvedValue(null);
         tx.teamMember.findFirst.mockResolvedValue(null);
+        tx.teamMember.count.mockResolvedValue(0);
+    });
+
+    it("creates nothing when a concurrent call added a membership before the row lock was taken", async () => {
+        tx.teamMember.count.mockResolvedValue(1);
+        await provisionUserTeam("a@b.com");
+        expect(tx.team.create).not.toHaveBeenCalled();
     });
 
     it("is a no-op when the user already has a membership", async () => {

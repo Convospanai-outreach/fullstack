@@ -15,6 +15,7 @@ export async function provisionUserTeam(email: string) {
         where: { email: normalized },
         include: { memberships: { select: { id: true } } },
     });
+    // Cheap early exit; the authoritative check is repeated under a row lock below.
     if (!user || user.memberships.length > 0) return;
 
     const now = new Date();
@@ -24,6 +25,11 @@ export async function provisionUserTeam(email: string) {
     });
 
     await prisma.$transaction(async (tx: any) => {
+        // Verification and a first login can both get here at once. Lock the user row and re-check
+        // membership inside the transaction so only one of them creates a team.
+        await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+        if ((await tx.teamMember.count({ where: { userId: user.id } })) > 0) return;
+
         if (pendingInvitation) {
             const claim = await tx.userInvitation.updateMany({
                 where: { id: pendingInvitation.id, status: "pending", expiresAt: { gt: now } },

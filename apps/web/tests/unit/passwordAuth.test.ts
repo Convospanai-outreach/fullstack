@@ -96,6 +96,7 @@ describe("registerSchema", () => {
     it.each([
         ["short password", { password: "short" }],
         ["72+ char password", { password: "x".repeat(73) }],
+        ["multibyte password over 72 bytes", { password: "é".repeat(40) }],
         ["bad email", { email: "not-an-email" }],
         ["letters in phone", { phone: "call me maybe" }],
         ["too-short phone", { phone: "12345" }],

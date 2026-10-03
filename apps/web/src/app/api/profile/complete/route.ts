@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { profileFieldsSchema } from "@/lib/passwordAuth";
 
-// The auto-generated team names from signup (googleOnboarding / setupUser). Only
-// these are safe to overwrite with the company name - a team someone already
-// named, or one the user was merely invited into, must be left alone.
-function isDefaultTeamName(name: string) {
-    return name === "My Team" || name.endsWith("'s Team") || name.endsWith(" Workspace");
+// The team name signup generated for this user (googleOnboarding / setupUser): "My Team" or
+// "<their previous name>'s Team". Only that exact name is safe to overwrite with the company
+// name - a team someone already named, or one the user was merely invited into, is left alone.
+function isDefaultTeamName(name: string, previousUserName: string | null) {
+    return name === "My Team" || (!!previousUserName && name === `${previousUserName}'s Team`);
 }
 
 export async function POST(req: Request) {
@@ -24,7 +24,15 @@ export async function POST(req: Request) {
     }
     const { firstName, lastName, phone, company } = parsed.data;
 
-    await prisma.user.update({
+    const [before, owned] = await Promise.all([
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        prisma.teamMember.findMany({
+            where: { userId, role: "owner", status: "active" },
+            select: { team: { select: { id: true, name: true } } },
+        }),
+    ]);
+
+    const userUpdate = prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
@@ -35,13 +43,12 @@ export async function POST(req: Request) {
             profileCompletedAt: new Date(),
         },
     });
-
-    const owned = await prisma.teamMember.findMany({
-        where: { userId, role: "owner", status: "active" },
-        select: { team: { select: { id: true, name: true } } },
-    });
-    if (owned.length === 1 && owned[0] && isDefaultTeamName(owned[0].team.name)) {
-        await prisma.team.update({ where: { id: owned[0].team.id }, data: { name: company } });
+    const ownedTeam = owned.length === 1 ? owned[0]?.team : undefined;
+    // One transaction, so a failed rename can't leave the profile marked complete with the old team name.
+    if (ownedTeam && isDefaultTeamName(ownedTeam.name, before?.name ?? null)) {
+        await prisma.$transaction([userUpdate, prisma.team.update({ where: { id: ownedTeam.id }, data: { name: company } })]);
+    } else {
+        await userUpdate;
     }
 
     return NextResponse.json({ success: true });

@@ -35,6 +35,8 @@ export default function CompleteProfileForm({ initial, nextPath }: { initial: Fi
             }
             router.push(nextPath);
             router.refresh();
+        } catch {
+            setError("Could not save your details. Check your connection and try again.");
         } finally {
             setSaving(false);
         }

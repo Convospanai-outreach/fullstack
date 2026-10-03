@@ -86,11 +86,13 @@ export const authOptions: NextAuthOptions = {
                 // Clearing the password stops whoever pre-registered the address
                 // (and knows that password) from riding the account-linking below.
                 if (existingUser.emailVerified === null) {
+                    // Provision first: if it fails, emailVerified is still null so the next sign-in retries,
+                    // instead of seeing a verified account and skipping provisioning for good.
+                    await provisionUserTeam(email);
                     await prisma.user.update({
                         where: { id: existingUser.id },
                         data: { password: null, emailVerified: new Date() }
                     });
-                    await provisionUserTeam(email);
                 }
                 // Pre-setting user.id makes NextAuth's adapter skip createUser()
                 // and go straight to linkAccount(), attaching this Google account
