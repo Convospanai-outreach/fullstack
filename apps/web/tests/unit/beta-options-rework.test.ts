@@ -19,6 +19,7 @@ function makeContext(overrides: Record<string, any> = {}) {
         hasLinkedInRuntime: false,
         hasScraperSecret: false,
         marketplaceTemplateCount: 0,
+        platformDisabled: new Set<string>(),
         policy: null,
         strictSovereignty: false,
         team: {
@@ -88,6 +89,14 @@ describe("roadmap U-05 — structural guards", () => {
     it("the hardcoded always-on list is gone from productFlags", () => {
         const productFlags = readWorkspaceFile("src", "lib", "productFlags.ts");
         expect(productFlags).not.toContain("ALWAYS_ON_HIDDEN_FEATURE_KEYS");
+    });
+
+    it("a superadmin platform switch removes a feature even when the team turned it on", () => {
+        const keys = resolveEnabledFeatureKeysFromContext(
+            makeContext({ platformDisabled: new Set(["whatsapp"]), team: { enabledFeatures: ["whatsapp", "workflows"] } })
+        );
+        expect(keys.has("whatsapp")).toBe(false);
+        expect(keys.has("workflows")).toBe(true);
     });
 
     it("the settings route persists to the Team DB row and seeds the cookie best-effort", () => {

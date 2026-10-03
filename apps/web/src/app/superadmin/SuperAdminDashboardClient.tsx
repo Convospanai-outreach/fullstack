@@ -28,6 +28,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Telemetry } from "@/lib/analytics/telemetry";
 import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 import SystemTiles, { type SystemHealth } from "./SystemTiles";
+import FeaturesTab from "./FeaturesTab";
 
 type SuperOverview = {
   range: string;
@@ -267,7 +268,7 @@ const ADMIN_TOOLS = [
   { href: "/admin/audit", label: "Audit trail" },
 ];
 
-type TabType = "activity" | "usage" | "billing" | "api" | "health" | "auditLog";
+type TabType = "activity" | "usage" | "billing" | "api" | "health" | "features" | "auditLog";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
@@ -581,6 +582,12 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 label="Outages & Job Health"
                 badge={data.totals.failedJobsCount ? `${data.totals.failedJobsCount} err` : undefined}
                 badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-destructive" : undefined}
+              />
+              <TabButton
+                active={activeTab === "features"}
+                onClick={() => setActiveTab("features")}
+                icon={Layers}
+                label="Features & Teams"
               />
               <TabButton
                 active={activeTab === "auditLog"}
@@ -1025,6 +1032,8 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             )}
 
             {/* TAB 6: Superadmin Activity Log */}
+            {activeTab === "features" && <FeaturesTab teams={data.teams} onLoggedOut={onLoggedOut} />}
+
             {activeTab === "auditLog" && (
               <GlassCard className="overflow-hidden p-0">
                 <div className="p-4 border-b border-border">

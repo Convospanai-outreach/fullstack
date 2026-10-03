@@ -28,11 +28,13 @@ type HiddenFeatureStatus = {
     ready: boolean;
     readinessReason: string;
     recommendedAction: string;
+    disabledByPlatform?: boolean;
 };
 
 type HiddenFeatureResponse = {
     defaults: string[];
     features: HiddenFeatureStatus[];
+    canEdit?: boolean;
 };
 
 export default function HiddenFeaturesPage() {
@@ -228,17 +230,22 @@ export default function HiddenFeaturesPage() {
                                 <div className="flex flex-col items-start gap-3 lg:items-end">
                                     <button
                                         type="button"
-                                        disabled={isSaving}
+                                        disabled={isSaving || data.canEdit === false || feature.disabledByPlatform}
                                         onClick={() => toggleFeature(feature.key)}
                                         className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
                                             feature.enabled
                                                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
                                                 : "border-border bg-muted text-foreground hover:bg-muted"
-                                        } ${isSaving ? "opacity-60 cursor-not-allowed" : ""}`}
+                                        } ${isSaving || data.canEdit === false || feature.disabledByPlatform ? "opacity-60 cursor-not-allowed" : ""}`}
                                     >
                                         {feature.enabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                                         {isSaving ? "Saving..." : feature.enabled ? "Hide Again" : "Turn On"}
                                     </button>
+                                    {feature.disabledByPlatform ? (
+                                        <p className="text-xs text-muted-foreground">Turned off for all workspaces by the CraftMyFunnel team.</p>
+                                    ) : data.canEdit === false ? (
+                                        <p className="text-xs text-muted-foreground">Only team owners and admins can change this.</p>
+                                    ) : null}
 
                                     {feature.enabled && feature.built ? (
                                         <Link

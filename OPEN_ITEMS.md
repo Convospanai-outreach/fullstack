@@ -6142,6 +6142,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     - **Known gap:** two racing jobs could classify one message twice. There is no DB unique constraint on
       `emailId`; the worst case is a duplicate suggestion.
     Not started.
+- **OPEN-322 (Fixed — superadmin feature control: platform flags, optional-feature switches, per-team features and policy):**
+  2026-10-03, phase C of the superadmin control work. Adds a "Features & Teams" tab to `/superadmin`.
+  - **Platform flags:** the 5 flags in `apps/api/src/lib/flags/config.ts` can be set On, Off or back to Default.
+    `GET`/`POST /admin/super/flags` (SYSTEM_ADMIN) writes or deletes the global `FeatureFlag` row; only defined keys are accepted.
+  - **Optional-feature platform switch:** any of the 19 hidden features can be turned off for every team. It is stored as a
+    `FeatureFlag` row `hidden_feature:<key>` with `isEnabled=false` (`apps/web/src/lib/hiddenFeatureSwitches.ts`).
+    - `resolveEnabledFeatureKeysFromContext` removes it whatever the team chose, so the proxy cookie follows on the next page
+      load, and the settings PUT leaves it out of the cookie it writes.
+    - `isCreatorFunnelEnabled` (apps/api) checks the switch too.
+    - A team's own choice for a switched-off feature is kept, so it comes back when the switch is lifted.
+    - Known limit: keys in `NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES` are merged in by the proxy itself, so the switch hides them
+      from the menus but the proxy still lets their pages load.
+  - **Per team:** web `/api/superadmin/teams/[id]` reads or sets the team's optional features (or resets them to automatic)
+    and its `OrganizationPolicy`: product mode, product surface, the four limits and six switches, all validated.
+  - **Team-side setting:** `PUT /api/settings/hidden-features` now needs team owner or admin (any member could change it
+    before). GET returns `canEdit` and `disabledByPlatform`, and the settings page disables the toggle with a reason.
+  - **Audit rows:** `FLAG_SET`, `FEATURE_PLATFORM_OFF`/`ON`, `TEAM_FEATURES_SET` and `TEAM_POLICY_SET`, with before/after values.
+  - **Tests:** `routes/admin/super/flags/route.test.ts`, the platform-switch case in `funnelStageService.test.ts`,
+    `superadmin-features-routes.test.ts` and `beta-options-rework.test.ts`.
 - **OPEN-321 (Fixed — superadmin health tab shows live checks; job replay; links to admin tools):** 2026-10-03, phase B of the
   superadmin control work.
   - **Live tiles:** the PostgreSQL, API and worker tiles were fixed text ("Operational", "Healthy", "Active"). `/admin/super/overview`
@@ -6716,7 +6735,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Sentry CSP reports from signed-in pages are clean, send the strict policy as the enforced
   `Content-Security-Policy` for those pages.
 
-- **OPEN-322 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
+- **OPEN-323 (Fixed in code — takes effect where `REDIS_URL` is set; the backstop store is a follow-up):**
   roadmap.md item 3.1 (I-07), replay-cache slice. Both single-use caches from OPEN-269 (internal-auth v2
   nonces, scraper-ingest signatures) were per-process, so a replay sent to a second api process got through.
   New `apps/api/src/lib/sharedReplayCache.ts` keeps the per-process cache in front and also claims each key
@@ -6727,8 +6746,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Redis, because apps/web's tests import it. Tests: new `sharedReplayCache.test.ts` (a replay sent to a
   second "process" is rejected, key/TTL/NX shape, same-process replay caught before Redis, no-Redis /
   not-ready / error fallbacks); `internalAuth.test.ts` checks the injected cache is used; scraper-ingest
-  rejects a request another process already claimed (verified to fail on the old route). apps/api 322
-  files / 2123 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main
+  rejects a request another process already claimed (verified to fail on the old route). apps/api 323
+  files / 2128 tests; both typechecks clean. **Owner-owed:** confirm `REDIS_URL` is set on api-main
   and the superadmin Redis switch (OPEN-320) is on; without both this changes nothing. **Follow-up:**
   the `@fastify/rate-limit` backstop (OPEN-274) is still per-process. Its built-in Redis store either
   fails open or 500s every request when Redis errors, so it needs a store with a local fallback.
