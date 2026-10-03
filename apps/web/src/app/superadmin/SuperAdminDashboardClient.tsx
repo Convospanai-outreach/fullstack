@@ -29,6 +29,7 @@ import { Telemetry } from "@/lib/analytics/telemetry";
 import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 import SystemTiles, { type SystemHealth } from "./SystemTiles";
 import FeaturesTab from "./FeaturesTab";
+import UserControls from "./UserControls";
 
 type SuperOverview = {
   range: string;
@@ -65,6 +66,7 @@ type SuperOverview = {
     name?: string | null;
     role: string;
     enterpriseRole: string;
+    suspendedAt?: string | null;
     credits: number;
     teamCount: number;
     creditsSpent: number;
@@ -189,6 +191,8 @@ type UserDetail = {
   name?: string | null;
   role: string;
   enterpriseRole: string;
+  suspendedAt?: string | null;
+  suspendedReason?: string | null;
   credits: number;
   createdAt: string;
   teams: Array<{ id: string; name: string; role: string; status: string }>;
@@ -646,6 +650,9 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                               <span className="rounded bg-muted px-2 py-0.5 font-medium text-foreground">
                                 {user.enterpriseRole || user.role}
                               </span>
+                              {user.suspendedAt && (
+                                <span className="ml-1 rounded bg-rose-500/10 px-2 py-0.5 font-medium text-destructive">Suspended</span>
+                              )}
                             </td>
                             <td className="py-3 px-4 text-center">
                               <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-cyan-300">
@@ -1096,6 +1103,11 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
           error={userDetailError}
           detail={userDetail}
           onClose={() => setSelectedUserId(null)}
+          onChanged={() => {
+            if (selectedUserId) void openUserDetail(selectedUserId);
+            void load(range);
+          }}
+          onLoggedOut={onLoggedOut}
         />
       )}
     </div>
@@ -1107,11 +1119,15 @@ function UserDetailModal({
   error,
   detail,
   onClose,
+  onChanged,
+  onLoggedOut,
 }: {
   loading: boolean;
   error: string | null;
   detail: UserDetail | null;
   onClose: () => void;
+  onChanged: () => void;
+  onLoggedOut: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
@@ -1134,6 +1150,8 @@ function UserDetailModal({
 
         {detail && (
           <div className="space-y-5">
+            <UserControls key={`${detail.id}:${detail.enterpriseRole}:${detail.suspendedAt ?? ""}`} user={detail} onChanged={onChanged} onLoggedOut={onLoggedOut} />
+
             <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
               <div className="rounded-lg border border-border bg-muted p-2.5">
                 <p className="text-muted-foreground uppercase text-[10px]">Role</p>

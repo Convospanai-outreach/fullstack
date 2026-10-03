@@ -16,6 +16,7 @@ const BCRYPT_COST = 12;
 // login page maps to copy. Anything else is a plain "CredentialsSignin".
 export const AUTH_ERROR_EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED";
 export const AUTH_ERROR_SSO_REQUIRED = "SSO_REQUIRED";
+export const AUTH_ERROR_ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED";
 export const AUTH_ERROR_RATE_LIMITED = "RATE_LIMITED";
 
 const LOGIN_ATTEMPT_LIMIT = { windowMs: 15 * 60 * 1000, maxRequests: 10 };
@@ -85,7 +86,7 @@ export async function authorizeCredentials(
 
     const user = await prisma.user.findUnique({
         where: { email },
-        select: { id: true, email: true, name: true, image: true, password: true, emailVerified: true },
+        select: { id: true, email: true, name: true, image: true, password: true, emailVerified: true, suspendedAt: true },
     });
 
     const passwordOk = await bcrypt.compare(password, user?.password ?? getDummyHash());
@@ -93,6 +94,8 @@ export async function authorizeCredentials(
 
     // Only after the password checks out, so these don't reveal which emails exist.
     if (!user.emailVerified) throw new Error(AUTH_ERROR_EMAIL_NOT_VERIFIED);
+    // Suspended from the superadmin panel.
+    if (user.suspendedAt) throw new Error(AUTH_ERROR_ACCOUNT_SUSPENDED);
     if (await isSsoEnforcedForEmail(email)) throw new Error(AUTH_ERROR_SSO_REQUIRED);
 
     // Normally done when the verification link is used; repeating it here (a no-op

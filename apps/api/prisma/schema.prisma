@@ -1947,6 +1947,9 @@ model User {
   role                String             @default("user") // Legacy
   enterpriseRole      UserRole           @default(SALES_USER) // Enterprise RBAC
   lastActiveDay       DateTime?          @db.Date // IST day of the last session_active_day event (productEvents.ts)
+  suspendedAt         DateTime? // set from the superadmin panel: blocks sign-in and API access
+  suspendedReason     String?
+  sessionVersion      Int                @default(0) // bumped to end every existing session (lib/userAccess.ts)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   settings            Settings?
