@@ -94,6 +94,22 @@ describe("PATCH /api/campaigns/[id]", () => {
         });
     });
 
+    it("writes draftGenerationMode only while the campaign is a draft, and only REALTIME or BATCH", async () => {
+        (prisma.campaign.findFirst as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a", status: "draft", leadList: [] });
+        const ok = await PATCH(patchRequest({ draftGenerationMode: "BATCH" }), { params: Promise.resolve({ id: "campaign-1" }) });
+        expect(ok.status).toBe(200);
+        expect(prisma.campaign.update).toHaveBeenCalledWith({ where: { id: "campaign-1" }, data: { draftGenerationMode: "BATCH" } });
+
+        (prisma.campaign.update as any).mockClear();
+        const bad = await PATCH(patchRequest({ draftGenerationMode: "TURBO" }), { params: Promise.resolve({ id: "campaign-1" }) });
+        expect(bad.status).toBe(400);
+
+        (prisma.campaign.findFirst as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a", status: "active", leadList: [] });
+        const late = await PATCH(patchRequest({ draftGenerationMode: "BATCH" }), { params: Promise.resolve({ id: "campaign-1" }) });
+        expect(late.status).toBe(409);
+        expect(prisma.campaign.update).not.toHaveBeenCalled();
+    });
+
     it("rejects a non-integer targetCount instead of letting Prisma 500", async () => {
         const response = await PATCH(patchRequest({ targetCount: 1.5 }), { params: Promise.resolve({ id: "campaign-1" }) });
 

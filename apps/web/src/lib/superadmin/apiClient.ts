@@ -9,7 +9,7 @@ const INTERNAL_API_ORIGIN =
 // apps/api's checkAdmin() (apps/api/src/lib/admin.ts) only understands a NextAuth
 // session or this exact HMAC header scheme, and that gate is intentionally not
 // being touched for the new standalone superadmin login.
-function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }, url: URL): HeadersInit {
+function signInternalAdminHeaders(user: { id: string; email: string; enterpriseRole: string }, url: URL, method = "GET"): HeadersInit {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) throw new Error("NEXTAUTH_SECRET is not configured");
 
@@ -18,7 +18,7 @@ function signInternalAdminHeaders(user: { id: string; email: string; enterpriseR
         userId: user.id,
         email: user.email,
         role: user.enterpriseRole,
-        method: "GET",
+        method,
         path: url.pathname,
     });
 }
@@ -48,6 +48,27 @@ export async function fetchSuperAdminUserDetail(
 
     const res = await fetch(url, {
         headers: signInternalAdminHeaders(actor, url),
+        cache: "no-store",
+    });
+    const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
+    return { status: res.status, body };
+}
+
+// Redis status / on-off switch (apps/api routes/admin/super/redis). POST only when
+// `enabled` is given.
+export async function superAdminRedis(
+    actor: { id: string; email: string; enterpriseRole: string },
+    enabled?: boolean
+): Promise<{ status: number; body: unknown }> {
+    const url = new URL("/admin/super/redis", INTERNAL_API_ORIGIN);
+    const method = enabled === undefined ? "GET" : "POST";
+    const res = await fetch(url, {
+        method,
+        headers: {
+            ...signInternalAdminHeaders(actor, url, method),
+            ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(method === "POST" ? { body: JSON.stringify({ enabled }) } : {}),
         cache: "no-store",
     });
     const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));

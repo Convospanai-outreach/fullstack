@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 // Campaign.status is a free-form String column; these are the values the app
 // actually writes (same list as apps/api routes/campaigns/[id]).
 const CAMPAIGN_STATUSES = new Set(["draft", "active", "paused", "completed", "scheduled"]);
+const DRAFT_GENERATION_MODES = new Set(["REALTIME", "BATCH"]);
 
 async function getCampaignContext(id: string, requiredRole: TeamRole) {
     const { userId, teamId } = await getCurrentContext();
@@ -32,7 +33,17 @@ async function getCampaignContext(id: string, requiredRole: TeamRole) {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { campaign } = await getCampaignContext(id, TeamRole.VIEWER);
+        const { campaign, teamId, prisma } = await getCampaignContext(id, TeamRole.VIEWER);
+
+        // Progress of the latest BATCH draft generation, if any (status: submitted | polling | completed | failed).
+        // Best-effort: a failure here must not take down the whole campaign detail response.
+        const draftBatch = await prisma.aiDraftBatch
+            .findFirst({
+                where: { campaignId: id, teamId },
+                orderBy: { createdAt: "desc" },
+                select: { status: true, itemCount: true },
+            })
+            .catch(() => null);
 
         let stats = null;
         try {
@@ -47,6 +58,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             ...campaign,
             leads: campaign.leadList,
             stats,
+            draftBatch,
         });
     } catch (error: any) {
         const status = error.message === "Unauthorized" ? 401 : error.message === "Campaign not found" ? 404 : 500;
@@ -57,7 +69,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { prisma, teamId } = await getCampaignContext(id, TeamRole.MEMBER);
+        const { prisma, teamId, campaign } = await getCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
 
         const { CampaignService } = await import("@/lib/campaignService");
@@ -79,6 +91,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                     return NextResponse.json({ error: "Invalid campaign status" }, { status: 400 });
                 }
                 allowedUpdates["status"] = body.status;
+            }
+            if (body.draftGenerationMode !== undefined) {
+                if (!DRAFT_GENERATION_MODES.has(body.draftGenerationMode)) {
+                    return NextResponse.json({ error: "draftGenerationMode must be REALTIME or BATCH" }, { status: 400 });
+                }
+                // BATCH submits once the enrichment counter seeded at campaign start reaches 0, so the mode
+                // can't change after start without stranding in-flight leads.
+                if (campaign.status !== "draft") {
+                    return NextResponse.json({ error: "Draft generation mode can only be changed before the campaign starts" }, { status: 409 });
+                }
+                allowedUpdates["draftGenerationMode"] = body.draftGenerationMode;
             }
             if (typeof body.targetCount === "number") allowedUpdates["targetCount"] = body.targetCount;
             if (typeof body.completedCount === "number") allowedUpdates["completedCount"] = body.completedCount;

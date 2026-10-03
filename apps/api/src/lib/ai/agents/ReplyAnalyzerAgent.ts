@@ -2,10 +2,11 @@ import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
-import { LearningService } from "@/modules/learning/learningService";
+
+const CLASSIFICATIONS = ['INTERESTED', 'NOT_INTERESTED', 'OOO', 'QUESTION', 'DNC'] as const;
 
 export interface ReplyAnalysisResult {
-    classification: 'INTERESTED' | 'NOT_INTERESTED' | 'OOO' | 'QUESTION' | 'DNC';
+    classification: (typeof CLASSIFICATIONS)[number];
     confidence: number;
     reasoning: string;
     suggestedAction: 'PAUSE_CAMPAIGN' | 'SENT_REPLY' | 'SCHEDULE_MEETING' | 'SNOOZE' | 'BLACKLIST';
@@ -16,20 +17,30 @@ export class ReplyAnalyzerAgent {
     
     /**
      * Analyzes an incoming email reply using the SOP Reply Decision Tree.
-     * 
+     * Classify-and-store only: the result is a suggestion shown in the Action Inbox. It never
+     * changes the lead (no DNC/blacklist, no stage change) and writes no learned memory.
+     * Metered against the lead's team through aiService. Throws when the lead is not in
+     * `teamId` or the AI call fails, so no ReplyTracker row is stored for a failed analysis.
+     *
      * @param subject Email subject
      * @param body Email body content
      * @param leadId ID of the lead who replied
      * @param senderEmail The email address of the sender
+     * @param messageId The inbound Message this reply was stored as (kept in ReplyTracker.emailId)
+     * @param teamId Team the lead must belong to
      */
     static async analyzeAndTrack(
-        subject: string, 
-        body: string, 
+        subject: string,
+        body: string,
         leadId: string,
         senderEmail: string,
-        emailId?: string
+        messageId: string,
+        teamId: string
     ): Promise<ReplyAnalysisResult> {
-        
+
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { teamId: true, enrichedData: true } });
+        if (!lead) throw new Error("Lead not found for this team");
+
         logger.info(`[ReplyAnalyzer] Analyzing reply from Lead ${leadId}`);
 
         // 1. Mask PII in incoming content (Sovereign Firewall)
@@ -40,6 +51,15 @@ export class ReplyAnalyzerAgent {
         // Merge maps for later detokenization
         const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);
 
+        // Stored Crystal DISC guidance for tailoring the draft - best-effort, empty when absent.
+        let personalityGuidance = "";
+        try {
+            const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+            personalityGuidance = await CrystalService.getGuidanceForLead(lead.teamId ?? undefined, lead, "reply to this person's email");
+        } catch {
+            // A reply draft without personality guidance is still better than none.
+        }
+
         // 2. Construct the analysis prompt based on SOP
         const prompt = `
             You are the "Reply Analyzer Agent" for an email outreach system.
@@ -48,7 +68,10 @@ export class ReplyAnalyzerAgent {
             EMAIL CONTENT:
             Subject: ${safeSubject}
             Body: "${safeBody}"
-
+${personalityGuidance ? `
+            PERSONALITY GUIDANCE (DISC) for the lead - tailor the draft response to it:
+            ${personalityGuidance}
+` : ""}
             CLASSIFICATION CATEGORIES:
             1. INTERESTED: "Let's talk", "Demo", "Pricing?", "Calendar", "Send more info".
             2. QUESTION: "How does it work?", "Integration?", "Is this compliant?", "Case studies?".
@@ -83,95 +106,48 @@ export class ReplyAnalyzerAgent {
         try {
             // 2. Call AI Service
             // Using a high-level "askAI" call. Ideally, we'd use a more structured output mode if available.
-            const resultText = await aiService.askAI(prompt, undefined, { taskType: "CLASSIFICATION", expectsJson: true, disableGuardrails: true });
-            
+            // Passing teamId is what meters the call (credits + usage log) against the team.
+            const resultText = await aiService.askAI(prompt, teamId, { taskType: "CLASSIFICATION", expectsJson: true, disableGuardrails: true });
+
             // Clean Markdown code blocks if present
             const cleanedJson = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
             analysis = JSON.parse(cleanedJson);
+            if (!CLASSIFICATIONS.includes(analysis.classification) || typeof analysis.confidence !== "number") {
+                throw new Error("AI returned an unusable classification");
+            }
 
             // 3. Detokenize Draft Response asynchronously
             if (analysis.draftResponse) {
                 analysis.draftResponse = await SovereignFirewall.unmaskAsync(
                     analysis.draftResponse, 
                     combinedTokenMap, 
-                    "SYSTEM", // Team ID fallback
+                    teamId,
                     `REPLY_ANALYSIS_UNMASK_${leadId}`
                 );
             }
 
         } catch (error: any) {
             logger.error("[ReplyAnalyzer] AI Classification Failed", error);
-            // Fallback safe defaults
-            analysis = {
-                classification: 'QUESTION', // Assume question to force human review
-                confidence: 0.0,
-                reasoning: "AI Parsing Failed. Manual Review Required.",
-                suggestedAction: 'PAUSE_CAMPAIGN'
-            };
+            throw error;
         }
 
-        // 3. Determine Final Status (HITL Logic)
-        let status = "PENDING_REVIEW";
-        
-        // Auto-handle DNC and High-Confidence OOO
-        if (analysis.classification === 'DNC' && analysis.confidence > 0.9) {
-            status = "AUTO_HANDLED";
-            await this.handleDNC(leadId);
-        } else if (analysis.classification === 'OOO' && analysis.confidence > 0.9) {
-            status = "AUTO_HANDLED";
-             // In real impl, we would schedule a snooze here
-        }
-
-        // 4. Save to Database (ReplyTracker)
-        try {
-            await prisma.replyTracker.create({
-                data: {
-                    leadId,
-                    emailId: emailId ?? null,
-                    senderEmail,
-                    subject,
-                    body,
-                    aiClassification: analysis.classification,
-                    aiConfidence: analysis.confidence,
-                    aiReasoning: analysis.reasoning ?? null,
-                    status: status,
-                    actionTaken: status === 'AUTO_HANDLED' ? analysis.suggestedAction : null,
-                    replyDraft: analysis.draftResponse ?? null
-                }
-            });
-            logger.info(`[ReplyAnalyzer] Tracked reply as ${analysis.classification} (Status: ${status})`);
-
-            // 5. SELF-LEARNING: Automatically consolidate success patterns
-            if (analysis.classification === 'INTERESTED' && analysis.confidence > 0.8) {
-                // Fetch teamId via lead relationship
-                const leadWithTeam = await prisma.lead.findUnique({
-                    where: { id: leadId },
-                    select: { teamId: true, company: true, jobTitle: true }
-                });
-
-                if (leadWithTeam && leadWithTeam.teamId) {
-                    const lesson = `Pattern: Success with ${leadWithTeam.company} (${leadWithTeam.jobTitle}). 
-                    Reasoning: ${analysis.reasoning}. 
-                    Outcome: Lead expressed interest. 
-                    Lesson learned: Continue using this pitch angle.`;
-
-                    await LearningService.saveMemory(leadWithTeam.teamId, "outcome_success", lesson, 1.0);
-                    logger.info(`[Self-Learning] Success memory synthesized for team ${leadWithTeam.teamId}`);
-                }
+        // 3. Save the suggestion. Always PENDING_REVIEW: only a rep's click acts on it.
+        await prisma.replyTracker.create({
+            data: {
+                leadId,
+                emailId: messageId,
+                senderEmail,
+                subject,
+                body,
+                aiClassification: analysis.classification,
+                aiConfidence: analysis.confidence,
+                aiReasoning: typeof analysis.reasoning === "string" ? analysis.reasoning : null,
+                status: "PENDING_REVIEW",
+                replyDraft: typeof analysis.draftResponse === "string" ? analysis.draftResponse : null
             }
-        } catch (dbError) {
-             logger.error("[ReplyAnalyzer] Failed to save/learn to DB", dbError);
-        }
+        });
+        logger.info(`[ReplyAnalyzer] Tracked reply as ${analysis.classification}`);
 
         return analysis;
-    }
-
-    private static async handleDNC(leadId: string) {
-        // Implement Blacklist Logic
-        await prisma.lead.update({
-            where: { id: leadId },
-            data: { status: 'DNC', tags: { push: 'BLACKLISTED' } }
-        });
-        logger.warn(`[ReplyAnalyzer] Lead ${leadId} automatically marked as DNC.`);
     }
 }

@@ -93,7 +93,7 @@ describe("Product funnel automations", () => {
         await click(byText("Save"));
 
         expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ method: "PUT" }));
-        expect(puts()).toEqual([{ deliveryUrl: "https://school.example/c", deliveryMailboxId: "mb-1", cartAbandonSequenceId: "seq-1", cartAbandonHours: 6 }]);
+        expect(puts()).toEqual([{ deliveryUrl: "https://school.example/c", deliveryMailboxId: "mb-1", cartAbandonSequenceId: "seq-1", cartAbandonHours: 6, postPurchaseSequenceId: null }]);
         expect(toast.success).toHaveBeenCalledWith("Saved. Switch it on when you're ready.");
     });
 

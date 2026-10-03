@@ -42,6 +42,7 @@ export default function CampaignDetailPage({
         name: "",
         description: "",
         targetCount: 0,
+        draftGenerationMode: "REALTIME" as "REALTIME" | "BATCH",
     });
     const [activities, setActivities] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState("overview");
@@ -138,6 +139,7 @@ export default function CampaignDetailPage({
                 name: data.name,
                 description: data.description || "",
                 targetCount: data.targetCount,
+                draftGenerationMode: data.draftGenerationMode === "BATCH" ? "BATCH" : "REALTIME",
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load campaign");
@@ -231,7 +233,9 @@ export default function CampaignDetailPage({
 
     const handleSaveEdit = async () => {
         try {
-            await updateCampaign(campaignId, editData);
+            // The server only accepts a draft-generation change while the campaign is still a draft.
+            const { draftGenerationMode, ...rest } = editData;
+            await updateCampaign(campaignId, campaign.status === "draft" ? { ...rest, draftGenerationMode } : rest);
             setIsEditing(false);
             loadCampaign();
             loadActivities();
@@ -326,6 +330,18 @@ export default function CampaignDetailPage({
                                         }
                                         className="w-32 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     />
+                                    <select
+                                        title="Draft generation"
+                                        value={editData.draftGenerationMode}
+                                        disabled={campaign.status !== "draft"}
+                                        onChange={(e) =>
+                                            setEditData({ ...editData, draftGenerationMode: e.target.value as "REALTIME" | "BATCH" })
+                                        }
+                                        className="block w-64 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-60"
+                                    >
+                                        <option value="REALTIME">Draft generation: Instant</option>
+                                        <option value="BATCH">Draft generation: Batch (cheaper, slower)</option>
+                                    </select>
                                     <div className="space-x-2">
                                         <button
                                             onClick={handleSaveEdit}
@@ -348,6 +364,14 @@ export default function CampaignDetailPage({
                                     </h1>
                                     {campaign.description && (
                                         <p className="mt-2 text-muted-foreground">{campaign.description}</p>
+                                    )}
+                                    {campaign.draftGenerationMode === "BATCH" && (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            Batch drafts:{" "}
+                                            {campaign.draftBatch
+                                                ? `${campaign.draftBatch.status} (${campaign.draftBatch.itemCount} leads)`
+                                                : "not submitted yet"}
+                                        </p>
                                     )}
                                 </>
                             )}

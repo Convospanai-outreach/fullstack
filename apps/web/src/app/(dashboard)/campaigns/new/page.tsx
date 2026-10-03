@@ -23,6 +23,7 @@ export default function NewCampaignPage() {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [draftGenerationMode, setDraftGenerationMode] = useState<"REALTIME" | "BATCH">("REALTIME");
 
     const [targetStageEnabled, setTargetStageEnabled] = useState(false);
     const [stage, setStage] = useState<string>("WARM");
@@ -90,6 +91,7 @@ export default function NewCampaignPage() {
                 name: name.trim(),
                 description: description.trim() || undefined,
                 icpId,
+                draftGenerationMode,
             };
 
             if (targetStageEnabled) {
@@ -192,6 +194,20 @@ export default function NewCampaignPage() {
                                 placeholder="Target audience, value proposition summary, or key campaign goals..."
                                 className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Draft generation
+                            </label>
+                            <select
+                                value={draftGenerationMode}
+                                onChange={(e) => setDraftGenerationMode(e.target.value as "REALTIME" | "BATCH")}
+                                className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                            >
+                                <option value="REALTIME">Instant</option>
+                                <option value="BATCH">Batch (cheaper, slower)</option>
+                            </select>
                         </div>
 
                         <div className="rounded-lg border border-border p-4 space-y-3">

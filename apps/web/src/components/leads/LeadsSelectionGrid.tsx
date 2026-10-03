@@ -12,6 +12,7 @@ export interface SelectableLead {
     company: string | null;
     status: string | null;
     intentScore: number | null;
+    icpFitScore?: number | null;
 }
 
 type Campaign = { id: string; name: string };
@@ -119,6 +120,20 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider ${tier.className}`}>
                                                 {tier.label} · {Math.round((lead.intentScore ?? 0) * 100)}%
                                             </span>
+                                            {lead.icpFitScore != null && (
+                                                <span
+                                                    className={`text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider ${
+                                                        lead.icpFitScore >= 70
+                                                            ? "text-success border-success/25 bg-success/5"
+                                                            : lead.icpFitScore >= 40
+                                                              ? "text-warning border-warning/25 bg-warning/5"
+                                                              : "text-muted-foreground border-border bg-muted"
+                                                    }`}
+                                                    title="ICP fit"
+                                                >
+                                                    Fit · {lead.icpFitScore}%
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="space-y-1.5 pl-6">
