@@ -297,8 +297,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             });
             const data = await res.json();
             if (data.success) {
-                // The endpoint only enqueues a job (no lead data in the response) - refetch instead of overwriting.
-                await refreshLead();
+                // The endpoint only enqueues a job (no lead data in the response), so an immediate refetch would
+                // still see the old lead. Refetch once the worker has had time to finish instead of overwriting.
+                [5000, 15000].forEach((ms) => setTimeout(() => void refreshLead().catch(() => {}), ms));
             }
         } catch (error) {
             console.error("Failed to enrich lead", error);

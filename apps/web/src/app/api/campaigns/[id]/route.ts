@@ -36,11 +36,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         const { campaign, teamId, prisma } = await getCampaignContext(id, TeamRole.VIEWER);
 
         // Progress of the latest BATCH draft generation, if any (status: submitted | polling | completed | failed).
-        const draftBatch = await prisma.aiDraftBatch.findFirst({
-            where: { campaignId: id, teamId },
-            orderBy: { createdAt: "desc" },
-            select: { status: true, itemCount: true },
-        });
+        // Best-effort: a failure here must not take down the whole campaign detail response.
+        const draftBatch = await prisma.aiDraftBatch
+            .findFirst({
+                where: { campaignId: id, teamId },
+                orderBy: { createdAt: "desc" },
+                select: { status: true, itemCount: true },
+            })
+            .catch(() => null);
 
         let stats = null;
         try {

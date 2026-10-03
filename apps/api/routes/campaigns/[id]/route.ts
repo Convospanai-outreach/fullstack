@@ -64,6 +64,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const parsed = await parseBody(req, patchCampaignSchema);
         if (!parsed.ok) return parsed.response;
         const body = parsed.data;
+        if (body.draftGenerationMode !== undefined) {
+            // BATCH submits once the enrichment counter seeded at campaign start reaches 0, so the mode
+            // can't change after start without stranding in-flight leads.
+            if (campaign.status !== "draft") {
+                throw new APIError("Draft generation mode can only be changed before the campaign starts", 409, "CONFLICT");
+            }
+            // Applied first so a combined { status: "active", draftGenerationMode } request starts with the new mode.
+            await prisma.campaign.update({ where: { id }, data: { draftGenerationMode: body.draftGenerationMode } });
+        }
         if (body.action === "start" || body.status === "active") {
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
@@ -75,25 +84,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (body.name !== undefined) allowedUpdates.name = body.name;
             if (body.description !== undefined) allowedUpdates.description = body.description;
             if (body.status !== undefined) allowedUpdates.status = body.status;
-            if (body.draftGenerationMode !== undefined) {
-                // BATCH submits once the enrichment counter seeded at campaign start reaches 0, so the mode
-                // can't change after start without stranding in-flight leads.
-                if (campaign.status !== "draft") {
-                    throw new APIError("Draft generation mode can only be changed before the campaign starts", 409, "CONFLICT");
-                }
-                allowedUpdates.draftGenerationMode = body.draftGenerationMode;
-            }
             if (body.targetCount !== undefined) allowedUpdates.targetCount = body.targetCount;
             if (body.completedCount !== undefined) allowedUpdates.completedCount = body.completedCount;
 
-            if (Object.keys(allowedUpdates).length === 0) {
+            if (Object.keys(allowedUpdates).length === 0 && body.draftGenerationMode === undefined) {
                 throw new APIError("No valid update fields provided", 400, "VALIDATION_ERROR");
             }
 
-            await prisma.campaign.update({
-                where: { id },
-                data: allowedUpdates,
-            });
+            if (Object.keys(allowedUpdates).length > 0) {
+                await prisma.campaign.update({
+                    where: { id },
+                    data: allowedUpdates,
+                });
+            }
         }
 
         return NextResponse.json({ success: true });

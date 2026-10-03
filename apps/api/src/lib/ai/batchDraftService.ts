@@ -7,6 +7,7 @@ import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
 const BATCH_MODEL = "claude-3-5-sonnet";
+const GUIDANCE_CONCURRENCY = 10;
 
 function buildDraftPrompt(lead: unknown, icp: unknown, personalityGuidance: string): string {
     // Mirrors aiService.generateEmailDraft's prompt shape exactly, so a
@@ -52,10 +53,17 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
     const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
     const model = providers.anthropic.model || BATCH_MODEL;
 
-    // Stored guidance is read straight off the lead; only legacy leads hit Crystal (free), in parallel.
-    const guidance = await Promise.all(
-        leads.map((lead) => CrystalService.getGuidanceForLead(teamId, lead, "write a cold outreach email").catch(() => ""))
-    );
+    // Stored guidance is read straight off the lead; only legacy leads hit Crystal (free). Chunked so a big
+    // campaign of legacy leads doesn't fire hundreds of simultaneous requests and trip Crystal's rate limit.
+    const guidance: string[] = [];
+    for (let i = 0; i < leads.length; i += GUIDANCE_CONCURRENCY) {
+        const chunk = leads.slice(i, i + GUIDANCE_CONCURRENCY);
+        guidance.push(
+            ...(await Promise.all(
+                chunk.map((lead) => CrystalService.getGuidanceForLead(teamId, lead, "write a cold outreach email").catch(() => ""))
+            ))
+        );
+    }
 
     const messageBatch = await client.messages.batches.create({
         requests: leads.map((lead, i) => ({
