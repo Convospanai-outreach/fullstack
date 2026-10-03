@@ -28,7 +28,7 @@ describe("super admin feature flags route", () => {
 
     it("lists every defined flag with its default and override", async () => {
         const { flags } = await (await GET()).json();
-        expect(flags.map((f: any) => f.key)).toEqual(["email_sequences", "ai_drafting", "linkedin_automation", "autonomous_agents", "whatsapp_outbound"]);
+        expect(flags.map((f: any) => f.key)).toEqual(["email_sequences", "ai_drafting", "linkedin_automation", "autonomous_agents", "whatsapp_outbound", "linkedin_pages"]);
         expect(flags.find((f: any) => f.key === "whatsapp_outbound")).toMatchObject({ defaultValue: false, override: true });
         expect(flags.find((f: any) => f.key === "ai_drafting")).toMatchObject({ defaultValue: true, override: null });
     });

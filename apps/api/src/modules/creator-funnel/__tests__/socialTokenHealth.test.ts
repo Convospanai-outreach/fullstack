@@ -44,10 +44,11 @@ describe("checkSocialTokens", () => {
         vi.unstubAllGlobals();
     });
 
-    it("does nothing without the Meta app credentials", async () => {
+    it("checks only LinkedIn accounts without the Meta app credentials", async () => {
         delete process.env["FACEBOOK_APP_SECRET"];
+        mockDb.socialAccount.findMany.mockResolvedValue([]);
         expect(await checkSocialTokens(now)).toEqual({ checked: 0, needsReconnect: 0, warned: 0 });
-        expect(mockDb.socialAccount.findMany).not.toHaveBeenCalled();
+        expect(mockDb.socialAccount.findMany.mock.calls[0][0].where.platform).toEqual({ in: ["LINKEDIN_MEMBER", "LINKEDIN_ORG"] });
     });
 
     it("checks connected Meta accounts not checked in the last day, with an app token", async () => {
@@ -57,7 +58,7 @@ describe("checkSocialTokens", () => {
 
         expect(mockDb.socialAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: {
-                platform: { in: ["FACEBOOK_PAGE", "INSTAGRAM"] },
+                platform: { in: ["FACEBOOK_PAGE", "INSTAGRAM", "LINKEDIN_MEMBER", "LINKEDIN_ORG"] },
                 status: "CONNECTED",
                 OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date("2026-09-29T06:00:00Z") } }],
             },
@@ -121,5 +122,57 @@ describe("checkSocialTokens", () => {
 
         expect(mockDb.socialAccount.update).toHaveBeenCalledWith({ where: { id: "acc-1" }, data: { lastCheckedAt: now } });
         expect(send).not.toHaveBeenCalled();
+    });
+    describe("LinkedIn", () => {
+        const linkedin = (overrides: any = {}) => account({ platform: "LINKEDIN_MEMBER", handle: "Asha Rao", tokenExpiresAt: new Date("2026-11-20T00:00:00Z"), ...overrides });
+
+        it("keeps a working profile token and its saved expiry, using a bearer call and no app secret", async () => {
+            delete process.env["FACEBOOK_APP_SECRET"];
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin()]);
+            fetchMock.mockResolvedValue({ ok: true, status: 200 });
+
+            await checkSocialTokens(now);
+
+            expect(fetchMock.mock.calls[0][0]).toBe("https://api.linkedin.com/v2/userinfo");
+            expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer page-token");
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({
+                where: { id: "acc-1" },
+                data: { tokenExpiresAt: new Date("2026-11-20T00:00:00Z"), lastCheckedAt: now, lastError: null },
+            });
+        });
+
+        it("checks a page token with the page-role finder", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin({ platform: "LINKEDIN_ORG" })]);
+            fetchMock.mockResolvedValue({ ok: true, status: 200 });
+            await checkSocialTokens(now);
+            expect(fetchMock.mock.calls[0][0]).toContain("/rest/organizationAcls?q=roleAssignee");
+        });
+
+        it("asks for a reconnect once the 60 days are over, without calling LinkedIn", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin({ tokenExpiresAt: new Date("2026-09-29T00:00:00Z") })]);
+            const result = await checkSocialTokens(now);
+            expect(result.needsReconnect).toBe(1);
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(mockDb.socialAccount.update.mock.calls[0][0].data.status).toBe("NEEDS_RECONNECT");
+        });
+
+        it("asks for a reconnect when LinkedIn rejects the token, and warns a week before expiry", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin()]);
+            fetchMock.mockResolvedValue({ ok: false, status: 401 });
+            expect((await checkSocialTokens(now)).needsReconnect).toBe(1);
+
+            vi.clearAllMocks();
+            mockDb.teamMember.findMany.mockResolvedValue([{ userId: "admin-1" }]);
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin({ tokenExpiresAt: new Date("2026-10-03T00:00:00Z") })]);
+            fetchMock.mockResolvedValue({ ok: true, status: 200 });
+            expect((await checkSocialTokens(now)).warned).toBe(1);
+        });
+
+        it("leaves the status alone when LinkedIn can't be reached", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([linkedin()]);
+            fetchMock.mockRejectedValue(new Error("timeout"));
+            await checkSocialTokens(now);
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({ where: { id: "acc-1" }, data: { lastCheckedAt: now } });
+        });
     });
 });

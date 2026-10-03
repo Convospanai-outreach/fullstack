@@ -5,6 +5,7 @@ const mockDb: any = vi.hoisted(() => ({
     contentPostTarget: { findMany: vi.fn(), deleteMany: vi.fn(), createMany: vi.fn() },
     approvalRequest: { create: vi.fn(), updateMany: vi.fn(), findFirst: vi.fn() },
     socialAccount: { count: vi.fn() },
+    featureFlag: { findUnique: vi.fn() },
     team: { findUnique: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
 }));
@@ -252,6 +253,25 @@ describe("contentPostService", () => {
             mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [ig({ scopes: ["instagram_basic"] })] }));
             const error = await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
             expect(error.message).toMatch(/permission to post/);
+        });
+
+        it("checks LinkedIn's limits against the LinkedIn caption, and page posts against the platform switch", async () => {
+            const liTarget = (platform: string, scopes: string[]) => ({ status: "PENDING", socialAccount: { platform, handle: "Maker", status: "CONNECTED", scopes } });
+            const profile = liTarget("LINKEDIN_MEMBER", ["openid", "w_member_social"]);
+            const page = liTarget("LINKEDIN_ORG", ["w_organization_social"]);
+
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [profile], mediaUrls: [], channelCaptions: { LINKEDIN: "x".repeat(3001) } }));
+            expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/3000 characters/);
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [profile], mediaUrls: Array(21).fill(media()) }));
+            expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/at most 20 images/);
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [liTarget("LINKEDIN_MEMBER", ["openid", "profile"])], mediaUrls: [] }));
+            expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/permission to post/);
+
+            mockDb.featureFlag.findUnique.mockResolvedValue(null);
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [page], mediaUrls: [] }));
+            expect((await expectError(submitPost(TEAM, "post-1", "user-1"), 400)).message).toMatch(/LinkedIn pages is switched off/);
+            expect(mockDb.featureFlag.findUnique).toHaveBeenCalledWith({ where: { key: "linkedin_pages" }, select: { isEnabled: true } });
+            expect(mockDb.approvalRequest.create).not.toHaveBeenCalled();
         });
 
         it("on a retry, only lists and checks the accounts it didn't reach", async () => {
