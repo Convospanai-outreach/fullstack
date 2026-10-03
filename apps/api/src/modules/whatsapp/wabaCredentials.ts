@@ -40,6 +40,10 @@ function decryptSecret(secret?: EncryptedSecret | null): string | undefined {
 
 export type WabaConfig = { phoneNumberId: string; accessToken: string };
 
+// Graph API version for every WhatsApp call. v19.0 (used before) expired on 2026-05-21; v26.0 is the
+// latest. Checked 2026-10-03 at https://developers.facebook.com/docs/graph-api/changelog/versions
+export const GRAPH_VERSION = "v26.0";
+
 export async function getTeamWabaConfig(teamId: string): Promise<WabaConfig | null> {
     const team = await prisma.team.findUnique({
         where: { id: teamId },
@@ -66,7 +70,7 @@ export async function verifyWabaCredentials(phoneNumberId: string, accessToken: 
     try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}?fields=verified_name`, {
+        const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}?fields=verified_name`, {
             headers: { Authorization: `Bearer ${accessToken}` },
             signal: controller.signal,
         });
@@ -84,12 +88,35 @@ export async function verifyWabaCredentials(phoneNumberId: string, accessToken: 
     }
 }
 
-export async function setTeamWaba(teamId: string, phoneNumberId: string, accessToken: string): Promise<void> {
+/**
+ * Verifies a WhatsApp Business Account id works with the token by listing one of its message
+ * templates (GET /{waba-id}/message_templates, needs whatsapp_business_management; see
+ * whatsappTemplates.ts). That's the call template sends depend on, so a pass means they can run.
+ */
+export async function verifyWabaAccount(wabaId: string, accessToken: string): Promise<{ ok: boolean; reason?: string }> {
+    try {
+        const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(wabaId)}/message_templates?limit=1&fields=name`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) {
+            logger.warn(`[WABA] Business account verification failed with status ${response.status}`);
+            return { ok: false, reason: `WhatsApp didn't accept this Business Account ID with the token (status ${response.status}). The token needs template access (whatsapp_business_management).` };
+        }
+        return { ok: true };
+    } catch (error: any) {
+        logger.warn(`[WABA] Business account verification errored: ${error?.name === "TimeoutError" ? "timeout" : "network error"}`);
+        return { ok: false, reason: "Could not reach the WhatsApp API to verify the Business Account ID." };
+    }
+}
+
+export async function setTeamWaba(teamId: string, phoneNumberId: string, accessToken: string, businessAccountId: string | null = null): Promise<void> {
     await prisma.team.update({
         where: { id: teamId },
         data: {
             whatsappPhoneNumberId: phoneNumberId,
             whatsappAccessTokenEnc: encryptSecret(accessToken) as any,
+            whatsappBusinessAccountId: businessAccountId,
             whatsappWabaConfiguredAt: new Date(),
         },
     });
@@ -98,6 +125,6 @@ export async function setTeamWaba(teamId: string, phoneNumberId: string, accessT
 export async function clearTeamWaba(teamId: string): Promise<void> {
     await prisma.team.update({
         where: { id: teamId },
-        data: { whatsappPhoneNumberId: null, whatsappAccessTokenEnc: Prisma.JsonNull, whatsappWabaConfiguredAt: null },
+        data: { whatsappPhoneNumberId: null, whatsappAccessTokenEnc: Prisma.JsonNull, whatsappBusinessAccountId: null, whatsappWabaConfiguredAt: null },
     });
 }

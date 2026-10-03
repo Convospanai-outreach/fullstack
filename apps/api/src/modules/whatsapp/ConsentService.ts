@@ -79,18 +79,16 @@ export class ConsentService {
         hasConsent: boolean;
         reason?: string;
     }> {
-        // GDPR / DPDP Compliance: Check Ledger for active consent
-        const activeConsent = await prisma.consentLedger.findFirst({
-            where: {
-                leadId,
-                channel,
-                status: "GRANTED"
-            },
-            orderBy: { grantedAt: "desc" }
+        // GDPR / DPDP Compliance: the lead's latest ledger entry for the channel decides, so an
+        // opt-out after a grant blocks sends (revocations are new rows; revokedAt isn't set).
+        const latest = await prisma.consentLedger.findFirst({
+            where: { leadId, channel },
+            orderBy: [{ grantedAt: "desc" }, { id: "desc" }],
+            select: { status: true }
         });
 
-        if (!activeConsent) {
-            return { hasConsent: false, reason: `No active ${channel} consent found in ledger` };
+        if (latest?.status !== "GRANTED") {
+            return { hasConsent: false, reason: latest ? `${channel} consent was revoked` : `No active ${channel} consent found in ledger` };
         }
 
         return { hasConsent: true };

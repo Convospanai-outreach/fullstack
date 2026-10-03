@@ -2,7 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
 import { isHttpsUrl } from "./checkoutHooks";
-import { nurtureCanRunSteps } from "./nurtureProvider";
+import { nurtureCanRunSteps, whatsappStepProblem } from "./nurtureProvider";
 
 // Per-product creator funnel automations (checkoutHooks.ts): the delivery email after payment and
 // the cart-abandon sequence. Saved switched off; switching on checks the setup and records who and
@@ -53,11 +53,16 @@ async function checkConfig(teamId: string, config: Config, activating: boolean) 
         if (!sequenceId) continue;
         const sequence = await prisma.campaignSequence.findFirst({
             where: { id: sequenceId, teamId },
-            select: { steps: { where: { status: "ACTIVE" }, select: { stepType: true } } },
+            select: { steps: { where: { status: "ACTIVE" }, select: { stepType: true, whatsappTemplateName: true, whatsappTemplateLanguage: true } } },
         });
         if (!sequence) fail("That sequence wasn't found.");
-        if (!nurtureCanRunSteps(sequence!.steps.map((step) => step.stepType))) {
-            fail("That sequence has no steps, or has steps a nurture can't run yet (email, delay, condition and manual review only).");
+        if (!nurtureCanRunSteps(sequence!.steps)) {
+            fail("That sequence has no steps, or has steps a nurture can't run yet (email, delay, condition, manual review and WhatsApp template steps only).");
+        }
+        // Templates are checked with WhatsApp only when the setup is (or stays) switched on.
+        if (activating) {
+            const problem = await whatsappStepProblem(teamId, sequence!.steps);
+            if (problem) fail(problem);
         }
     }
     if (activating && !delivery && !abandon && !config.postPurchaseSequenceId) {
@@ -84,7 +89,7 @@ export async function getAutomation(teamId: string, productId: string) {
         prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { id: true, email: true }, orderBy: { email: "asc" } }),
         prisma.campaignSequence.findMany({
             where: { teamId },
-            select: { id: true, name: true, steps: { where: { status: "ACTIVE" }, select: { stepType: true } } },
+            select: { id: true, name: true, steps: { where: { status: "ACTIVE" }, select: { stepType: true, whatsappTemplateName: true } } },
             orderBy: { updatedAt: "desc" },
             take: 100,
         }),
@@ -98,7 +103,7 @@ export async function getAutomation(teamId: string, productId: string) {
     return {
         automation: view(product),
         mailboxes,
-        sequences: sequences.map((sequence) => ({ id: sequence.id, name: sequence.name, usable: nurtureCanRunSteps(sequence.steps.map((step) => step.stepType)) })),
+        sequences: sequences.map((sequence) => ({ id: sequence.id, name: sequence.name, usable: nurtureCanRunSteps(sequence.steps) })),
         recentDeliveries: deliveries,
     };
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
-import { setTeamWaba, clearTeamWaba, verifyWabaCredentials } from "@/modules/whatsapp/wabaCredentials";
+import { setTeamWaba, clearTeamWaba, verifyWabaAccount, verifyWabaCredentials } from "@/modules/whatsapp/wabaCredentials";
 
 // Setup-time WABA (WhatsApp Business API) ownership for a team. Configuring
 // credentials here enables automated sequence sends; leaving it unset (or
@@ -22,12 +22,13 @@ export async function GET(req: NextRequest) {
 
     const team = await prisma.team.findUnique({
         where: { id: teamId },
-        select: { whatsappPhoneNumberId: true, whatsappWabaConfiguredAt: true },
+        select: { whatsappPhoneNumberId: true, whatsappBusinessAccountId: true, whatsappWabaConfiguredAt: true },
     });
 
     return NextResponse.json({
         hasWaba: !!team?.whatsappPhoneNumberId,
         phoneNumberId: team?.whatsappPhoneNumberId || null,
+        businessAccountId: team?.whatsappBusinessAccountId || null,
         configuredAt: team?.whatsappWabaConfiguredAt || null,
     });
 }
@@ -55,15 +56,26 @@ export async function POST(req: NextRequest) {
 
     const phoneNumberId = typeof body?.phoneNumberId === "string" ? body.phoneNumberId.trim() : "";
     const accessToken = typeof body?.accessToken === "string" ? body.accessToken.trim() : "";
+    // Optional: the WhatsApp Business Account id, needed for template messages in sequences.
+    const businessAccountId = typeof body?.businessAccountId === "string" ? body.businessAccountId.trim() : "";
     if (!phoneNumberId || !accessToken) {
         return NextResponse.json({ error: "phoneNumberId and accessToken are required." }, { status: 400 });
+    }
+    if (businessAccountId && !/^\d{5,30}$/.test(businessAccountId)) {
+        return NextResponse.json({ error: "The WhatsApp Business Account ID is a number." }, { status: 400 });
     }
 
     const verification = await verifyWabaCredentials(phoneNumberId, accessToken);
     if (!verification.ok) {
         return NextResponse.json({ error: verification.reason || "Could not verify WhatsApp credentials." }, { status: 422 });
     }
+    if (businessAccountId) {
+        const account = await verifyWabaAccount(businessAccountId, accessToken);
+        if (!account.ok) {
+            return NextResponse.json({ error: account.reason || "Could not verify the WhatsApp Business Account ID." }, { status: 422 });
+        }
+    }
 
-    await setTeamWaba(teamId, phoneNumberId, accessToken);
-    return NextResponse.json({ hasWaba: true, phoneNumberId });
+    await setTeamWaba(teamId, phoneNumberId, accessToken, businessAccountId || null);
+    return NextResponse.json({ hasWaba: true, phoneNumberId, businessAccountId: businessAccountId || null });
 }
