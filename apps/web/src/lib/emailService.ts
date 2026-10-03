@@ -87,7 +87,7 @@ export class EmailService {
             const baseUrl = process.env["NEXTAUTH_URL"] || "http://localhost:3000";
             const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
             const html = `
-                <p>Hi ${name || "there"},</p>
+                <p>Hi ${(name || "there").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)},</p>
                 <p>Please verify your email:</p>
                 <p><a href="${verifyUrl}">Verify Email</a></p>
             `;

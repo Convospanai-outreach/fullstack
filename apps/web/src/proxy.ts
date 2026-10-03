@@ -189,6 +189,8 @@ async function appProxy(req: NextRequest) {
     const publicApiPrefixes = [
         "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
+        // Email+password signup: callers have no session yet. Rate-limited in the route itself.
+        "/api/register",
         "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe",
         // Anonymous funnel-visitor checkout - see apps/api/server.ts's own publicPaths for the
         // same routes (they carry no CraftMyFunnel session by design; security boundary is the
@@ -401,7 +403,9 @@ async function appProxy(req: NextRequest) {
             !path.startsWith("/admin/content") &&
             !path.startsWith("/admin/cms") &&
             !path.startsWith("/api/admin/cms") &&
-            !path.startsWith("/api/auth")
+            !path.startsWith("/api/auth") &&
+            !path.startsWith("/complete-profile") &&
+            !path.startsWith("/api/profile/complete")
         ) {
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -429,7 +433,7 @@ async function appProxy(req: NextRequest) {
             return NextResponse.redirect(new URL("/dashboard", req.url));
         }
 
-        if (role === "CALLER" && !path.startsWith("/caller") && !path.startsWith("/api/auth") && !path.startsWith("/api/proxy/caller")) {
+        if (role === "CALLER" && !path.startsWith("/caller") && !path.startsWith("/api/auth") && !path.startsWith("/api/proxy/caller") && !path.startsWith("/complete-profile") && !path.startsWith("/api/profile/complete")) {
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Forbidden" }, { status: 403 });
             }

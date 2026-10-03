@@ -20,9 +20,19 @@ const checks = [
     invert: true,
   },
   {
-    name: "Password signup endpoint is disabled",
+    name: "Password signup creates unverified, validated accounts",
     file: "apps/web/src/app/api/register/route.ts",
-    test: (text) => text.includes("status: 410") && text.includes("Password signup is disabled"),
+    test: (text) => text.includes("registerSchema") && text.includes("emailVerified: null"),
+  },
+  {
+    name: "Password login refuses unverified email",
+    file: "apps/web/src/lib/passwordAuth.ts",
+    test: (text) => text.includes("AUTH_ERROR_EMAIL_NOT_VERIFIED") && text.includes("!user.emailVerified"),
+  },
+  {
+    name: "NextAuth exposes the credentials provider",
+    file: "apps/web/src/lib/auth.ts",
+    test: (text) => text.includes("CredentialsProvider("),
   },
   {
     name: "NextAuth exposes the Google provider",
@@ -62,8 +72,8 @@ if (failures.length) {
   console.error("Web auth mode guard failed:");
   for (const failure of failures) console.error(`- ${failure}`);
   console.error("");
-  console.error("Expected mode: Google OAuth via NextAuth is the sole sign-in path (open signup, no Clerk); password signup is disabled.");
+  console.error("Expected mode: NextAuth with Google OAuth and email+password (open signup, no Clerk); password accounts must verify their email before login.");
   process.exit(1);
 }
 
-console.log("Web auth mode guard passed: Google-only auth is explicit and password signup is disabled.");
+console.log("Web auth mode guard passed: Google + verified email/password auth via NextAuth, no Clerk.");

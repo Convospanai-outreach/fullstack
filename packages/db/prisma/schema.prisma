@@ -1933,6 +1933,13 @@ model User {
   clerkUserId         String?            @unique @map("clerk_user_id")
   email               String             @unique
   password            String? // <-- Add this line
+  // Collected at password signup / the post-Google profile-completion step (/complete-profile).
+  // profileCompletedAt gates the dashboard; null = still owes the form.
+  firstName           String?
+  lastName            String?
+  phone               String?
+  company             String?
+  profileCompletedAt  DateTime?
   emailVerified       DateTime?
   name                String?
   image               String?

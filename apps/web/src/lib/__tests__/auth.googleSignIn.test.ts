@@ -1,17 +1,19 @@
 import { vi, Mock } from "vitest";
 
-const { mockPrisma, mockIsSsoEnforcedForEmail, mockSyncGoogleUserToApp, mockCookies } = vi.hoisted(() => ({
+const { mockPrisma, mockIsSsoEnforcedForEmail, mockSyncGoogleUserToApp, mockProvisionUserTeam, mockCookies } = vi.hoisted(() => ({
     mockPrisma: {
-        user: { findUnique: vi.fn() },
+        user: { findUnique: vi.fn(), update: vi.fn() },
     },
     mockIsSsoEnforcedForEmail: vi.fn(),
     mockSyncGoogleUserToApp: vi.fn(),
+    mockProvisionUserTeam: vi.fn(),
     mockCookies: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/sso/oidc", () => ({ isSsoEnforcedForEmail: mockIsSsoEnforcedForEmail }));
 vi.mock("@/lib/googleOnboarding", () => ({ syncGoogleUserToApp: mockSyncGoogleUserToApp }));
+vi.mock("@/lib/passwordOnboarding", () => ({ provisionUserTeam: mockProvisionUserTeam }));
 vi.mock("next/headers", () => ({ cookies: mockCookies }));
 vi.mock("next-auth/providers/google", () => ({ default: vi.fn(() => ({ id: "google" })) }));
 vi.mock("@next-auth/prisma-adapter", () => ({ PrismaAdapter: vi.fn(() => ({})) }));
@@ -92,5 +94,41 @@ describe("authOptions.callbacks.signIn - Google branch", () => {
         const result = await signIn({ user: { email: "enterprise@example.com" }, account, profile: verifiedProfile });
 
         expect(result).toBe("/login?error=sso-required");
+    });
+
+    it("takes over an unverified password account on Google sign-in: clears the password, verifies, provisions a team", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue({ id: "user-9", emailVerified: null });
+        mockIsSsoEnforcedForEmail.mockResolvedValue(false);
+        const user: { email: string; id?: string } = { email: "Victim@Example.com" };
+
+        const result = await signIn({ user, account, profile: verifiedProfile });
+
+        expect(result).toBe(true);
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+            where: { id: "user-9" },
+            data: { password: null, emailVerified: expect.any(Date) },
+        });
+        expect(mockProvisionUserTeam).toHaveBeenCalledWith("victim@example.com");
+    });
+
+    it("leaves an already-verified user's password alone", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", emailVerified: new Date() });
+        mockIsSsoEnforcedForEmail.mockResolvedValue(false);
+
+        await signIn({ user: { email: "user@example.com" }, account, profile: verifiedProfile });
+
+        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("authOptions.callbacks.signIn - credentials branch", () => {
+    beforeEach(() => vi.clearAllMocks());
+    const signIn = authOptions.callbacks!.signIn! as (params: any) => Promise<boolean | string>;
+
+    it("allows a credentials sign-in (no OAuth profile) without touching the database", async () => {
+        const result = await signIn({ user: { id: "user-1", email: "a@b.com" }, account: { provider: "credentials" } });
+
+        expect(result).toBe(true);
+        expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
     });
 });
