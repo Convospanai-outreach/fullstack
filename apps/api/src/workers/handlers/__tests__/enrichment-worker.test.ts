@@ -48,7 +48,10 @@ vi.mock("@/lib/crm/leadDataSource", () => ({
 }));
 
 vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
-    CrystalService: { findOrCreateProfile: vi.fn().mockResolvedValue({ state: "not_configured" }) },
+    CrystalService: {
+        findOrCreateProfile: vi.fn().mockResolvedValue({ state: "not_configured" }),
+        generatePersonalityGuidance: vi.fn().mockResolvedValue(null),
+    },
 }));
 
 import { prisma } from "@/lib/db";
@@ -347,10 +350,16 @@ describe("enrichment-worker", () => {
                     company: null,
                 })
                 .mockResolvedValueOnce({ enrichedData: { existing: "value" } });
+            (CrystalService.generatePersonalityGuidance as any).mockResolvedValueOnce({
+                prompt: "Be direct.",
+                discType: "D",
+                archetype: "Driver",
+            });
             (prisma.lead.update as any).mockResolvedValue({});
 
             await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
 
+            expect(CrystalService.generatePersonalityGuidance).toHaveBeenCalledWith("team-a", expect.objectContaining({ id: "profile-1" }));
             expect(prisma.lead.update).toHaveBeenCalledWith({
                 where: { id: "lead-1" },
                 data: {
@@ -359,6 +368,7 @@ describe("enrichment-worker", () => {
                         crystalKnows: expect.objectContaining({
                             profileId: "profile-1",
                             personalities: { disc_type: "D" },
+                            guidance: { prompt: "Be direct.", discType: "D", archetype: "Driver" },
                         }),
                     },
                 },
@@ -368,6 +378,22 @@ describe("enrichment-worker", () => {
                     expect.objectContaining({ leadId: "lead-1", source: "CRYSTAL_KNOWS", value: "profile-1" }),
                 ])
             );
+        });
+
+        it("still persists the profile (guidance null) when guidance generation fails", async () => {
+            (CrystalService.findOrCreateProfile as any).mockResolvedValue({ state: "found", profile: { id: "profile-1" } });
+            (CrystalService.generatePersonalityGuidance as any).mockResolvedValueOnce(null);
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", fullName: "Jane Doe", linkedIn: null, email: "jane@example.com", company: null })
+                .mockResolvedValueOnce({ enrichedData: {} });
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(prisma.lead.update).toHaveBeenCalledWith({
+                where: { id: "lead-1" },
+                data: { enrichedData: { crystalKnows: expect.objectContaining({ profileId: "profile-1", guidance: null }) } },
+            });
         });
 
         it("does not fail enrichment when the Crystal lookup errors", async () => {

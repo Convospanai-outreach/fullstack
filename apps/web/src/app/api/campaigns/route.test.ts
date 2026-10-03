@@ -83,4 +83,16 @@ describe("POST /api/campaigns", () => {
         expect(res.status).toBe(400);
         expect(mockPrisma.campaign.create).not.toHaveBeenCalled();
     });
+
+    it("persists draftGenerationMode when BATCH is requested and rejects unknown modes", async () => {
+        await POST(postRequest({ name: "Batch campaign", icpId: "icp-1", draftGenerationMode: "BATCH" }));
+        expect(mockPrisma.campaign.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ draftGenerationMode: "BATCH" }),
+        });
+
+        mockPrisma.campaign.create.mockClear();
+        const res = await POST(postRequest({ name: "Bad mode", icpId: "icp-1", draftGenerationMode: "TURBO" }));
+        expect(res.status).toBe(400);
+        expect(mockPrisma.campaign.create).not.toHaveBeenCalled();
+    });
 });

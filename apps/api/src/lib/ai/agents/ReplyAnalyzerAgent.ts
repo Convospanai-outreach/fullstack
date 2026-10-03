@@ -40,6 +40,16 @@ export class ReplyAnalyzerAgent {
         // Merge maps for later detokenization
         const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);
 
+        // Stored Crystal DISC guidance for tailoring the draft - best-effort, empty when absent.
+        let personalityGuidance = "";
+        try {
+            const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true, enrichedData: true } });
+            const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+            personalityGuidance = await CrystalService.getGuidanceForLead(lead?.teamId ?? undefined, lead, "reply to this person's email");
+        } catch {
+            // A reply draft without personality guidance is still better than none.
+        }
+
         // 2. Construct the analysis prompt based on SOP
         const prompt = `
             You are the "Reply Analyzer Agent" for an email outreach system.
@@ -48,7 +58,10 @@ export class ReplyAnalyzerAgent {
             EMAIL CONTENT:
             Subject: ${safeSubject}
             Body: "${safeBody}"
-
+${personalityGuidance ? `
+            PERSONALITY GUIDANCE (DISC) for the lead - tailor the draft response to it:
+            ${personalityGuidance}
+` : ""}
             CLASSIFICATION CATEGORIES:
             1. INTERESTED: "Let's talk", "Demo", "Pricing?", "Calendar", "Send more info".
             2. QUESTION: "How does it work?", "Integration?", "Is this compliant?", "Case studies?".

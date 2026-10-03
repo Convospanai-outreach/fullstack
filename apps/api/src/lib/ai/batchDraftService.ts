@@ -3,11 +3,13 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { instrumentAnthropic } from "@/lib/sentry";
 import { loadTeamProviders, extractJsonBlock } from "@/lib/aiService";
+import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
 const BATCH_MODEL = "claude-3-5-sonnet";
+const GUIDANCE_CONCURRENCY = 10;
 
-function buildDraftPrompt(lead: unknown, icp: unknown): string {
+function buildDraftPrompt(lead: unknown, icp: unknown, personalityGuidance: string): string {
     // Mirrors aiService.generateEmailDraft's prompt shape exactly, so a
     // BATCH-mode campaign produces the same style of draft a REALTIME
     // campaign would - this is a cheaper delivery path, not a different
@@ -20,6 +22,9 @@ ${JSON.stringify(lead)}
 
 ICP:
 ${JSON.stringify(icp)}
+
+Personality guidance (DISC):
+${personalityGuidance || "None"}
 
 Return JSON with keys: subject, body.
         `.trim();
@@ -48,13 +53,25 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
     const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
     const model = providers.anthropic.model || BATCH_MODEL;
 
+    // Stored guidance is read straight off the lead; only legacy leads hit Crystal (free). Chunked so a big
+    // campaign of legacy leads doesn't fire hundreds of simultaneous requests and trip Crystal's rate limit.
+    const guidance: string[] = [];
+    for (let i = 0; i < leads.length; i += GUIDANCE_CONCURRENCY) {
+        const chunk = leads.slice(i, i + GUIDANCE_CONCURRENCY);
+        guidance.push(
+            ...(await Promise.all(
+                chunk.map((lead) => CrystalService.getGuidanceForLead(teamId, lead, "write a cold outreach email").catch(() => ""))
+            ))
+        );
+    }
+
     const messageBatch = await client.messages.batches.create({
-        requests: leads.map((lead) => ({
+        requests: leads.map((lead, i) => ({
             custom_id: lead.id,
             params: {
                 model,
                 max_tokens: 800,
-                messages: [{ role: "user" as const, content: buildDraftPrompt(lead, icp) }],
+                messages: [{ role: "user" as const, content: buildDraftPrompt(lead, icp, guidance[i]) }],
             },
         })),
     });

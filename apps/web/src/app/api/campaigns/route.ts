@@ -6,6 +6,8 @@ import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 
 export const dynamic = "force-dynamic";
 
+const DRAFT_GENERATION_MODES = ["REALTIME", "BATCH"];
+
 export async function GET(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
@@ -70,6 +72,11 @@ export async function POST(req: Request) {
         if (!icpId) {
             return NextResponse.json({ error: "icpId is required - save an ICP before creating a campaign" }, { status: 400 });
         }
+        // Optional; the column defaults to REALTIME. BATCH uses the cheaper Anthropic Message Batches path.
+        const draftGenerationMode = body.draftGenerationMode;
+        if (draftGenerationMode !== undefined && !DRAFT_GENERATION_MODES.includes(draftGenerationMode)) {
+            return NextResponse.json({ error: "draftGenerationMode must be REALTIME or BATCH" }, { status: 400 });
+        }
         const icp = await prisma.iCP.findFirst({ where: { id: icpId, teamId } });
         if (!icp) {
             return NextResponse.json({ error: "ICP not found for this team" }, { status: 400 });
@@ -85,6 +92,7 @@ export async function POST(req: Request) {
                 status: "draft",
                 sourcePipelineStage,
                 icpId,
+                ...(draftGenerationMode ? { draftGenerationMode } : {}),
             },
         });
 

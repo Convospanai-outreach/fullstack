@@ -45,6 +45,7 @@ interface Lead {
     enrichedData?: any;
 
     // CRM Intent Scoring
+    icpFitScore?: number | null;
     intentScore?: number;
     leadScore?: number;
     pipelineState?: string;
@@ -296,7 +297,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             });
             const data = await res.json();
             if (data.success) {
-                setLead(prev => ({ ...prev, isEnriched: true, enrichedData: data.data }));
+                // The endpoint only enqueues a job (no lead data in the response), so an immediate refetch would
+                // still see the old lead. Refetch once the worker has had time to finish instead of overwriting.
+                [5000, 15000].forEach((ms) => setTimeout(() => void refreshLead().catch(() => {}), ms));
             }
         } catch (error) {
             console.error("Failed to enrich lead", error);
@@ -388,6 +391,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     subtitle={`${lead.jobTitle || "Professional"} at ${lead.company || "Independent"}`}
                 />
                 <div className="flex flex-wrap gap-2">
+                    {lead.icpFitScore != null && (
+                        <Badge variant={lead.icpFitScore >= 70 ? "success" : lead.icpFitScore >= 40 ? "warning" : "outline"} title="How well this lead matches the campaign's ICP">
+                            ICP fit {lead.icpFitScore}%
+                        </Badge>
+                    )}
                     <Button
                         variant={lead.consentObtained ? "outline" : "destructive"}
                         className={`gap-1.5 font-bold ${lead.consentObtained ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20'}`}
@@ -709,39 +717,121 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         </div>
                     </GlassCard>
 
-                    {/* Enriched insights */}
-                    {lead.isEnriched && lead.enrichedData && (
-                        <GlassCard className="space-y-4 border-purple-500/30">
-                            <div className="flex items-center gap-2 mb-4">
-                                <h3 className="text-lg font-semibold gradient-text">Enriched Insights</h3>
-                                <Badge variant="success">AI Verified</Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-6 text-sm">
-                                <div>
-                                    <p className="text-white/60 mb-1">Company Size</p>
-                                    <p className="text-white font-medium">{lead.enrichedData.company_size}</p>
-                                </div>
-                                <div>
-                                    <p className="text-white/60 mb-1">Revenue</p>
-                                    <p className="text-white font-medium">{lead.enrichedData.revenue}</p>
-                                </div>
-                                <div>
-                                    <p className="text-white/60 mb-1">Industry</p>
-                                    <p className="text-white font-medium">{lead.enrichedData.industry}</p>
-                                </div>
-                                <div>
-                                    <p className="text-white/60 mb-1">Tech Stack</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {lead.enrichedData.technologies?.map((tech: string) => (
-                                            <span key={tech} className="px-2 py-0.5 bg-white/10 rounded text-xs text-white/80">
-                                                {tech}
-                                            </span>
-                                        ))}
+                    {/* Enrichment - one section per source that actually wrote to enrichedData */}
+                    {(() => {
+                        const e = lead.enrichedData || {};
+                        const li = e.linkedInProfile, hunter = e.hunter, nj = e.netjana, ext = e.extensionCapture, crystal = e.crystalKnows?.guidance;
+                        const personality = crystal?.prompt || crystal?.discType;
+                        if (!li && !hunter && !nj && !ext && !personality) return null;
+                        return (
+                            <GlassCard className="space-y-6 border-purple-500/30">
+                                <h3 className="text-lg font-semibold gradient-text">Enrichment</h3>
+
+                                {nj && (
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <p className="font-semibold text-white">Buying signal (Netjana)</p>
+                                            {nj.buyingStage && <Badge variant="info">{String(nj.buyingStage).replace(/_/g, " ")}</Badge>}
+                                            {typeof nj.signalStrength === "number" && <Badge variant="warning">Signal {nj.signalStrength}/100</Badge>}
+                                            {nj.verityTier && <Badge variant="outline">{String(nj.verityTier).replace(/_/g, " ")}</Badge>}
+                                            {nj.matchConfidence && <Badge variant="outline">Match {String(nj.matchConfidence).toLowerCase()}</Badge>}
+                                        </div>
+                                        {nj.whyNow && <p><span className="text-white/60">Why now: </span><span className="text-white/80">{nj.whyNow}</span></p>}
+                                        {nj.whatTheyNeed && <p><span className="text-white/60">What they need: </span><span className="text-white/80">{nj.whatTheyNeed}</span></p>}
+                                        {nj.recommendedAction && <p><span className="text-white/60">Recommended action: </span><span className="text-white/80">{nj.recommendedAction}</span></p>}
+                                        {nj.automation?.status && (
+                                            <p className="text-white/70">
+                                                {nj.automation.status === "queued"
+                                                    ? "Follow-up queued automatically"
+                                                    : "Needs your review before any automated follow-up"}
+                                                {nj.automation.reason ? ` - ${nj.automation.reason}` : ""}
+                                            </p>
+                                        )}
                                     </div>
-                                </div>
-                            </div>
-                        </GlassCard>
-                    )}
+                                )}
+
+                                {personality && (
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-white">Personality (DISC)</p>
+                                            {crystal.discType && <Badge variant="success">{crystal.discType}</Badge>}
+                                        </div>
+                                        {crystal.archetype && <p><span className="text-white/60">Archetype: </span><span className="text-white font-medium">{crystal.archetype}</span></p>}
+                                        {crystal.prompt && (
+                                            <div>
+                                                <p className="text-white/60 mb-1">How to communicate</p>
+                                                <p className="text-white/80 whitespace-pre-line">{crystal.prompt}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {ext && (
+                                    <div className="space-y-3 text-sm">
+                                        <p className="font-semibold text-white">LinkedIn capture</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {ext.leadType && <Badge variant="outline">{ext.leadType}</Badge>}
+                                            {ext.qualification?.status && <Badge variant="info">{ext.qualification.status}</Badge>}
+                                            {ext.qualification?.fitScore != null && <Badge variant="outline">Fit {ext.qualification.fitScore}/5</Badge>}
+                                            {ext.qualification?.need && ext.qualification.need !== "Unknown" && <Badge variant="outline">Need: {ext.qualification.need}</Badge>}
+                                            {ext.qualification?.timing && ext.qualification.timing !== "Unknown" && <Badge variant="outline">Timing: {ext.qualification.timing}</Badge>}
+                                        </div>
+                                        {ext.outreachAngle && <p><span className="text-white/60">Outreach angle: </span><span className="text-white/80">{ext.outreachAngle}</span></p>}
+                                        {ext.messageDraft && (
+                                            <div>
+                                                <p className="text-white/60 mb-1">Drafted message</p>
+                                                <p className="text-white/80 whitespace-pre-line">{ext.messageDraft}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {hunter && (
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-white">Email finder (Hunter)</p>
+                                            {typeof hunter.score === "number" && <Badge variant={hunter.score >= 80 ? "success" : "warning"}>Email confidence {hunter.score}%</Badge>}
+                                        </div>
+                                        {(hunter.position || hunter.company) && (
+                                            <p className="text-white/80">{[hunter.position, hunter.company].filter(Boolean).join(" at ")}</p>
+                                        )}
+                                        {Array.isArray(hunter.sources) && hunter.sources.length > 0 && (
+                                            <div>
+                                                <p className="text-white/60 mb-1">Found on</p>
+                                                <ul className="space-y-1">
+                                                    {hunter.sources.slice(0, 5).map((src: string) => (
+                                                        <li key={src} className="text-xs text-white/70 break-all">{src}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {li && (
+                                    <div className="space-y-3 text-sm">
+                                        <p className="font-semibold text-white">LinkedIn profile</p>
+                                        {li.headline && <p className="text-white/80">{li.headline}</p>}
+                                        {li.about && <p className="text-white/70 whitespace-pre-line line-clamp-6">{li.about}</p>}
+                                        {Array.isArray(li.experience) && li.experience.length > 0 && (
+                                            <ul className="space-y-1">
+                                                {li.experience.slice(0, 3).map((x: any, i: number) => (
+                                                    <li key={i} className="text-white/80">{[x.title, x.company].filter(Boolean).join(" at ")}</li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {Array.isArray(li.skills) && li.skills.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {li.skills.slice(0, 12).map((skill: string) => (
+                                                    <span key={skill} className="px-2 py-0.5 bg-white/10 rounded text-xs text-white/80">{skill}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </GlassCard>
+                        );
+                    })()}
 
                     {/* Data Sources - per-field provenance (which source supplied which value, and when) */}
                     {dataSources.length > 0 && (
