@@ -6522,7 +6522,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Schema:** migration `20261002130000_content_publishing` adds `ContentPost.publishLeaseUntil` and
     `ContentPostTarget.containerId` (additive).
 
-- **OPEN-302 (Open — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
+- **OPEN-302 (Fixed 2026-10-03 — approval auto-deny would fail on the reviewer foreign key):** `ApprovalService.reject()`
   (apps/api) writes the sweep's pseudo reviewer `"system-timeout"` into `ApprovalRequest.reviewerId`, which is a
   foreign key to `User(id)` (`ApprovalRequest_reviewerId_fkey`, confirmed in prod 2026-10-01; no `system-%` users
   exist). The first non-post QUEUED request to pass its `autoDenyAt` will make the update throw, and
@@ -6530,6 +6530,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   2026-10-01 no request has ever been auto-denied and none is overdue. `requestEntityApproval`'s AUTO path
   (`"system-auto"`) has the same shape, but no action type is AUTO today. Content-post decisions (OPEN-301) already
   skip the pseudo reviewer. Fix: leave `reviewerId` null for system decisions and catch per item in the sweep.
+  - **Fixed:** `ApprovalService.approve/reject` store any `system-*` reviewer as null. The sweep catches per item and
+    returns only the number it denied. `breakerService` used to count timeout denials by `reviewerId === "system-timeout"`;
+    it now counts REJECTED rows with no reviewer, so the circuit-breaker deny rate keeps working (tests cover both).
 
 - **OPEN-301 (Fixed — creator funnel phase 3a: content calendar and post approval):** plan Instagram/Facebook
   posts per funnel stage and send them for approval. Nothing publishes yet (phase 3b). Behind `creator-funnel`.
