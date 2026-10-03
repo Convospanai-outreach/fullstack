@@ -23,11 +23,14 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Product</h4>
                             <ul className="space-y-2 text-sm text-gray-500">
+                                <li><Link href="/products/fluid-funnel-engine" className="hover:text-white transition-colors">Fluid Funnel Engine</Link></li>
+                                <li><Link href="/products/buyer-signals" className="hover:text-white transition-colors">Buyer Signals (NetJana)</Link></li>
+                                <li><Link href="/products/ai-outreach" className="hover:text-white transition-colors">AI Outreach (CMF Core)</Link></li>
+                                <li><Link href="/products/human-layer" className="hover:text-white transition-colors">Human Layer</Link></li>
+                                <li><Link href="/products/covospan-edge" className="hover:text-white transition-colors">Covospan EDGE</Link></li>
                                 <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                                 <li><Link href="/use-cases" className="hover:text-white transition-colors">Use Cases</Link></li>
                                 <li><Link href="/vs" className="hover:text-white transition-colors">Comparisons</Link></li>
-                                <li><Link href="/signup" className="hover:text-white transition-colors">Start pilot</Link></li>
-                                <li><Link href="/login" className="hover:text-white transition-colors">Sign in</Link></li>
                             </ul>
                         </div>
 
