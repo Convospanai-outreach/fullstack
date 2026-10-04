@@ -6922,6 +6922,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Owner-owed:** Hunter key on the worker VM under `HUNTER_API_KEY` (the name the worker reads); a Crystal key per
     team for personality profiles. Without them auto-enrich only scores the lead.
   - **Next:** choosing a sequence from the extension popup (separate PR).
+- **OPEN-337 (Fixed — add a captured lead to a sequence from the Chrome extension):** 2026-10-04.
+  - **Popup:** after a lead is synced, the Save / Sync card shows "Add to sequence" with the team's sequences that are
+    switched on (`ACTIVE`) and made only of steps the sequence engine runs (`nurtureCanRunSteps`). Draft sequences
+    aren't offered, so the extension never switches one on.
+  - **API:** `GET /extension/sequences` and `POST /extension/leads/:id/sequence` (extension key + sync token, team
+    scope, MEMBER role like enrolling in the app). A lead with an email is enrolled through `CmfSequenceProvider`. A
+    lead with no email yet keeps the choice in `enrichedData.pendingSequence`; the enrichment worker enrols it once an
+    email is found, if the sequence is still switched on, and clears the choice either way. Each step is logged as a
+    lead activity.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

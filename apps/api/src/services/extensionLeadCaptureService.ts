@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 import { canonicalLinkedInProfileUrl } from "@/lib/crm/linkedin";
+import { CmfSequenceProvider, nurtureCanRunSteps } from "@/modules/creator-funnel/nurtureProvider";
 
 export type ExtensionCapturePayload = {
     source?: string;
@@ -278,6 +279,101 @@ export async function syncLinkedInExtensionCapture(params: {
         message: matchedExisting ? "LinkedIn capture synced to existing lead" : "LinkedIn capture created new lead",
         enrichmentQueued
     };
+}
+
+// Sequences a lead can be added to from the extension: switched on (ACTIVE) and made only of
+// steps the sequence engine runs. Draft sequences stay out, so the extension never switches one on.
+export async function listSequencesForExtension(teamId: string) {
+    const sequences = await prisma.campaignSequence.findMany({
+        where: { teamId, status: "ACTIVE" },
+        select: {
+            id: true,
+            name: true,
+            steps: { where: { status: "ACTIVE" }, select: { stepType: true, whatsappTemplateName: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 100,
+    });
+    return sequences
+        .filter((sequence) => nurtureCanRunSteps(sequence.steps))
+        .map((sequence) => ({ id: sequence.id, name: sequence.name, steps: sequence.steps.length }));
+}
+
+type PendingSequence = { sequenceId: string; chosenBy: string; chosenAt: string };
+
+function enrichedObject(value: unknown): Record<string, any> {
+    return value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, any>) } : {};
+}
+
+// Adds a lead the extension saved to a sequence. A lead with no email yet waits: the choice is
+// kept in enrichedData.pendingSequence and enrichment enrols it once an email is found.
+export async function chooseSequenceForLead(params: { teamId: string; userId: string; leadId: string; sequenceId: string }) {
+    const lead = await prisma.lead.findFirst({
+        where: { id: params.leadId, teamId: params.teamId },
+        select: { id: true, email: true, enrichedData: true },
+    });
+    if (!lead) throw new Error("Lead not found");
+    const available = await listSequencesForExtension(params.teamId);
+    const sequence = available.find((item) => item.id === params.sequenceId);
+    if (!sequence) throw new Error("Sequence not available");
+
+    const enrichedData = enrichedObject(lead.enrichedData);
+    let status: "ENROLLED" | "WAITING_FOR_EMAIL";
+    if (lead.email) {
+        await new CmfSequenceProvider().enroll({ id: lead.id, teamId: params.teamId }, sequence.id);
+        delete enrichedData["pendingSequence"];
+        status = "ENROLLED";
+    } else {
+        const pending: PendingSequence = { sequenceId: sequence.id, chosenBy: params.userId, chosenAt: new Date().toISOString() };
+        enrichedData["pendingSequence"] = pending;
+        status = "WAITING_FOR_EMAIL";
+    }
+    await prisma.lead.update({ where: { id: lead.id }, data: { enrichedData } });
+    await prisma.leadActivity.create({
+        data: {
+            leadId: lead.id,
+            channel: "EMAIL",
+            type: status === "ENROLLED" ? "SEQUENCE_ENROLLED" : "SEQUENCE_CHOSEN",
+            title: status === "ENROLLED" ? `Added to sequence "${sequence.name}"` : `Will join sequence "${sequence.name}" once an email is found`,
+            metadata: { sequenceId: sequence.id, source: "chrome_extension" },
+            createdBy: params.userId,
+        },
+    });
+    return {
+        success: true as const,
+        status,
+        sequence: { id: sequence.id, name: sequence.name },
+        message: status === "ENROLLED"
+            ? `Added to "${sequence.name}".`
+            : `No email yet. The lead joins "${sequence.name}" once enrichment finds one.`,
+    };
+}
+
+// Called after a lead gets an email: enrols it in the sequence chosen in the extension, if the
+// sequence is still switched on, and clears the choice either way. Returns whether it enrolled.
+export async function enrollPendingSequence(leadId: string): Promise<boolean> {
+    const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { id: true, teamId: true, email: true, enrichedData: true } });
+    const enrichedData = enrichedObject(lead?.enrichedData);
+    const pending = enrichedData["pendingSequence"] as PendingSequence | undefined;
+    if (!lead?.teamId || !lead.email || !pending?.sequenceId) return false;
+
+    const sequence = (await listSequencesForExtension(lead.teamId)).find((item) => item.id === pending.sequenceId);
+    if (sequence) await new CmfSequenceProvider().enroll({ id: lead.id, teamId: lead.teamId }, sequence.id);
+    delete enrichedData["pendingSequence"];
+    await prisma.lead.update({ where: { id: lead.id }, data: { enrichedData } });
+    await prisma.leadActivity.create({
+        data: {
+            leadId: lead.id,
+            channel: "EMAIL",
+            type: sequence ? "SEQUENCE_ENROLLED" : "SEQUENCE_SKIPPED",
+            title: sequence
+                ? `Added to sequence "${sequence.name}" after an email was found`
+                : "The sequence chosen in the extension is no longer switched on, so the lead wasn't added",
+            metadata: { sequenceId: pending.sequenceId, source: "chrome_extension" },
+            createdBy: pending.chosenBy,
+        },
+    });
+    return Boolean(sequence);
 }
 
 export async function markLinkedInOutreachDone(params: {

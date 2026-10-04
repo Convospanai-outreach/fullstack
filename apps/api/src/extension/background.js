@@ -86,6 +86,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg?.type === "CMF_LIST_SEQUENCES") {
+    listSequences().then(sendResponse);
+    return true;
+  }
+
+  if (msg?.type === "CMF_ADD_TO_SEQUENCE") {
+    addLeadToSequence(msg.leadId, msg.sequenceId).then(sendResponse);
+    return true;
+  }
+
   if (msg?.type === "CMF_CLEAR_LOCAL_DATA") {
     clearLocalData().then(sendResponse);
     return true;
@@ -259,6 +269,58 @@ async function markLinkedInOutreachDone(leadId, notes) {
       savedLead: { ...(state.savedLead || {}), status: "synced", leadId: resolvedLeadId, linkedinStatus: "CONTACTED" },
       activityLog
     });
+    return { ok: true, ...data, activityLog };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+function workspaceRequest(settings) {
+  const workspaceUrl = String(settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  if (!workspaceUrl || !settings?.syncToken || !settings?.extensionKey) return null;
+  return {
+    workspaceUrl,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.syncToken}`,
+      "x-extension-key": settings.extensionKey
+    }
+  };
+}
+
+async function listSequences() {
+  const state = await getState();
+  const request = workspaceRequest(state.settings);
+  if (!request) return { ok: false, error: "Connect CraftMyFunnel in Settings first." };
+  try {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/sequences`, { headers: request.headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    return { ok: true, sequences: Array.isArray(data.sequences) ? data.sequences : [] };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+async function addLeadToSequence(leadId, sequenceId) {
+  const state = await getState();
+  const request = workspaceRequest(state.settings);
+  const resolvedLeadId = leadId || state.savedLead?.leadId;
+  if (!request || !resolvedLeadId) return { ok: false, error: "Sync the lead before adding it to a sequence." };
+  if (!sequenceId) return { ok: false, error: "Choose a sequence first." };
+  try {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/leads/${encodeURIComponent(resolvedLeadId)}/sequence`, {
+      method: "POST",
+      headers: request.headers,
+      body: JSON.stringify({ sequenceId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    const activityLog = addActivity(
+      state.activityLog,
+      data.status === "ENROLLED" ? `Added to sequence: ${data.sequence?.name || ""}` : `Sequence chosen: ${data.sequence?.name || ""} (waiting for an email)`
+    );
+    await chrome.storage.local.set({ activityLog });
     return { ok: true, ...data, activityLog };
   } catch (error) {
     return { ok: false, error: error?.message || "Workspace unavailable." };

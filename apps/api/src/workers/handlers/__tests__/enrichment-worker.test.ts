@@ -47,6 +47,10 @@ vi.mock("@/lib/crm/leadDataSource", () => ({
     recordLeadDataSources: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/services/extensionLeadCaptureService", () => ({
+    enrollPendingSequence: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
     CrystalService: {
         findOrCreateProfile: vi.fn().mockResolvedValue({ state: "not_configured" }),
@@ -60,6 +64,7 @@ import { deductCredits, refundCredits } from "@/lib/credits";
 import { hunterService } from "@/modules/hunter-email-finder";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
+import { enrollPendingSequence } from "@/services/extensionLeadCaptureService";
 import { handleLeadEnrichment } from "../enrichment-worker";
 
 describe("enrichment-worker", () => {
@@ -431,6 +436,26 @@ describe("enrichment-worker", () => {
     });
 
     describe("leads the Chrome extension captured", () => {
+        it("starts the sequence chosen in the extension once Hunter finds an email, and not before", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", fullName: "Jane Doe", linkedIn: "https://www.linkedin.com/in/jane-doe/", email: null, company: "Acme", domain: null })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Acme" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: "jane@acme.example" });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+            expect(enrollPendingSequence).toHaveBeenCalledWith("lead-1");
+
+            vi.clearAllMocks();
+            (deductCredits as any).mockResolvedValue(true);
+            (prisma.lead.findUnique as any).mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", fullName: "Jane Doe", linkedIn: "https://www.linkedin.com/in/jane-doe/", email: null, company: "Acme", domain: null });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: null });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+            expect(enrollPendingSequence).not.toHaveBeenCalled();
+        });
+
         it("keeps a status further along than NEW and skips the server-side LinkedIn scrape", async () => {
             const { scraperService } = await import("@/modules/scraper-bridge");
             (prisma.lead.findUnique as any).mockResolvedValue({

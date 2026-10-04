@@ -28,6 +28,9 @@ const els = {
   saveLead: document.getElementById("saveLead"),
   markLinkedInDone: document.getElementById("markLinkedInDone"),
   openLead: document.getElementById("openLead"),
+  sequencePicker: document.getElementById("sequencePicker"),
+  sequenceSelect: document.getElementById("sequenceSelect"),
+  addToSequence: document.getElementById("addToSequence"),
   clearLocalData: document.getElementById("clearLocalData"),
   activityLog: document.getElementById("activityLog"),
   statusMsg: document.getElementById("statusMsg"),
@@ -74,6 +77,7 @@ const fields = {
 };
 
 let state = {};
+let sequencesLoaded = false;
 
 init();
 
@@ -94,6 +98,7 @@ function bindEvents() {
   els.saveLead.addEventListener("click", saveLead);
   els.markLinkedInDone.addEventListener("click", markLinkedInDone);
   els.openLead.addEventListener("click", openLeadInWorkspace);
+  els.addToSequence.addEventListener("click", addToSequence);
   els.clearLocalData.addEventListener("click", clearLocalData);
 
   Object.values(fields).forEach((field) => {
@@ -248,6 +253,12 @@ function renderBadges() {
   els.syncBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
   els.saveBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
   els.openLead.classList.toggle("hidden", !(state.savedLead?.leadId && state.settings?.workspaceUrl));
+  const canChooseSequence = Boolean(state.savedLead?.leadId && state.settings?.workspaceUrl && state.settings?.syncToken && state.settings?.extensionKey);
+  els.sequencePicker.classList.toggle("hidden", !canChooseSequence);
+  if (canChooseSequence && !sequencesLoaded) {
+    sequencesLoaded = true;
+    loadSequences();
+  }
 }
 
 function renderStaticOptions() {
@@ -402,6 +413,39 @@ async function markLinkedInDone() {
   setBusy(els.markLinkedInDone, false);
   await loadState();
   setStatus(response?.ok ? "LinkedIn outreach marked as done." : response?.error || "Could not update LinkedIn status.", response?.ok ? "success" : "error");
+}
+
+async function loadSequences() {
+  const response = await chrome.runtime.sendMessage({ type: "CMF_LIST_SEQUENCES" });
+  const sequences = response?.ok ? response.sequences || [] : [];
+  els.sequenceSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = response?.ok
+    ? (sequences.length ? "Choose a sequence" : "No active sequences in CraftMyFunnel")
+    : "Couldn't load sequences";
+  els.sequenceSelect.append(placeholder);
+  for (const sequence of sequences) {
+    const option = document.createElement("option");
+    option.value = sequence.id;
+    option.textContent = sequence.name;
+    els.sequenceSelect.append(option);
+  }
+  els.addToSequence.disabled = sequences.length === 0;
+}
+
+async function addToSequence() {
+  const leadId = state.savedLead?.leadId;
+  const sequenceId = els.sequenceSelect.value;
+  if (!leadId || !sequenceId) {
+    setStatus("Choose a sequence first.", "error");
+    return;
+  }
+  setBusy(els.addToSequence, true, "Adding...");
+  const response = await chrome.runtime.sendMessage({ type: "CMF_ADD_TO_SEQUENCE", leadId, sequenceId });
+  setBusy(els.addToSequence, false);
+  await loadState();
+  setStatus(response?.ok ? response.message : response?.error || "Could not add the lead to the sequence.", response?.ok ? "success" : "error");
 }
 
 function openLeadInWorkspace() {

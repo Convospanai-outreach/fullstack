@@ -224,6 +224,16 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             },
         });
 
+        // A sequence chosen in the Chrome extension before the lead had an email starts now.
+        if (enrichmentData.email) {
+            try {
+                const { enrollPendingSequence } = await import("@/services/extensionLeadCaptureService");
+                await enrollPendingSequence(leadId);
+            } catch (error) {
+                logger.warn("[Worker] Couldn't start the sequence chosen in the extension", { leadId, error: error instanceof Error ? error.message : error });
+            }
+        }
+
         const provenance: Parameters<typeof recordLeadDataSources>[0] = [];
         if (enrichmentData.email) provenance.push({ leadId, field: "email", source: "HUNTER", value: enrichmentData.email });
         if (hunterCompanyPromotion) provenance.push({ leadId, field: "company", source: "HUNTER", value: hunterCompanyPromotion });
