@@ -40,6 +40,10 @@ vi.mock("@/modules/creator-funnel/keywordTriggers", () => ({
     sendPendingAutoReplies: vi.fn().mockResolvedValue({ handled: 0 }),
 }));
 
+vi.mock("@/services/extensionLeadCaptureService", () => ({
+    enrollWaitingSequences: vi.fn().mockResolvedValue(0),
+}));
+
 vi.mock("@/modules/creator-funnel/checkoutHooks", () => ({
     processAbandonedCarts: vi.fn().mockResolvedValue({ enrolled: 0 }),
 }));

@@ -4,6 +4,7 @@ const { db, enqueue, enroll } = vi.hoisted(() => ({
     db: {
         lead: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
         campaignSequence: { findMany: vi.fn() },
+        $queryRaw: vi.fn(),
         leadChannelStatus: { upsert: vi.fn() },
         leadActivity: { create: vi.fn() },
         systemEvent: { create: vi.fn() },
@@ -24,6 +25,7 @@ vi.mock("@/modules/creator-funnel/nurtureProvider", () => ({
 import {
     chooseSequenceForLead,
     enrollPendingSequence,
+    enrollWaitingSequences,
     listSequencesForExtension,
     syncLinkedInExtensionCapture,
 } from "../extensionLeadCaptureService";
@@ -172,5 +174,26 @@ describe("sequences from the extension", () => {
 
         expect(await enrollPendingSequence("lead-1")).toBe(false);
         expect(db.lead.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("sweep for leads waiting on an email", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.campaignSequence.findMany.mockResolvedValue([{ id: "seq-1", name: "Welcome", steps: [{ stepType: "email", whatsappTemplateName: null }] }]);
+        db.lead.update.mockResolvedValue({});
+        db.leadActivity.create.mockResolvedValue({});
+        enroll.mockResolvedValue(undefined);
+    });
+
+    it("enrols each waiting lead that now has an email, and keeps going past one that fails", async () => {
+        db.$queryRaw.mockResolvedValue([{ id: "lead-1" }, { id: "lead-2" }, { id: "lead-3" }]);
+        db.lead.findUnique
+            .mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", email: "a@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-1", chosenBy: "user-1" } } })
+            .mockRejectedValueOnce(new Error("db hiccup"))
+            .mockResolvedValueOnce({ id: "lead-3", teamId: "team-a", email: "c@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-1", chosenBy: "user-1" } } });
+
+        expect(await enrollWaitingSequences()).toBe(2);
+        expect(enroll).toHaveBeenCalledTimes(2);
     });
 });

@@ -6929,8 +6929,10 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **API:** `GET /extension/sequences` and `POST /extension/leads/:id/sequence` (extension key + sync token, team
     scope, MEMBER role like enrolling in the app). A lead with an email is enrolled through `CmfSequenceProvider`. A
     lead with no email yet keeps the choice in `enrichedData.pendingSequence`; the enrichment worker enrols it once an
-    email is found, if the sequence is still switched on, and clears the choice either way. Each step is logged as a
-    lead activity.
+    email is found, if the sequence is still switched on, and clears the choice either way. The email can also come
+    from a CSV row or a manual edit, so the worker checks every 5 minutes for waiting leads that now have one
+    (`enrollWaitingSequences`, 50 per run). Each step is logged as a lead activity.
+  - **Owner-owed:** reload the unpacked extension (or republish the store build) to get the new popup.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

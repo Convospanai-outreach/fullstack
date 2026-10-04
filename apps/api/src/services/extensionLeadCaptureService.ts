@@ -345,7 +345,7 @@ export async function chooseSequenceForLead(params: { teamId: string; userId: st
         sequence: { id: sequence.id, name: sequence.name },
         message: status === "ENROLLED"
             ? `Added to "${sequence.name}".`
-            : `No email yet. The lead joins "${sequence.name}" once enrichment finds one.`,
+            : `No email yet. The lead joins "${sequence.name}" once it has one.`,
     };
 }
 
@@ -374,6 +374,25 @@ export async function enrollPendingSequence(leadId: string): Promise<boolean> {
         },
     });
     return Boolean(sequence);
+}
+
+// A waiting lead can get its email from anywhere - enrichment, a CSV row, a manual edit in
+// either app - so the worker also checks every few minutes for waiting leads that now have one.
+export async function enrollWaitingSequences(limit = 50): Promise<number> {
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Lead"
+        WHERE email IS NOT NULL AND email <> '' AND "enrichedData" ? 'pendingSequence'
+        ORDER BY "updatedAt" ASC
+        LIMIT ${limit}`;
+    let enrolled = 0;
+    for (const row of rows) {
+        try {
+            if (await enrollPendingSequence(row.id)) enrolled++;
+        } catch (error) {
+            logger.warn("[extension sequences] couldn't enrol a waiting lead", { leadId: row.id, error: error instanceof Error ? error.message : error });
+        }
+    }
+    return enrolled;
 }
 
 export async function markLinkedInOutreachDone(params: {
