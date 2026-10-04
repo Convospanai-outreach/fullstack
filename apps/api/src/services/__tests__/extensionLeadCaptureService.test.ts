@@ -1,21 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, enqueue } = vi.hoisted(() => ({
+const { db, enqueue, enroll } = vi.hoisted(() => ({
     db: {
-        lead: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn() },
+        lead: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+        campaignSequence: { findMany: vi.fn() },
+        $queryRaw: vi.fn(),
         leadChannelStatus: { upsert: vi.fn() },
         leadActivity: { create: vi.fn() },
         systemEvent: { create: vi.fn() },
         team: { findUnique: vi.fn() },
     },
     enqueue: vi.fn(),
+    enroll: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: db }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("@/modules/creator-funnel/nurtureProvider", () => ({
+    CmfSequenceProvider: class { enroll = enroll; },
+    nurtureCanRunSteps: (steps: { stepType: string }[]) => steps.length > 0 && steps.every((step) => step.stepType === "email"),
+}));
 
-import { syncLinkedInExtensionCapture } from "../extensionLeadCaptureService";
+import {
+    chooseSequenceForLead,
+    enrollPendingSequence,
+    enrollWaitingSequences,
+    listSequencesForExtension,
+    syncLinkedInExtensionCapture,
+} from "../extensionLeadCaptureService";
 
 const capture = (payload: Record<string, unknown> = {}) =>
     syncLinkedInExtensionCapture({
@@ -87,5 +100,100 @@ describe("syncLinkedInExtensionCapture", () => {
         const result = await capture();
 
         expect(result).toEqual(expect.objectContaining({ success: true, leadId: "lead-new", enrichmentQueued: false }));
+    });
+});
+
+describe("sequences from the extension", () => {
+    const welcome = { id: "seq-1", name: "Welcome", steps: [{ stepType: "email", whatsappTemplateName: null }] };
+    const linkedinOnly = { id: "seq-2", name: "LinkedIn touches", steps: [{ stepType: "linkedin_message", whatsappTemplateName: null }] };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.campaignSequence.findMany.mockResolvedValue([welcome, linkedinOnly]);
+        db.lead.update.mockResolvedValue({});
+        db.leadActivity.create.mockResolvedValue({});
+        enroll.mockResolvedValue(undefined);
+    });
+
+    it("lists only switched-on sequences the engine can run", async () => {
+        expect(await listSequencesForExtension("team-a")).toEqual([{ id: "seq-1", name: "Welcome", steps: 1 }]);
+        expect(db.campaignSequence.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a", status: "ACTIVE" } }));
+    });
+
+    it("enrols a lead that has an email straight away", async () => {
+        db.lead.findFirst.mockResolvedValue({ id: "lead-1", email: "jane@acme.example", enrichedData: { pendingSequence: { sequenceId: "old" } } });
+
+        const result = await chooseSequenceForLead({ teamId: "team-a", userId: "user-1", leadId: "lead-1", sequenceId: "seq-1" });
+
+        expect(enroll).toHaveBeenCalledWith({ id: "lead-1", teamId: "team-a" }, "seq-1");
+        expect(db.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { enrichedData: {} } });
+        expect(result.status).toBe("ENROLLED");
+    });
+
+    it("keeps the choice for a lead with no email yet, without enrolling", async () => {
+        db.lead.findFirst.mockResolvedValue({ id: "lead-1", email: null, enrichedData: { extensionCapture: {} } });
+
+        const result = await chooseSequenceForLead({ teamId: "team-a", userId: "user-1", leadId: "lead-1", sequenceId: "seq-1" });
+
+        expect(enroll).not.toHaveBeenCalled();
+        expect(db.lead.update).toHaveBeenCalledWith({
+            where: { id: "lead-1" },
+            data: { enrichedData: { extensionCapture: {}, pendingSequence: expect.objectContaining({ sequenceId: "seq-1", chosenBy: "user-1" }) } },
+        });
+        expect(result.status).toBe("WAITING_FOR_EMAIL");
+    });
+
+    it("refuses a lead from another team and a sequence that isn't available", async () => {
+        db.lead.findFirst.mockResolvedValueOnce(null);
+        await expect(chooseSequenceForLead({ teamId: "team-a", userId: "user-1", leadId: "lead-x", sequenceId: "seq-1" })).rejects.toThrow("Lead not found");
+        expect(db.lead.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "lead-x", teamId: "team-a" } }));
+
+        db.lead.findFirst.mockResolvedValueOnce({ id: "lead-1", email: "jane@acme.example", enrichedData: null });
+        await expect(chooseSequenceForLead({ teamId: "team-a", userId: "user-1", leadId: "lead-1", sequenceId: "seq-2" })).rejects.toThrow("Sequence not available");
+        expect(enroll).not.toHaveBeenCalled();
+    });
+
+    it("enrols a waiting lead once it has an email, and clears the choice", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "jane@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-1", chosenBy: "user-1" } } });
+
+        expect(await enrollPendingSequence("lead-1")).toBe(true);
+        expect(enroll).toHaveBeenCalledWith({ id: "lead-1", teamId: "team-a" }, "seq-1");
+        expect(db.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { enrichedData: {} } });
+    });
+
+    it("clears the choice without enrolling when the sequence was switched off meanwhile", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "jane@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-gone", chosenBy: "user-1" } } });
+
+        expect(await enrollPendingSequence("lead-1")).toBe(false);
+        expect(enroll).not.toHaveBeenCalled();
+        expect(db.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { enrichedData: {} } });
+    });
+
+    it("does nothing for a lead with no choice waiting", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "jane@acme.example", enrichedData: {} });
+
+        expect(await enrollPendingSequence("lead-1")).toBe(false);
+        expect(db.lead.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("sweep for leads waiting on an email", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.campaignSequence.findMany.mockResolvedValue([{ id: "seq-1", name: "Welcome", steps: [{ stepType: "email", whatsappTemplateName: null }] }]);
+        db.lead.update.mockResolvedValue({});
+        db.leadActivity.create.mockResolvedValue({});
+        enroll.mockResolvedValue(undefined);
+    });
+
+    it("enrols each waiting lead that now has an email, and keeps going past one that fails", async () => {
+        db.$queryRaw.mockResolvedValue([{ id: "lead-1" }, { id: "lead-2" }, { id: "lead-3" }]);
+        db.lead.findUnique
+            .mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", email: "a@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-1", chosenBy: "user-1" } } })
+            .mockRejectedValueOnce(new Error("db hiccup"))
+            .mockResolvedValueOnce({ id: "lead-3", teamId: "team-a", email: "c@acme.example", enrichedData: { pendingSequence: { sequenceId: "seq-1", chosenBy: "user-1" } } });
+
+        expect(await enrollWaitingSequences()).toBe(2);
+        expect(enroll).toHaveBeenCalledTimes(2);
     });
 });

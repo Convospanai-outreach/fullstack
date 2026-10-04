@@ -28,6 +28,7 @@ export class WorkerManager {
     private lastContentPublishTick: number = 0;
     private lastAutoReplyTick: number = 0;
     private lastCartAbandonTick: number = 0;
+    private lastWaitingSequenceTick: number = 0;
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
     private lastImapSyncTick: number = 0;
@@ -39,6 +40,7 @@ export class WorkerManager {
     private contentPublishInterval: number = 60 * 1000; // creator funnel posts publish within a minute of their time
     private autoReplyInterval: number = 10 * 1000; // keyword auto-replies go out within seconds of the comment/DM
     private cartAbandonInterval: number = 5 * 60 * 1000; // cart-abandon hours are whole hours, so 5 minutes is plenty
+    private waitingSequenceInterval: number = 5 * 60 * 1000; // leads waiting for an email to start an extension-chosen sequence
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private imapSyncInterval: number = parseInt(process.env['IMAP_REPLY_SYNC_INTERVAL_MS'] || '600000'); // 10 minutes
@@ -155,6 +157,19 @@ export class WorkerManager {
                 await processAbandonedCarts(new Date(now));
             } catch (error) {
                 console.error(`[Worker] Cart-abandon hand-off failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+            }
+        }
+
+        // Sequences chosen in the Chrome extension for leads that had no email yet: start the ones
+        // whose lead has an email now. Same rule as above: marked done before running, never rethrown.
+        if (now - this.lastWaitingSequenceTick >= this.waitingSequenceInterval) {
+            this.lastWaitingSequenceTick = now;
+            try {
+                const { enrollWaitingSequences } = await import("@/services/extensionLeadCaptureService");
+                const enrolled = await enrollWaitingSequences();
+                if (enrolled > 0) console.log(`[Worker] Started ${enrolled} sequence(s) chosen in the extension.`);
+            } catch (error) {
+                console.error(`[Worker] Extension sequence sweep failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
             }
         }
 
