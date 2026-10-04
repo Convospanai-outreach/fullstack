@@ -150,7 +150,7 @@ class CSVIngestionService {
                         : extractDomainFromEmail(email);
 
                     if (existing && !existing.email) {
-                        const filledDomain = existing.domain ?? domain ?? undefined;
+                        const filledDomain = existing.domain || domain || undefined;
                         await prisma.lead.update({ where: { id: existing.id }, data: { email, domain: filledDomain } });
                         await recordLeadDataSources([
                             { leadId: existing.id, field: "email", source: "CSV_IMPORT", value: email },

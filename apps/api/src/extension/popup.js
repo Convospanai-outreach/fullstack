@@ -432,6 +432,8 @@ async function loadSequences() {
     els.sequenceSelect.append(option);
   }
   els.addToSequence.disabled = sequences.length === 0;
+  // Try again next time the card renders if loading failed.
+  if (!response?.ok) sequencesLoaded = false;
 }
 
 async function addToSequence() {

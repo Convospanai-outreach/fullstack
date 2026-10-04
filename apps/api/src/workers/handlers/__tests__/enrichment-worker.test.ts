@@ -311,6 +311,19 @@ describe("enrichment-worker", () => {
             expect(query.company).toBe("Acme");
         });
 
+        it("replaces a webmail Lead.domain with the company domain Hunter resolves", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({ id: "lead-1", teamId: "team-a", fullName: "Jane Doe", linkedIn: null, email: null, company: "Acme", domain: "gmail.com" })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Acme" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: "jane@acme.example", domain: "acme.example" });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            const finalUpdate = (prisma.lead.update as any).mock.calls.find((call: any[]) => call[0].data.isEnriched)[0];
+            expect(finalUpdate.data.domain).toBe("acme.example");
+        });
+
         it("fills Lead.domain when Hunter resolves the company's domain but finds no email", async () => {
             (prisma.lead.findUnique as any)
                 .mockResolvedValueOnce({

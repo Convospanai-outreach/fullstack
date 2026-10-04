@@ -146,10 +146,11 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                     if (result.company && !current?.company) {
                         hunterCompanyPromotion = result.company;
                     }
-                    // The company domain Hunter resolved (or the found address's domain) fills
-                    // an empty Lead.domain, so the org chart can group the lead with its account.
+                    // The company domain Hunter resolved (or the found address's domain) fills a
+                    // Lead.domain that's empty, webmail or invalid, so the org chart can group the
+                    // lead with its account.
                     const foundDomain = tryNormalizeDomain(result.domain) ?? tryNormalizeDomain(result.email?.split("@")[1]);
-                    if (!lead.domain && foundDomain && !WEBMAIL_DOMAINS.has(foundDomain)) {
+                    if (!ownDomain && foundDomain && !WEBMAIL_DOMAINS.has(foundDomain)) {
                         hunterDomainPromotion = foundDomain;
                     }
                 }
