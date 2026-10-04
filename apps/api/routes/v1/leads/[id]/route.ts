@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 
 // Same allowlist as routes/leads/[id]/route.ts - system-managed fields
 // (pipelineState, intentScore, leadScore, isEnriched, wonAt/lostAt,
@@ -68,6 +69,8 @@ export async function PATCH(
                 data[key] = val;
             }
         }
+
+        if (typeof data.linkedIn === "string") data.linkedIn = linkedInForStorage(data.linkedIn);
 
         const lead = await prisma.lead.update({
             where: { id, teamId: auth.teamId },

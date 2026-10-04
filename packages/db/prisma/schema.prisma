@@ -1392,6 +1392,9 @@ model Team {
   crystalApiKeyEnc            Json?
   crystalApiKeyConfiguredAt   DateTime?
 
+  // Chrome extension captures queue lead enrichment (1 credit each) when on.
+  autoEnrichCapturedLeads     Boolean   @default(true)
+
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
   domains                    CustomDomain[]

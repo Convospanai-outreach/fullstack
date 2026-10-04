@@ -885,6 +885,7 @@ function OptionalChannels({ status }: { status: SetupStatus }) {
     <div className="space-y-5">
       <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey], ["WhatsApp Business API connected", status.hasWhatsApp]]} />
       <ExtensionSyncToken />
+      <ExtensionAutoEnrich />
       <WabaSetupSection />
     </div>
   );
@@ -974,6 +975,68 @@ function ExtensionSyncToken() {
           <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
         </div>
       )}
+    </section>
+  );
+}
+
+// Team switch: leads the extension saves are enriched automatically (1 credit each).
+function ExtensionAutoEnrich() {
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${apiBase}/settings/extension`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled && data) setEnabled(Boolean(data.autoEnrichCapturedLeads)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [apiBase]);
+
+  async function toggle() {
+    if (enabled === null) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiBase}/settings/extension`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoEnrichCapturedLeads: !enabled }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't save the setting");
+        return;
+      }
+      setEnabled(Boolean(data.autoEnrichCapturedLeads));
+    } catch (error: any) {
+      toast.error(error?.message || "Couldn't save the setting");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className={panelClass}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">Enrich captured leads</h3>
+          <p className="mt-2 text-sm text-slate-400">
+            When the extension saves a LinkedIn profile, look up the person&apos;s work email and company domain, add their Crystal personality profile if Crystal is connected, and score the lead. Uses 1 credit per new lead.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled === true}
+          aria-label="Enrich captured leads"
+          onClick={toggle}
+          disabled={enabled === null || saving}
+          className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-60 ${enabled ? "bg-cyan-500" : "bg-slate-600"}`}
+        >
+          <span className={`inline-block h-5 w-5 rounded-full bg-white transition ${enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+        </button>
+      </div>
     </section>
   );
 }

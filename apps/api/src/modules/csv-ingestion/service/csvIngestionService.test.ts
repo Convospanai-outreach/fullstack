@@ -109,3 +109,39 @@ describe("csvIngestionService.processCSV - row count cap", () => {
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
     });
 });
+
+describe("csvIngestionService.processCSV - LinkedIn URLs", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    const LI_CSV = "email,fullName,linkedin\njane@acme.example,Jane Doe,http://www.linkedin.com/in/Jane-Doe\n";
+
+    it("stores the profile URL in the standard form", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        await csvIngestionService.processCSV(LI_CSV, "team-a");
+
+        expect(mockPrisma.lead.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ linkedIn: "https://www.linkedin.com/in/jane-doe/" }),
+        });
+    });
+
+    it("gives a lead the extension captured (same profile, no email yet) its email instead of adding it twice", async () => {
+        mockPrisma.lead.findFirst
+            .mockResolvedValueOnce(null) // no lead with this email
+            .mockResolvedValueOnce({ id: "lead-captured", email: null, domain: null });
+        mockPrisma.lead.update.mockResolvedValue({});
+
+        const result = await csvIngestionService.processCSV(LI_CSV, "team-a");
+
+        expect(mockPrisma.lead.findFirst).toHaveBeenLastCalledWith({
+            where: { teamId: "team-a", linkedIn: "https://www.linkedin.com/in/jane-doe/", email: null },
+        });
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: "lead-captured" },
+            data: { email: "jane@acme.example", domain: "acme.example" },
+        });
+        expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+        expect(result.created).toBe(1);
+    });
+});

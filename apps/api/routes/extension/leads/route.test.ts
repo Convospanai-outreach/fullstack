@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockValidateExtensionAuth = vi.fn();
 const mockLeadUpsert = vi.fn();
+const mockQueueCaptureEnrichment = vi.fn();
 
 vi.mock("../_lib/auth", () => ({
     validateExtensionAuth: mockValidateExtensionAuth
@@ -9,6 +10,10 @@ vi.mock("../_lib/auth", () => ({
 
 vi.mock("@/services/LeadService", () => ({
     LeadService: { upsert: mockLeadUpsert }
+}));
+
+vi.mock("@/services/extensionLeadCaptureService", () => ({
+    queueCaptureEnrichment: mockQueueCaptureEnrichment
 }));
 
 function authAs(teamIds: string[]) {
@@ -31,6 +36,7 @@ describe("extension leads route", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockLeadUpsert.mockResolvedValue({ id: "lead-1" });
+        mockQueueCaptureEnrichment.mockResolvedValue(true);
         authAs(["team-a"]);
     });
 
@@ -40,7 +46,8 @@ describe("extension leads route", () => {
         const body = await res.json();
 
         expect(res.status).toBe(200);
-        expect(body).toEqual({ ok: true, lead: { id: "lead-1" } });
+        expect(body).toEqual({ ok: true, lead: { id: "lead-1" }, enrichmentQueued: true });
+        expect(mockQueueCaptureEnrichment).toHaveBeenCalledWith("team-a", { id: "lead-1" });
         expect(mockLeadUpsert).toHaveBeenCalledWith(
             "team-a",
             "user-1",

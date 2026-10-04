@@ -1,6 +1,7 @@
 import { DbFactory } from "@/lib/dbFactory";
 import { AuditService } from "@/modules/audit/auditService";
 import { MarketContext } from "@/lib/middleware/MarketRoutingMiddleware";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 
 export interface UpsertLeadOptions {
     fullName?: string | null;
@@ -30,6 +31,7 @@ export class LeadService {
         userId: string | null,
         data: UpsertLeadOptions
     ) {
+        data = { ...data, linkedIn: linkedInForStorage(data.linkedIn) };
         const region = data.marketContext?.region || 'GLOBAL';
         const db = DbFactory.getClient(region);
 

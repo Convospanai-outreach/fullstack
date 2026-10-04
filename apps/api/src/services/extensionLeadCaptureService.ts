@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
+import { logger } from "@/lib/logger";
+import { canonicalLinkedInProfileUrl } from "@/lib/crm/linkedin";
 
 export type ExtensionCapturePayload = {
     source?: string;
@@ -28,23 +31,31 @@ export type ExtensionCaptureResult = {
     matchedExisting: boolean;
     status: string;
     message: string;
+    enrichmentQueued: boolean;
 };
 
-const LINKEDIN_HOSTS = new Set(["linkedin.com", "www.linkedin.com"]);
 const CHANNEL_LINKEDIN = "LINKEDIN";
 
-export function normalizeLinkedInProfileUrl(value: unknown): string | null {
-    if (typeof value !== "string") return null;
+// The stored form (see lib/crm/linkedin.ts), so a capture finds the lead a CSV import created.
+export const normalizeLinkedInProfileUrl = canonicalLinkedInProfileUrl;
+
+// Queues lead enrichment (email finder, Crystal, scoring) for a lead the extension saved, when
+// the team has "Enrich captured leads" on. Once per lead: the idempotency key means re-capturing
+// the same person doesn't charge again. Never fails the capture itself.
+export async function queueCaptureEnrichment(teamId: string, lead: { id: string; isEnriched?: boolean | null }): Promise<boolean> {
+    if (lead.isEnriched) return false;
     try {
-        const parsed = new URL(value.trim());
-        const hostname = parsed.hostname.toLowerCase();
-        if (parsed.protocol !== "https:") return null;
-        if (!LINKEDIN_HOSTS.has(hostname)) return null;
-        const match = parsed.pathname.match(/\/in\/([^/?#]+)/i);
-        if (!match?.[1]) return null;
-        return `https://www.linkedin.com/in/${match[1].replace(/\/+$/, "")}/`;
-    } catch {
-        return null;
+        const team = await prisma.team.findUnique({ where: { id: teamId }, select: { autoEnrichCapturedLeads: true } });
+        if (!team?.autoEnrichCapturedLeads) return false;
+        await JobQueue.enqueue(
+            "lead_enrichment",
+            { leadId: lead.id, teamId },
+            { teamId, idempotencyKey: `extension_enrich_${lead.id}` }
+        );
+        return true;
+    } catch (error) {
+        logger.warn("[extension capture] couldn't queue enrichment", { leadId: lead.id, error: error instanceof Error ? error.message : error });
+        return false;
     }
 }
 
@@ -257,12 +268,15 @@ export async function syncLinkedInExtensionCapture(params: {
         }
     }).catch(() => null);
 
+    const enrichmentQueued = await queueCaptureEnrichment(params.teamId, lead);
+
     return {
         success: true,
         leadId: lead.id,
         matchedExisting,
         status,
-        message: matchedExisting ? "LinkedIn capture synced to existing lead" : "LinkedIn capture created new lead"
+        message: matchedExisting ? "LinkedIn capture synced to existing lead" : "LinkedIn capture created new lead",
+        enrichmentQueued
     };
 }
 

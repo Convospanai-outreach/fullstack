@@ -4,6 +4,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 import { parseBody } from "@/lib/validation/parseBody";
 import { z } from "zod";
 
@@ -94,6 +95,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                 safeData[key] = val;
             }
         }
+
+        if (typeof safeData.linkedIn === "string") safeData.linkedIn = linkedInForStorage(safeData.linkedIn);
 
         if (Object.keys(safeData).length === 0) {
             throw new APIError("No valid fields supplied for update", 400, "VALIDATION_ERROR");

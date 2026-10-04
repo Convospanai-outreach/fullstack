@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 
 export async function GET(
     request: Request,
@@ -63,7 +64,7 @@ export async function PATCH(
             data: {
                 ...(fullName !== undefined && { fullName }),
                 ...(email !== undefined && { email }),
-                ...(linkedIn !== undefined && { linkedIn }),
+                ...(linkedIn !== undefined && { linkedIn: linkedInForStorage(linkedIn) }),
                 ...(company !== undefined && { company }),
                 ...(status !== undefined && { status }),
             },
