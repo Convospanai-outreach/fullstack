@@ -95,7 +95,8 @@ export async function handleLeadEnrichment(payload: JobPayload) {
         let hunterDomainPromotion: string | undefined;
         const handle = linkedInHandle(lead.linkedIn);
         const knownName = lead.fullName && lead.fullName !== PLACEHOLDER_NAME ? lead.fullName : "";
-        const ownDomain = lead.domain && !WEBMAIL_DOMAINS.has(lead.domain) ? lead.domain : undefined;
+        const leadDomain = tryNormalizeDomain(lead.domain);
+        const ownDomain = leadDomain && !WEBMAIL_DOMAINS.has(leadDomain) ? leadDomain : undefined;
         if (!lead.email && (handle || (knownName && (ownDomain || lead.company)))) {
             try {
                 const nameParts = knownName.split(" ");
@@ -119,7 +120,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                 // key (matching Netjana's enrichedData.netjana convention) even when not
                 // promoted to a top-level Lead field, and promote company only when the
                 // lead doesn't already have one (never overwrite an existing value).
-                if (result.email || result.company) {
+                if (result.email || result.company || result.domain) {
                     const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichedData: true, company: true } });
                     const currentEnrichedData = (current?.enrichedData as Record<string, any>) || {};
                     await prisma.lead.update({

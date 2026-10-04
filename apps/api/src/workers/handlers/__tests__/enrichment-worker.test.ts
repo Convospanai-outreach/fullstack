@@ -286,6 +286,48 @@ describe("enrichment-worker", () => {
             );
         });
 
+        it("doesn't send a webmail domain to Hunter, whatever its case, and looks up by company instead", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValueOnce({
+                id: "lead-1",
+                teamId: "team-a",
+                fullName: "Jane Doe",
+                linkedIn: null,
+                email: null,
+                company: "Acme",
+                domain: "Gmail.com",
+            });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: null });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            const query = (hunterService.findAndStoreEmail as any).mock.calls[0][0];
+            expect(query.domain).toBeUndefined();
+            expect(query.company).toBe("Acme");
+        });
+
+        it("fills Lead.domain when Hunter resolves the company's domain but finds no email", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: null,
+                    company: "Acme",
+                    domain: null,
+                })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Acme" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: null, domain: "acme.example" });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            const finalUpdate = (prisma.lead.update as any).mock.calls.find((call: any[]) => call[0].data.isEnriched)[0];
+            expect(finalUpdate.data.domain).toBe("acme.example");
+            expect(finalUpdate.data.email).toBeUndefined();
+        });
+
         it("doesn't take a webmail domain as the lead's company domain", async () => {
             (prisma.lead.findUnique as any)
                 .mockResolvedValueOnce({
