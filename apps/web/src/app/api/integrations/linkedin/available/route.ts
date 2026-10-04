@@ -11,7 +11,8 @@ export async function GET() {
         if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const [profile, pages] = await Promise.all([linkedInAvailable("profile"), linkedInAvailable("pages")]);
         return NextResponse.json({ profile, pages });
-    } catch {
-        return NextResponse.json({ profile: false, pages: false });
+    } catch (error) {
+        console.error("[linkedin available]", error instanceof Error ? error.message : error);
+        return NextResponse.json({ error: "Couldn't check LinkedIn availability." }, { status: 500 });
     }
 }

@@ -1,8 +1,8 @@
 // Single-use key cache for replay protection (roadmap 3.5 / S-13, S-16).
 //
-// Per-process only: each API process keeps its own copy, so a replay sent to a
-// different host/process is not caught. Moving this to the shared Redis client
-// is roadmap 3.1 / I-07. Imports stay relative/builtin-only because
+// Per-process only: each API process keeps its own copy. sharedReplayCache.ts
+// puts Redis behind it so a replay sent to another process is caught too
+// (roadmap 3.1 / I-07). Imports stay relative/builtin-only because
 // apps/web/tests/unit imports internalAuth.ts (and therefore this file) directly.
 
 export interface ReplayCache {

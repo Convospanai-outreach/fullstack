@@ -100,11 +100,11 @@ describe("internal auth signing across the web/api deploy gap", () => {
         expect(verifyInternalAuthHeaders(headers, { method: "DELETE", path: "/leads/export" })).toBeNull();
     });
 
-    it("NEW signer -> NEW api verifier: each header set works exactly once", () => {
+    it("NEW signer -> NEW api verifier: each header set works exactly once", async () => {
         const headers = sign("GET", "/leads/export");
         const req = { method: "GET", path: "/leads/export" };
-        expect(authenticateInternalRequest(headers, req)).not.toBeNull();
-        expect(authenticateInternalRequest(headers, req)).toBeNull();
+        expect(await authenticateInternalRequest(headers, req)).not.toBeNull();
+        expect(await authenticateInternalRequest(headers, req)).toBeNull();
     });
 
     it("the /api/proxy route's headers pass the old verifier and the new one for the URL it actually calls", async () => {

@@ -21,6 +21,7 @@ import { keepRawJsonBody } from '@/lib/rawJsonBody';
 import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
+import { createSharedReplayCache } from '@/lib/sharedReplayCache';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +176,10 @@ function getAdaptedRequestBody(request: any, headers: Headers) {
   return JSON.stringify(request.body);
 }
 
+// v2 nonces of apps/web's signed identity headers, claimed across every api
+// process while Redis is up (roadmap 3.1 / I-07).
+const internalAuthNonces = createSharedReplayCache('internal-auth');
+
 /**
  * Adapter to bridge Next.js Route Handlers to Fastify
  */
@@ -288,10 +293,10 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     // and gated routes alike. If they don't authenticate (including a replayed
     // nonce), they are dropped from the handler's request below, so the verify-only
     // checks in auth.ts/admin.ts can never accept them.
-    const internalIdentity = authenticateInternalRequest(request.headers || {}, {
+    const internalIdentity = await authenticateInternalRequest(request.headers || {}, {
       method: request.method,
       path: internalAuthPath(request.url),
-    });
+    }, Date.now(), internalAuthNonces);
 
     if (!isPublic) {
       const secret = process.env.NEXTAUTH_SECRET;
