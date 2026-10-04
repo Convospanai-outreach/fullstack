@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
+import { canonicalLinkedInProfileUrl, linkedInForStorage } from "@/lib/crm/linkedin";
 
 export const dynamic = "force-dynamic";
 
@@ -145,18 +146,25 @@ export async function POST(req: NextRequest) {
                 const fullName = fullNameKey ? row[fullNameKey]?.trim() : undefined;
                 const company = companyKey ? row[companyKey]?.trim() : undefined;
                 const jobTitle = jobTitleKey ? row[jobTitleKey]?.trim() : undefined;
-                const linkedIn = linkedInKey ? row[linkedInKey]?.trim() : undefined;
+                const linkedIn = linkedInKey ? linkedInForStorage(row[linkedInKey]?.trim()) : undefined;
                 const location = locationKey ? row[locationKey]?.trim() : undefined;
 
-                const existing = await prisma.lead.findFirst({
+                let existing = await prisma.lead.findFirst({
                     where: {
                         email,
                         teamId,
                     },
                 });
+                // A lead the Chrome extension captured has the LinkedIn URL but no email yet:
+                // this row gives it the email instead of adding the same person again.
+                const profileUrl = canonicalLinkedInProfileUrl(linkedIn);
+                if (!existing && profileUrl) {
+                    existing = await prisma.lead.findFirst({ where: { teamId, linkedIn: profileUrl, email: null } });
+                }
 
                 if (existing) {
                     const updateData: any = {};
+                    if (!existing.email) updateData.email = email;
                     if (campaignId) updateData.campaignId = campaignId;
                     if (fullName) updateData.fullName = fullName;
                     if (company) updateData.company = company;

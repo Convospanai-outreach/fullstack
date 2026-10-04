@@ -64,6 +64,24 @@ describe("POST /api/upload/csv", () => {
         });
     });
 
+    it("gives a lead the extension captured (same profile, no email yet) its email instead of adding it twice", async () => {
+        mockPrisma.lead.findFirst
+            .mockResolvedValueOnce(null) // no lead with this email
+            .mockResolvedValueOnce({ id: "lead-captured", email: null });
+        mockPrisma.lead.update.mockResolvedValue({});
+
+        await POST(csvRequest({ csv: "email,linkedin\njane@acme.example,http://www.linkedin.com/in/Jane-Doe" }));
+
+        expect(mockPrisma.lead.findFirst).toHaveBeenLastCalledWith({
+            where: { teamId: "team-a", linkedIn: "https://www.linkedin.com/in/jane-doe/", email: null },
+        });
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: "lead-captured" },
+            data: expect.objectContaining({ email: "jane@acme.example", linkedIn: "https://www.linkedin.com/in/jane-doe/" }),
+        });
+        expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+    });
+
     it("rejects an unauthenticated caller before touching any lead data", async () => {
         mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
 

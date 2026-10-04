@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createLeadSchema } from "@/lib/validation/schemas";
 import { tryNormalizeDomain } from "@/lib/crm/domain";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
         }
 
         const { prisma } = await import("@/lib/db");
-        const data = validation.data;
+        const data = { ...validation.data, linkedIn: linkedInForStorage(validation.data.linkedIn) };
         if (!data.email && !data.linkedIn) {
             return jsonError("Either email or LinkedIn URL is required.", 400, "VALIDATION_ERROR");
         }

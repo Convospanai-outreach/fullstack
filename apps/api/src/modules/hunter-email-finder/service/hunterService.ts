@@ -8,6 +8,19 @@ export interface HunterResult {
     position: string | null;
     company: string | null;
     sources: string[];
+    firstName?: string | null;
+    lastName?: string | null;
+    domain?: string | null;
+    phoneNumber?: string | null;
+}
+
+// Hunter's Email Finder needs a domain, a company name or a LinkedIn handle, plus a name
+// unless the handle is given.
+export interface HunterFindQuery {
+    fullName?: string;
+    domain?: string;
+    company?: string;
+    linkedinHandle?: string;
 }
 
 export class HunterService {
@@ -16,6 +29,10 @@ export class HunterService {
      * Uses Hunter.io API if key is present, otherwise falls back to safe heuristics or null
      */
     static async findEmail(fullName: string, company_domain: string): Promise<HunterResult> {
+        return HunterService.find({ fullName, domain: company_domain });
+    }
+
+    static async find(query: HunterFindQuery): Promise<HunterResult> {
         const apiKey = process.env['HUNTER_API_KEY'];
 
         if (!apiKey) {
@@ -24,14 +41,15 @@ export class HunterService {
         }
 
         try {
+            const fullName = (query.fullName || "").trim();
             const firstName = fullName.split(" ")[0];
             const lastName = fullName.split(" ").slice(1).join(" ");
 
-            const queryParams: Record<string, string> = {
-                domain: company_domain,
-                last_name: lastName,
-                api_key: apiKey
-            };
+            const queryParams: Record<string, string> = { api_key: apiKey };
+            if (query.linkedinHandle) queryParams['linkedin_handle'] = query.linkedinHandle;
+            if (query.domain) queryParams['domain'] = query.domain;
+            else if (query.company) queryParams['company'] = query.company;
+            if (lastName) queryParams['last_name'] = lastName;
             if (firstName) queryParams['first_name'] = firstName;
 
             const params = new URLSearchParams(queryParams);
@@ -45,7 +63,11 @@ export class HunterService {
                     score: data.data.score,
                     position: data.data.position,
                     company: data.data.company,
-                    sources: data.data.sources.map((s: any) => s.uri)
+                    sources: (data.data.sources || []).map((s: any) => s.uri),
+                    firstName: data.data.first_name ?? null,
+                    lastName: data.data.last_name ?? null,
+                    domain: data.data.domain ?? null,
+                    phoneNumber: data.data.phone_number ?? null
                 };
             }
 
@@ -60,8 +82,13 @@ export class HunterService {
     /**
      * Legacy method for worker compatibility
      */
-    async findAndStoreEmail(params: { firstName: string, lastName: string, domain: string, leadId: string }) {
-        const result = await HunterService.findEmail(`${params.firstName} ${params.lastName}`, params.domain);
+    async findAndStoreEmail(params: { firstName: string, lastName: string, domain?: string, company?: string, linkedinHandle?: string, leadId: string }) {
+        const result = await HunterService.find({
+            fullName: `${params.firstName} ${params.lastName}`,
+            domain: params.domain,
+            company: params.company,
+            linkedinHandle: params.linkedinHandle,
+        });
         // In a real app, strict storage logic might go here, but worker handles saving to DB.
         // We just return the interface expected by worker.
         return result;
