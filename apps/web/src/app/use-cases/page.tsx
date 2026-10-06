@@ -35,7 +35,7 @@ const USE_CASES = [
         borderColor: "border-blue-500/30",
         iconColor: "text-blue-400",
         description: "Track office expansions, construction permits, and facility lease renewals. Trigger review-ready outreach to Property Directors with pre-calibrated FM playbooks.",
-        stats: ["4.2x Faster RFP discovery", "Zero unapproved messaging", "100% tenant data isolation"]
+        stats: ["Proactive RFP pipeline tracking", "Zero unapproved messaging", "100% tenant data isolation"]
     },
     {
         slug: "security-services",

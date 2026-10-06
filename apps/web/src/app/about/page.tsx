@@ -35,7 +35,35 @@ export default function AboutPage() {
                 "@id": `${siteUrl}/about#webpage`,
                 "url": `${siteUrl}/about`,
                 "name": "About CraftMyFunnel AI",
-                "description": "CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with governed AI workflows and human approval."
+                "description": "CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with governed AI workflows and human approval.",
+                "isPartOf": {
+                    "@type": "WebSite",
+                    "@id": `${siteUrl}/#website`
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "@id": `${siteUrl}/#organization`,
+                    "name": "CraftMyFunnel",
+                    "url": siteUrl
+                }
+            },
+            {
+                "@type": "Organization",
+                "@id": `${siteUrl}/#organization`,
+                "name": "CraftMyFunnel",
+                "url": siteUrl,
+                "logo": `${siteUrl}/craftmyfunnel-logo.png`,
+                "founder": {
+                    "@type": "Person",
+                    "name": "CraftMyFunnel Engineering & Outreach Architecture Group",
+                    "jobTitle": "Founding Systems Architects"
+                },
+                "knowsAbout": [
+                    "B2B Outbound Automation",
+                    "RFC 5322 Deliverability Compliance",
+                    "Buyer Signal Ingestion",
+                    "Human-in-the-Loop AI Oversight"
+                ]
             },
             {
                 "@type": "BreadcrumbList",

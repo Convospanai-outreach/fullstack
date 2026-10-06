@@ -9,11 +9,11 @@ const NAV_GROUPS = [
   {
     label: "Product",
     items: [
-      { label: "Fluid Funnel Engine", href: "/funnel", badge: "New" },
-      { label: "Buyer Signals — NetJana", href: "/#platform" },
-      { label: "AI Outreach — CMF Core", href: "/#workflow" },
-      { label: "Human Layer", href: "/#workflow" },
-      { label: "Covospan EDGE", href: "/#platform" },
+      { label: "Fluid Funnel Engine", href: "/products/fluid-funnel-engine", badge: "New" },
+      { label: "Buyer Signals — NetJana", href: "/products/buyer-signals" },
+      { label: "AI Outreach — CMF Core", href: "/products/ai-outreach" },
+      { label: "Human Layer", href: "/products/human-layer" },
+      { label: "Covospan EDGE", href: "/products/covospan-edge" },
     ],
   },
   {
