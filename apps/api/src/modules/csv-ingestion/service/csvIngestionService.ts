@@ -3,6 +3,7 @@ import Papa from "papaparse";
 import { ConsentService, ConsentMethod } from "@/modules/whatsapp/ConsentService";
 import { tryNormalizeDomain, extractDomainFromEmail } from "@/lib/crm/domain";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
+import { canonicalLinkedInProfileUrl, linkedInForStorage } from "@/lib/crm/linkedin";
 
 export interface ConsentAttestation {
     userId: string;
@@ -127,12 +128,18 @@ class CSVIngestionService {
                         continue;
                     }
 
-                    const existing = await prisma.lead.findFirst({
+                    const linkedIn = linkedInKey ? linkedInForStorage(row[linkedInKey]?.trim()) : undefined;
+                    let existing = await prisma.lead.findFirst({
                         where: {
                             email,
                             teamId: teamId || undefined,
                         }
                     });
+                    // A lead the Chrome extension captured has the LinkedIn URL but no email yet:
+                    // this row gives it the email instead of adding the same person again.
+                    if (!existing && teamId && canonicalLinkedInProfileUrl(linkedIn)) {
+                        existing = await prisma.lead.findFirst({ where: { teamId, linkedIn, email: null } });
+                    }
 
                     // Domain resolution order: explicit domain/website column, then the
                     // row's own email domain, else leave null - never guess from the
@@ -141,6 +148,19 @@ class CSVIngestionService {
                     const domain = domainKey
                         ? (tryNormalizeDomain(row[domainKey]) ?? extractDomainFromEmail(email))
                         : extractDomainFromEmail(email);
+
+                    if (existing && !existing.email) {
+                        const filledDomain = existing.domain || domain || undefined;
+                        await prisma.lead.update({ where: { id: existing.id }, data: { email, domain: filledDomain } });
+                        await recordLeadDataSources([
+                            { leadId: existing.id, field: "email", source: "CSV_IMPORT", value: email },
+                            ...(filledDomain && !existing.domain ? [{ leadId: existing.id, field: "domain", source: "CSV_IMPORT" as const, value: filledDomain }] : []),
+                        ]);
+                        if (!campaignId) {
+                            created++;
+                            continue;
+                        }
+                    }
 
                     if (existing) {
                         if (campaignId) {
@@ -169,7 +189,6 @@ class CSVIngestionService {
                     const fullName = fullNameKey ? row[fullNameKey]?.trim() : undefined;
                     const company = companyKey ? row[companyKey]?.trim() : undefined;
                     const jobTitle = jobTitleKey ? row[jobTitleKey]?.trim() : undefined;
-                    const linkedIn = linkedInKey ? row[linkedInKey]?.trim() : undefined;
                     const location = locationKey ? row[locationKey]?.trim() : undefined;
 
                     const createdLead = await prisma.lead.create({

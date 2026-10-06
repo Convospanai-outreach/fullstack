@@ -6900,6 +6900,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   and the superadmin Redis switch (OPEN-320) is on; without both this changes nothing. **Follow-up:**
   the `@fastify/rate-limit` backstop (OPEN-274) is still per-process. Its built-in Redis store either
   fails open or 500s every request when Redis errors, so it needs a store with a local fallback.
+- **OPEN-336 (Fixed — Chrome extension captures join the lead pipeline):** 2026-10-04.
+  - **Matching:** every `Lead.linkedIn` profile URL is now stored as `https://www.linkedin.com/in/<handle>/`, handle
+    lowercased (`lib/crm/linkedin.ts` in apps/api, mirrored in apps/web with a parity test). CSV imports stored
+    `http://www.linkedin.com/in/<handle>` while the extension looked up `https://www.linkedin.com/in/<handle>/`, so a
+    capture never found the imported lead and created a second one. All write paths use the stored form (extension V1
+    and V2, both CSV importers, `LeadService.upsert`, lead create/edit in both apps, v1 API, scraper bridge).
+    Migration `20261020120000_extension_lead_pipeline` converts existing rows with the same rule (dry run on prod:
+    1549 rows, 0 duplicate handles in a team, 2 blank values left as they are).
+  - **CSV after capture:** when a CSV row's email matches no lead, both importers look for a lead with the same profile
+    URL and no email (an extension capture) and give it the email instead of creating the person again.
+  - **Auto-enrich:** new `Team.autoEnrichCapturedLeads` (default on; switch on `/setup` under the extension sync
+    token, admin-only, `GET/POST /settings/extension`). A lead the extension saves is queued for `lead_enrichment`
+    once (idempotency key `extension_enrich_<leadId>`, 1 credit); already-enriched leads and queue errors are skipped
+    without failing the capture.
+  - **Enrichment worker:** Hunter's Email Finder is called with the LinkedIn handle when there is one, else the
+    lead's domain, else the company name (the `<company>.com` guess is gone); the placeholder name isn't sent. The
+    domain Hunter resolves fills an empty `Lead.domain` (not webmail), which the org chart groups by. Hunter's phone
+    number is kept in `enrichedData.hunter` only. Leads the extension captured skip the server-side LinkedIn scrape.
+    The status moves to `enriched` only from `NEW`, so `LINKEDIN_CAPTURED`, `CONTACTED`, `REPLIED` etc. are kept.
+  - **Owner-owed:** Hunter key on the worker VM under `HUNTER_API_KEY` (the name the worker reads); a Crystal key per
+    team for personality profiles. Without them auto-enrich only scores the lead.
+  - **Next:** choosing a sequence from the extension popup (separate PR).
+- **OPEN-337 (Fixed — add a captured lead to a sequence from the Chrome extension):** 2026-10-04.
+  - **Popup:** after a lead is synced, the Save / Sync card shows "Add to sequence" with the team's sequences that are
+    switched on (`ACTIVE`) and made only of steps the sequence engine runs (`nurtureCanRunSteps`). Draft sequences
+    aren't offered, so the extension never switches one on.
+  - **API:** `GET /extension/sequences` and `POST /extension/leads/:id/sequence` (extension key + sync token, team
+    scope, MEMBER role like enrolling in the app). A lead with an email is enrolled through `CmfSequenceProvider`. A
+    lead with no email yet keeps the choice in `enrichedData.pendingSequence`; the enrichment worker enrols it once an
+    email is found, if the sequence is still switched on, and clears the choice either way. The email can also come
+    from a CSV row or a manual edit, so the worker checks every 5 minutes for waiting leads that now have one
+    (`enrollWaitingSequences`, 50 per run), which also retries an enrolment that failed. Choosing, enrolling and
+    dropping a choice are each logged as a lead activity.
+  - **Owner-owed:** reload the unpacked extension (or republish the store build) to get the new popup.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

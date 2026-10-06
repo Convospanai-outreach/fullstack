@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { canonicalLinkedInProfileUrl } from "@/lib/crm/linkedin";
 
 interface ScrapedProfile {
     url: string;
@@ -20,7 +21,7 @@ function normalizeLinkedInUrl(value: unknown): string | undefined {
         if (parsed.protocol !== "https:") return undefined;
         const hostname = parsed.hostname.toLowerCase();
         if (!LINKEDIN_HOSTS.has(hostname)) return undefined;
-        return parsed.toString();
+        return canonicalLinkedInProfileUrl(parsed.toString()) ?? parsed.toString();
     } catch {
         return undefined;
     }

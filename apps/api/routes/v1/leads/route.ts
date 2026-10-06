@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
+import { linkedInForStorage } from "@/lib/crm/linkedin";
 
 // System-managed fields (pipelineState, intentScore, leadScore, isEnriched,
 // wonAt/lostAt, etc.) must not be settable from a caller-supplied body -
@@ -99,6 +100,8 @@ export async function POST(req: NextRequest) {
                 data[key] = val;
             }
         }
+
+        if (typeof data.linkedIn === "string") data.linkedIn = linkedInForStorage(data.linkedIn);
 
         const lead = await prisma.lead.create({
             data: {

@@ -167,7 +167,7 @@ describe("extension push route", () => {
 
         const createCall = (mockLeadCreate as Mock).mock.calls[0]?.[0];
         expect(createCall.data.teamId).toBe("team-a");
-        expect(createCall.data.linkedIn).toBe("https://linkedin.com/in/jane");
+        expect(createCall.data.linkedIn).toBe("https://www.linkedin.com/in/jane/");
         expect(createCall.data.fullName).toBe("Jane");
         expect(createCall.data.jobTitle).toBe("Founder");
         expect(createCall.data.location).toBe("Dubai");

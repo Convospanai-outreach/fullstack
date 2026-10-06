@@ -23,6 +23,7 @@ The popup provides:
 - manual qualification
 - local save with optional best-effort workspace sync if configured
 - activity log with the last five events
+- after a lead is synced, adding it to one of the team's switched-on sequences (a lead with no email yet joins once it has one)
 - settings for workspace URL, optional token, default tone, and default outreach angle
 
 Active Version 1 permissions:
