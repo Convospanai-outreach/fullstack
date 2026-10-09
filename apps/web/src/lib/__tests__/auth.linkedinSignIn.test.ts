@@ -31,12 +31,12 @@ describe("authOptions with LinkedIn sign-in switched on", () => {
 
     it("leaves the whole decision to linkedInSignIn and never applies the Google email rules", async () => {
         const profile = { sub: "li-sub", email: "owner@company.com", email_verified: true };
-        mockLinkedInSignIn.mockResolvedValue("/login?error=linkedin-not-connected");
+        mockLinkedInSignIn.mockResolvedValue("/login?error=linkedin-not-connected&callbackUrl=%2Fsettings%2Fgeneral");
         const user: { email: string; id?: string } = { email: "owner@company.com" };
 
         const result = await signIn({ user, account: { provider: "linkedin", providerAccountId: "li-sub" }, profile });
 
-        expect(result).toBe("/login?error=linkedin-not-connected");
+        expect(result).toBe("/login?error=linkedin-not-connected&callbackUrl=%2Fsettings%2Fgeneral");
         expect(mockLinkedInSignIn).toHaveBeenCalledWith("li-sub", profile);
         expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
         expect(mockPrisma.user.update).not.toHaveBeenCalled();

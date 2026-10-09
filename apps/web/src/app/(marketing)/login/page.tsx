@@ -115,7 +115,7 @@ function SsoRequiredNotice() {
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-sm text-amber-100">
             <p>
                 Your workspace requires signing in through your organization&apos;s SSO provider,
-                not a direct Google sign-in. Contact your workspace admin if you&apos;re unsure how
+                not a direct Google or LinkedIn sign-in. Contact your workspace admin if you&apos;re unsure how
                 to access that.
             </p>
             <button
@@ -132,7 +132,7 @@ function SsoRequiredNotice() {
 // Why a LinkedIn sign-in was turned away (set by linkedInSignIn in @/lib/linkedinLogin).
 const LINKEDIN_NOTICES: Record<string, string> = {
     "linkedin-not-connected":
-        "That LinkedIn profile isn't connected to a CraftMyFunnel account yet. Sign in below the way you usually do, then open Settings > General and choose Connect LinkedIn.",
+        "That LinkedIn profile isn't connected to a CraftMyFunnel account yet. Sign in below the way you usually do, then choose Connect LinkedIn on the Settings page that opens.",
     "linkedin-no-email":
         "LinkedIn didn't share a verified email address, so we couldn't create an account from it. Create an account with your email or Google instead.",
 };

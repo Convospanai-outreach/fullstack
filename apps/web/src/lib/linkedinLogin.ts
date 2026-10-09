@@ -35,7 +35,8 @@ const STATE_MAX_AGE_MS = 10 * 60 * 1000;
 const SCOPE = "openid profile email";
 const CONNECT_CALLBACK_PATH = "/api/profile/linkedin-login/callback";
 
-export const LINKEDIN_NOT_CONNECTED = "/login?error=linkedin-not-connected";
+// After the usual sign-in the person lands on the Settings page where LinkedIn is connected.
+export const LINKEDIN_NOT_CONNECTED = "/login?error=linkedin-not-connected&callbackUrl=%2Fsettings%2Fgeneral";
 export const LINKEDIN_NO_EMAIL = "/login?error=linkedin-no-email";
 // For someone already signed in: NextAuth would attach the identity to that session by itself.
 export const LINKEDIN_CONNECT_IN_SETTINGS = "/settings/general?linkedinLogin=not-connected";

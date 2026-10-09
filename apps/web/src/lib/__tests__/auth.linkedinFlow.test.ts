@@ -180,7 +180,7 @@ describe("Continue with LinkedIn through NextAuth", () => {
 
         const result = await continueWithLinkedIn();
 
-        expect(result.redirect).toBe("/login?error=linkedin-not-connected");
+        expect(result.redirect).toBe("/login?error=linkedin-not-connected&callbackUrl=%2Fsettings%2Fgeneral");
         expect(result.signedInAs).toBeNull();
         expect(db.accounts).toEqual([]);
         expect(db.users).toHaveLength(1);
