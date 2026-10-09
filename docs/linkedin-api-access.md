@@ -32,12 +32,14 @@ The API VMs need no LinkedIn secret. Publishing and the daily token check use th
 
 1. At https://www.linkedin.com/developers/apps, create an app and associate it with the CraftMyFunnel LinkedIn page.
 2. On the Products tab, add **Sign In with LinkedIn using OpenID Connect** only.
-3. On the Auth tab, add two redirect URLs:
+3. On the Auth tab, add two redirect URLs. They start with the web service's `NEXTAUTH_URL`, which in production includes `www.`, and LinkedIn only accepts an exact match:
 
    ```
-   https://craftmyfunnel.live/api/auth/callback/linkedin
-   https://craftmyfunnel.live/api/profile/linkedin-login/callback
+   https://www.craftmyfunnel.live/api/auth/callback/linkedin
+   https://www.craftmyfunnel.live/api/profile/linkedin-login/callback
    ```
+
+   `GET /api/auth/providers` on the live site shows the first one as LinkedIn's `callbackUrl`.
 
 4. On Render (craftmyfunnel-web), set `LINKEDIN_LOGIN_CLIENT_ID` and `LINKEDIN_LOGIN_CLIENT_SECRET` and redeploy. `NEXTAUTH_URL` must be the public site URL. To switch sign-in with LinkedIn off again, remove the two variables and redeploy.
 
