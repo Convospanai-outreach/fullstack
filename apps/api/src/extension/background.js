@@ -86,6 +86,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg?.type === "CMF_CHECK_CONNECTION") {
+    checkConnection().then(sendResponse);
+    return true;
+  }
+
   if (msg?.type === "CMF_LIST_SEQUENCES") {
     listSequences().then(sendResponse);
     return true;
@@ -286,6 +291,20 @@ function workspaceRequest(settings) {
       "x-extension-key": settings.extensionKey
     }
   };
+}
+
+async function checkConnection() {
+  const state = await getState();
+  const request = workspaceRequest(state.settings);
+  if (!request) return { ok: false, error: "Not connected. Add the workspace URL, extension key and sync token." };
+  try {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/auth/validate`, { headers: request.headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.valid === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    return { ok: true, user: data.user || null, team: data.team || null };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
 }
 
 async function listSequences() {

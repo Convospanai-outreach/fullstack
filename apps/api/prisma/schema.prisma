@@ -2070,6 +2070,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  // Extension sync tokens only: the team the token was generated in. Null on tokens made before this column.
+  teamId       String?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

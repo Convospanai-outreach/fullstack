@@ -205,6 +205,10 @@
         <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://app.craftmyfunnel.com" autocomplete="off" /></label>
         <label>Extension key<input id="extensionKey" type="password" placeholder="Shared extension key" autocomplete="off" /></label>
         <label>Sync token<input id="syncToken" type="password" placeholder="Generate from Settings in the workspace" autocomplete="off" /></label>
+        <p id="connectionStatus" class="hint">Not connected yet.</p>
+        <div class="actions">
+          <button id="checkConnection" class="secondary" type="button">Check Connection</button>
+        </div>
         <div class="form-grid">
           <label>Default tone
             <select id="defaultTone">

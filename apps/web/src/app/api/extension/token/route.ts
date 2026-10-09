@@ -6,7 +6,7 @@ import { getCurrentContext } from "@/lib/auth";
 const TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export async function POST() {
-    const { userId } = await getCurrentContext();
+    const { userId, teamId } = await getCurrentContext();
     if (!userId) {
         return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
@@ -24,11 +24,14 @@ export async function POST() {
     // This row is an extension credential, not a web login: NextAuth uses JWT strategy
     // and never reads the Session table today. If that strategy is ever switched to
     // "database", this token would also become a valid NextAuth web session.
+    // The token is for the team the user is in right now: the extension saves every lead there,
+    // so someone in several teams needs no team picker (apps/api routes/extension/_lib/auth.ts).
     await prisma.session.create({
-        data: { sessionToken: token, userId, expires }
+        data: { sessionToken: token, userId, expires, teamId: teamId ?? null }
     });
+    const team = teamId ? await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true } }) : null;
 
-    return NextResponse.json({ ok: true, token, expiresAt: expires.toISOString() });
+    return NextResponse.json({ ok: true, token, expiresAt: expires.toISOString(), team });
 }
 
 // Revokes every extension token this user has minted (all devices) - the kill

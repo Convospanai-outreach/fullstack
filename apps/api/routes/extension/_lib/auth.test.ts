@@ -145,6 +145,42 @@ describe("validateExtensionAuth", () => {
     });
   });
 
+  describe("a sync token generated in a team", () => {
+    const member = (teamIds: string[]) => ({
+      id: "user-1",
+      email: "u@example.com",
+      name: "User",
+      memberships: teamIds.map((teamId) => ({ teamId })),
+    });
+
+    it("acts only in that team, even when the user is in several", async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: "team-b" });
+      mockPrisma.user.findUnique.mockResolvedValue(member(["team-a", "team-b"]));
+
+      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+
+      expect(result).toMatchObject({ ok: true, teamIds: ["team-b"] });
+    });
+
+    it("stops working once the user is no longer an active member of that team", async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: "team-b" });
+      mockPrisma.user.findUnique.mockResolvedValue(member(["team-a"]));
+
+      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+
+      expect(result).toMatchObject({ ok: false, status: 403, code: "TOKEN_TEAM_REVOKED" });
+    });
+
+    it("keeps an older token with no team working across the user's teams", async () => {
+      mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: null });
+      mockPrisma.user.findUnique.mockResolvedValue(member(["team-a", "team-b"]));
+
+      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+
+      expect(result).toMatchObject({ ok: true, teamIds: ["team-a", "team-b"] });
+    });
+  });
+
   it("refuses a user suspended from the superadmin panel", async () => {
     mockPrisma.session.findUnique.mockResolvedValue({
       userId: "user-1",
