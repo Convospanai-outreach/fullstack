@@ -6946,6 +6946,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     (`GET /extension/auth/validate`) names the team and account the token belongs to.
   - **Owner-owed:** reload the unpacked extension (or republish the store build). To use another team, switch team in
     the app and generate a new token.
+- **OPEN-339 (Fixed — "Continue with LinkedIn" as a sign-in method):** 2026-10-09.
+  - **What:** a third sign-in method next to Google and email + password. It uses its own LinkedIn app
+    (`LINKEDIN_LOGIN_CLIENT_ID`/`SECRET`) and is off until those are set; the buttons on `/login` and `/signup` and
+    the Settings card only show when it's on. It can't share the posting apps: LinkedIn invalidates a member's
+    earlier tokens for an app when that app asks for a different scope. Setup steps are in
+    `docs/linkedin-api-access.md`.
+  - **Rules (`apps/web/src/lib/linkedinLogin.ts`, `linkedInSignIn`):** a LinkedIn profile signs in to the account it is
+    connected to (an `Account` row, provider `linkedin`). An existing account is connected from Settings > General
+    while signed in (`/api/profile/linkedin-login/start` and `/callback`, signed state tied to the signed-in user); it
+    is never connected by matching email. A profile with a verified email that no account uses creates a new account
+    and team through the same path as a Google signup, invite links included. No verified email, a suspended
+    account and enforced SSO are refused. One LinkedIn profile per account.
+  - **NextAuth:** a hand-written provider, because the bundled one calls retired LinkedIn endpoints; the token and
+    userinfo calls are made in the provider. LinkedIn tokens are not saved (`adapter.linkAccount` in `auth.ts`).
+  - **Tests:** the rules, the provider and the Settings flow as unit tests, plus `auth.linkedinFlow.test.ts`, which
+    runs NextAuth's own handler end to end against a fake LinkedIn.
+  - **Owner-owed:** create the sign-in LinkedIn app with its two redirect URLs, then set
+    `LINKEDIN_LOGIN_CLIENT_ID` and `LINKEDIN_LOGIN_CLIENT_SECRET` on Render. Not built: changing or removing a
+    connected LinkedIn profile.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

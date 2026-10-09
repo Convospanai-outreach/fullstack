@@ -26,6 +26,30 @@ The API VMs need no LinkedIn secret. Publishing and the daily token check use th
 4. On Render (craftmyfunnel-web), set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` and `LINKEDIN_REDIRECT_URI`, then redeploy.
 5. In a workspace with the creator funnel on, go to Settings > Social accounts and click **Connect LinkedIn profile**.
 
+## Sign in with LinkedIn (login method)
+
+"Continue with LinkedIn" on the sign-in and signup pages needs a **third LinkedIn app, used for nothing else**. It must not be the profile app: LinkedIn invalidates a member's earlier access tokens for an app when that app asks the same member for a different scope, so signing in through the profile app would disconnect the member's saved posting connection. The buttons stay hidden until this app's keys are set.
+
+1. At https://www.linkedin.com/developers/apps, create an app and associate it with the CraftMyFunnel LinkedIn page.
+2. On the Products tab, add **Sign In with LinkedIn using OpenID Connect** only.
+3. On the Auth tab, add two redirect URLs:
+
+   ```
+   https://craftmyfunnel.live/api/auth/callback/linkedin
+   https://craftmyfunnel.live/api/profile/linkedin-login/callback
+   ```
+
+4. On Render (craftmyfunnel-web), set `LINKEDIN_LOGIN_CLIENT_ID` and `LINKEDIN_LOGIN_CLIENT_SECRET` and redeploy. `NEXTAUTH_URL` must be the public site URL. To switch sign-in with LinkedIn off again, remove the two variables and redeploy.
+
+How it behaves:
+
+- **A connected profile signs in.** A LinkedIn profile signs in to the account it was connected to, whatever email LinkedIn has for it.
+- **Existing accounts connect first.** Someone who already has an account signs in the usual way, then chooses **Connect LinkedIn** under Settings > General. A LinkedIn profile is never attached to an existing account because the email matches.
+- **New people get an account.** A LinkedIn profile with a verified email that no account uses creates a new account and team, like a Google signup. An invite link still joins the inviting team.
+- **Refused:** a profile with no verified email, a suspended account, and an account whose email domain enforces SSO.
+- **One profile per account.** Changing or removing the connected profile isn't in the app yet.
+- **Scopes and data.** Sign-in and connecting both ask for `openid profile email`. No LinkedIn token is stored for sign-in. This is separate from **Connect LinkedIn profile** under Settings > Social accounts, which is for posting and uses the profile app.
+
 ## Setting up the pages app
 
 1. Create a **second, new** app with no other products, associated with the same LinkedIn page.

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { LogoMark } from "@/components/brand/LogoMark";
+import LinkedInSignInButton from "@/components/auth/LinkedInSignInButton";
 import { postLoginPath } from "@/lib/postLoginPath";
 
 function getRedirectUrl() {
@@ -101,6 +102,7 @@ function LoginForm() {
             >
                 Continue with Google
             </button>
+            <LinkedInSignInButton onClick={() => signIn("linkedin", { callbackUrl: getRedirectUrl() })} />
             <p className="mt-6 text-center text-sm text-slate-400">
                 New here? <Link href="/signup" className="text-white underline">Create an account</Link>
             </p>
@@ -113,7 +115,7 @@ function SsoRequiredNotice() {
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-sm text-amber-100">
             <p>
                 Your workspace requires signing in through your organization&apos;s SSO provider,
-                not a direct Google sign-in. Contact your workspace admin if you&apos;re unsure how
+                not a direct Google or LinkedIn sign-in. Contact your workspace admin if you&apos;re unsure how
                 to access that.
             </p>
             <button
@@ -127,6 +129,14 @@ function SsoRequiredNotice() {
     );
 }
 
+// Why a LinkedIn sign-in was turned away (set by linkedInSignIn in @/lib/linkedinLogin).
+const LINKEDIN_NOTICES: Record<string, string> = {
+    "linkedin-not-connected":
+        "That LinkedIn profile isn't connected to a CraftMyFunnel account yet. Sign in below the way you usually do, then choose Connect LinkedIn on the Settings page that opens.",
+    "linkedin-no-email":
+        "LinkedIn didn't share a verified email address, so we couldn't create an account from it. Create an account with your email or Google instead.",
+};
+
 function SuspendedNotice() {
     return (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-sm text-amber-100">
@@ -139,6 +149,7 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
     const ssoRequired = searchParams.get("error") === "sso-required";
     const suspended = searchParams.get("error") === "suspended";
+    const linkedInNotice = LINKEDIN_NOTICES[searchParams.get("error") ?? ""];
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
@@ -147,6 +158,11 @@ export default function LoginPage() {
                     <LogoMark priority className="h-9 w-9" />
                     CraftMyFunnel AI
                 </Link>
+                {linkedInNotice && (
+                    <p role="alert" className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+                        {linkedInNotice}
+                    </p>
+                )}
                 {suspended ? <SuspendedNotice /> : ssoRequired ? <SsoRequiredNotice /> : <LoginForm />}
             </div>
         </div>
