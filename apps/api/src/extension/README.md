@@ -25,6 +25,7 @@ The popup provides:
 - activity log with the last five events
 - after a lead is synced, adding it to one of the team's switched-on sequences (a lead with no email yet joins once it has one)
 - settings for workspace URL, optional token, default tone, and default outreach angle
+- a connection check that names the CraftMyFunnel team and account the sync token belongs to (the token is tied to the team it was generated in)
 
 Active Version 1 permissions:
 

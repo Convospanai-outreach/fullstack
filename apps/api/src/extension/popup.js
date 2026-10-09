@@ -31,6 +31,8 @@ const els = {
   sequencePicker: document.getElementById("sequencePicker"),
   sequenceSelect: document.getElementById("sequenceSelect"),
   addToSequence: document.getElementById("addToSequence"),
+  connectionStatus: document.getElementById("connectionStatus"),
+  checkConnection: document.getElementById("checkConnection"),
   clearLocalData: document.getElementById("clearLocalData"),
   activityLog: document.getElementById("activityLog"),
   statusMsg: document.getElementById("statusMsg"),
@@ -84,7 +86,7 @@ init();
 function init() {
   renderStaticOptions();
   bindEvents();
-  loadState();
+  loadState().then(checkConnection);
 }
 
 function bindEvents() {
@@ -99,6 +101,7 @@ function bindEvents() {
   els.markLinkedInDone.addEventListener("click", markLinkedInDone);
   els.openLead.addEventListener("click", openLeadInWorkspace);
   els.addToSequence.addEventListener("click", addToSequence);
+  els.checkConnection.addEventListener("click", checkConnection);
   els.clearLocalData.addEventListener("click", clearLocalData);
 
   Object.values(fields).forEach((field) => {
@@ -413,6 +416,21 @@ async function markLinkedInDone() {
   setBusy(els.markLinkedInDone, false);
   await loadState();
   setStatus(response?.ok ? "LinkedIn outreach marked as done." : response?.error || "Could not update LinkedIn status.", response?.ok ? "success" : "error");
+}
+
+// Shows which CraftMyFunnel team and account the sync token belongs to, so it can be checked
+// against the team shown next to the token on the setup page.
+async function checkConnection() {
+  await persistState(readStatePatch());
+  els.connectionStatus.textContent = "Checking...";
+  const response = await chrome.runtime.sendMessage({ type: "CMF_CHECK_CONNECTION" });
+  if (!response?.ok) {
+    els.connectionStatus.textContent = response?.error || "Not connected.";
+    return;
+  }
+  els.connectionStatus.textContent = response.team?.name
+    ? `Connected. Leads are saved to the team "${response.team.name}" as ${response.user?.email || "your account"}.`
+    : `Connected as ${response.user?.email || "your account"}, but this token isn't tied to one team. Generate a new sync token in CraftMyFunnel.`;
 }
 
 async function loadSequences() {

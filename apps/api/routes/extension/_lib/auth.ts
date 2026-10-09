@@ -9,7 +9,8 @@ export type ExtensionAuthFailureCode =
   | "LEGACY_IDENTITY_DISABLED"
   | "INVALID_TOKEN"
   | "USER_NOT_FOUND"
-  | "ACCOUNT_SUSPENDED";
+  | "ACCOUNT_SUSPENDED"
+  | "TOKEN_TEAM_REVOKED";
 
 type ExtensionAuthResult =
   | {
@@ -61,7 +62,10 @@ function readAuthToken(req: NextRequest): string | null {
   return trimmed || null;
 }
 
-async function resolveUserId(req: NextRequest): Promise<string | null> {
+// Who the request is from, and - for a sync token generated in a team - which team it's for.
+type ExtensionIdentity = { userId: string; tokenTeamId: string | null };
+
+async function resolveIdentity(req: NextRequest): Promise<ExtensionIdentity | null> {
   const allowLegacyFallbacks = isLegacyFallbackEnabled();
   const explicitUserId = req.headers.get("x-user-id")?.trim();
   const token = readAuthToken(req);
@@ -72,7 +76,7 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
       where: { id: explicitUserId },
       select: { id: true },
     });
-    if (directUser?.id) return directUser.id;
+    if (directUser?.id) return { userId: directUser.id, tokenTeamId: null };
   }
 
   if (!token) {
@@ -83,10 +87,10 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   // POST /api/extension/token (apps/web, NextAuth-authenticated), stored as Session rows.
   const session = await prisma.session.findUnique({
     where: { sessionToken: token },
-    select: { userId: true, expires: true },
+    select: { userId: true, expires: true, teamId: true },
   });
   if (session?.userId && session.expires > new Date()) {
-    return session.userId;
+    return { userId: session.userId, tokenTeamId: session.teamId ?? null };
   }
 
   if (!allowLegacyFallbacks) {
@@ -102,7 +106,7 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
     where: { id: token },
     select: { id: true },
   });
-  return directUser?.id ?? null;
+  return directUser?.id ? { userId: directUser.id, tokenTeamId: null } : null;
 }
 
 export async function validateExtensionAuth(req: NextRequest): Promise<ExtensionAuthResult> {
@@ -128,7 +132,8 @@ export async function validateExtensionAuth(req: NextRequest): Promise<Extension
     return failure(401, "LEGACY_IDENTITY_DISABLED", "Legacy identity fallback is disabled in production");
   }
 
-  const userId = await resolveUserId(req);
+  const identity = await resolveIdentity(req);
+  const userId = identity?.userId;
   if (!userId) {
     const bearerInRequest = rawAuth?.trim().toLowerCase().startsWith("bearer ") ?? false;
     if (!hasToken && allowLegacyFallbacks && explicitUserId) {
@@ -161,5 +166,14 @@ export async function validateExtensionAuth(req: NextRequest): Promise<Extension
   }
 
   const teamIds = Array.from(new Set(user.memberships.map((m) => m.teamId).filter(Boolean)));
+  // A sync token generated in a team only ever acts in that team: every route resolves its team
+  // from teamIds, so a request naming another team is refused there (TEAM_ACCESS_DENIED), and a
+  // user in several teams needs no team picker. The token stops working once the user leaves the team.
+  if (identity?.tokenTeamId) {
+    if (!teamIds.includes(identity.tokenTeamId)) {
+      return failure(403, "TOKEN_TEAM_REVOKED", "You're no longer in the team this sync token was generated for. Generate a new one in CraftMyFunnel.");
+    }
+    return { ok: true, user, teamIds: [identity.tokenTeamId] };
+  }
   return { ok: true, user, teamIds };
 }

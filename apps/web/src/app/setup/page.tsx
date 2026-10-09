@@ -918,7 +918,7 @@ function WabaSetupSection() {
 }
 
 function ExtensionSyncToken() {
-  const [syncToken, setSyncToken] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [syncToken, setSyncToken] = useState<{ token: string; expiresAt: string; team: { id: string; name: string } | null } | null>(null);
   const [generating, setGenerating] = useState(false);
 
   async function generate() {
@@ -930,7 +930,7 @@ function ExtensionSyncToken() {
         toast.error(data.error || "Failed to generate sync token");
         return;
       }
-      setSyncToken({ token: data.token, expiresAt: data.expiresAt });
+      setSyncToken({ token: data.token, expiresAt: data.expiresAt, team: data.team ?? null });
     } catch (error: any) {
       toast.error(error?.message || "Failed to generate sync token");
     } finally {
@@ -952,7 +952,7 @@ function ExtensionSyncToken() {
     <section className={panelClass}>
       <h3 className="text-lg font-semibold text-white">Chrome extension sync token</h3>
       <p className="mt-2 text-sm text-slate-400">
-        The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account.
+        The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account. A token is tied to the team you&apos;re in when you generate it: the extension saves every lead to that team.
       </p>
       <button
         type="button"
@@ -973,6 +973,11 @@ function ExtensionSyncToken() {
             </button>
           </div>
           <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
+          {syncToken.team && (
+            <p className="text-xs text-slate-300">
+              This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
+            </p>
+          )}
         </div>
       )}
     </section>

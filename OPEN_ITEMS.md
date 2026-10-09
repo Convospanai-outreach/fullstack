@@ -6934,6 +6934,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     (`enrollWaitingSequences`, 50 per run), which also retries an enrolment that failed. Choosing, enrolling and
     dropping a choice are each logged as a lead activity.
   - **Owner-owed:** reload the unpacked extension (or republish the store build) to get the new popup.
+- **OPEN-338 (Fixed — an extension sync token is tied to the team it was generated in):** 2026-10-09.
+  - **Before:** a sync token identified only the user, so for someone in more than one team the extension couldn't tell
+    which team to save to and every call returned `TEAM_ID_REQUIRED` (the V1 popup has no team setting).
+  - **Now:** `POST /api/extension/token` (apps/web) stores the team the user is in on the token row (`Session.teamId`,
+    migration `20261021120000_extension_token_team`). `validateExtensionAuth` narrows the request to that team, so
+    every extension route resolves it without a team id and a request naming another team is refused. The token stops
+    working once the user is no longer an active member of that team (`TOKEN_TEAM_REVOKED`). Tokens made before this
+    keep working as they did.
+  - **Shown in both places:** `/setup` names the team next to the new token; the popup's "Check Connection"
+    (`GET /extension/auth/validate`) names the team and account the token belongs to.
+  - **Owner-owed:** reload the unpacked extension (or republish the store build). To use another team, switch team in
+    the app and generate a new token.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
