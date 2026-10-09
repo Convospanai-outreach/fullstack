@@ -6,10 +6,11 @@ import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 
-// "Continue with LinkedIn" as a way to sign in. It uses the profile LinkedIn app
-// (LINKEDIN_CLIENT_ID, the app behind creator-funnel "Connect LinkedIn profile") and is off
-// unless LINKEDIN_LOGIN_ENABLED=true, because both redirect URLs in docs/linkedin-api-access.md
-// must be on that app first.
+// "Continue with LinkedIn" as a way to sign in. It has its own LinkedIn app
+// (LINKEDIN_LOGIN_CLIENT_ID/SECRET, setup in docs/linkedin-api-access.md) and is off until those
+// are set. It must not share the creator-funnel apps: LinkedIn invalidates a member's earlier
+// access tokens for an app when the same app asks that member for a different scope, so signing
+// in through the posting app would disconnect the member's saved posting token.
 //
 // A LinkedIn identity signs in only when it is already connected to an account (an Account row,
 // provider "linkedin"), or when its verified email belongs to nobody yet, which creates a new
@@ -22,12 +23,16 @@ import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 // https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2
 // (scopes openid profile email; GET /v2/userinfo -> sub, name, picture, email, email_verified;
 // email and email_verified are optional; sub is per app)
+// https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow
+// ("If you request a different scope than the previously granted scope, all the previous access
+// tokens are invalidated."), which is also why sign-in and Settings connect ask for the same scope.
 
 const AUTHORIZE_URL = "https://www.linkedin.com/oauth/v2/authorization";
 const TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken";
 const USERINFO_URL = "https://api.linkedin.com/v2/userinfo";
 const TIMEOUT_MS = 15_000;
 const STATE_MAX_AGE_MS = 10 * 60 * 1000;
+const SCOPE = "openid profile email";
 const CONNECT_CALLBACK_PATH = "/api/profile/linkedin-login/callback";
 
 export const LINKEDIN_NOT_CONNECTED = "/login?error=linkedin-not-connected";
@@ -42,9 +47,8 @@ type ConnectState = { userId: string; nonce: string; ts: number };
 export class LinkedInLoginError extends Error {}
 
 function client() {
-    if (process.env["LINKEDIN_LOGIN_ENABLED"] !== "true") return null;
-    const clientId = process.env["LINKEDIN_CLIENT_ID"];
-    const clientSecret = process.env["LINKEDIN_CLIENT_SECRET"];
+    const clientId = process.env["LINKEDIN_LOGIN_CLIENT_ID"];
+    const clientSecret = process.env["LINKEDIN_LOGIN_CLIENT_SECRET"];
     const baseUrl = process.env["NEXTAUTH_URL"];
     if (!clientId || !clientSecret || !baseUrl) return null;
     return { clientId, clientSecret, baseUrl: baseUrl.replace(/\/+$/, "") };
@@ -109,7 +113,7 @@ export function linkedInLoginProvider(): OAuthConfig<LinkedInProfile> | null {
         type: "oauth",
         clientId: config.clientId,
         clientSecret: config.clientSecret,
-        authorization: { url: AUTHORIZE_URL, params: { scope: "openid profile email" } },
+        authorization: { url: AUTHORIZE_URL, params: { scope: SCOPE } },
         checks: ["state"],
         token: {
             url: TOKEN_URL,
@@ -213,7 +217,7 @@ export function buildLinkedInLoginConnectUrl(userId: string): string {
         client_id: config.clientId,
         redirect_uri: connectRedirectUri(config.baseUrl),
         state: `${body}.${stateSignature(body)}`,
-        scope: "openid profile",
+        scope: SCOPE,
     });
     return `${AUTHORIZE_URL}?${params.toString()}`;
 }

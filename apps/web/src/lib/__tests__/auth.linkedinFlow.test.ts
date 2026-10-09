@@ -11,9 +11,8 @@ type User = { id: string; email: string; name?: string | null; suspendedAt?: Dat
 type Account = Record<string, unknown> & { userId: string; provider: string; providerAccountId: string };
 
 const { db, requestCookies, mockCreateUser } = vi.hoisted(() => {
-    process.env["LINKEDIN_LOGIN_ENABLED"] = "true";
-    process.env["LINKEDIN_CLIENT_ID"] = "client-id";
-    process.env["LINKEDIN_CLIENT_SECRET"] = "client-secret";
+    process.env["LINKEDIN_LOGIN_CLIENT_ID"] = "client-id";
+    process.env["LINKEDIN_LOGIN_CLIENT_SECRET"] = "client-secret";
     process.env["GOOGLE_CLIENT_ID"] = "google-id";
     process.env["GOOGLE_CLIENT_SECRET"] = "google-secret";
     process.env["NEXTAUTH_URL"] = "https://app.test";

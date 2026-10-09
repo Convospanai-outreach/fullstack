@@ -2,9 +2,8 @@ import crypto from "crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockIsSsoEnforcedForEmail, mockSyncGoogleUserToApp, mockCookies, mockGetToken } = vi.hoisted(() => {
-    process.env["LINKEDIN_LOGIN_ENABLED"] = "true";
-    process.env["LINKEDIN_CLIENT_ID"] = "client-id";
-    process.env["LINKEDIN_CLIENT_SECRET"] = "client-secret";
+    process.env["LINKEDIN_LOGIN_CLIENT_ID"] = "client-id";
+    process.env["LINKEDIN_LOGIN_CLIENT_SECRET"] = "client-secret";
     process.env["NEXTAUTH_URL"] = "https://app.test/";
     process.env["NEXTAUTH_SECRET"] = "test-secret";
     return {
@@ -160,17 +159,19 @@ describe("linkedInLoginProvider", () => {
         provider: { callbackUrl: "https://app.test/api/auth/callback/linkedin" },
     });
 
-    it("is off unless the switch and the app keys are all set", () => {
+    it("is off unless its own LinkedIn app's keys are set, and never borrows the posting app's", () => {
         expect(linkedInLoginEnabled()).toBe(true);
-        for (const key of ["LINKEDIN_LOGIN_ENABLED", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET", "NEXTAUTH_URL"]) {
+        process.env["LINKEDIN_CLIENT_ID"] = "posting-id";
+        process.env["LINKEDIN_CLIENT_SECRET"] = "posting-secret";
+        for (const key of ["LINKEDIN_LOGIN_CLIENT_ID", "LINKEDIN_LOGIN_CLIENT_SECRET", "NEXTAUTH_URL"]) {
             const saved = process.env[key];
             delete process.env[key];
             expect(linkedInLoginProvider()).toBeNull();
+            expect(linkedInLoginEnabled()).toBe(false);
             process.env[key] = saved;
         }
-        process.env["LINKEDIN_LOGIN_ENABLED"] = "1";
-        expect(linkedInLoginEnabled()).toBe(false);
-        process.env["LINKEDIN_LOGIN_ENABLED"] = "true";
+        delete process.env["LINKEDIN_CLIENT_ID"];
+        delete process.env["LINKEDIN_CLIENT_SECRET"];
     });
 
     it("refuses a callback whose state doesn't match, before contacting LinkedIn", async () => {
@@ -235,7 +236,9 @@ describe("Connect LinkedIn from Settings", () => {
 
         expect(url.origin + url.pathname).toBe("https://www.linkedin.com/oauth/v2/authorization");
         expect(url.searchParams.get("redirect_uri")).toBe("https://app.test/api/profile/linkedin-login/callback");
-        expect(url.searchParams.get("scope")).toBe("openid profile");
+        // The same scope as sign-in: a different one would invalidate the other's grant.
+        expect(url.searchParams.get("scope")).toBe("openid profile email");
+        expect(url.searchParams.get("client_id")).toBe("client-id");
         expect(verifyLinkedInLoginState(url.searchParams.get("state"))?.userId).toBe("user-1");
     });
 
