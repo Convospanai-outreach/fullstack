@@ -14,6 +14,69 @@ import {
 } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
+// Lets a signed-in user choose the LinkedIn profile that may sign in as them. Hidden while
+// LinkedIn sign-in is switched off (see @/lib/linkedinLogin).
+function LinkedInLoginSection() {
+    const [status, setStatus] = useState<{ available: boolean; connected: boolean } | null>(null);
+    const [message, setMessage] = useState("");
+    const [starting, setStarting] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("linkedinLoginError")) setMessage(params.get("linkedinLoginError") || "");
+        else if (params.get("linkedinLogin") === "not-connected") setMessage("That LinkedIn profile isn't connected to your account yet. Connect it here first.");
+        fetch("/api/profile/linkedin-login")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => setStatus(data))
+            .catch(() => {});
+    }, []);
+
+    const connect = async () => {
+        setStarting(true);
+        setMessage("");
+        try {
+            const res = await fetch("/api/profile/linkedin-login/start");
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.authUrl) throw new Error();
+            window.location.href = data.authUrl;
+        } catch {
+            setMessage("Couldn't start LinkedIn sign-in. Try again.");
+            setStarting(false);
+        }
+    };
+
+    if (!status?.available) return null;
+    return (
+        <section className="rounded-xl border border-border bg-muted p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 className="font-semibold text-foreground">Sign in with LinkedIn</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        {status.connected
+                            ? "A LinkedIn profile is connected. You can use Continue with LinkedIn on the sign-in page."
+                            : "Connect your LinkedIn profile to sign in to this account with Continue with LinkedIn."}
+                    </p>
+                    {message && <p role="alert" className="mt-2 text-sm text-amber-300">{message}</p>}
+                </div>
+                {status.connected ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Connected
+                    </span>
+                ) : (
+                    <button
+                        onClick={connect}
+                        disabled={starting}
+                        className="shrink-0 rounded-lg bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-300 transition-colors hover:bg-brand-500/25 disabled:opacity-50"
+                    >
+                        {starting ? "Opening LinkedIn..." : "Connect LinkedIn"}
+                    </button>
+                )}
+            </div>
+        </section>
+    );
+}
+
 function initials(name?: string | null, email?: string | null) {
     const source = name?.trim() || email?.trim() || "User";
     const parts = source.split(/\s+/).filter(Boolean);
@@ -121,6 +184,8 @@ export default function GeneralSettingsPage() {
                     </div>
                 </div>
             </section>
+
+            <LinkedInLoginSection />
 
             <section className="grid gap-4 md:grid-cols-3">
                 <Link

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
+import type { AdapterAccount } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
@@ -15,6 +16,7 @@ import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 import { authorizeCredentials } from "@/lib/passwordAuth";
 import { provisionUserTeam } from "@/lib/passwordOnboarding";
 import { forgetUserAccess, getUserAccess, sessionVersionMatches } from "@/lib/userAccess";
+import { linkedInLoginProvider, linkedInSignIn } from "@/lib/linkedinLogin";
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -29,12 +31,25 @@ function applyDefaultClaims(token: JWT) {
     token.enterpriseRole = DEFAULT_ENTERPRISE_ROLE;
 }
 
+const prismaAdapter = PrismaAdapter(prisma as any);
+const linkedInProvider = linkedInLoginProvider();
+
 export const authOptions: NextAuthOptions = {
-    adapter: PrismaAdapter(prisma as any),
+    adapter: {
+        ...prismaAdapter,
+        // LinkedIn only proves who is signing in, so its access token is never saved.
+        linkAccount: (account: AdapterAccount) =>
+            prismaAdapter.linkAccount?.(
+                account.provider === "linkedin"
+                    ? { userId: account.userId, type: account.type, provider: account.provider, providerAccountId: account.providerAccountId }
+                    : account
+            ),
+    },
     // Google and email+password (Clerk removed). Signup is open: any verified
     // Google account, or any password signup that verifies its email, without a
     // matching invite gets its own new team - see syncGoogleUserToApp in
     // @/lib/googleOnboarding and provisionUserTeam in @/lib/passwordOnboarding.
+    // LinkedIn sign-in is added when it's switched on - see @/lib/linkedinLogin.
     providers: [
         CredentialsProvider({
             id: "credentials",
@@ -52,10 +67,11 @@ export const authOptions: NextAuthOptions = {
             // Account row and throws OAuthAccountNotLinked before ever consulting
             // the signIn callback's manual `user.id` override below - this is what
             // blocked every pre-Google-era (former Clerk) user from signing back
-            // in. Safe here: Google is the sole provider and the signIn callback
-            // already gates on email_verified before any linking happens.
+            // in. Safe here: the signIn callback gates on Google's email_verified
+            // before any linking happens (LinkedIn has its own gate, linkedInSignIn).
             allowDangerousEmailAccountLinking: true,
         }),
+        ...(linkedInProvider ? [linkedInProvider] : []),
     ],
     callbacks: {
         signIn: async ({ user, account, profile }) => {
@@ -63,6 +79,12 @@ export const authOptions: NextAuthOptions = {
             // and SSO enforcement; there is no OAuth profile to inspect.
             if (account?.provider === "credentials") {
                 return true;
+            }
+
+            // LinkedIn never falls through to the Google rules below: those attach a
+            // sign-in to an existing account by email, which LinkedIn must not do.
+            if (account?.provider === "linkedin") {
+                return linkedInSignIn(account.providerAccountId, profile);
             }
 
             // Only trust addresses Google has actually verified.

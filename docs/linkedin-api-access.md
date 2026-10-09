@@ -26,6 +26,28 @@ The API VMs need no LinkedIn secret. Publishing and the daily token check use th
 4. On Render (craftmyfunnel-web), set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` and `LINKEDIN_REDIRECT_URI`, then redeploy.
 5. In a workspace with the creator funnel on, go to Settings > Social accounts and click **Connect LinkedIn profile**.
 
+## Sign in with LinkedIn (login method)
+
+"Continue with LinkedIn" on the sign-in and signup pages uses the profile app. It stays hidden until it is switched on.
+
+1. On the profile app's Auth tab, add two more redirect URLs:
+
+   ```
+   https://craftmyfunnel.live/api/auth/callback/linkedin
+   https://craftmyfunnel.live/api/profile/linkedin-login/callback
+   ```
+
+2. On Render (craftmyfunnel-web), set `LINKEDIN_LOGIN_ENABLED=true` and redeploy. `NEXTAUTH_URL` must be the public site URL. To switch it off again, remove the variable and redeploy.
+
+How it behaves:
+
+- **A connected profile signs in.** A LinkedIn profile signs in to the account it was connected to, whatever email LinkedIn has for it.
+- **Existing accounts connect first.** Someone who already has an account signs in the usual way, then chooses **Connect LinkedIn** under Settings > General. A LinkedIn profile is never attached to an existing account because the email matches.
+- **New people get an account.** A LinkedIn profile with a verified email that no account uses creates a new account and team, like a Google signup. An invite link still joins the inviting team.
+- **Refused:** a profile with no verified email, a suspended account, and an account whose email domain enforces SSO.
+- **One profile per account.** Changing or removing the connected profile isn't in the app yet.
+- **Scopes and data.** Sign-in asks for `openid profile email`; connecting asks for `openid profile`. No LinkedIn token is stored for sign-in. This is separate from **Connect LinkedIn profile** under Settings > Social accounts, which is for posting.
+
 ## Setting up the pages app
 
 1. Create a **second, new** app with no other products, associated with the same LinkedIn page.

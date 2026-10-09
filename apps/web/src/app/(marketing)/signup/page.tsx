@@ -6,8 +6,9 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { LogoMark } from "@/components/brand/LogoMark";
+import LinkedInSignInButton from "@/components/auth/LinkedInSignInButton";
 
-function handleGoogleSignup(inviteToken: string | undefined) {
+function handleOAuthSignup(provider: "google" | "linkedin", inviteToken: string | undefined) {
     // Google's OAuth redirect can't carry arbitrary metadata, so the invite
     // token is relayed via a short-lived cookie the signIn callback reads
     // server-side (apps/web/src/lib/auth.ts). Only relevant when following a
@@ -17,7 +18,7 @@ function handleGoogleSignup(inviteToken: string | undefined) {
     }
     // Google gives us no phone/company, so collect them first; the page forwards
     // to /onboarding straight away if the profile is already complete.
-    signIn("google", { callbackUrl: "/complete-profile?next=%2Fonboarding" });
+    signIn(provider, { callbackUrl: "/complete-profile?next=%2Fonboarding" });
 }
 
 const inputClass =
@@ -122,11 +123,12 @@ export default function SignupPage() {
                 </div>
                 <button
                     type="button"
-                    onClick={() => handleGoogleSignup(inviteToken)}
+                    onClick={() => handleOAuthSignup("google", inviteToken)}
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200"
                 >
                     Continue with Google
                 </button>
+                <LinkedInSignInButton onClick={() => handleOAuthSignup("linkedin", inviteToken)} />
                 <p className="mt-6 text-center text-sm text-slate-400">
                     Already have an account? <Link href="/login" className="text-white underline">Sign in</Link>
                 </p>
