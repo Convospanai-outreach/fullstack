@@ -6965,6 +6965,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Owner-owed:** create the sign-in LinkedIn app with its two redirect URLs, then set
     `LINKEDIN_LOGIN_CLIENT_ID` and `LINKEDIN_LOGIN_CLIENT_SECRET` on Render. Not built: changing or removing a
     connected LinkedIn profile.
+  - **2026-10-09 follow-up:** the redirect URLs in the setup doc now use `www.`, matching production's
+    `NEXTAUTH_URL`.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
