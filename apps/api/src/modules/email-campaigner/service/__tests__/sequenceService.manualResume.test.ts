@@ -179,6 +179,16 @@ describe("SequenceService.completeManualRun", () => {
         expect(row("sequenceEnrollment", "enrollment-1").status).toBe("MANUAL_REVIEW");
         expect(await SequenceService.completeManualRun("team-1", "run-li", now)).toEqual({ resumed: true });
     });
+
+    it("puts the sequence back when closing the step fails, so it can be marked done again", async () => {
+        mockDb.sequenceStepRun.updateMany.mockRejectedValueOnce(new Error("db down"));
+
+        await expect(SequenceService.completeManualRun("team-1", "run-li", now)).rejects.toThrow("db down");
+
+        expect(row("sequenceStepRun", "run-li").status).toBe("AWAITING_MANUAL_REVIEW");
+        expect(row("sequenceEnrollment", "enrollment-1").status).toBe("MANUAL_REVIEW");
+        expect(await SequenceService.completeManualRun("team-1", "run-li", now)).toEqual({ resumed: true });
+    });
 });
 
 describe("SequenceService.completeLinkedInRunsForLead", () => {

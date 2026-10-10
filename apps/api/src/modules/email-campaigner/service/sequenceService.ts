@@ -829,27 +829,29 @@ export class SequenceService {
                 ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null }
                 : { status: "SCHEDULING" },
         });
-        await client.sequenceStepRun.updateMany({
-            where: { id: run.id, teamId, status: "AWAITING_MANUAL_REVIEW" },
-            data: { status: "COMPLETED" },
-        });
-        if (taken.count !== 1 || exiting) return { resumed: false };
+        const resuming = taken.count === 1 && !exiting;
 
         try {
-            await this.scheduleNextStep(run, now);
+            await client.sequenceStepRun.updateMany({
+                where: { id: run.id, teamId, status: "AWAITING_MANUAL_REVIEW" },
+                data: { status: "COMPLETED" },
+            });
+            if (resuming) await this.scheduleNextStep(run, now);
         } catch (error) {
             // Put both back so marking the step done again retries, instead of leaving the enrollment mid-way.
-            await client.sequenceEnrollment.updateMany({
-                where: { id: run.enrollmentId, teamId, status: "SCHEDULING" },
-                data: { status: "MANUAL_REVIEW" },
-            });
-            await client.sequenceStepRun.updateMany({
-                where: { id: run.id, teamId, status: "COMPLETED" },
-                data: { status: "AWAITING_MANUAL_REVIEW" },
-            });
+            if (resuming) {
+                await client.sequenceEnrollment.updateMany({
+                    where: { id: run.enrollmentId, teamId, status: "SCHEDULING" },
+                    data: { status: "MANUAL_REVIEW" },
+                });
+                await client.sequenceStepRun.updateMany({
+                    where: { id: run.id, teamId, status: "COMPLETED" },
+                    data: { status: "AWAITING_MANUAL_REVIEW" },
+                });
+            }
             throw error;
         }
-        return { resumed: true };
+        return { resumed: resuming };
     }
 
     // The extension's "LinkedIn outreach done" for a lead: every sequence waiting on a LinkedIn
