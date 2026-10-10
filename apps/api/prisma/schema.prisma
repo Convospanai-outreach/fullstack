@@ -239,6 +239,8 @@ model Task {
   leadId      String?
   userId      String
   teamId      String
+  // Set when a sequence step handed this task to a person, so marking it done resumes the sequence.
+  sequenceStepRunId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -250,6 +252,7 @@ model Task {
   @@index([userId])
   @@index([leadId])
   @@index([status])
+  @@index([sequenceStepRunId])
 }
 
 model Campaign {

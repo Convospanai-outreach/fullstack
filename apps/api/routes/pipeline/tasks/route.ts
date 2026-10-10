@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
         const task = await PipelineService.createTask({
             ...body,
             userId: ctx.userId,
-            teamId: ctx.teamId
+            teamId: ctx.teamId,
+            // Only a sequence step links a task to its run.
+            sequenceStepRunId: undefined
         });
         return NextResponse.json({ success: true, data: task });
     } catch (e: any) {

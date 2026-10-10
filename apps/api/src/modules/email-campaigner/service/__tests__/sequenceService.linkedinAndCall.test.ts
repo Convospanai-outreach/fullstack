@@ -83,7 +83,7 @@ describe("SequenceService.executeRun - LinkedIn step types", () => {
             const result = await SequenceService.executeRun({ runId: "run-1" });
 
             expect(PipelineService.createTask).toHaveBeenCalledWith(
-                expect.objectContaining({ teamId: "team-1", userId: "user-1", leadId: "lead-1" })
+                expect.objectContaining({ teamId: "team-1", userId: "user-1", leadId: "lead-1", sequenceStepRunId: "run-1" })
             );
             expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
         }
@@ -100,7 +100,7 @@ describe("SequenceService.executeRun - LinkedIn step types", () => {
                 teamId: "team-1",
                 type: "OPEN_PROFILE",
                 idempotencyKey: "ext_openprofile_run-1",
-                payload: expect.objectContaining({ profileUrl: "https://linkedin.com/in/lead-1", leadId: "lead-1" }),
+                payload: expect.objectContaining({ profileUrl: "https://linkedin.com/in/lead-1", leadId: "lead-1", runId: "run-1" }),
             })
         );
     });

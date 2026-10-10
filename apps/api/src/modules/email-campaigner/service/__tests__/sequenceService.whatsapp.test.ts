@@ -129,7 +129,7 @@ describe("SequenceService.executeRun - whatsapp step", () => {
 
         expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
         expect(PipelineService.createTask).toHaveBeenCalledWith(
-            expect.objectContaining({ teamId: "team-1", userId: "user-1", leadId: "lead-1" })
+            expect.objectContaining({ teamId: "team-1", userId: "user-1", leadId: "lead-1", sequenceStepRunId: "run-1" })
         );
         expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
     });

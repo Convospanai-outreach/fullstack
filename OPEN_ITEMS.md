@@ -6967,6 +6967,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     connected LinkedIn profile.
   - **2026-10-09 follow-up:** the redirect URLs in the setup doc now use `www.`, matching production's
     `NEXTAUTH_URL`.
+- **OPEN-340 (Fixed — a sequence moves on after a step a person did by hand):** 2026-10-10.
+  - **What was wrong:** a LinkedIn step, and a WhatsApp step that has to be sent by hand, hand the step to a person
+    as a task and pause the enrollment (`MANUAL_REVIEW`). Nothing ever took it out of that state, so the sequence
+    stopped at its first such step and the later steps never ran.
+  - **Fix:** `Task.sequenceStepRunId` (migration `20261022120000_task_sequence_step_run`, both apps) links the
+    task to its step run. `SequenceService.completeManualRun` closes the run and schedules the next step; it is
+    called when the task is marked done (`PATCH /pipeline/tasks/[id]`) and, for LinkedIn steps, when the Chrome
+    extension marks LinkedIn outreach done for the lead (`completeLinkedInRunsForLead`, which also closes the
+    task). The extension task payload now carries `runId`.
+  - **Rules:** taking the enrollment out of `MANUAL_REVIEW` is the lock, so a second call does nothing and an
+    enrollment that has exited since stays exited. A lead who has replied, bounced or unsubscribed in the meantime
+    exits instead of resuming. If scheduling the next step fails, the step is put back so it can be marked done
+    again.
+  - **Not covered:** call steps (they go to the calling queue, not a task) and the `MANUAL_REVIEW` step type
+    (it creates no task) still have nothing that resumes them. Tasks created before this change carry no link;
+    production had no sequence enrollments when this was written, so there was nothing to repair.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

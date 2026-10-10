@@ -569,6 +569,7 @@ export class SequenceService {
                         ? `WhatsApp isn't automated for this team yet. Suggested message:\n\n${message}`
                         : `This message requires an approved WhatsApp template (${validation.reason}). Suggested message:\n\n${message}`,
                     priority: "MEDIUM",
+                    sequenceStepRunId: run.id,
                 });
             }
 
@@ -688,6 +689,7 @@ export class SequenceService {
                     ? `${actionLabel}. Suggested message:\n\n${run.step.body}`
                     : `${actionLabel} on ${lead.linkedIn}`,
                 priority: "MEDIUM",
+                sequenceStepRunId: run.id,
             });
         }
 
@@ -710,6 +712,7 @@ export class SequenceService {
                 payload: {
                     profileUrl: lead.linkedIn,
                     leadId: run.leadId,
+                    runId: run.id,
                     campaignId: run.enrollment?.campaign?.id ?? run.campaignId ?? null,
                     ...(useDraft ? { body } : { note: body }),
                 },
@@ -805,6 +808,73 @@ export class SequenceService {
             data: { status: "SKIPPED_EXITED", completedAt: now, errorCode },
         });
         return { stopped: stopped.count };
+    }
+
+    // A person finished a step the sequence handed to them (a LinkedIn step, a WhatsApp message
+    // sent by hand), so the sequence moves on to its next step. Taking the enrollment out of
+    // MANUAL_REVIEW is the lock: a second call finds nothing to take, and an enrollment that has
+    // exited since (a reply, a manual stop) is left exited.
+    static async completeManualRun(teamId: string, runId: string, now = new Date()) {
+        const client = db();
+        const run = await client.sequenceStepRun.findFirst({
+            where: { id: runId, teamId, status: "AWAITING_MANUAL_REVIEW" },
+            include: { step: true, enrollment: { include: { lead: true, sequence: true } } },
+        });
+        if (!run) return { resumed: false };
+
+        const exiting = Boolean(exitReason(run.enrollment?.lead));
+        const taken = await client.sequenceEnrollment.updateMany({
+            where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
+            data: exiting
+                ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null }
+                : { status: "SCHEDULING" },
+        });
+        await client.sequenceStepRun.updateMany({
+            where: { id: run.id, teamId, status: "AWAITING_MANUAL_REVIEW" },
+            data: { status: "COMPLETED" },
+        });
+        if (taken.count !== 1 || exiting) return { resumed: false };
+
+        try {
+            await this.scheduleNextStep(run, now);
+        } catch (error) {
+            // Put both back so marking the step done again retries, instead of leaving the enrollment mid-way.
+            await client.sequenceEnrollment.updateMany({
+                where: { id: run.enrollmentId, teamId, status: "SCHEDULING" },
+                data: { status: "MANUAL_REVIEW" },
+            });
+            await client.sequenceStepRun.updateMany({
+                where: { id: run.id, teamId, status: "COMPLETED" },
+                data: { status: "AWAITING_MANUAL_REVIEW" },
+            });
+            throw error;
+        }
+        return { resumed: true };
+    }
+
+    // The extension's "LinkedIn outreach done" for a lead: every sequence waiting on a LinkedIn
+    // step for that lead moves on, and the tasks those steps created are closed.
+    static async completeLinkedInRunsForLead(teamId: string, leadId: string, now = new Date()) {
+        const client = db();
+        const waiting = await client.sequenceStepRun.findMany({
+            where: { teamId, leadId, status: "AWAITING_MANUAL_REVIEW" },
+            select: { id: true, step: { select: { stepType: true } } },
+        });
+        const runIds: string[] = waiting
+            .filter((run: any) => LINKEDIN_STEP_TYPES.has(stepType(run.step)))
+            .map((run: any) => run.id);
+
+        let resumed = 0;
+        for (const runId of runIds) {
+            if ((await this.completeManualRun(teamId, runId, now)).resumed) resumed++;
+        }
+        if (runIds.length > 0) {
+            await prisma.task.updateMany({
+                where: { teamId, sequenceStepRunId: { in: runIds }, status: "TODO" },
+                data: { status: "DONE" },
+            });
+        }
+        return { resumed };
     }
 
     // Follows this sequence's SequenceEdge graph from currentStep to find what runs next.

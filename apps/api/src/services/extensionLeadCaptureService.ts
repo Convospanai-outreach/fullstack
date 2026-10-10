@@ -437,10 +437,15 @@ export async function markLinkedInOutreachDone(params: {
         }
     });
 
+    // A sequence waiting on a LinkedIn step for this lead moves on to its next step.
+    const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+    const { resumed } = await SequenceService.completeLinkedInRunsForLead(params.teamId, lead.id, now);
+
     return {
         success: true,
         leadId: updated.id,
         status: updated.status,
+        sequencesResumed: resumed,
         message: "LinkedIn outreach marked as done"
     };
 }
