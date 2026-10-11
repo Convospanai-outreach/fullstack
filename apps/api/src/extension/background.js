@@ -101,6 +101,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg?.type === "CMF_LIST_DUE_STEPS") {
+    listDueSteps().then(sendResponse);
+    return true;
+  }
+
+  if (msg?.type === "CMF_MARK_STEP_DONE") {
+    markStepDone(msg.runId).then(sendResponse);
+    return true;
+  }
+
   if (msg?.type === "CMF_CLEAR_LOCAL_DATA") {
     clearLocalData().then(sendResponse);
     return true;
@@ -220,8 +230,18 @@ async function savePreparedLead(payload) {
   };
 }
 
+// Where requests go. www.craftmyfunnel.live redirects to the bare domain, and the browser does
+// not follow a redirect for a request that carries the sync token, so the saved address is
+// corrected here instead of asking everyone to retype it.
+function workspaceBase(settings) {
+  return String(settings?.workspaceUrl || "")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/^https:\/\/www\.craftmyfunnel\.live$/i, "https://craftmyfunnel.live");
+}
+
 async function trySyncLead(lead, settings) {
-  const workspaceUrl = String(settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  const workspaceUrl = workspaceBase(settings);
   if (!workspaceUrl) return { ok: false, error: "Workspace URL not configured." };
 
   try {
@@ -249,7 +269,7 @@ async function trySyncLead(lead, settings) {
 
 async function markLinkedInOutreachDone(leadId, notes) {
   const state = await getState();
-  const workspaceUrl = String(state.settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  const workspaceUrl = workspaceBase(state.settings);
   const resolvedLeadId = leadId || state.savedLead?.leadId;
   if (!workspaceUrl || !state.settings?.syncToken || !state.settings?.extensionKey || !resolvedLeadId) {
     return { ok: false, error: "Sync the lead before marking LinkedIn outreach done." };
@@ -281,7 +301,7 @@ async function markLinkedInOutreachDone(leadId, notes) {
 }
 
 function workspaceRequest(settings) {
-  const workspaceUrl = String(settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  const workspaceUrl = workspaceBase(settings);
   if (!workspaceUrl || !settings?.syncToken || !settings?.extensionKey) return null;
   return {
     workspaceUrl,
@@ -339,6 +359,41 @@ async function addLeadToSequence(leadId, sequenceId) {
       state.activityLog,
       data.status === "ENROLLED" ? `Added to sequence: ${data.sequence?.name || ""}` : `Sequence chosen: ${data.sequence?.name || ""} (waiting for an email)`
     );
+    await chrome.storage.local.set({ activityLog });
+    return { ok: true, ...data, activityLog };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+// LinkedIn sequence steps that are waiting on this person in CraftMyFunnel.
+async function listDueSteps() {
+  const state = await getState();
+  const request = workspaceRequest(state.settings);
+  if (!request) return { ok: false, error: "Connect CraftMyFunnel in Settings to see your due steps." };
+  try {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/steps`, { headers: request.headers });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    return { ok: true, steps: Array.isArray(data.steps) ? data.steps : [] };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+// The person did the step on LinkedIn themselves; CraftMyFunnel moves the sequence on.
+async function markStepDone(runId) {
+  const state = await getState();
+  const request = workspaceRequest(state.settings);
+  if (!request || !runId) return { ok: false, error: "Connect CraftMyFunnel in Settings first." };
+  try {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/steps/${encodeURIComponent(runId)}/done`, {
+      method: "POST",
+      headers: request.headers
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    const activityLog = addActivity(state.activityLog, `LinkedIn step done: ${data.action || ""}`);
     await chrome.storage.local.set({ activityLog });
     return { ok: true, ...data, activityLog };
   } catch (error) {

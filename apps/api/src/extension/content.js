@@ -32,6 +32,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return false;
   }
 
+  if (msg?.type === "CMF_SHOW_DRAFT") {
+    sendResponse(showDraft(String(msg.name || ""), String(msg.message || "")));
+    return false;
+  }
+
   // V2 task executor (active only when the V2 background dispatches a task).
   // Assistive only: it inserts a draft for the human to review and send, or
   // captures a visible profile as a lead. It never clicks send/connect.
@@ -94,12 +99,93 @@ async function executeTask(task) {
 
 // Inserts draft text into the LinkedIn message composer for the user to review.
 // Focuses the box but never submits — the human presses Send.
-function insertDraftIntoComposer(text) {
-  if (!text) return { ok: false, error: "No draft text was provided." };
-  const composer =
+function findComposer() {
+  return (
     document.querySelector('div.msg-form__contenteditable[contenteditable="true"]') ||
     document.querySelector('div[role="textbox"][contenteditable="true"]') ||
-    document.querySelector('.msg-form__contenteditable[contenteditable="true"]');
+    document.querySelector('.msg-form__contenteditable[contenteditable="true"]')
+  );
+}
+
+const CMF_DRAFT_PANEL_ID = "cmf-draft-panel";
+const CMF_DRAFT_WAIT_MS = 2 * 60 * 1000;
+let cmfDraftObserver = null;
+let cmfDraftTimer = null;
+
+// A draft the person asked for from the popup's list of due steps. It goes into LinkedIn's
+// message box when that is open and empty. Otherwise it is shown on the page with a Copy button
+// and placed in the box once the person opens it. The message box is never opened from here and
+// nothing is sent: the person clicks Message and Send themselves.
+function showDraft(name, text) {
+  if (!text) return { ok: false, error: "This step has no message." };
+  closeDraftPanel();
+
+  if (placeDraftInEmptyComposer(text)) return { ok: true, inserted: true };
+
+  renderDraftPanel(name, text);
+  cmfDraftObserver = new MutationObserver(() => {
+    if (placeDraftInEmptyComposer(text)) closeDraftPanel();
+  });
+  cmfDraftObserver.observe(document.body, { childList: true, subtree: true });
+  // Stop watching the page after a while; the panel stays so the draft can still be copied.
+  cmfDraftTimer = setTimeout(stopWatchingForComposer, CMF_DRAFT_WAIT_MS);
+  return { ok: true, inserted: false };
+}
+
+// Text the person has already typed is never replaced.
+function placeDraftInEmptyComposer(text) {
+  const composer = findComposer();
+  if (!composer || composer.textContent.trim()) return false;
+  return insertDraftIntoComposer(text).ok;
+}
+
+function stopWatchingForComposer() {
+  cmfDraftObserver?.disconnect();
+  cmfDraftObserver = null;
+  clearTimeout(cmfDraftTimer);
+  cmfDraftTimer = null;
+}
+
+function closeDraftPanel() {
+  stopWatchingForComposer();
+  document.getElementById(CMF_DRAFT_PANEL_ID)?.remove();
+}
+
+function renderDraftPanel(name, text) {
+  const panel = document.createElement("div");
+  panel.id = CMF_DRAFT_PANEL_ID;
+  panel.style.cssText = "position:fixed;top:72px;right:16px;z-index:2147483647;width:300px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(15,23,42,.18)";
+
+  const title = document.createElement("strong");
+  title.textContent = name ? `CraftMyFunnel draft for ${name}` : "CraftMyFunnel draft";
+  const body = document.createElement("p");
+  body.style.cssText = "margin:8px 0;white-space:pre-wrap;max-height:200px;overflow:auto";
+  body.textContent = text;
+  const hint = document.createElement("p");
+  hint.style.cssText = "margin:0 0 8px;color:#475569;font-size:12px";
+  hint.textContent = "Click Message on this profile and the draft goes into the box. Nothing is sent for you.";
+
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.textContent = "Copy";
+  copy.addEventListener("click", () => {
+    navigator.clipboard.writeText(text).then(() => {
+      copy.textContent = "Copied";
+    });
+  });
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "Close";
+  close.style.marginLeft = "8px";
+  close.addEventListener("click", closeDraftPanel);
+
+  panel.append(title, body, hint, copy, close);
+  document.body.appendChild(panel);
+}
+
+function insertDraftIntoComposer(text) {
+  if (!text) return { ok: false, error: "No draft text was provided." };
+  const composer = findComposer();
 
   if (!composer) {
     return { ok: false, error: "Open the LinkedIn message composer and try again." };

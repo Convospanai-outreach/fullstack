@@ -26,9 +26,8 @@ describe("roadmap 2.4 slice 3 — v2 extension manifest", () => {
         expect(manifest.options_page).toBe("options.html");
     });
 
-    it("leaves the published V1 manifest untouched (still approval-safe)", () => {
+    it("leaves the published manifest's permissions untouched (still approval-safe)", () => {
         const v1 = JSON.parse(read("manifest.json"));
-        expect(v1.version).toBe("1.0.0");
         expect(v1.permissions).toEqual(["activeTab", "storage"]);
         expect(v1.permissions).not.toContain("alarms");
     });

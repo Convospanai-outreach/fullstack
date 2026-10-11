@@ -73,7 +73,7 @@ p {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -384,6 +384,28 @@ textarea {
 
 .activity-log li {
   margin-bottom: 5px;
+}
+
+.due-steps {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.due-steps li {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.due-steps small {
+  display: block;
+  color: var(--muted);
+}
+
+.due-message {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-size: 12px;
 }
 
 .status {
