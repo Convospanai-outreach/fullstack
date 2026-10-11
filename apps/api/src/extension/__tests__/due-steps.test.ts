@@ -92,6 +92,16 @@ describe("extension background: workspace address", () => {
     });
 });
 
+describe("extension background: captured profile address", () => {
+    const capture = (profileUrl: string) => loadBackground().send({ type: "CMF_STORE_VISIBLE_PROFILE", profile: { name: "Jane Doe", profileUrl } });
+
+    it("takes a profile on linkedin.com and refuses a look-alike domain", async () => {
+        expect((await capture("https://www.linkedin.com/in/jane-doe/")).ok).toBe(true);
+        expect((await capture("https://linkedin.com/in/jane-doe/")).ok).toBe(true);
+        expect((await capture("https://notlinkedin.com/in/jane-doe/")).ok).toBe(false);
+    });
+});
+
 describe("published manifest", () => {
     const manifest = JSON.parse(read("manifest.json"));
 

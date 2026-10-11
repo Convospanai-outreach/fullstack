@@ -419,7 +419,8 @@ function updateBadge(captureCount) {
 function isLinkedInProfileUrl(value) {
   try {
     const url = new URL(value);
-    return url.hostname.endsWith("linkedin.com") && url.pathname.includes("/in/");
+    const onLinkedIn = url.hostname === "linkedin.com" || url.hostname.endsWith(".linkedin.com");
+    return onLinkedIn && url.pathname.includes("/in/");
   } catch {
     return false;
   }
