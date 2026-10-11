@@ -23,6 +23,7 @@ export type KeywordTrigger = {
     replyText: string;
     publicCommentReply: string | null;
     landingPageId: string | null;
+    mauticPageUrl: string | null;
     active: boolean;
     sentLast7Days: number;
     lastError: string | null;
@@ -45,6 +46,7 @@ type Draft = {
     replyText: string;
     publicCommentReply: string;
     landingPageId: string;
+    mauticPageUrl: string;
 };
 
 const URL_BASE = getBrowserApiUrl("/content/keyword-triggers");
@@ -77,6 +79,7 @@ const emptyDraft = (accountId = "", postId = ""): Draft => ({
     replyText: "",
     publicCommentReply: "",
     landingPageId: "",
+    mauticPageUrl: "",
 });
 
 const fieldClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
@@ -118,6 +121,7 @@ export function KeywordTriggers() {
             replyText: draft.replyText,
             publicCommentReply: draft.scope === "DM" ? null : draft.publicCommentReply.trim() || null,
             landingPageId: draft.landingPageId || null,
+            mauticPageUrl: draft.mauticPageUrl.trim() || null,
         };
         try {
             if (draft.id) await send(`${URL_BASE}/${encodeURIComponent(draft.id)}`, "PATCH", body);
@@ -210,6 +214,7 @@ export function KeywordTriggers() {
                                             replyText: trigger.replyText,
                                             publicCommentReply: trigger.publicCommentReply ?? "",
                                             landingPageId: trigger.landingPageId ?? "",
+                                            mauticPageUrl: trigger.mauticPageUrl ?? "",
                                         })
                                     }
                                     className="text-muted-foreground hover:text-foreground disabled:opacity-50"
@@ -291,13 +296,24 @@ export function KeywordTriggers() {
                                 ))}
                             </select>
                         </label>
+                        <label className="space-y-1 text-sm">
+                            <span className="font-medium text-foreground">Mautic page link (optional)</span>
+                            <input
+                                className={fieldClass}
+                                type="url"
+                                placeholder="https://mautic.craftmyfunnel.live/your-page"
+                                value={draft.mauticPageUrl}
+                                onChange={(e) => setDraft({ ...draft, mauticPageUrl: e.target.value })}
+                            />
+                            <span className="text-xs text-muted-foreground">Sent instead of the landing page above while Mautic is connected; the landing page is the fallback.</span>
+                        </label>
                     </div>
 
                     <label className="block space-y-1 text-sm">
                         <span className="font-medium text-foreground">Message they get</span>
                         <textarea className={fieldClass} rows={3} value={draft.replyText} onChange={(e) => setDraft({ ...draft, replyText: e.target.value })} />
                         <span className={`text-xs ${replyBytes > REPLY_MAX_BYTES ? "text-destructive" : "text-muted-foreground"}`}>
-                            {replyBytes} / {REPLY_MAX_BYTES} bytes{draft.landingPageId ? ". The page link is added after it." : ""}
+                            {replyBytes} / {REPLY_MAX_BYTES} bytes{draft.landingPageId || draft.mauticPageUrl.trim() ? ". The page link is added after it." : ""}
                         </span>
                     </label>
 

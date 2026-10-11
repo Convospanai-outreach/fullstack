@@ -34,6 +34,16 @@ describe("keywordTriggerService", () => {
         expect(trigger).toMatchObject({ active: false, teamId: "team-a", createdById: "user-1", scope: "COMMENT", match: "CONTAINS", keywords: ["GUIDE", "guide"] });
     });
 
+    it("accepts a Mautic page link only on the configured Mautic host", async () => {
+        process.env["MAUTIC_BASE_URL"] = "https://mautic.craftmyfunnel.live";
+        await expect(createTrigger("team-a", "user-1", input({ mauticPageUrl: "https://evil.example/p" }))).rejects.toMatchObject({ status: 400 });
+        await expect(createTrigger("team-a", "user-1", input({ mauticPageUrl: "http://mautic.craftmyfunnel.live/p" }))).rejects.toMatchObject({ status: 400 });
+        const trigger = await createTrigger("team-a", "user-1", input({ mauticPageUrl: "https://mautic.craftmyfunnel.live/guide" }));
+        expect(trigger).toMatchObject({ mauticPageUrl: "https://mautic.craftmyfunnel.live/guide", active: false });
+        delete process.env["MAUTIC_BASE_URL"];
+        await expect(createTrigger("team-a", "user-1", input({ mauticPageUrl: "https://mautic.craftmyfunnel.live/guide" }))).rejects.toMatchObject({ status: 400 });
+    });
+
     it("refuses another team's account, a post not live on the account, an unpublished page, and blocked content", async () => {
         mockDb.socialAccount.findFirst.mockResolvedValueOnce(null);
         await expect(createTrigger("team-a", "user-1", input())).rejects.toMatchObject({ status: 400 });

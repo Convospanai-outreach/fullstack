@@ -351,6 +351,42 @@ describe("sendPendingAutoReplies", () => {
         });
     });
 
+    it("links a Mautic page (signed token + UTM) over the CMf page, and falls back to the CMf page when Mautic isn't configured", async () => {
+        process.env["NEXTAUTH_SECRET"] = "s".repeat(32);
+        process.env["MAUTIC_BASE_URL"] = "https://mautic.craftmyfunnel.live";
+        mockDb.landingPage.findFirst.mockResolvedValue({ slug: "free-guide" });
+        const r = row({}, { landingPageId: "lp-1", mauticPageUrl: "https://mautic.craftmyfunnel.live/guide" });
+        await sendPendingAutoReplies(NOW);
+        const link = new URL(JSON.parse(graphCall.mock.calls[0][2].message).text.split("\n\n")[1]);
+        expect(link.origin + link.pathname).toBe("https://mautic.craftmyfunnel.live/guide");
+        const { verifyLinkToken } = await import("../linkToken");
+        expect(verifyLinkToken(link.searchParams.get("t") as string, NOW)).toBe(r.id);
+        expect(link.searchParams.get("utm_source")).toBe("instagram");
+        expect(mockDb.landingPage.findFirst).not.toHaveBeenCalled();
+
+        store.rows.clear();
+        graphCall.mockClear();
+        delete process.env["MAUTIC_BASE_URL"];
+        row({}, { landingPageId: "lp-1", mauticPageUrl: "https://mautic.craftmyfunnel.live/guide" });
+        await sendPendingAutoReplies(NOW);
+        expect(JSON.parse(graphCall.mock.calls[0][2].message).text).toContain("https://craftmyfunnel.live/p/free-guide");
+    });
+
+    it("never sends a Mautic-only trigger's reply while Mautic isn't configured or the URL is off-host", async () => {
+        delete process.env["MAUTIC_BASE_URL"];
+        const noMautic = row({}, { mauticPageUrl: "https://mautic.craftmyfunnel.live/guide" });
+        await sendPendingAutoReplies(NOW);
+        expect(get(noMautic.id).status).toBe("FAILED");
+
+        store.rows.clear();
+        process.env["MAUTIC_BASE_URL"] = "https://mautic.craftmyfunnel.live";
+        const offHost = row({}, { mauticPageUrl: "https://evil.example/guide" });
+        await sendPendingAutoReplies(NOW);
+        expect(get(offHost.id).status).toBe("FAILED");
+        expect(graphCall).not.toHaveBeenCalled();
+        delete process.env["MAUTIC_BASE_URL"];
+    });
+
     it("tags the link with the post the comment was on when CMf published it", async () => {
         mockDb.landingPage.findFirst.mockResolvedValue({ slug: "free-guide" });
         mockDb.contentPostTarget.findMany.mockResolvedValue([{ postId: "post-9", externalId: "page-1_44" }]);

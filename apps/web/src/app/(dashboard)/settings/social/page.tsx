@@ -61,6 +61,7 @@ export default function SocialAccountsPage() {
         }
     };
     const connect = () => startSignIn("connect", "/api/integrations/facebook/oauth/start?purpose=social&next=/settings/social");
+    const connectBusiness = () => startSignIn("connect-business", "/api/integrations/facebook/oauth/start?purpose=social&business=1&next=/settings/social");
     const connectLinkedIn = (kind: "profile" | "pages") => startSignIn(`linkedin-${kind}`, `/api/integrations/linkedin/oauth/start?kind=${kind}`);
     const reconnect = (account: SocialAccount) =>
         account.platform === "LINKEDIN_MEMBER" ? connectLinkedIn("profile") : account.platform === "LINKEDIN_ORG" ? connectLinkedIn("pages") : connect();
@@ -97,6 +98,15 @@ export default function SocialAccountsPage() {
                         className="h-9 shrink-0 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
                     >
                         {busy === "connect" ? "Opening Facebook..." : accounts.length ? "Connect more or reconnect" : "Connect Instagram and Facebook"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={connectBusiness}
+                        disabled={busy !== null}
+                        title="Use this if you manage the Page through Meta Business Manager"
+                        className="h-9 shrink-0 rounded-md border border-border px-4 text-sm font-medium text-foreground disabled:opacity-50"
+                    >
+                        {busy === "connect-business" ? "Opening Facebook..." : "Page is in Business Manager"}
                     </button>
                 </div>
 

@@ -52,7 +52,7 @@ The "Connect Instagram and Facebook" button (Settings > Social accounts, with th
 | `instagram_manage_comments` | Read comments on the account's posts, and reply publicly or privately when a keyword trigger matches. | Phase 4 |
 | `instagram_manage_messages` | Receive Instagram DMs in the CraftMyFunnel inbox and reply to them. | Phase 4 |
 
-**Not requested:** `ads_management` and `ads_read`. Meta's publishing and comment docs say these are also needed when the user's Page role comes only through Business Manager. For now, users should connect with a person who has a direct role on the Page. Add these two only if reviewers or users hit that case.
+**Business Manager (separate button):** Settings > Social accounts has a second button, "Page is in Business Manager", for people whose Page role comes only through Business Manager. It asks for the same permissions plus `ads_management` and `ads_read`, which Meta's publishing doc lists for that case (https://developers.facebook.com/documentation/instagram-platform/content-publishing.md, checked 2026-10-11). The default button does not ask for them, so submit these two for review only when you want Business Manager teams to connect.
 
 Submit each permission only once the feature that uses it is live. Reviewers reject permissions they can't see in use. Phase 2 can go in with `pages_show_list`, `pages_read_engagement` and `instagram_basic`; submit the rest with Phases 3b and 4.
 

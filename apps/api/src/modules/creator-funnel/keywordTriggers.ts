@@ -62,6 +62,37 @@ export function replyLink(input: {
         content: input.contentPostId,
     });
 }
+
+/** The host of MAUTIC_BASE_URL, or null when Mautic isn't configured for this environment. */
+function mauticHost() {
+    try {
+        return process.env["MAUTIC_BASE_URL"] ? new URL(process.env["MAUTIC_BASE_URL"]).host : null;
+    } catch {
+        return null;
+    }
+}
+
+/** True for an https URL on our own Mautic host (no credentials), so a trigger can't link elsewhere. */
+export function isMauticPageUrl(url: string) {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === "https:" && !parsed.username && !parsed.password && parsed.host === mauticHost();
+    } catch {
+        return false;
+    }
+}
+
+/** replyLink for a Mautic page: the same signed ?t= token and UTM, on the page's own URL. */
+export function mauticReplyLink(input: Omit<Parameters<typeof replyLink>[0], "slug"> & { url: string }) {
+    const parsed = new URL(input.url);
+    if (input.token) parsed.searchParams.set("t", input.token);
+    return withUtm(parsed.toString(), {
+        source: input.platform === "INSTAGRAM" ? "instagram" : "facebook",
+        medium: input.kind === "COMMENT" ? "comment" : "dm",
+        campaign: input.triggerId,
+        content: input.contentPostId,
+    });
+}
 const COMMENT_LEAD_SOURCE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_comment", FACEBOOK_PAGE: "facebook_comment" };
 const TICK_BUDGET_MS = 20_000;
 const ROWS_PER_TICK = 20;
@@ -260,6 +291,7 @@ const REPLY_INCLUDE = {
             replyText: true,
             publicCommentReply: true,
             landingPageId: true,
+            mauticPageUrl: true,
             contentPostId: true,
             socialAccount: {
                 select: { id: true, teamId: true, platform: true, externalId: true, parentExternalId: true, status: true, scopes: true, encryptedToken: true },
@@ -288,6 +320,7 @@ type ReplyRow = {
         replyText: string;
         publicCommentReply: string | null;
         landingPageId: string | null;
+        mauticPageUrl: string | null;
         contentPostId: string | null;
         socialAccount: {
             id: string;
@@ -318,10 +351,15 @@ function missingScopes(granted: string[], needed: string[]) {
 // merges into the person's lead (landing-lead-intake-worker). If signing isn't possible the
 // plain link still goes out; the sign-up then just becomes its own lead.
 async function replyText(row: ReplyRow, now: Date, postId: string | null) {
-    const { replyText: text, landingPageId } = row.trigger;
-    if (!landingPageId) return text;
-    const page = await prisma.landingPage.findFirst({ where: { id: landingPageId, teamId: row.teamId, status: "published" }, select: { slug: true } });
-    if (!page) return null;
+    const { replyText: text, landingPageId, mauticPageUrl } = row.trigger;
+    // A Mautic page wins while Mautic is configured and the URL is still on our Mautic host;
+    // otherwise the CMf page (if any) is the fallback.
+    const useMautic = Boolean(mauticPageUrl) && isMauticPageUrl(mauticPageUrl as string);
+    if (!useMautic && !landingPageId) return mauticPageUrl ? null : text;
+    const page = useMautic
+        ? null
+        : await prisma.landingPage.findFirst({ where: { id: landingPageId as string, teamId: row.teamId, status: "published" }, select: { slug: true } });
+    if (!useMautic && !page) return null;
     let token: string | null = null;
     try {
         const { signLinkToken } = await import("./linkToken");
@@ -329,15 +367,17 @@ async function replyText(row: ReplyRow, now: Date, postId: string | null) {
     } catch (error) {
         console.error("[KeywordTriggers] Link signing failed; sending the plain link:", errorText(error));
     }
-    const link = replyLink({
-        slug: page.slug,
+    const shared = {
         token,
         platform: row.trigger.socialAccount.platform,
-        kind: row.commentId ? "COMMENT" : "DM",
+        kind: row.commentId ? ("COMMENT" as const) : ("DM" as const),
         triggerId: row.trigger.id,
         contentPostId: postId,
-    });
-    return `${text}\n\n${link}`;
+    };
+    const link = useMautic ? mauticReplyLink({ ...shared, url: mauticPageUrl as string }) : replyLink({ ...shared, slug: (page as { slug: string }).slug });
+    return `${text}
+
+${link}`;
 }
 
 // The ContentPost a comment was left on, when CMf published it on this account (for utm_content).
