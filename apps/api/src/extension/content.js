@@ -4,15 +4,6 @@
 
 const CMF_NOT_DETECTED = "We couldn't confidently identify this field from the visible profile. You may enter it manually.";
 
-// Tell the V2 background worker this tab is ready, so it can dispatch any task
-// queued for this tab (covers a service-worker restart that missed onUpdated).
-// No-op under the V1 manifest (no CMF_CONTENT_READY handler) — lastError swallowed.
-try {
-  chrome.runtime.sendMessage({ type: "CMF_CONTENT_READY" }, () => void chrome.runtime.lastError);
-} catch (_e) {
-  // Extension context not available; ignore.
-}
-
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "CMF_CAPTURE_VISIBLE_PROFILE") {
     captureVisibleProfileWithRetries()
@@ -32,74 +23,103 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return false;
   }
 
-  // V2 task executor (active only when the V2 background dispatches a task).
-  // Assistive only: it inserts a draft for the human to review and send, or
-  // captures a visible profile as a lead. It never clicks send/connect.
-  if (msg?.type === "EXECUTE_TASK") {
-    executeTask(msg.task || {})
-      .then((result) => sendResponse(result))
-      .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
-    return true;
+  if (msg?.type === "CMF_SHOW_DRAFT") {
+    sendResponse(showDraft(String(msg.name || ""), String(msg.message || "")));
+    return false;
   }
 
   return false;
 });
 
-async function executeTask(task) {
-  const type = task?.type;
+const CMF_DRAFT_PANEL_ID = "cmf-draft-panel";
+const CMF_DRAFT_WAIT_MS = 2 * 60 * 1000;
+let cmfDraftObserver = null;
+let cmfDraftTimer = null;
 
-  if (type === "INSERT_DRAFT") {
-    const body = task.payload?.body || task.payload?.note || "";
-    const inserted = insertDraftIntoComposer(body);
-    const result = inserted.ok
-      ? { taskId: task.id, type, status: "SUCCESS" }
-      : { taskId: task.id, type, status: "ERROR", error: inserted.error };
-    chrome.runtime.sendMessage({ type: "TASK_RESULT", result });
-    return { ok: inserted.ok, error: inserted.error };
-  }
+// A draft the person asked for from the popup's list of due steps. It goes into LinkedIn's
+// message box for that lead when the box is open and empty. Otherwise it is shown on the page with
+// a Copy button and placed in the box once the person opens it. The message box is never opened
+// from here and nothing is sent: the person clicks Message and Send themselves.
+function showDraft(name, text) {
+  if (!text) return { ok: false, error: "This step has no message." };
+  closeDraftPanel();
 
-  if (type === "ADD_LEAD") {
-    try {
-      const profile = await captureVisibleProfileWithRetries();
-      if (!profile?.name || !profile?.profileUrl) {
-        chrome.runtime.sendMessage({
-          type: "TASK_RESULT",
-          result: { taskId: task.id, type, status: "ERROR", error: "Could not read the visible profile." }
-        });
-        return { ok: false, error: "Could not read the visible profile." };
-      }
-      // Background's ADD_LEAD handler posts the lead and reports the task result.
-      chrome.runtime.sendMessage({
-        type: "ADD_LEAD",
-        taskId: task.id,
-        data: {
-          profileUrl: profile.profileUrl,
-          name: profile.name,
-          headline: profile.headline || "",
-          company: profile.currentCompany || profile.company || ""
-        }
-      });
-      return { ok: true };
-    } catch (error) {
-      chrome.runtime.sendMessage({
-        type: "TASK_RESULT",
-        result: { taskId: task.id, type, status: "ERROR", error: error?.message || String(error) }
-      });
-      return { ok: false, error: error?.message || String(error) };
-    }
-  }
+  if (placeDraftFor(name, text)) return { ok: true, inserted: true };
 
-  return { ok: false, error: `Unsupported task type: ${type}` };
+  renderDraftPanel(name, text);
+  cmfDraftObserver = new MutationObserver(() => {
+    if (placeDraftFor(name, text)) closeDraftPanel();
+  });
+  cmfDraftObserver.observe(document.body, { childList: true, subtree: true });
+  // Stop watching the page after a while; the panel stays so the draft can still be copied.
+  cmfDraftTimer = setTimeout(stopWatchingForComposer, CMF_DRAFT_WAIT_MS);
+  return { ok: true, inserted: false };
+}
+
+// LinkedIn keeps chats with other people open across pages, so a message box is filled only when
+// the heading of its conversation names this lead, never because it is the one that happens to be
+// open. Text the person has already typed is never replaced. With no match the draft stays in the
+// panel to be copied.
+function placeDraftFor(name, text) {
+  const wanted = cleanText(name).toLowerCase();
+  if (!wanted) return false;
+  const composer = Array.from(document.querySelectorAll('.msg-form__contenteditable[contenteditable="true"]')).find((box) => {
+    const heading = box
+      .closest(".msg-overlay-conversation-bubble, .msg-convo-wrapper")
+      ?.querySelector(".msg-overlay-bubble-header, header, h2");
+    return !box.textContent.trim() && heading && cleanText(heading.textContent).toLowerCase().includes(wanted);
+  });
+  return composer ? insertDraftIntoComposer(text, composer).ok : false;
+}
+
+function stopWatchingForComposer() {
+  cmfDraftObserver?.disconnect();
+  cmfDraftObserver = null;
+  clearTimeout(cmfDraftTimer);
+  cmfDraftTimer = null;
+}
+
+function closeDraftPanel() {
+  stopWatchingForComposer();
+  document.getElementById(CMF_DRAFT_PANEL_ID)?.remove();
+}
+
+function renderDraftPanel(name, text) {
+  const panel = document.createElement("div");
+  panel.id = CMF_DRAFT_PANEL_ID;
+  panel.style.cssText = "position:fixed;top:72px;right:16px;z-index:2147483647;width:300px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font:13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(15,23,42,.18)";
+
+  const title = document.createElement("strong");
+  title.textContent = name ? `CraftMyFunnel draft for ${name}` : "CraftMyFunnel draft";
+  const body = document.createElement("p");
+  body.style.cssText = "margin:8px 0;white-space:pre-wrap;max-height:200px;overflow:auto";
+  body.textContent = text;
+  const hint = document.createElement("p");
+  hint.style.cssText = "margin:0 0 8px;color:#475569;font-size:12px";
+  hint.textContent = "Click Message on this profile and the draft goes into the box, or copy it. Nothing is sent for you.";
+
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.textContent = "Copy";
+  copy.addEventListener("click", () => {
+    navigator.clipboard.writeText(text).then(() => {
+      copy.textContent = "Copied";
+    });
+  });
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "Close";
+  close.style.marginLeft = "8px";
+  close.addEventListener("click", closeDraftPanel);
+
+  panel.append(title, body, hint, copy, close);
+  document.body.appendChild(panel);
 }
 
 // Inserts draft text into the LinkedIn message composer for the user to review.
 // Focuses the box but never submits — the human presses Send.
-function insertDraftIntoComposer(text) {
+function insertDraftIntoComposer(text, composer) {
   if (!text) return { ok: false, error: "No draft text was provided." };
-  const composer =
-    document.querySelector('div.msg-form__contenteditable[contenteditable="true"]') ||
-    document.querySelector('div[role="textbox"][contenteditable="true"]') ||
-    document.querySelector('.msg-form__contenteditable[contenteditable="true"]');
 
   if (!composer) {
     return { ok: false, error: "Open the LinkedIn message composer and try again." };
@@ -662,7 +682,8 @@ function cleanProfileUrl(value) {
 }
 
 function isLinkedInProfilePage() {
-  return location.hostname.endsWith("linkedin.com") && location.pathname.includes("/in/");
+  const onLinkedIn = location.hostname === "linkedin.com" || location.hostname.endsWith(".linkedin.com");
+  return onLinkedIn && location.pathname.includes("/in/");
 }
 
 function isVisible(element) {

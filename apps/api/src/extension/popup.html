@@ -19,6 +19,7 @@
       <button class="tab active" data-tab="prep" type="button">Prep</button>
       <button class="tab" data-tab="draft" type="button">Draft</button>
       <button class="tab" data-tab="qualify" type="button">Qualify</button>
+      <button id="dueTab" class="tab" data-tab="due" type="button">Due</button>
       <button class="tab" data-tab="settings" type="button">Settings</button>
     </nav>
 
@@ -194,6 +195,20 @@
       </section>
     </section>
 
+    <section id="due" class="tab-panel">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Due LinkedIn steps</h2>
+            <p>Steps your sequences are waiting on you for. You do each one on LinkedIn yourself; nothing is sent for you.</p>
+          </div>
+          <button id="refreshDueSteps" class="secondary" type="button">Refresh</button>
+        </div>
+        <p id="dueStepsHint" class="hint">Loading...</p>
+        <ol id="dueSteps" class="due-steps"></ol>
+      </section>
+    </section>
+
     <section id="settings" class="tab-panel">
       <section class="card">
         <div class="card-head">
@@ -202,7 +217,7 @@
             <p>No passwords, LinkedIn session data, or cookies are stored.</p>
           </div>
         </div>
-        <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://app.craftmyfunnel.com" autocomplete="off" /></label>
+        <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://craftmyfunnel.live" autocomplete="off" /></label>
         <label>Extension key<input id="extensionKey" type="password" placeholder="Shared extension key" autocomplete="off" /></label>
         <label>Sync token<input id="syncToken" type="password" placeholder="Generate from Settings in the workspace" autocomplete="off" /></label>
         <p id="connectionStatus" class="hint">Not connected yet.</p>
