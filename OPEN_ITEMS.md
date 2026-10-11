@@ -7003,9 +7003,10 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Added:** a Due tab in the popup lists the LinkedIn sequence steps waiting on the signed-in person
     (`GET /api/extension/steps`, OPEN-341), fetched when the popup opens. Per step: open the profile, copy the
     message, hand the draft to the profile page, mark done (`POST /api/extension/steps/[id]/done`).
-  - **Draft on the page:** the draft is placed in LinkedIn's message box when the box is open and empty.
-    Otherwise the page shows it in a panel with a Copy button and places it once the person opens the box.
-    Typed text is never replaced; the extension never clicks Message, Connect or Send.
+  - **Draft on the page:** the draft is placed in LinkedIn's message box when the chat with that lead is open
+    and its box is empty. Otherwise the page shows it in a panel with a Copy button and places it once the
+    person opens that chat. The chat is matched by the lead's name in its heading, so a chat open with someone
+    else is never filled. Typed text is never replaced; the extension never clicks Message, Connect or Send.
   - **Same permissions as 1.0.0** (`activeTab`, `storage`, `https://www.linkedin.com/in/*`); no background
     polling. Settings stay in `settings.*`, so an update keeps the saved connection.
   - **Fixed:** a saved `https://www.craftmyfunnel.live` workspace address is sent to the bare domain; the www

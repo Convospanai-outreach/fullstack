@@ -14,12 +14,18 @@ function loadContentScript() {
     };
 }
 
-function openMessageBox(text = "") {
+// A LinkedIn chat with one person: a heading naming them and the box to type in.
+function openMessageBox(text = "", withName = "Jane Doe") {
+    const chat = document.createElement("div");
+    chat.className = "msg-overlay-conversation-bubble";
+    const heading = document.createElement("header");
+    heading.textContent = withName;
     const box = document.createElement("div");
     box.className = "msg-form__contenteditable";
     box.setAttribute("contenteditable", "true");
     box.textContent = text;
-    document.body.appendChild(box);
+    chat.append(heading, box);
+    document.body.appendChild(chat);
     return box;
 }
 
@@ -66,6 +72,38 @@ describe("content script: a draft from the due steps list", () => {
 
         expect(box.textContent).toBe("my own words");
         expect(panel()).not.toBeNull();
+    });
+
+    it("never puts the draft in a chat that is open with someone else", async () => {
+        const other = openMessageBox("", "Omar Ali");
+
+        expect(page.showDraft("Jane Doe", "Hi Jane")).toEqual({ ok: true, inserted: false });
+        expect(other.textContent).toBe("");
+        expect(panel()).not.toBeNull();
+
+        const janes = openMessageBox("", "  jane   doe ");
+        await pageSettles();
+
+        expect(janes.textContent).toBe("Hi Jane");
+        expect(other.textContent).toBe("");
+        expect(panel()).toBeNull();
+    });
+
+    it("leaves the draft in the panel when it cannot tell whose chat is open", async () => {
+        const unnamed = document.createElement("div");
+        unnamed.className = "msg-form__contenteditable";
+        unnamed.setAttribute("contenteditable", "true");
+        document.body.appendChild(unnamed);
+        const forNoName = openMessageBox();
+
+        expect(page.showDraft("Jane Doe", "Hi Jane")).toEqual({ ok: true, inserted: true });
+        expect(unnamed.textContent).toBe("");
+        forNoName.textContent = "";
+
+        expect(page.showDraft("", "Hi Jane")).toEqual({ ok: true, inserted: false });
+        await pageSettles();
+        expect(forNoName.textContent).toBe("");
+        expect(unnamed.textContent).toBe("");
     });
 
     it("stops filling message boxes once the panel is closed", async () => {

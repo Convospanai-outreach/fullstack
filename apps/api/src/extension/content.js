@@ -113,18 +113,18 @@ let cmfDraftObserver = null;
 let cmfDraftTimer = null;
 
 // A draft the person asked for from the popup's list of due steps. It goes into LinkedIn's
-// message box when that is open and empty. Otherwise it is shown on the page with a Copy button
-// and placed in the box once the person opens it. The message box is never opened from here and
-// nothing is sent: the person clicks Message and Send themselves.
+// message box for that lead when the box is open and empty. Otherwise it is shown on the page with
+// a Copy button and placed in the box once the person opens it. The message box is never opened
+// from here and nothing is sent: the person clicks Message and Send themselves.
 function showDraft(name, text) {
   if (!text) return { ok: false, error: "This step has no message." };
   closeDraftPanel();
 
-  if (placeDraftInEmptyComposer(text)) return { ok: true, inserted: true };
+  if (placeDraftFor(name, text)) return { ok: true, inserted: true };
 
   renderDraftPanel(name, text);
   cmfDraftObserver = new MutationObserver(() => {
-    if (placeDraftInEmptyComposer(text)) closeDraftPanel();
+    if (placeDraftFor(name, text)) closeDraftPanel();
   });
   cmfDraftObserver.observe(document.body, { childList: true, subtree: true });
   // Stop watching the page after a while; the panel stays so the draft can still be copied.
@@ -132,11 +132,20 @@ function showDraft(name, text) {
   return { ok: true, inserted: false };
 }
 
-// Text the person has already typed is never replaced.
-function placeDraftInEmptyComposer(text) {
-  const composer = findComposer();
-  if (!composer || composer.textContent.trim()) return false;
-  return insertDraftIntoComposer(text).ok;
+// LinkedIn keeps chats with other people open across pages, so a message box is filled only when
+// the heading of its conversation names this lead, never because it is the one that happens to be
+// open. Text the person has already typed is never replaced. With no match the draft stays in the
+// panel to be copied.
+function placeDraftFor(name, text) {
+  const wanted = cleanText(name).toLowerCase();
+  if (!wanted) return false;
+  const composer = Array.from(document.querySelectorAll('.msg-form__contenteditable[contenteditable="true"]')).find((box) => {
+    const heading = box
+      .closest(".msg-overlay-conversation-bubble, .msg-convo-wrapper")
+      ?.querySelector(".msg-overlay-bubble-header, header, h2");
+    return !box.textContent.trim() && heading && cleanText(heading.textContent).toLowerCase().includes(wanted);
+  });
+  return composer ? insertDraftIntoComposer(text, composer).ok : false;
 }
 
 function stopWatchingForComposer() {
@@ -163,7 +172,7 @@ function renderDraftPanel(name, text) {
   body.textContent = text;
   const hint = document.createElement("p");
   hint.style.cssText = "margin:0 0 8px;color:#475569;font-size:12px";
-  hint.textContent = "Click Message on this profile and the draft goes into the box. Nothing is sent for you.";
+  hint.textContent = "Click Message on this profile and the draft goes into the box, or copy it. Nothing is sent for you.";
 
   const copy = document.createElement("button");
   copy.type = "button";
@@ -183,9 +192,8 @@ function renderDraftPanel(name, text) {
   document.body.appendChild(panel);
 }
 
-function insertDraftIntoComposer(text) {
+function insertDraftIntoComposer(text, composer = findComposer()) {
   if (!text) return { ok: false, error: "No draft text was provided." };
-  const composer = findComposer();
 
   if (!composer) {
     return { ok: false, error: "Open the LinkedIn message composer and try again." };

@@ -44,9 +44,12 @@ For each step the popup shows who it is for, what to do and the suggested messag
 
 - **Open profile** opens the person's LinkedIn profile in a new tab.
 - **Put in message box** (on that person's profile) hands the draft to the page. If LinkedIn's
-  message box is open and empty, the draft is placed in it. Otherwise the page shows the draft in a
-  small panel with a Copy button, and places it once the user opens the message box. Text the user
-  has already typed is never replaced. The extension never clicks Message, Connect or Send.
+  chat with that person is open and its message box is empty, the draft is placed in it. Otherwise
+  the page shows the draft in a small panel with a Copy button, and places it once the user opens
+  that chat. A chat is recognised by the person's name in its heading, so a chat left open with
+  someone else is never filled; when the name cannot be matched the draft stays in the panel to be
+  copied. Text the user has already typed is never replaced. The extension never clicks Message,
+  Connect or Send.
 - **Copy message** copies the draft.
 - **Mark done** tells CraftMyFunnel the user did the step (`POST /api/extension/steps/<id>/done`),
   and the sequence moves on to its next step.
@@ -203,6 +206,8 @@ Store is a separate decision and triggers a new permission review.
 - Open profile opens the profile in a new tab; reopening the popup there shows the Due tab with that step first.
 - Put in message box with LinkedIn's message box closed: the draft panel appears on the page, and the draft lands in the box after clicking Message.
 - Put in message box with text already typed in the message box: the typed text is left alone.
+- Put in message box with a chat open with someone else: that chat is left alone and the draft stays in the panel.
+- If Message opens LinkedIn's full messaging page instead of the chat overlay, the panel is gone with the profile page; use Copy message in the popup instead.
 - Mark done removes the step from the list, and the sequence's next step is scheduled in CraftMyFunnel.
 - Updating from 1.0.0 keeps the saved workspace URL, extension key and sync token.
 
