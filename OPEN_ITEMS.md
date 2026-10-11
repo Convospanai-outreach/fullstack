@@ -6984,6 +6984,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     (it creates no task) still have nothing that resumes them. A step whose campaign has no owner creates no
     task either, so a LinkedIn step can then only be resumed from the extension. Tasks created before this
     change carry no link.
+- **OPEN-341 (Fixed — the extension can list the LinkedIn steps that are due and mark one done):** 2026-10-11.
+  - **Why:** a LinkedIn sequence step waits for a person. The extension could only learn about it through the
+    task queue (`/extension/tasks/pending`), which hands each task to whichever teammate polls first and counts
+    it finished when a tab opens, not when the person has acted.
+  - **Added:** `GET /extension/steps` lists the LinkedIn steps waiting in the token's team, read straight from
+    the waiting step runs (`SequenceService.listDueLinkedInSteps`): who, the profile URL, what to do, the
+    suggested message. A step belongs to the owner of its campaign; a step whose campaign has no owner is
+    shown to everyone in the team. `POST /extension/steps/[id]/done` (MEMBER, like enrolling) marks one step
+    done, for the same steps the list shows that person: a step that reached the person is recorded on the
+    lead first, then `completeManualRun` moves that one sequence on.
+  - **Changed:** `completeManualRun` now also closes the step's task and the extension's queued copy of it, so
+    the web task list, the lead-level "LinkedIn outreach done" button and the new route leave the same state.
+  - **Not covered:** the task queue routes (`/extension/tasks/pending`, `/result`, `/complete`) are unchanged
+    and still per team; the queue's stale-job reset does not know about tasks claimed through them. The
+    extension itself does not call the new routes yet (next change).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
