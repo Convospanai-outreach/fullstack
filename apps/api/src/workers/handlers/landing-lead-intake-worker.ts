@@ -112,6 +112,15 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     return { created: true, leadId: createdLead.id };
 }
 
+// What a sign-up that joined a social lead gets afterwards, for sign-ups that don't come through a
+// LandingLead (the Mautic form webhook). Each step is best-effort, like the intake above.
+export async function afterSocialSignup(teamId: string, leadId: string, utmContent: string | null) {
+    await recordFirstTouch(teamId, leadId, utmContent);
+    await scoreNewLead(leadId);
+    await pushToMautic(leadId, teamId);
+    await advanceCreatorFunnel(leadId, teamId);
+}
+
 // Creator funnel: a sign-up on a launch plan's lead-magnet page joins the plan's nurture emails
 // when that plan's nurture is switched on (playbookSwitches.ts). Never fails the intake job.
 async function joinPlanNurture(landingLead: { teamId: string; landingPageId: string }, leadId: string) {
