@@ -185,6 +185,13 @@ function findLinkedInActionLabel(rawStepType: string) {
 // The LinkedIn steps that reach the person. A profile visit or a withdrawn invitation doesn't.
 const LINKEDIN_OUTREACH_STEP_TYPES = new Set(["chat_message", "li_invite", "li_chat", "li_voice"]);
 
+// A LinkedIn step belongs to the owner of its campaign. One whose campaign has no owner is
+// anyone's in the team.
+function isLinkedInStepFor(run: any, userId: string) {
+    const ownerId = run.enrollment?.campaign?.ownerId;
+    return !ownerId || ownerId === userId;
+}
+
 export class SequenceService {
     static async processDue(options: ProcessDueOptions = {}) {
         const client = db();
@@ -872,8 +879,7 @@ export class SequenceService {
         return { resumed: resuming };
     }
 
-    // LinkedIn steps waiting on a person, for the list in the browser extension. A step belongs to
-    // the owner of its campaign; one whose campaign has no owner is shown to everyone in the team.
+    // LinkedIn steps waiting on this person, for the list in the browser extension.
     static async listDueLinkedInSteps(teamId: string, userId: string) {
         const client = db();
         const waiting = await client.sequenceStepRun.findMany({
@@ -888,10 +894,7 @@ export class SequenceService {
         });
         return waiting
             .filter((run: any) => LINKEDIN_STEP_TYPES.has(stepType(run.step)) && run.lead?.linkedIn)
-            .filter((run: any) => {
-                const ownerId = run.enrollment?.campaign?.ownerId;
-                return !ownerId || ownerId === userId;
-            })
+            .filter((run: any) => isLinkedInStepFor(run, userId))
             .map((run: any) => ({
                 runId: run.id as string,
                 leadId: run.lead.id as string,
@@ -905,14 +908,18 @@ export class SequenceService {
             }));
     }
 
-    // One LinkedIn step still waiting on a person, or null. Other manual steps (a WhatsApp message
-    // sent by hand) are not the extension's to close.
-    static async findDueLinkedInStep(teamId: string, runId: string) {
+    // One LinkedIn step still waiting on this person, or null: the same steps the list shows them.
+    // Other manual steps (a WhatsApp message sent by hand) are not the extension's to close.
+    static async findDueLinkedInStep(teamId: string, runId: string, userId: string) {
         const run = await db().sequenceStepRun.findFirst({
             where: { id: runId, teamId, status: "AWAITING_MANUAL_REVIEW" },
-            select: { leadId: true, step: { select: { stepType: true } } },
+            select: {
+                leadId: true,
+                step: { select: { stepType: true } },
+                enrollment: { select: { campaign: { select: { ownerId: true } } } },
+            },
         });
-        if (!run || !LINKEDIN_STEP_TYPES.has(stepType(run.step))) return null;
+        if (!run || !LINKEDIN_STEP_TYPES.has(stepType(run.step)) || !isLinkedInStepFor(run, userId)) return null;
         return {
             leadId: run.leadId as string | null,
             action: findLinkedInActionLabel(run.step.stepType),

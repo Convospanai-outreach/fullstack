@@ -290,21 +290,28 @@ describe("SequenceService.findDueLinkedInStep", () => {
     });
 
     it("finds a waiting LinkedIn step and says whether it reaches the person", async () => {
-        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toEqual({
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li", "user-1")).toEqual({
             leadId: "lead-1", action: "Send invitation", reachesPerson: true,
         });
 
         row("sequenceStep", "step-li").stepType = "LI_VISIT";
-        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toEqual({
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li", "user-1")).toEqual({
             leadId: "lead-1", action: "Visit profile", reachesPerson: false,
         });
     });
 
     it("does not find a step of another kind, of another team, or one already done", async () => {
-        expect(await SequenceService.findDueLinkedInStep("team-1", "run-wa")).toBeNull();
-        expect(await SequenceService.findDueLinkedInStep("team-2", "run-li")).toBeNull();
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-wa", "user-1")).toBeNull();
+        expect(await SequenceService.findDueLinkedInStep("team-2", "run-li", "user-1")).toBeNull();
 
         await SequenceService.completeManualRun("team-1", "run-li", now);
-        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toBeNull();
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li", "user-1")).toBeNull();
+    });
+
+    it("does not find another person's step, but finds one whose campaign has no owner", async () => {
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li", "user-2")).toBeNull();
+
+        delete row("sequenceEnrollment", "enrollment-1").campaign;
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li", "user-2")).not.toBeNull();
     });
 });

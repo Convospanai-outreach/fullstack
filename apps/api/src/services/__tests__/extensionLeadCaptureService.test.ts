@@ -252,6 +252,7 @@ describe("marking one LinkedIn sequence step done", () => {
         expect(db.leadActivity.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ leadId: "lead-1", notes: "Sequence step: Send invitation", createdBy: "user-1" }),
         });
+        expect(findDueLinkedInStep).toHaveBeenCalledWith("team-a", "run-1", "user-1");
         expect(completeManualRun).toHaveBeenCalledWith("team-a", "run-1", expect.any(Date));
         expect(db.lead.update.mock.invocationCallOrder[0]).toBeLessThan(completeManualRun.mock.invocationCallOrder[0]);
         expect(completeLinkedInRunsForLead).not.toHaveBeenCalled();

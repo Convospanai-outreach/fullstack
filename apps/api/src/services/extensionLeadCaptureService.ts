@@ -467,7 +467,7 @@ export async function listDueLinkedInSteps(teamId: string, userId: string) {
 export async function completeLinkedInStep(params: { teamId: string; userId: string; runId: string }) {
     const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
     const now = new Date();
-    const step = await SequenceService.findDueLinkedInStep(params.teamId, params.runId);
+    const step = await SequenceService.findDueLinkedInStep(params.teamId, params.runId, params.userId);
     if (!step) throw new Error("Step not found");
 
     if (step.leadId && step.reachesPerson) {

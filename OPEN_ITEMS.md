@@ -6992,8 +6992,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     the waiting step runs (`SequenceService.listDueLinkedInSteps`): who, the profile URL, what to do, the
     suggested message. A step belongs to the owner of its campaign; a step whose campaign has no owner is
     shown to everyone in the team. `POST /extension/steps/[id]/done` (MEMBER, like enrolling) marks one step
-    done: a step that reached the person is recorded on the lead first, then `completeManualRun` moves that one
-    sequence on.
+    done, for the same steps the list shows that person: a step that reached the person is recorded on the
+    lead first, then `completeManualRun` moves that one sequence on.
   - **Changed:** `completeManualRun` now also closes the step's task and the extension's queued copy of it, so
     the web task list, the lead-level "LinkedIn outreach done" button and the new route leave the same state.
   - **Not covered:** the task queue routes (`/extension/tasks/pending`, `/result`, `/complete`) are unchanged
