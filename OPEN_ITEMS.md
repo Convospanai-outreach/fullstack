@@ -7012,8 +7012,12 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Fixed:** a saved `https://www.craftmyfunnel.live` workspace address is sent to the bare domain; the www
     address redirects, which fails these requests.
   - **Also:** `manifest.json` is 1.1.0; `STORE_SUBMISSION.md` holds the listing text and permission answers.
-  - **Not covered:** the sideload-only task-polling worker (`manifest.v2.json`, the gated block in
-    `background.js`, `options.*`) is unchanged and still in the repo. The invitation note field is not filled;
+  - **Removed:** the sideload-only task-polling worker, so the store package carries no polling or
+    tab-opening code: the gated block in `background.js`, the task executor in `content.js`,
+    `manifest.v2.json`, `options.*`, `background.v2-planned.js` and their tests. The guards that still apply
+    (no click or key press on the page, unchanged permissions) moved to `due-steps.test.ts`.
+  - **Not covered:** the server's task queue routes (`/extension/tasks/*`) and the tasks the sequence engine
+    queues for them are unchanged; nothing in the extension reads them now. The invitation note field is not filled;
     the message for an invitation is copied by hand. Needs OPEN-341 deployed first. Not load-tested in Chrome
     from here.
 

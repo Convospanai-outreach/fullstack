@@ -59,31 +59,16 @@ Settings stay where 1.0.0 saved them (`settings.workspaceUrl`, `settings.extensi
 `https://www.craftmyfunnel.live` address is sent to `https://craftmyfunnel.live`, because the www
 address redirects and the browser does not follow a redirect for these requests.
 
-## V2 Preview (task polling) — sideload only
+## Not in the extension
 
-Version 2 adds authenticated **task polling**: the extension polls
-`GET /api/extension/tasks/pending`, opens the requested LinkedIn profile in a tab, or inserts a
-drafted message into the LinkedIn composer **for the user to review and send**, and reports the
-result to `POST /api/extension/tasks/result`. It is **assistive, not autonomous** — it never clicks
-Send or Connect on the user's behalf.
+The extension has no background task polling, no options page and no second manifest. The earlier
+sideload-only preview that polled `GET /api/extension/tasks/pending` and opened profile tabs was
+removed in 1.1.0; the Due tab replaces it, and every action there starts with a click in the popup.
 
-V2 ships as a **separate sideload build**, not in the published store listing:
-
-- `manifest.json` (v1.1.0) remains the published, approval-safe store build, with the same permissions as 1.0.0.
-- `manifest.v2.json` (v2.0.0) is the v2 preview manifest, adding `alarms`, `notifications`, `tabs`,
-  and the CraftMyFunnel API host (declared as `optional_host_permissions` for arbitrary
-  self-hosted origins), plus `options_page`.
-- The v2 task worker is **merged into `background.js`** behind a capability gate
-  (`typeof chrome.alarms !== "undefined"`), so it is completely inert under the v1 manifest (which
-  grants no `alarms`). The old `background.v2-planned.js` remains only as a historical reference and
-  is not loaded by either manifest.
-- The `EXECUTE_TASK` executor lives in `content.js`; settings (API base, token, extension key,
-  team id, poll interval) are entered on `options.html`.
-
-Server-side, LinkedIn sequence steps enqueue extension tasks best-effort
-(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`): chat/message steps with a drafted
-body enqueue `INSERT_DRAFT`, every other LinkedIn step enqueues `OPEN_PROFILE`. The human
-`PipelineService` task remains the fallback for teams without the extension.
+Server-side, LinkedIn sequence steps still enqueue extension tasks best-effort
+(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`). Nothing in the extension reads that
+queue: due steps come from `GET /api/extension/steps`, and marking a step done closes its queued
+task. The human `PipelineService` task remains the fallback for teams without the extension.
 
 The disabled V2 request-recorder/data-normalizer architecture is scaffolded in TypeScript:
 
@@ -168,27 +153,6 @@ Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/
 The ZIP intentionally contains only the active V1 extension files and docs.
 `scripts/package-extension.ps1` builds the same file set (without the README) into `dist/CraftMyFunnel-extension.zip`.
 The listing text and permission answers for the store form are in `STORE_SUBMISSION.md`.
-
-## Build & Sideload the V2 Preview
-
-The v2 preview is not published. To load-test it locally, stage the files with `manifest.v2.json`
-renamed to `manifest.json`:
-
-```powershell
-$src = "apps/api/src/extension"
-$dst = "dist/chrome-extension-v2"
-Remove-Item -Recurse -Force $dst -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dst | Out-Null
-Copy-Item "$src/manifest.v2.json" "$dst/manifest.json"
-Copy-Item "$src/background.js","$src/content.js","$src/popup.html","$src/popup.js","$src/popup.css","$src/options.html","$src/options.js","$src/utils.js" $dst
-Copy-Item "$src/icons" $dst -Recurse
-```
-
-Then in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `dist/chrome-extension-v2`.
-Open the extension's Options, set the API base (e.g. `https://craftmyfunnel.live/api`), paste an
-extension token (minted via the app) and the extension key, save, then run a LinkedIn sequence step
-and confirm the profile opens / the draft is inserted for review. Publishing v2 to the Chrome Web
-Store is a separate decision and triggers a new permission review.
 
 ## Manual Test Checklist
 

@@ -107,6 +107,22 @@ describe("published manifest", () => {
         expect(major * 1000 + minor).toBeGreaterThan(1000);
     });
 
+    it("ships no background polling and opens no tab from the background", () => {
+        const background = read("background.js");
+        for (const gone of ["chrome.alarms", "chrome.tabs", "chrome.notifications", "tasks/pending", "EXECUTE_TASK"]) {
+            expect(background).not.toContain(gone);
+        }
+        expect(manifest.options_page).toBeUndefined();
+    });
+
+    it("never clicks or presses a key on the page", () => {
+        const content = read("content.js");
+        // A click or a synthetic Enter could send a message; the person always sends it themselves.
+        expect(content).not.toContain(".click(");
+        expect(content).not.toContain("KeyboardEvent");
+        expect(content).not.toContain("EXECUTE_TASK");
+    });
+
     it("keeps the settings where the first build saved them", () => {
         const background = read("background.js");
         for (const key of ["workspaceUrl", "extensionKey", "syncToken"]) {

@@ -4,15 +4,6 @@
 
 const CMF_NOT_DETECTED = "We couldn't confidently identify this field from the visible profile. You may enter it manually.";
 
-// Tell the V2 background worker this tab is ready, so it can dispatch any task
-// queued for this tab (covers a service-worker restart that missed onUpdated).
-// No-op under the V1 manifest (no CMF_CONTENT_READY handler) — lastError swallowed.
-try {
-  chrome.runtime.sendMessage({ type: "CMF_CONTENT_READY" }, () => void chrome.runtime.lastError);
-} catch (_e) {
-  // Extension context not available; ignore.
-}
-
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "CMF_CAPTURE_VISIBLE_PROFILE") {
     captureVisibleProfileWithRetries()
@@ -37,75 +28,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return false;
   }
 
-  // V2 task executor (active only when the V2 background dispatches a task).
-  // Assistive only: it inserts a draft for the human to review and send, or
-  // captures a visible profile as a lead. It never clicks send/connect.
-  if (msg?.type === "EXECUTE_TASK") {
-    executeTask(msg.task || {})
-      .then((result) => sendResponse(result))
-      .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
-    return true;
-  }
-
   return false;
 });
-
-async function executeTask(task) {
-  const type = task?.type;
-
-  if (type === "INSERT_DRAFT") {
-    const body = task.payload?.body || task.payload?.note || "";
-    const inserted = insertDraftIntoComposer(body);
-    const result = inserted.ok
-      ? { taskId: task.id, type, status: "SUCCESS" }
-      : { taskId: task.id, type, status: "ERROR", error: inserted.error };
-    chrome.runtime.sendMessage({ type: "TASK_RESULT", result });
-    return { ok: inserted.ok, error: inserted.error };
-  }
-
-  if (type === "ADD_LEAD") {
-    try {
-      const profile = await captureVisibleProfileWithRetries();
-      if (!profile?.name || !profile?.profileUrl) {
-        chrome.runtime.sendMessage({
-          type: "TASK_RESULT",
-          result: { taskId: task.id, type, status: "ERROR", error: "Could not read the visible profile." }
-        });
-        return { ok: false, error: "Could not read the visible profile." };
-      }
-      // Background's ADD_LEAD handler posts the lead and reports the task result.
-      chrome.runtime.sendMessage({
-        type: "ADD_LEAD",
-        taskId: task.id,
-        data: {
-          profileUrl: profile.profileUrl,
-          name: profile.name,
-          headline: profile.headline || "",
-          company: profile.currentCompany || profile.company || ""
-        }
-      });
-      return { ok: true };
-    } catch (error) {
-      chrome.runtime.sendMessage({
-        type: "TASK_RESULT",
-        result: { taskId: task.id, type, status: "ERROR", error: error?.message || String(error) }
-      });
-      return { ok: false, error: error?.message || String(error) };
-    }
-  }
-
-  return { ok: false, error: `Unsupported task type: ${type}` };
-}
-
-// Inserts draft text into the LinkedIn message composer for the user to review.
-// Focuses the box but never submits — the human presses Send.
-function findComposer() {
-  return (
-    document.querySelector('div.msg-form__contenteditable[contenteditable="true"]') ||
-    document.querySelector('div[role="textbox"][contenteditable="true"]') ||
-    document.querySelector('.msg-form__contenteditable[contenteditable="true"]')
-  );
-}
 
 const CMF_DRAFT_PANEL_ID = "cmf-draft-panel";
 const CMF_DRAFT_WAIT_MS = 2 * 60 * 1000;
@@ -192,7 +116,9 @@ function renderDraftPanel(name, text) {
   document.body.appendChild(panel);
 }
 
-function insertDraftIntoComposer(text, composer = findComposer()) {
+// Inserts draft text into the LinkedIn message composer for the user to review.
+// Focuses the box but never submits — the human presses Send.
+function insertDraftIntoComposer(text, composer) {
   if (!text) return { ok: false, error: "No draft text was provided." };
 
   if (!composer) {
