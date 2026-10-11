@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, enqueue, enroll } = vi.hoisted(() => ({
+const { db, enqueue, enroll, completeLinkedInRunsForLead } = vi.hoisted(() => ({
     db: {
         lead: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
         campaignSequence: { findMany: vi.fn() },
@@ -12,6 +12,7 @@ const { db, enqueue, enroll } = vi.hoisted(() => ({
     },
     enqueue: vi.fn(),
     enroll: vi.fn(),
+    completeLinkedInRunsForLead: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: db }));
@@ -22,11 +23,16 @@ vi.mock("@/modules/creator-funnel/nurtureProvider", () => ({
     nurtureCanRunSteps: (steps: { stepType: string }[]) => steps.length > 0 && steps.every((step) => step.stepType === "email"),
 }));
 
+vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({
+    SequenceService: { completeLinkedInRunsForLead },
+}));
+
 import {
     chooseSequenceForLead,
     enrollPendingSequence,
     enrollWaitingSequences,
     listSequencesForExtension,
+    markLinkedInOutreachDone,
     syncLinkedInExtensionCapture,
 } from "../extensionLeadCaptureService";
 
@@ -195,5 +201,29 @@ describe("sweep for leads waiting on an email", () => {
 
         expect(await enrollWaitingSequences()).toBe(2);
         expect(enroll).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("marking LinkedIn outreach done", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.lead.findFirst.mockResolvedValue({ id: "lead-1", teamId: "team-a", status: "LINKEDIN_CAPTURED", channelStatuses: [], emails: [] });
+        db.lead.update.mockResolvedValue({ id: "lead-1", status: "CONTACTED" });
+        completeLinkedInRunsForLead.mockResolvedValue({ resumed: 1 });
+    });
+
+    it("moves on the sequences that were waiting on a LinkedIn step for that lead", async () => {
+        const result = await markLinkedInOutreachDone({ teamId: "team-a", userId: "user-1", leadId: "lead-1" });
+
+        expect(completeLinkedInRunsForLead).toHaveBeenCalledWith("team-a", "lead-1", expect.any(Date));
+        expect(result).toEqual(expect.objectContaining({ success: true, status: "CONTACTED", sequencesResumed: 1 }));
+    });
+
+    it("does not look for sequences when the lead is not in the team", async () => {
+        db.lead.findFirst.mockResolvedValue(null);
+
+        await expect(markLinkedInOutreachDone({ teamId: "team-a", userId: "user-1", leadId: "lead-x" })).rejects.toThrow("Lead not found");
+
+        expect(completeLinkedInRunsForLead).not.toHaveBeenCalled();
     });
 });

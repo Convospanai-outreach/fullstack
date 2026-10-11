@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentContextFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { parseBody } from '@/lib/validation/parseBody';
+import { SequenceService } from '@/modules/email-campaigner/service/sequenceService';
 import { z } from 'zod';
 
 // Task.status / Task.priority are String columns documented as TODO|DONE and
@@ -38,6 +39,12 @@ export async function PATCH(
 
         if (!existingTask) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        // A task a sequence step created: marking it done moves the sequence on to its next step.
+        // Before the task update, so a failure here leaves the task open to be marked done again.
+        if (status === 'DONE' && existingTask.status !== 'DONE' && existingTask.sequenceStepRunId) {
+            await SequenceService.completeManualRun(teamId, existingTask.sequenceStepRunId);
         }
 
         // Update task - scoped by teamId here too, not just the pre-check

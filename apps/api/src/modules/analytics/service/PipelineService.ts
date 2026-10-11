@@ -45,7 +45,7 @@ export class PipelineService {
     }
 
     static async createTask(data: any) {
-        const { teamId, userId, leadId, title, description, priority, dueDate } = data;
+        const { teamId, userId, leadId, title, description, priority, dueDate, sequenceStepRunId } = data;
         if (leadId) {
             const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
             if (!lead) {
@@ -61,6 +61,7 @@ export class PipelineService {
                 description,
                 priority,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
+                sequenceStepRunId,
             },
         });
     }
