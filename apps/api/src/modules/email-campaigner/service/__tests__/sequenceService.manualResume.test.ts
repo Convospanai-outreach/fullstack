@@ -6,6 +6,7 @@ const tables: Record<string, any[]> = vi.hoisted(() => ({}));
 
 function matches(where: any = {}, row: any): boolean {
     return Object.entries(where).every(([key, condition]: [string, any]) => {
+        if (key === "enrollment") return matches(condition, tables["sequenceEnrollment"].find((item) => item.id === row.enrollmentId));
         if (condition && typeof condition === "object" && !(condition instanceof Date)) {
             if ("in" in condition) return condition.in.includes(row[key]);
             if ("gt" in condition) return row[key] > condition.gt;
@@ -60,15 +61,18 @@ import { SequenceService } from "../sequenceService";
 const now = new Date("2026-10-10T10:00:00Z");
 
 function seed() {
-    tables["lead"] = [{ id: "lead-1", teamId: "team-1", status: "CONTACTED", pipelineState: "COLD" }];
+    tables["lead"] = [{
+        id: "lead-1", teamId: "team-1", status: "CONTACTED", pipelineState: "COLD",
+        fullName: "Jane Doe", company: "Acme", linkedIn: "https://www.linkedin.com/in/jane-doe/",
+    }];
     tables["sequenceStep"] = [
-        { id: "step-li", sequenceId: "seq-1", stepType: "LI_INVITE", stepOrder: 1, status: "ACTIVE" },
+        { id: "step-li", sequenceId: "seq-1", stepType: "LI_INVITE", stepOrder: 1, status: "ACTIVE", body: "Hi Jane" },
         { id: "step-email", sequenceId: "seq-1", stepType: "EMAIL", stepOrder: 2, status: "ACTIVE", delayDays: 2, delayHours: 0 },
         { id: "step-wa", sequenceId: "seq-2", stepType: "WHATSAPP", stepOrder: 1, status: "ACTIVE" },
     ];
     tables["sequenceEdge"] = [];
     tables["sequenceEnrollment"] = [
-        { id: "enrollment-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", status: "MANUAL_REVIEW", nextRunAt: null },
+        { id: "enrollment-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", status: "MANUAL_REVIEW", nextRunAt: null, campaign: { ownerId: "user-1" } },
         { id: "enrollment-2", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-2", status: "MANUAL_REVIEW", nextRunAt: null },
     ];
     tables["sequenceStepRun"] = [
@@ -79,6 +83,10 @@ function seed() {
         { id: "task-li", teamId: "team-1", sequenceStepRunId: "run-li", status: "TODO" },
         { id: "task-wa", teamId: "team-1", sequenceStepRunId: "run-wa", status: "TODO" },
         { id: "task-own", teamId: "team-1", sequenceStepRunId: null, status: "TODO" },
+    ];
+    tables["job"] = [
+        { id: "job-li", teamId: "team-1", idempotencyKey: "ext_openprofile_run-li", status: "awaiting_extension" },
+        { id: "job-other", teamId: "team-1", idempotencyKey: "ext_openprofile_run-other", status: "awaiting_extension" },
     ];
     tables["campaignSequence"] = [];
 
@@ -91,13 +99,14 @@ function seed() {
         return {
             ...run,
             step: tables["sequenceStep"].find((row) => row.id === run.sequenceStepId),
-            enrollment: { ...enrollment, lead: tables["lead"][0], sequence: { timezone: "UTC" } },
+            lead: tables["lead"].find((row) => row.id === run.leadId),
+            enrollment: { ...enrollment, lead: tables["lead"][0], sequence: { timezone: "UTC", name: "Outbound" } },
         };
     };
     const plainFindFirst = mockDb.sequenceStepRun.findFirst;
     mockDb.sequenceStepRun.findFirst = vi.fn(async (args: any) => {
         const run = await plainFindFirst(args);
-        return args?.include ? withRelations(run) : run;
+        return args?.include || args?.select ? withRelations(run) : run;
     });
     const plainFindMany = mockDb.sequenceStepRun.findMany;
     mockDb.sequenceStepRun.findMany = vi.fn(async (args: any) => (await plainFindMany(args)).map(withRelations));
@@ -124,6 +133,16 @@ describe("SequenceService.completeManualRun", () => {
         expect(runsFor("step-email")).toEqual([
             expect.objectContaining({ status: "SCHEDULED", scheduledAt: new Date("2026-10-12T10:00:00Z"), enrollmentId: "enrollment-1" }),
         ]);
+    });
+
+    it("closes the step's task and the extension's copy of it, and nothing else", async () => {
+        await SequenceService.completeManualRun("team-1", "run-li", now);
+
+        expect(row("task", "task-li").status).toBe("DONE");
+        expect(row("job", "job-li")).toMatchObject({ status: "completed", completedAt: now });
+        expect(row("task", "task-wa").status).toBe("TODO");
+        expect(row("task", "task-own").status).toBe("TODO");
+        expect(row("job", "job-other").status).toBe("awaiting_extension");
     });
 
     it("finishes the sequence when the manual step was its last", async () => {
@@ -214,5 +233,78 @@ describe("SequenceService.completeLinkedInRunsForLead", () => {
 
         expect(result).toEqual({ resumed: 0 });
         expect(mockDb.task.updateMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("SequenceService.listDueLinkedInSteps", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        seed();
+    });
+
+    it("lists the LinkedIn steps waiting on the campaign's owner, with what to do and what to say", async () => {
+        const steps = await SequenceService.listDueLinkedInSteps("team-1", "user-1");
+
+        // The WhatsApp step that is also waiting is not a LinkedIn step.
+        expect(steps).toEqual([expect.objectContaining({
+            runId: "run-li",
+            leadId: "lead-1",
+            name: "Jane Doe",
+            company: "Acme",
+            profileUrl: "https://www.linkedin.com/in/jane-doe/",
+            action: "Send invitation",
+            message: "Hi Jane",
+            sequence: "Outbound",
+        })]);
+    });
+
+    it("keeps another person's steps out of a teammate's list", async () => {
+        expect(await SequenceService.listDueLinkedInSteps("team-1", "user-2")).toEqual([]);
+    });
+
+    it("shows a step whose campaign has no owner to everyone in the team", async () => {
+        delete row("sequenceEnrollment", "enrollment-1").campaign;
+
+        expect(await SequenceService.listDueLinkedInSteps("team-1", "user-2")).toHaveLength(1);
+    });
+
+    it("leaves out a step whose sequence has been stopped", async () => {
+        row("sequenceEnrollment", "enrollment-1").status = "EXITED";
+
+        expect(await SequenceService.listDueLinkedInSteps("team-1", "user-1")).toEqual([]);
+    });
+
+    it("leaves out a step once it is done, and another team's steps", async () => {
+        expect(await SequenceService.listDueLinkedInSteps("team-2", "user-1")).toEqual([]);
+
+        await SequenceService.completeManualRun("team-1", "run-li", now);
+
+        expect(await SequenceService.listDueLinkedInSteps("team-1", "user-1")).toEqual([]);
+    });
+});
+
+describe("SequenceService.findDueLinkedInStep", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        seed();
+    });
+
+    it("finds a waiting LinkedIn step and says whether it reaches the person", async () => {
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toEqual({
+            leadId: "lead-1", action: "Send invitation", reachesPerson: true,
+        });
+
+        row("sequenceStep", "step-li").stepType = "LI_VISIT";
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toEqual({
+            leadId: "lead-1", action: "Visit profile", reachesPerson: false,
+        });
+    });
+
+    it("does not find a step of another kind, of another team, or one already done", async () => {
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-wa")).toBeNull();
+        expect(await SequenceService.findDueLinkedInStep("team-2", "run-li")).toBeNull();
+
+        await SequenceService.completeManualRun("team-1", "run-li", now);
+        expect(await SequenceService.findDueLinkedInStep("team-1", "run-li")).toBeNull();
     });
 });

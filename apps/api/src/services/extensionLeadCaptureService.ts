@@ -395,14 +395,9 @@ export async function enrollWaitingSequences(limit = 50): Promise<number> {
     return enrolled;
 }
 
-export async function markLinkedInOutreachDone(params: {
-    teamId: string;
-    userId: string;
-    leadId: string;
-    notes?: string;
-}) {
+// Records on the lead that someone reached the person on LinkedIn.
+async function recordLinkedInOutreach(params: { teamId: string; userId: string; leadId: string; notes?: string }, now: Date) {
     const db = prisma as any;
-    const now = new Date();
     const lead = await db.lead.findFirst({
         where: { id: params.leadId, teamId: params.teamId },
         include: {
@@ -429,17 +424,27 @@ export async function markLinkedInOutreachDone(params: {
         createdBy: params.userId
     });
 
-    const updated = await db.lead.update({
+    return db.lead.update({
         where: { id: lead.id },
         data: {
             status,
             pipelineState: status === "MULTI_CHANNEL_CONTACTED" ? "WARM" : lead.pipelineState
         }
     });
+}
+
+export async function markLinkedInOutreachDone(params: {
+    teamId: string;
+    userId: string;
+    leadId: string;
+    notes?: string;
+}) {
+    const now = new Date();
+    const updated = await recordLinkedInOutreach(params, now);
 
     // A sequence waiting on a LinkedIn step for this lead moves on to its next step.
     const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
-    const { resumed } = await SequenceService.completeLinkedInRunsForLead(params.teamId, lead.id, now);
+    const { resumed } = await SequenceService.completeLinkedInRunsForLead(params.teamId, updated.id, now);
 
     return {
         success: true,
@@ -448,4 +453,26 @@ export async function markLinkedInOutreachDone(params: {
         sequencesResumed: resumed,
         message: "LinkedIn outreach marked as done"
     };
+}
+
+// The steps the extension lists as due for this person.
+export async function listDueLinkedInSteps(teamId: string, userId: string) {
+    const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+    return SequenceService.listDueLinkedInSteps(teamId, userId);
+}
+
+// One step ticked off in that list: the sequence moves on to its next step. A step that reached
+// the person (an invitation, a message) is also recorded on the lead, before the sequence moves,
+// so a failure in between leaves the step in the list to be ticked off again.
+export async function completeLinkedInStep(params: { teamId: string; userId: string; runId: string }) {
+    const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+    const now = new Date();
+    const step = await SequenceService.findDueLinkedInStep(params.teamId, params.runId);
+    if (!step) throw new Error("Step not found");
+
+    if (step.leadId && step.reachesPerson) {
+        await recordLinkedInOutreach({ teamId: params.teamId, userId: params.userId, leadId: step.leadId, notes: `Sequence step: ${step.action}` }, now);
+    }
+    const { resumed } = await SequenceService.completeManualRun(params.teamId, params.runId, now);
+    return { success: true as const, action: step.action, sequenceResumed: resumed };
 }

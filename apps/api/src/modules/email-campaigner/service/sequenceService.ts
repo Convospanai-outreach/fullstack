@@ -7,6 +7,7 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
+import { EXTENSION_TASK_STATUS } from "@/linkedin/extension-bridge";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -180,6 +181,9 @@ const LINKEDIN_ACTION_LABELS: Record<string, string> = {
 function findLinkedInActionLabel(rawStepType: string) {
     return LINKEDIN_ACTION_LABELS[stepType({ stepType: rawStepType })] || "Take LinkedIn action";
 }
+
+// The LinkedIn steps that reach the person. A profile visit or a withdrawn invitation doesn't.
+const LINKEDIN_OUTREACH_STEP_TYPES = new Set(["chat_message", "li_invite", "li_chat", "li_voice"]);
 
 export class SequenceService {
     static async processDue(options: ProcessDueOptions = {}) {
@@ -851,11 +855,73 @@ export class SequenceService {
             }
             throw error;
         }
+
+        // The step is closed wherever it was marked done, so its task and the extension's copy go too.
+        await prisma.task.updateMany({
+            where: { teamId, sequenceStepRunId: run.id, status: "TODO" },
+            data: { status: "DONE" },
+        });
+        await prisma.job.updateMany({
+            where: {
+                teamId,
+                idempotencyKey: { in: [`ext_insertdraft_${run.id}`, `ext_openprofile_${run.id}`] },
+                status: { in: [EXTENSION_TASK_STATUS, "processing"] },
+            },
+            data: { status: "completed", completedAt: now },
+        });
         return { resumed: resuming };
     }
 
+    // LinkedIn steps waiting on a person, for the list in the browser extension. A step belongs to
+    // the owner of its campaign; one whose campaign has no owner is shown to everyone in the team.
+    static async listDueLinkedInSteps(teamId: string, userId: string) {
+        const client = db();
+        const waiting = await client.sequenceStepRun.findMany({
+            where: { teamId, status: "AWAITING_MANUAL_REVIEW", enrollment: { status: "MANUAL_REVIEW" } },
+            include: {
+                step: true,
+                lead: { select: { id: true, fullName: true, email: true, company: true, linkedIn: true } },
+                enrollment: { select: { campaign: { select: { ownerId: true } }, sequence: { select: { name: true } } } },
+            },
+            orderBy: { completedAt: "asc" },
+            take: 200,
+        });
+        return waiting
+            .filter((run: any) => LINKEDIN_STEP_TYPES.has(stepType(run.step)) && run.lead?.linkedIn)
+            .filter((run: any) => {
+                const ownerId = run.enrollment?.campaign?.ownerId;
+                return !ownerId || ownerId === userId;
+            })
+            .map((run: any) => ({
+                runId: run.id as string,
+                leadId: run.lead.id as string,
+                name: (run.lead.fullName || run.lead.email || "") as string,
+                company: (run.lead.company || "") as string,
+                profileUrl: run.lead.linkedIn as string,
+                action: findLinkedInActionLabel(run.step.stepType),
+                message: typeof run.step.body === "string" ? run.step.body : "",
+                sequence: (run.enrollment?.sequence?.name || "") as string,
+                waitingSince: run.completedAt as Date | null,
+            }));
+    }
+
+    // One LinkedIn step still waiting on a person, or null. Other manual steps (a WhatsApp message
+    // sent by hand) are not the extension's to close.
+    static async findDueLinkedInStep(teamId: string, runId: string) {
+        const run = await db().sequenceStepRun.findFirst({
+            where: { id: runId, teamId, status: "AWAITING_MANUAL_REVIEW" },
+            select: { leadId: true, step: { select: { stepType: true } } },
+        });
+        if (!run || !LINKEDIN_STEP_TYPES.has(stepType(run.step))) return null;
+        return {
+            leadId: run.leadId as string | null,
+            action: findLinkedInActionLabel(run.step.stepType),
+            reachesPerson: LINKEDIN_OUTREACH_STEP_TYPES.has(stepType(run.step)),
+        };
+    }
+
     // The extension's "LinkedIn outreach done" for a lead: every sequence waiting on a LinkedIn
-    // step for that lead moves on, and the tasks those steps created are closed.
+    // step for that lead moves on.
     static async completeLinkedInRunsForLead(teamId: string, leadId: string, now = new Date()) {
         const client = db();
         const waiting = await client.sequenceStepRun.findMany({
@@ -869,12 +935,6 @@ export class SequenceService {
         let resumed = 0;
         for (const runId of runIds) {
             if ((await this.completeManualRun(teamId, runId, now)).resumed) resumed++;
-        }
-        if (runIds.length > 0) {
-            await prisma.task.updateMany({
-                where: { teamId, sequenceStepRunId: { in: runIds }, status: "TODO" },
-                data: { status: "DONE" },
-            });
         }
         return { resumed };
     }
