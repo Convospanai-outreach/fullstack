@@ -15,7 +15,10 @@ let background: Record<string, any>;
 let chrome: any;
 
 async function openPopup(tabUrl: string) {
-    document.body.innerHTML = read("popup.html").replace(/<script[^>]*><\/script>/g, "").replace(/^[\s\S]*<body>/, "").replace(/<\/body>[\s\S]*$/, "");
+    // The popup's markup without its script tags; the scripts are run below with the stand-in.
+    const markup = new DOMParser().parseFromString(read("popup.html"), "text/html");
+    markup.querySelectorAll("script").forEach((script) => script.remove());
+    document.body.replaceChildren(...Array.from(markup.body.childNodes).map((node) => document.importNode(node, true)));
     chrome = {
         runtime: {
             lastError: undefined,
