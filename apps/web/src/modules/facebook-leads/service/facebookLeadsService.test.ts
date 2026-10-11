@@ -13,6 +13,9 @@ vi.mock("@/lib/security/credentialVault", () => ({ encryptCredential: mockEncryp
 
 import { buildFacebookLeadsAuthUrl, connectFacebookPages, nextPathFromState } from "./facebookLeadsService";
 
+// Business Manager scopes are opt-in and social-only.
+const scopesOf = (url: string) => new URL(url).searchParams.get("scope")!.split(",");
+
 function jsonResponse(body: unknown, ok = true) {
     return { ok, json: async () => body } as Response;
 }
@@ -40,6 +43,15 @@ describe("facebookLeadsService", () => {
         expect(parsed.searchParams.get("scope")).toContain("leads_retrieval");
         expect(parsed.searchParams.get("client_id")).toBe("app-id");
         expect(parsed.searchParams.get("state")).toBeTruthy();
+    });
+
+    it("adds ads_management and ads_read only for a social Business Manager connect", () => {
+        const plain = scopesOf(buildFacebookLeadsAuthUrl({ teamId: "t", userId: "u", purpose: "social" }));
+        expect(plain).toContain("instagram_manage_messages");
+        expect(plain).not.toContain("ads_management");
+        const business = scopesOf(buildFacebookLeadsAuthUrl({ teamId: "t", userId: "u", purpose: "social", businessManager: true }));
+        expect(business).toEqual(expect.arrayContaining(["ads_management", "ads_read", "instagram_manage_messages"]));
+        expect(scopesOf(buildFacebookLeadsAuthUrl({ teamId: "t", userId: "u", businessManager: true }))).not.toContain("ads_management");
     });
 
     it("rejects a tampered state on callback", async () => {
