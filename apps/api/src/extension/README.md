@@ -147,11 +147,11 @@ The following are intentionally disabled in the V1 approval build:
 From the repository root:
 
 ```powershell
-Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/extension/background.js,apps/api/src/extension/content.js,apps/api/src/extension/popup.html,apps/api/src/extension/popup.js,apps/api/src/extension/popup.css,apps/api/src/extension/utils.js,apps/api/src/extension/icons,apps/api/src/extension/README.md -DestinationPath dist/craftmyfunnel-extension-v1.zip
+Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/extension/background.js,apps/api/src/extension/content.js,apps/api/src/extension/popup.html,apps/api/src/extension/popup.js,apps/api/src/extension/popup.css,apps/api/src/extension/utils.js,apps/api/src/extension/icons -DestinationPath dist/craftmyfunnel-extension-v1.zip
 ```
 
-The ZIP intentionally contains only the active V1 extension files and docs.
-`scripts/package-extension.ps1` builds the same file set (without the README) into `dist/CraftMyFunnel-extension.zip`.
+The ZIP intentionally contains only the active extension files.
+`scripts/package-extension.ps1` builds the same file set into `dist/CraftMyFunnel-extension.zip`.
 The listing text and permission answers for the store form are in `STORE_SUBMISSION.md`.
 
 ## Manual Test Checklist

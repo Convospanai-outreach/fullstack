@@ -81,6 +81,15 @@ describe("popup: Due tab", () => {
         expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://www.linkedin.com/in/omar-ali/" });
     });
 
+    it("opens no tab for an address that is not on linkedin.com", async () => {
+        background.CMF_LIST_DUE_STEPS = { ok: true, steps: [{ ...omar, profileUrl: "https://notlinkedin.com/in/omar-ali/" }] };
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        button(items()[0], "Open profile")!.click();
+
+        expect(chrome.tabs.create).not.toHaveBeenCalled();
+    });
+
     it("hands the draft to the profile page", async () => {
         await openPopup("https://www.linkedin.com/in/jane-doe/");
 

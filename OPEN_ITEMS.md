@@ -7016,6 +7016,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     tab-opening code: the gated block in `background.js`, the task executor in `content.js`,
     `manifest.v2.json`, `options.*`, `background.v2-planned.js` and their tests. The guards that still apply
     (no click or key press on the page, unchanged permissions) moved to `due-steps.test.ts`.
+  - **Also fixed:** a profile address counts as LinkedIn only when its host is linkedin.com or a subdomain of
+    it (background, popup and page checks); a host that merely ends in those letters is refused.
   - **Not covered:** the server's task queue routes (`/extension/tasks/*`) and the tasks the sequence engine
     queues for them are unchanged; nothing in the extension reads them now. The invitation note field is not filled;
     the message for an invitation is copied by hand. Needs OPEN-341 deployed first. Not load-tested in Chrome

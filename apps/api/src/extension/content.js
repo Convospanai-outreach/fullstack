@@ -682,7 +682,8 @@ function cleanProfileUrl(value) {
 }
 
 function isLinkedInProfilePage() {
-  return location.hostname.endsWith("linkedin.com") && location.pathname.includes("/in/");
+  const onLinkedIn = location.hostname === "linkedin.com" || location.hostname.endsWith(".linkedin.com");
+  return onLinkedIn && location.pathname.includes("/in/");
 }
 
 function isVisible(element) {
