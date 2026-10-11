@@ -136,3 +136,18 @@ aws cloudformation deploy --region eu-north-1 --stack-name mautic \
   - snapshots and secrets about $1.
 
   Check these against the AWS Pricing Calculator. The budget alert (`budget.yaml`) fires at 80% of `MonthlyBudgetUsd` and on a forecast above 100%, measured before credits.
+
+## Send Mautic form sign-ups back to CraftMyFunnel
+
+For pages built in Mautic. Instagram and Facebook auto-replies link to the page with a signed `?t=` token (see `keywordTriggers.ts`). A form submitted on that page is sent to `apps/api`, which joins it to the lead the auto-reply went to.
+
+1. Pick a long random secret and set it as `MAUTIC_WEBHOOK_SECRET` in `/opt/fullstack/.env` on both Oracle VMs (the API reads it; it is not stored in the repo). Recreate the containers.
+2. In Mautic, Settings > Webhooks > New:
+   - URL `https://api.craftmyfunnel.live/webhooks/mautic`.
+   - The same secret.
+   - Event **Form submitted** only.
+   - Process events immediately, not in the background, so leads arrive without waiting for cron.
+3. On every form used behind an auto-reply, use these field aliases: `email` (required), `firstname`, `lastname`, `phone`, `company`, `position`. Optionally add a hidden field with alias `t`. Without it the token is read from the page address (`?t=` on the page the form was submitted from), which works as long as the form is on that page.
+4. Test: send a DM that matches a trigger on an account with a Mautic page link, open the link, submit the form. The lead's email, name and first-touch post should appear in CraftMyFunnel. Mautic's webhook log shows the HTTP status of each delivery.
+
+Submissions with no valid token (for example a visitor who didn't come from an auto-reply) are ignored here; they stay in Mautic only. The webhook never sends email for the lead.

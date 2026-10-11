@@ -47,9 +47,10 @@ describe("keepRawJsonBody", () => {
         app.post("/webhooks/stripe-connect", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
         app.post("/webhooks/razorpay", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
         app.post("/webhooks/whatsapp", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
+        app.post("/webhooks/mautic", async (request: any) => ({ text: await new Request("http://x", { method: "POST", body: request.rawBody }).text() }));
         const pretty = JSON.stringify({ id: "evt_1", data: { object: { name: "café ✓" } } }, null, 2);
         const sign = (value: string) => crypto.createHmac("sha256", "whsec").update(value).digest("hex");
-        for (const url of ["/webhooks/stripe-connect", "/webhooks/razorpay", "/webhooks/whatsapp"]) {
+        for (const url of ["/webhooks/stripe-connect", "/webhooks/razorpay", "/webhooks/whatsapp", "/webhooks/mautic"]) {
             const res = await app.inject({ method: "POST", url, headers: { "content-type": "application/json" }, payload: pretty });
             expect(sign(res.json().text)).toBe(sign(pretty));
         }
