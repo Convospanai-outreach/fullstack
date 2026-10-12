@@ -42,6 +42,17 @@ describe("GET /api/integrations/facebook/oauth/start", () => {
         expect(buildFacebookLeadsAuthUrl).not.toHaveBeenCalled();
     });
 
+    it("asks for the Business Manager permissions only on social connects with business=1", async () => {
+        await start("?purpose=social&business=1&next=/settings/social");
+        expect(buildFacebookLeadsAuthUrl).toHaveBeenCalledWith({ teamId: "team-1", userId: "user-1", purpose: "social", nextPath: "/settings/social", businessManager: true });
+
+        vi.clearAllMocks();
+        (getCurrentContext as any).mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        (checkTeamPermission as any).mockResolvedValue(true);
+        await start("?business=1");
+        expect(buildFacebookLeadsAuthUrl).toHaveBeenCalledWith({ teamId: "team-1", userId: "user-1", purpose: "leads" });
+    });
+
     it("requires a team admin", async () => {
         (checkTeamPermission as any).mockResolvedValue(false);
         expect((await start("?purpose=social")).status).toBe(403);

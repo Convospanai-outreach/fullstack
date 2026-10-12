@@ -1569,6 +1569,7 @@ model KeywordTrigger {
   replyText          String              @db.Text
   publicCommentReply String?             @db.Text
   landingPageId      String? // LandingPage id; no FK (Landing* tables aren't created by migrations)
+  mauticPageUrl      String? // Mautic landing page URL (host must be MAUTIC_BASE_URL); used instead of landingPageId when Mautic is configured
   active             Boolean             @default(false)
   activatedById      String?
   activatedAt        DateTime?

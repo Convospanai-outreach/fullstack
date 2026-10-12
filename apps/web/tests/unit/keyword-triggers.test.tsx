@@ -26,6 +26,7 @@ const trigger = (overrides: Partial<KeywordTrigger> = {}): KeywordTrigger => ({
     replyText: "Here's the guide",
     publicCommentReply: null,
     landingPageId: null,
+    mauticPageUrl: null,
     active: false,
     sentLast7Days: 4,
     lastError: null,
@@ -123,6 +124,7 @@ describe("Keyword auto-replies", () => {
             replyText: "Here's the guide",
             publicCommentReply: "Sent you a DM!",
             landingPageId: "lp-1",
+            mauticPageUrl: null,
         });
         expect(toast.success).toHaveBeenCalledWith("Saved. Switch it on when you're ready.");
     });

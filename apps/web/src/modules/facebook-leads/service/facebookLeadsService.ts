@@ -44,6 +44,12 @@ const FACEBOOK_SOCIAL_SCOPES = [
     "instagram_manage_messages",
 ];
 
+// Meta: when the person's Page role comes through Business Manager, the app also needs these
+// (https://developers.facebook.com/documentation/instagram-platform/content-publishing.md,
+// Access Levels > Permissions, checked 2026-10-11). Only asked for on the separate Business
+// Manager connect button, so the default connect (and its App Review submission) is unchanged.
+const FACEBOOK_BUSINESS_MANAGER_SCOPES = ["ads_management", "ads_read"];
+
 // Social calls use the current Graph API version. v21.0 above (Lead Ads) is supported until
 // 2027-01-21 (https://developers.facebook.com/docs/graph-api/changelog/versions, checked 2026-09-30).
 const SOCIAL_GRAPH_BASE_URL = "https://graph.facebook.com/v26.0";
@@ -132,7 +138,7 @@ export function nextPathFromState(state: string | null): string | null {
     }
 }
 
-export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: string; nextPath?: string; purpose?: FacebookConnectPurpose }): string {
+export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: string; nextPath?: string; purpose?: FacebookConnectPurpose; businessManager?: boolean }): string {
     const { appId, redirectUri } = getFacebookConfig();
     const purpose = input.purpose ?? "leads";
     const state = signState({
@@ -148,7 +154,10 @@ export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: strin
         client_id: appId,
         redirect_uri: redirectUri,
         state,
-        scope: (purpose === "social" ? FACEBOOK_SOCIAL_SCOPES : FACEBOOK_LEAD_SCOPES).join(","),
+        scope: (purpose === "social"
+            ? [...FACEBOOK_SOCIAL_SCOPES, ...(input.businessManager ? FACEBOOK_BUSINESS_MANAGER_SCOPES : [])]
+            : FACEBOOK_LEAD_SCOPES
+        ).join(","),
         response_type: "code",
     });
     return `${FACEBOOK_OAUTH_URL}?${params.toString()}`;

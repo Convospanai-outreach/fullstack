@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
-import { PRIVATE_SCOPES, PUBLIC_REPLY_SCOPE, REPLY_TEXT_MAX_BYTES, replyLink, words } from "./keywordTriggers";
+import { PRIVATE_SCOPES, PUBLIC_REPLY_SCOPE, REPLY_TEXT_MAX_BYTES, isMauticPageUrl, mauticReplyLink, replyLink, words } from "./keywordTriggers";
 import { LINK_TOKEN_MAX_LENGTH } from "./linkToken";
 import { INSTAGRAM_TEXT_MAX_BYTES } from "./socialInbox";
 import type { AccountPlatform } from "./socialInbox";
@@ -24,6 +24,7 @@ const fields = {
     replyText: z.string().trim().min(1).max(REPLY_TEXT_MAX_BYTES),
     publicCommentReply: z.string().trim().max(PUBLIC_REPLY_MAX).nullable(),
     landingPageId: z.string().max(64).nullable(),
+    mauticPageUrl: z.string().trim().url().max(500).nullable(),
 };
 
 export const createTriggerSchema = z.object({
@@ -33,6 +34,7 @@ export const createTriggerSchema = z.object({
     contentPostId: fields.contentPostId.default(null),
     publicCommentReply: fields.publicCommentReply.default(null),
     landingPageId: fields.landingPageId.default(null),
+    mauticPageUrl: fields.mauticPageUrl.default(null),
 });
 export const updateTriggerSchema = z.object({ ...fields, active: z.boolean() }).partial();
 
@@ -83,6 +85,24 @@ async function checkFields(teamId: string, input: TriggerFields, willBeActive: b
         }
     }
 
+    if (input.mauticPageUrl) {
+        if (!isMauticPageUrl(input.mauticPageUrl)) fail(400, "The Mautic page link must be an https link on your Mautic site.");
+        if (account?.platform === "INSTAGRAM") {
+            const link = mauticReplyLink({
+                url: input.mauticPageUrl,
+                token: "x".repeat(LINK_TOKEN_MAX_LENGTH),
+                platform: "INSTAGRAM",
+                kind: "COMMENT",
+                triggerId: UUID_LENGTH_ID,
+                contentPostId: UUID_LENGTH_ID,
+            });
+            const over = Buffer.byteLength(`${input.replyText}
+
+${link}`, "utf8") - INSTAGRAM_TEXT_MAX_BYTES;
+            if (over > 0) fail(400, `With the Mautic page link, this reply is over Instagram's 1,000-byte limit. Shorten it by ${over} bytes.`);
+        }
+    }
+
     const { guardrailService } = await import("@/modules/governance/service/guardrailService");
     for (const text of [input.replyText, input.publicCommentReply]) {
         if (!text) continue;
@@ -125,6 +145,7 @@ const TRIGGER_SELECT = {
     replyText: true,
     publicCommentReply: true,
     landingPageId: true,
+    mauticPageUrl: true,
     active: true,
     activatedAt: true,
     createdAt: true,
