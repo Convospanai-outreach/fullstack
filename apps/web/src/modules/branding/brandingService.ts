@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { createCustomHostname, removeCustomHostname } from "./cloudflareCustomHostnameService";
+import { createCustomHostname, removeCustomHostname, setDomainHomePage } from "./cloudflareCustomHostnameService";
 
 export interface BrandingConfig {
     logoUrl?: string;
@@ -81,6 +81,24 @@ export class BrandingService {
                 ownershipVerificationValue: cloudflareResult.ownershipVerification?.value ?? null,
             }
         });
+    }
+
+    /**
+     * Picks the page shown at a connected domain's root (null clears it). Returns
+     * false when the domain isn't the team's, or the slug isn't one of the team's
+     * published pages.
+     */
+    static async setHomePage(teamId: string, id: string, slug: string | null): Promise<boolean> {
+        const record = await prisma.customDomain.findFirst({ where: { id, teamId } });
+        if (!record) return false;
+        if (slug !== null) {
+            const page = await prisma.landingPage.findFirst({ where: { teamId, slug, status: "published" }, select: { id: true } });
+            if (!page) return false;
+        }
+
+        await setDomainHomePage(record.domain, slug);
+        await prisma.customDomain.updateMany({ where: { id, teamId }, data: { homeSlug: slug } });
+        return true;
     }
 
     /** Disconnects one of the team's domains. Returns false when it isn't theirs. */

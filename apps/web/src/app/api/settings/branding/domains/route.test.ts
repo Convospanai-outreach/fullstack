@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockAddDomain, mockRemoveDomain, UnavailableError } = vi.hoisted(() => ({
+const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockAddDomain, mockRemoveDomain, mockSetHomePage, UnavailableError } = vi.hoisted(() => ({
     mockPrisma: {
         customDomain: { findMany: vi.fn(), findUnique: vi.fn() },
+        landingPage: { findMany: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
     mockAddDomain: vi.fn(),
     mockRemoveDomain: vi.fn(),
+    mockSetHomePage: vi.fn(),
     UnavailableError: class extends Error {},
 }));
 
@@ -15,11 +17,11 @@ vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/permissions", () => ({ checkTeamPermission: mockCheckTeamPermission, TeamRole: { ADMIN: "ADMIN" } }));
 vi.mock("@/modules/branding/brandingService", () => ({
-    BrandingService: { addDomain: mockAddDomain, removeDomain: mockRemoveDomain },
+    BrandingService: { addDomain: mockAddDomain, removeDomain: mockRemoveDomain, setHomePage: mockSetHomePage },
     CustomDomainsUnavailableError: UnavailableError,
 }));
 
-import { DELETE, GET, POST } from "./route";
+import { DELETE, GET, PATCH, POST } from "./route";
 
 function postRequest(body: unknown) {
     return new Request("http://localhost/api/settings/branding/domains", {
@@ -87,6 +89,43 @@ describe("POST /api/settings/branding/domains", () => {
     });
 });
 
+describe("PATCH /api/settings/branding/domains", () => {
+    const patchRequest = (body: unknown) =>
+        new Request("http://localhost/api/settings/branding/domains", { method: "PATCH", body: JSON.stringify(body) }) as any;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(true);
+    });
+
+    it("rejects a non-admin", async () => {
+        mockCheckTeamPermission.mockResolvedValue(false);
+        const res = await PATCH(patchRequest({ id: "cd-1", homeSlug: "spring" }));
+        expect(res.status).toBe(403);
+        expect(mockSetHomePage).not.toHaveBeenCalled();
+    });
+
+    it("sets the home page of the caller's team's domain", async () => {
+        mockSetHomePage.mockResolvedValue(true);
+        const res = await PATCH(patchRequest({ id: "cd-1", homeSlug: "spring" }));
+        expect(res.status).toBe(200);
+        expect(mockSetHomePage).toHaveBeenCalledWith("team-1", "cd-1", "spring");
+    });
+
+    it("clears the home page when no slug is given", async () => {
+        mockSetHomePage.mockResolvedValue(true);
+        await PATCH(patchRequest({ id: "cd-1", homeSlug: "" }));
+        expect(mockSetHomePage).toHaveBeenCalledWith("team-1", "cd-1", null);
+    });
+
+    it("404s when the domain or the page isn't the team's", async () => {
+        mockSetHomePage.mockResolvedValue(false);
+        const res = await PATCH(patchRequest({ id: "cd-1", homeSlug: "someone-elses" }));
+        expect(res.status).toBe(404);
+    });
+});
+
 describe("DELETE /api/settings/branding/domains", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -123,8 +162,15 @@ describe("GET /api/settings/branding/domains", () => {
 
     it("lists only the caller's team's domains, with the CNAME target to point them at", async () => {
         mockPrisma.customDomain.findMany.mockResolvedValue([]);
+        mockPrisma.landingPage.findMany.mockResolvedValue([{ slug: "spring", title: "Spring guide" }]);
         const res = await GET();
         expect(mockPrisma.customDomain.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-1" } }));
-        expect((await res.json()).cnameTarget).toBe("pages.craftmyfunnel.live");
+        // Only the team's own published pages can be offered as a home page.
+        expect(mockPrisma.landingPage.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: "team-1", status: "published" } })
+        );
+        const body = await res.json();
+        expect(body.cnameTarget).toBe("pages.craftmyfunnel.live");
+        expect(body.pages).toEqual([{ slug: "spring", title: "Spring guide" }]);
     });
 });

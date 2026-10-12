@@ -2447,6 +2447,8 @@ model CustomDomain {
   ownershipVerificationName  String?
   ownershipVerificationValue String?
   lastCheckedAt              DateTime?
+  // Slug of the published landing page served at this domain's root ("/").
+  homeSlug                   String?
 
   team Team @relation(fields: [teamId], references: [id])
 
