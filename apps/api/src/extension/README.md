@@ -66,9 +66,10 @@ sideload-only preview that polled `GET /api/extension/tasks/pending` and opened 
 removed in 1.1.0; the Due tab replaces it, and every action there starts with a click in the popup.
 
 Server-side, a LinkedIn sequence step waits on a person (`sequenceService.executeLinkedInRun`): the
-step run is what `GET /api/extension/steps` lists, and the `PipelineService` task is the same step for
-people without the extension. The server no longer queues a separate extension task per step, and the
-`/api/extension/tasks/*` routes are gone.
+step run is what `GET /api/extension/steps` lists. When the campaign has an owner, the owner also gets
+a `PipelineService` task for the same step, which is how it is done without the extension; a step whose
+campaign has no owner has no task and can only be marked done from the extension. The server no longer
+queues a separate extension task per step, and the `/api/extension/tasks/*` routes are gone.
 
 The disabled V2 request-recorder/data-normalizer architecture is scaffolded in TypeScript:
 
