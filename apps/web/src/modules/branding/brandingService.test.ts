@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockCreateCustomHostname, mockRemoveCustomHostname } = vi.hoisted(() => ({
+const { mockPrisma, mockCreateCustomHostname, mockRemoveCustomHostname, mockSetDomainHomePage } = vi.hoisted(() => ({
     mockPrisma: {
-        customDomain: { create: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn() },
+        customDomain: { create: vi.fn(), findFirst: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn() },
+        landingPage: { findFirst: vi.fn() },
     },
     mockCreateCustomHostname: vi.fn(),
     mockRemoveCustomHostname: vi.fn(),
+    mockSetDomainHomePage: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("./cloudflareCustomHostnameService", () => ({
     createCustomHostname: mockCreateCustomHostname,
     removeCustomHostname: mockRemoveCustomHostname,
+    setDomainHomePage: mockSetDomainHomePage,
 }));
 
 import { BrandingService, CustomDomainsUnavailableError } from "./brandingService";
@@ -41,6 +44,58 @@ describe("BrandingService.addDomain", () => {
 
         await expect(BrandingService.addDomain("team-1", "go.example.com")).rejects.toThrow("invalid hostname");
         expect(mockPrisma.customDomain.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("BrandingService.setHomePage", () => {
+    beforeEach(() => vi.clearAllMocks());
+    const domain = { id: "cd-1", domain: "go.example.com", cloudflareHostnameId: "cf-1" };
+
+    it("points the domain's root at one of the team's published pages", async () => {
+        mockPrisma.customDomain.findFirst.mockResolvedValue(domain);
+        mockPrisma.landingPage.findFirst.mockResolvedValue({ id: "page-1" });
+
+        expect(await BrandingService.setHomePage("team-1", "cd-1", "spring")).toBe(true);
+
+        expect(mockPrisma.landingPage.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: "team-1", slug: "spring", status: "published" } })
+        );
+        expect(mockSetDomainHomePage).toHaveBeenCalledWith("go.example.com", "spring");
+        expect(mockPrisma.customDomain.updateMany).toHaveBeenCalledWith({ where: { id: "cd-1", teamId: "team-1" }, data: { homeSlug: "spring" } });
+    });
+
+    it("refuses a page that isn't the team's or isn't published", async () => {
+        mockPrisma.customDomain.findFirst.mockResolvedValue(domain);
+        mockPrisma.landingPage.findFirst.mockResolvedValue(null);
+
+        expect(await BrandingService.setHomePage("team-1", "cd-1", "someone-elses")).toBe(false);
+        expect(mockSetDomainHomePage).not.toHaveBeenCalled();
+        expect(mockPrisma.customDomain.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("clears the home page", async () => {
+        mockPrisma.customDomain.findFirst.mockResolvedValue(domain);
+
+        expect(await BrandingService.setHomePage("team-1", "cd-1", null)).toBe(true);
+
+        expect(mockSetDomainHomePage).toHaveBeenCalledWith("go.example.com", null);
+        expect(mockPrisma.customDomain.updateMany).toHaveBeenCalledWith({ where: { id: "cd-1", teamId: "team-1" }, data: { homeSlug: null } });
+    });
+
+    it("touches nothing for another team's domain", async () => {
+        mockPrisma.customDomain.findFirst.mockResolvedValue(null);
+
+        expect(await BrandingService.setHomePage("team-1", "someone-elses", "spring")).toBe(false);
+        expect(mockSetDomainHomePage).not.toHaveBeenCalled();
+    });
+
+    it("leaves the saved home page alone when Cloudflare can't be updated", async () => {
+        mockPrisma.customDomain.findFirst.mockResolvedValue(domain);
+        mockPrisma.landingPage.findFirst.mockResolvedValue({ id: "page-1" });
+        mockSetDomainHomePage.mockRejectedValue(new Error("Cloudflare down"));
+
+        await expect(BrandingService.setHomePage("team-1", "cd-1", "spring")).rejects.toThrow("Cloudflare down");
+        expect(mockPrisma.customDomain.updateMany).not.toHaveBeenCalled();
     });
 });
 

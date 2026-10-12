@@ -7062,6 +7062,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     fallback origin, KV namespace, Worker deploy and route, env vars; apps/web now also needs
     `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_KV_NAMESPACE_ID`). Nothing has been tested against Cloudflare.
   - **Not covered:** the root of a connected domain still returns "Not found" (pages live at `/<slug>`).
+- **OPEN-346 (Fixed in code, not yet live — a connected domain can open a chosen page at its root):** 2026-10-12.
+  - **Why:** a connected domain served pages only at `/<slug>`; the domain itself returned "Not found".
+  - **Added:** `CustomDomain.homeSlug` (migration `20261024100000_custom_domain_home_slug`). In Settings ->
+    Branding an active domain has a "page shown at the domain itself" picker listing the team's published
+    pages. `PATCH /api/settings/branding/domains` (ADMIN) checks the page is the team's and published, writes
+    `home:<domain>` -> slug to the Worker's KV namespace, then saves the column. The landing-pages Worker
+    serves that slug at `/` on a connected domain, through the same host-to-team check as every other page;
+    the shared host has no home page. Disconnecting a domain also removes its `home:` entry.
+  - **Before merge:** run Web Prisma Migrate on the branch (new column).
+  - **Not covered:** unpublishing or deleting a page does not clear it as a home page; the Worker has to be
+    redeployed for the root to work. Same Cloudflare setup owed as OPEN-345.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
