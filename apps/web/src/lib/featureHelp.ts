@@ -98,9 +98,9 @@ const NAV_FEATURE_HELP: Record<string, NavHelpEntry> = {
     },
     "landing-pages": {
         label: "Landing Pages",
-        href: "/landing-agent/new",
+        href: "/landing-agent",
         pathPrefixes: ["/landing-agent"],
-        blurb: "Start a new campaign by filling out an intake form that generates a landing page for it.",
+        blurb: "See your landing pages and open one to edit it, or start a new one from an intake form that generates the page.",
         whenToUse: "Use this when a campaign needs its own dedicated landing page.",
     },
     "automations": {

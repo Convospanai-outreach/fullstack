@@ -29,6 +29,15 @@ export interface WireframeOption {
     structure: LandingPageSection[];
 }
 
+// One row of the dashboard list (GET /landing-agent/campaigns).
+export interface LandingCampaignSummary {
+    id: string;
+    name: string;
+    updatedAt: string;
+    pages: Array<{ slug: string; title?: string | null; status: string; updatedAt: string }>;
+    _count: { wireframeOptions: number; leads: number };
+}
+
 export interface LandingCampaign {
     id: string;
     name: string;
