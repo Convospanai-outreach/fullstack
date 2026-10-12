@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
-        landingCampaign: { findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+        landingCampaign: { findFirst: vi.fn(), findMany: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
         landingPage: { update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
     },
 }));
@@ -131,5 +131,20 @@ describe("landingAgentService public slug errors", () => {
         await expect(landingAgentService.submitLeadBySlug({ slug: "nope", payload: {} })).rejects.toMatchObject({ statusCode: 404 });
         await expect(landingAgentService.trackEventBySlug({ slug: "nope", eventName: "page_view" })).rejects.toMatchObject({ statusCode: 404 });
         await expect(landingAgentService.trackEventBySlug({ slug: "nope", eventName: "not-an-event" })).rejects.toMatchObject({ statusCode: 400 });
+    });
+});
+
+describe("landingAgentService.listCampaigns", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns only the caller's team's campaigns", async () => {
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([{ id: "campaign-1" }]);
+
+        const result = await landingAgentService.listCampaigns("team-a");
+
+        expect(result).toEqual([{ id: "campaign-1" }]);
+        expect(mockPrisma.landingCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a" } }));
     });
 });

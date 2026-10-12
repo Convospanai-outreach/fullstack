@@ -1,4 +1,4 @@
-import type { LandingCampaign } from "../types";
+import type { LandingCampaign, LandingCampaignSummary } from "../types";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const API_BASE = getBrowserApiBase();
@@ -39,6 +39,10 @@ export const landingAgentApi = {
             method: "POST",
             body: JSON.stringify(input),
         });
+    },
+
+    listCampaigns() {
+        return request<{ campaigns: LandingCampaignSummary[] }>("/landing-agent/campaigns");
     },
 
     getCampaign(campaignId: string) {

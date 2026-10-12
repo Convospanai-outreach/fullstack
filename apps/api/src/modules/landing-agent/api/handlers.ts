@@ -80,6 +80,16 @@ export async function postCampaigns(req: Request) {
     }
 }
 
+export async function getCampaigns(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.VIEWER);
+        const campaigns = await landingAgentService.listCampaigns(teamId);
+        return successResponse({ campaigns });
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
 export async function getCampaignById(req: Request, ctx?: ParamContext) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.VIEWER);

@@ -232,6 +232,26 @@ export const landingAgentService = {
         return getCampaignOrThrow(campaignId, teamId);
     },
 
+    // Dashboard list: the team's landing campaigns, latest edit first, with only what the list shows.
+    async listCampaigns(teamId: string) {
+        return prisma.landingCampaign.findMany({
+            where: { teamId },
+            orderBy: { updatedAt: "desc" },
+            take: 200,
+            select: {
+                id: true,
+                name: true,
+                updatedAt: true,
+                pages: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { slug: true, title: true, status: true, updatedAt: true },
+                },
+                _count: { select: { wireframeOptions: true, leads: true } },
+            },
+        });
+    },
+
     async addAsset(input: {
         teamId: string;
         campaignId: string;

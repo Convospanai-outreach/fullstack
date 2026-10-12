@@ -7034,6 +7034,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Not covered:** jobs already queued for the extension stay in the table as they are; nothing reads or runs
     them, and the stale-job remark in OPEN-341 no longer applies. `/extension/action`, `/extension/push` and
     `receiveExtensionPayload` had no caller before this change and are left alone. No schema change.
+- **OPEN-344 (Fixed — landing pages can be found and reopened from the dashboard):** 2026-10-12.
+  - **Why:** the "Landing pages" nav link went straight to the new-page form. A page that already existed
+    could only be reopened by someone who still had its editor URL.
+  - **Added:** `GET /landing-agent/campaigns` (VIEWER) lists the team's landing campaigns, latest edit first
+    (`landingAgentService.listCampaigns`). `/landing-agent` shows that list: draft or published, sign-up count,
+    a button to the step the page can be picked up at (brief, layout choice or editor), and "View live" for a
+    published page. The nav link, the command palette and the feature help now point at the list.
+  - **Not covered:** deleting or renaming a landing page from the list; editing a published page still sets it
+    back to draft until it is published again.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

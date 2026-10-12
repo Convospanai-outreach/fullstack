@@ -113,7 +113,7 @@ export function Omnibox() {
         { name: "Pipeline", href: "/pipeline", icon: Activity },
         { name: "Calendar", href: "/calendar", icon: Activity },
         { name: "Templates", href: "/templates", icon: Database },
-        { name: "Landing pages", href: "/landing-agent/new", icon: Database },
+        { name: "Landing pages", href: "/landing-agent", icon: Database },
         { name: "Reports", href: "/analytics/roi", icon: Activity },
         { name: "Buyer signals", href: "/intel", icon: Activity },
         { name: "Trust overview", href: "/governance", icon: ShieldCheck },

@@ -24,7 +24,7 @@ describe("navigation sections", () => {
         // The previous sidebar's entries (Admin and Monitoring moved to the admin console / ⌘K,
         // Approvals to an Inbox tab, Tools to Labs in the Help menu).
         const former = [
-            "/inbox", "/dashboard", "/leads", "/accounts", "/icp-builder", "/templates", "/landing-agent/new",
+            "/inbox", "/dashboard", "/leads", "/accounts", "/icp-builder", "/templates", "/landing-agent",
             "/campaigns", "/automations", "/pipeline", "/calendar", "/intel", "/analytics/roi", "/governance",
             "/settings/audit", "/settings/team", "/billing",
             // CRM was already hidden from the sidebar during the email-first beta.
