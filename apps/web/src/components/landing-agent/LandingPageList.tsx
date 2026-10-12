@@ -20,14 +20,24 @@ export function nextStep(campaign: LandingCampaignSummary): { href: string; labe
     return { href: `${base}/brief`, label: "Continue", status: "Not built yet" };
 }
 
+// A published page's public address: on the team's connected domain when there is one, else on the app.
+export function liveUrl(slug: string, liveDomain?: string | null): string {
+    const path = `/${encodeURIComponent(slug)}`;
+    return liveDomain ? `https://${liveDomain}${path}` : `/p${path}`;
+}
+
 export default function LandingPageList() {
     const [campaigns, setCampaigns] = useState<LandingCampaignSummary[] | null>(null);
+    const [liveDomain, setLiveDomain] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         landingAgentApi
             .listCampaigns()
-            .then((data) => setCampaigns(data.campaigns))
+            .then((data) => {
+                setCampaigns(data.campaigns);
+                setLiveDomain(data.liveDomain);
+            })
             .catch((err: any) => setError(err?.message || "Failed to load landing pages"));
     }, []);
 
@@ -67,7 +77,7 @@ export default function LandingPageList() {
                                     <div className="flex items-center gap-2">
                                         {page?.status === "published" ? (
                                             <Button asChild variant="outline">
-                                                <a href={`/p/${encodeURIComponent(page.slug)}`} target="_blank" rel="noopener noreferrer">
+                                                <a href={liveUrl(page.slug, liveDomain)} target="_blank" rel="noopener noreferrer">
                                                     View live
                                                 </a>
                                             </Button>

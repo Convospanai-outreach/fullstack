@@ -83,8 +83,11 @@ export async function postCampaigns(req: Request) {
 export async function getCampaigns(req: Request) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.VIEWER);
-        const campaigns = await landingAgentService.listCampaigns(teamId);
-        return successResponse({ campaigns });
+        const [campaigns, liveDomain] = await Promise.all([
+            landingAgentService.listCampaigns(teamId),
+            landingAgentService.getLiveDomain(teamId),
+        ]);
+        return successResponse({ campaigns, liveDomain });
     } catch (error) {
         return handleAPIError(error);
     }

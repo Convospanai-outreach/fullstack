@@ -7043,6 +7043,25 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     published page. The nav link, the command palette and the feature help now point at the list.
   - **Not covered:** deleting or renaming a landing page from the list; editing a published page still sets it
     back to draft until it is published again.
+- **OPEN-345 (Fixed in code, not yet live — connecting a team's own domain to its landing pages):** 2026-10-12.
+  - **Why:** Settings -> Branding -> Custom Domain could not produce a working domain. It asked Cloudflare for
+    TXT certificate validation but never showed the certificate record, showed no CNAME to point the domain
+    at, saved a row even when Cloudflare was not configured (the poller skips rows without a Cloudflare id, so
+    it stayed "pending" forever and blocked the domain for every team), and had no way to remove a domain.
+  - **Changed:** the custom hostname is created with automatic (`http`) certificate validation, so the team
+    adds one CNAME to `pages.craftmyfunnel.live` (`LANDING_PAGES_CNAME_TARGET`); the ownership TXT is shown
+    only as the extra step for DNS hosted on Cloudflare. Connecting is refused (503) when Cloudflare is not
+    configured, and for our own domains. `DELETE /api/settings/branding/domains?id=` (ADMIN) removes the
+    Cloudflare hostname, the `host:<domain>` KV entry and the row. "View live" and the redirect after
+    publishing use the team's oldest active domain once the page is on Cloudflare.
+  - **Removed:** verifying an email sending domain no longer registers it as a `CustomDomain`
+    (`resendDomainService`). With custom domains switched on it would have created a Cloudflare hostname for
+    the team's main domain and shown a CNAME instruction for it. apps/api's then-unused `addDomain` and
+    `createCustomHostname` are gone; hostnames are created and removed from apps/web only.
+  - **Owed:** the Cloudflare side does not exist yet (custom hostnames on the zone, the `pages.` record and
+    fallback origin, KV namespace, Worker deploy and route, env vars; apps/web now also needs
+    `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_KV_NAMESPACE_ID`). Nothing has been tested against Cloudflare.
+  - **Not covered:** the root of a connected domain still returns "Not found" (pages live at `/<slug>`).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

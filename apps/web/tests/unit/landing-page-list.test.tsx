@@ -74,6 +74,19 @@ describe("LandingPageList", () => {
         expect(container.querySelector('a[href="/landing-agent/lc-new/brief"]')?.textContent).toBe("Continue");
     });
 
+    it("sends View live to the team's connected domain when there is one", async () => {
+        fetchMock.mockResolvedValue(
+            json(200, {
+                campaigns: [campaign({ pages: [{ slug: "spring", title: null, status: "published", updatedAt: "2026-10-11T10:00:00.000Z" }] })],
+                liveDomain: "go.example.com",
+            })
+        );
+        await render();
+
+        expect(container.querySelector('a[href="https://go.example.com/spring"]')?.textContent).toBe("View live");
+        expect(container.querySelector('a[href="/p/spring"]')).toBeNull();
+    });
+
     it("says so when there are no landing pages, and still offers a new one", async () => {
         fetchMock.mockResolvedValue(json(200, { campaigns: [] }));
         await render();

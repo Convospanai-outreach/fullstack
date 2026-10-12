@@ -232,6 +232,16 @@ export const landingAgentService = {
         return getCampaignOrThrow(campaignId, teamId);
     },
 
+    // The team's connected domain that published pages are live on (oldest active one), if any.
+    async getLiveDomain(teamId: string) {
+        const record = await prisma.customDomain.findFirst({
+            where: { teamId, status: "active" },
+            orderBy: { createdAt: "asc" },
+            select: { domain: true },
+        });
+        return record?.domain ?? null;
+    },
+
     // Dashboard list: the team's landing campaigns, latest edit first, with only what the list shows.
     async listCampaigns(teamId: string) {
         return prisma.landingCampaign.findMany({
@@ -639,6 +649,8 @@ export const landingAgentService = {
             page: updates.updatedPage,
             campaign: updates.updatedCampaign,
             cloudflare: { status: cloudflareResult.status },
+            // Connected domains are served from the Cloudflare copy, so only point at one once that push landed.
+            liveDomain: cloudflareResult.status === "pushed" ? await this.getLiveDomain(input.teamId) : null,
         };
     },
 
