@@ -96,7 +96,12 @@ export default function LandingAgentEditorPage() {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ slug }),
                         }).catch(() => {});
-                        router.push(`/p/${slug}`);
+                        if (result?.liveDomain) {
+                            // The team's connected domain serves the page from Cloudflare.
+                            window.location.assign(`https://${result.liveDomain}/${slug}`);
+                        } else {
+                            router.push(`/p/${slug}`);
+                        }
                     }
                 }}
             />

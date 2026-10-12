@@ -2,7 +2,6 @@ import { Resend } from "resend";
 import { resolveTxt } from "dns/promises";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
-import { BrandingService } from "@/modules/branding/brandingService";
 import { normalizeDomainStrict as normalizeDomain } from "@/lib/crm/domain";
 
 type CheckStatus = "VERIFIED" | "MISSING";
@@ -101,12 +100,11 @@ function pickRecord(records: Array<{ record: string; type: string; name: string;
 
 // Ensures a team's chosen sending domain is registered with Resend, returns
 // the exact DNS records Resend needs (so the wizard can show them verbatim
-// rather than guessing), and persists both a DomainAuthenticationCheck row
-// (so a future "check domain health" feature has one place to read from
-// regardless of provider) and a CustomDomain row (so the same verified
-// domain is immediately available to whatever consumes CustomDomain today -
-// e.g. BrandingService's white-labeled portal - and to landing pages later,
-// without the user having to type the domain in twice).
+// rather than guessing), and persists a DomainAuthenticationCheck row (so a
+// future "check domain health" feature has one place to read from regardless
+// of provider). A sending domain is deliberately not registered as a
+// CustomDomain: that table is for hostnames whose web traffic the team points
+// at our landing pages (Settings -> Branding), which is a separate decision.
 export async function ensureResendDomainVerified(input: {
     teamId: string;
     domain: string;
@@ -227,16 +225,6 @@ export async function ensureResendDomainVerified(input: {
             failureReason: missing.length > 0 ? missing.join(", ") : null,
         },
     });
-
-    // Best-effort: register the domain in the shared CustomDomain registry too,
-    // so it's available to whatever else keys off it (branding portal today,
-    // landing pages later) without re-entering it. domain has a global unique
-    // constraint (one CustomDomain row can't belong to two teams), so this is
-    // skipped - not overwritten - if another team already claimed it.
-    const customDomain = await prisma.customDomain.findUnique({ where: { domain } }).catch(() => null);
-    if (!customDomain) {
-        await BrandingService.addDomain(input.teamId, domain).catch(() => null);
-    }
 
     return {
         domain,

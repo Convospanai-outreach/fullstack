@@ -1,17 +1,12 @@
-import { logger } from "@/lib/logger";
-
 // Cloudflare for SaaS: lets a team point a domain they already own at us without
 // moving DNS/nameservers to Cloudflare. We create a "custom hostname" on our own
-// zone; the team adds a TXT record at their own DNS provider to prove ownership;
-// once Cloudflare confirms it (and issues a certificate), traffic to their domain
+// zone; the team adds a CNAME at their own DNS provider pointing at our pages host;
+// once Cloudflare sees it (and issues a certificate), traffic to their domain
 // is proxied to our zone's Worker (see workers/landing-pages) with no further
 // per-hostname config on our side (wildcard `*/*` Worker Route already covers it).
+// Hostnames are created and removed from apps/web (Settings -> Branding); this
+// side only polls their status.
 // Docs: https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/
-
-export interface CreateCustomHostnameResult {
-    cloudflareHostnameId: string;
-    ownershipVerification: { name: string; value: string } | null;
-}
 
 export type CustomHostnameStatus = "pending" | "active" | "invalid";
 
@@ -24,31 +19,6 @@ function getConfig() {
     const apiToken = process.env["CLOUDFLARE_API_TOKEN"];
     if (!zoneId || !apiToken) return null;
     return { zoneId, apiToken };
-}
-
-export async function createCustomHostname(domain: string): Promise<CreateCustomHostnameResult | null> {
-    const config = getConfig();
-    if (!config) {
-        logger.warn("[cloudflareCustomHostnameService] CLOUDFLARE_ZONE_ID/API_TOKEN not configured; skipping Cloudflare hostname creation.");
-        return null;
-    }
-
-    const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${config.zoneId}/custom_hostnames`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ hostname: domain, ssl: { method: "txt", type: "dv" } }),
-        signal: AbortSignal.timeout(CLOUDFLARE_TIMEOUT_MS),
-    });
-    const json: any = await res.json().catch(() => null);
-    if (!res.ok || !json?.result?.id) {
-        throw new Error(json?.errors?.[0]?.message || `Cloudflare custom hostname creation failed (${res.status})`);
-    }
-
-    const ownership = json.result.ownership_verification;
-    return {
-        cloudflareHostnameId: json.result.id,
-        ownershipVerification: ownership ? { name: ownership.name, value: ownership.value } : null,
-    };
 }
 
 export async function getCustomHostnameStatus(cloudflareHostnameId: string): Promise<{

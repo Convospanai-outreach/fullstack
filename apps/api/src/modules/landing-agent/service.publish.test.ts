@@ -27,6 +27,7 @@ const { mockPrisma, publishPageToCloudflare } = vi.hoisted(() => {
                 }),
             },
             landingPage: { findUnique: vi.fn() },
+            customDomain: { findFirst: vi.fn() },
             $transaction: vi.fn(async (cb: (t: typeof tx) => unknown) => cb(tx)),
         },
     };
@@ -63,6 +64,9 @@ describe("landingAgentService.publishCampaign - edge-push outcome", () => {
 
         expect(result.status).toBe("PUBLISHED");
         expect(result.cloudflare).toEqual({ status: "skipped" });
+        // No Cloudflare copy means a connected domain can't serve the page.
+        expect(result.liveDomain).toBeNull();
+        expect(mockPrisma.customDomain.findFirst).not.toHaveBeenCalled();
     });
 
     it("surfaces an errored edge push (status only, no raw details leaked to the caller)", async () => {
@@ -90,5 +94,22 @@ describe("landingAgentService.publishCampaign - edge-push outcome", () => {
         });
 
         expect(result.cloudflare).toEqual({ status: "pushed" });
+    });
+
+    it("returns the team's active connected domain once the page is on Cloudflare", async () => {
+        publishPageToCloudflare.mockResolvedValue({ status: "pushed" });
+        mockPrisma.customDomain.findFirst.mockResolvedValue({ domain: "go.example.com" });
+
+        const result = await landingAgentService.publishCampaign({
+            teamId: "team-1",
+            userId: "user-1",
+            campaignId: "camp-1",
+            requireApproval: false,
+        });
+
+        expect(result.liveDomain).toBe("go.example.com");
+        expect(mockPrisma.customDomain.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: "team-1", status: "active" } })
+        );
     });
 });

@@ -50,11 +50,15 @@ export default function BrandingSettingsPage() {
     const [domains, setDomains] = useState<CustomDomainRecord[]>([]);
     const [newDomain, setNewDomain] = useState("");
     const [connecting, setConnecting] = useState(false);
+    const [cnameTarget, setCnameTarget] = useState("");
 
     const loadDomains = () => {
         fetch("/api/settings/branding/domains")
             .then((res) => res.json())
-            .then((data) => setDomains(data?.domains || []))
+            .then((data) => {
+                setDomains(data?.domains || []);
+                setCnameTarget(data?.cnameTarget || "");
+            })
             .catch(() => {});
     };
 
@@ -85,7 +89,7 @@ export default function BrandingSettingsPage() {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                toast.success("Domain added — add the TXT record shown below to verify it");
+                toast.success("Domain added — add the DNS record shown below to finish connecting it");
                 setNewDomain("");
                 loadDomains();
             } else {
@@ -95,6 +99,22 @@ export default function BrandingSettingsPage() {
             toast.error("Error connecting domain");
         } finally {
             setConnecting(false);
+        }
+    };
+
+    const handleRemoveDomain = async (d: CustomDomainRecord) => {
+        if (!window.confirm(`Disconnect ${d.domain}? Pages will stop loading on it.`)) return;
+        try {
+            const res = await fetch(`/api/settings/branding/domains?id=${encodeURIComponent(d.id)}`, { method: "DELETE" });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                toast.success("Domain disconnected");
+                loadDomains();
+            } else {
+                toast.error(data?.error || "Failed to remove domain");
+            }
+        } catch (e) {
+            toast.error("Error removing domain");
         }
     };
 
@@ -273,7 +293,7 @@ export default function BrandingSettingsPage() {
                         <p className="text-sm text-muted-foreground">
                             Connect a domain you already own to host your landing pages under your own brand
                             (e.g., go.yourdomain.com). Your domain stays with your current DNS provider — you
-                            just add one verification record.
+                            just add one DNS record. Each page is then live at yourdomain/page-name.
                         </p>
 
                         <div className="flex gap-2">
@@ -315,15 +335,33 @@ export default function BrandingSettingsPage() {
                                             {d.status === "active" ? "Active" : d.status === "invalid" ? "Verification failed" : "Pending verification"}
                                         </span>
                                     </div>
-                                    {d.status === "pending" && d.ownershipVerificationName && (
+                                    {d.status === "pending" && cnameTarget && (
                                         <div className="text-xs text-muted-foreground space-y-1">
-                                            <p>Add this TXT record at your DNS provider to verify ownership:</p>
+                                            <p>Add this CNAME record at your DNS provider:</p>
                                             <code className="block bg-background/60 border border-border rounded px-2 py-1 break-all">
-                                                {d.ownershipVerificationName} → {d.ownershipVerificationValue}
+                                                {d.domain} → {cnameTarget}
                                             </code>
-                                            <p>This can take a few minutes to propagate after you add it.</p>
+                                            <p>
+                                                It can take a few minutes to go active after you add it. A root domain
+                                                (no www) only works if your DNS provider allows a CNAME or ALIAS at the
+                                                root; otherwise connect www.yourdomain.com.
+                                            </p>
+                                            {d.ownershipVerificationName && (
+                                                <>
+                                                    <p>If your DNS is hosted on Cloudflare, also add this TXT record:</p>
+                                                    <code className="block bg-background/60 border border-border rounded px-2 py-1 break-all">
+                                                        {d.ownershipVerificationName} → {d.ownershipVerificationValue}
+                                                    </code>
+                                                </>
+                                            )}
                                         </div>
                                     )}
+                                    <button
+                                        onClick={() => handleRemoveDomain(d)}
+                                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline"
+                                    >
+                                        Disconnect
+                                    </button>
                                 </div>
                             ))
                         )}

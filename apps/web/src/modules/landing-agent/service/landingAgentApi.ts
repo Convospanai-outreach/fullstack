@@ -42,7 +42,7 @@ export const landingAgentApi = {
     },
 
     listCampaigns() {
-        return request<{ campaigns: LandingCampaignSummary[] }>("/landing-agent/campaigns");
+        return request<{ campaigns: LandingCampaignSummary[]; liveDomain: string | null }>("/landing-agent/campaigns");
     },
 
     getCampaign(campaignId: string) {

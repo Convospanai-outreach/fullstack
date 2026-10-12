@@ -2,14 +2,12 @@ import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { ensureResendDomainVerified, removeResendDomain, updateResendDomainTracking, listResendDomains } from "../resendDomainService";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
-import { BrandingService } from "@/modules/branding/brandingService";
 import { resolveTxt } from "dns/promises";
 
 const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDomainsVerify, mockDomainsRemove, mockDomainsUpdate } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { findFirst: vi.fn() },
         domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn(), delete: vi.fn(), findMany: vi.fn() },
-        customDomain: { findUnique: vi.fn() },
     },
     mockDomainsList: vi.fn(),
     mockDomainsCreate: vi.fn(),
@@ -21,9 +19,6 @@ const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDoma
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: vi.fn() }));
-vi.mock("@/modules/branding/brandingService", () => ({
-    BrandingService: { addDomain: vi.fn() },
-}));
 vi.mock("dns/promises", () => ({ resolveTxt: vi.fn() }));
 vi.mock("resend", () => ({
     Resend: vi.fn().mockImplementation(function (this: any) {
@@ -66,8 +61,6 @@ describe("ensureResendDomainVerified", () => {
         (prisma.domainAuthenticationCheck.upsert as Mock).mockResolvedValue({});
         (prisma.domainAuthenticationCheck.create as Mock).mockResolvedValue({});
         (prisma.domainAuthenticationCheck.delete as Mock).mockResolvedValue({});
-        (prisma.customDomain.findUnique as Mock).mockResolvedValue(null);
-        (BrandingService.addDomain as Mock).mockResolvedValue({});
         (resolveTxt as Mock).mockResolvedValue([["v=DMARC1; p=none"]]);
         mockDomainsList.mockResolvedValue({ data: { data: [] } });
         mockDomainsCreate.mockResolvedValue({ data: { id: "domain-1" }, error: null });
@@ -112,17 +105,6 @@ describe("ensureResendDomainVerified", () => {
         expect(result.status).toBe("MISSING");
         expect(result.missing).toEqual(expect.arrayContaining(["Resend SPF", "Resend DKIM", "DMARC TXT (recommended)"]));
         expect(result.records.dkim.values).toEqual(["abc.dkim.resend.com"]);
-    });
-
-    it("registers the domain as a CustomDomain when none exists yet, but skips it if already claimed", async () => {
-        await ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" });
-        expect(BrandingService.addDomain).toHaveBeenCalledWith("team-1", "team.test");
-
-        (BrandingService.addDomain as Mock).mockClear();
-        (prisma.customDomain.findUnique as Mock).mockResolvedValue({ teamId: "team-1", domain: "team.test" });
-
-        await ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" });
-        expect(BrandingService.addDomain).not.toHaveBeenCalled();
     });
 
     it("claims a placeholder row before creating a brand-new domain in Resend, to guard against a concurrent duplicate create", async () => {
