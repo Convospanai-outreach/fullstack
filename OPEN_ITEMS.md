@@ -6999,6 +6999,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Not covered:** the task queue routes (`/extension/tasks/pending`, `/result`, `/complete`) are unchanged
     and still per team; the queue's stale-job reset does not know about tasks claimed through them. The
     extension itself does not call the new routes yet (next change).
+- **OPEN-342 (Fixed — extension 1.1.0: a list of due LinkedIn steps in the popup):** 2026-10-11.
+  - **Added:** a Due tab in the popup lists the LinkedIn sequence steps waiting on the signed-in person
+    (`GET /api/extension/steps`, OPEN-341), fetched when the popup opens. Per step: open the profile, copy the
+    message, hand the draft to the profile page, mark done (`POST /api/extension/steps/[id]/done`).
+  - **Draft on the page:** the draft is placed in LinkedIn's message box when the chat with that lead is open
+    and its box is empty. Otherwise the page shows it in a panel with a Copy button and places it once the
+    person opens that chat. The chat is matched by the lead's name in its heading, so a chat open with someone
+    else is never filled. Typed text is never replaced; the extension never clicks Message, Connect or Send.
+  - **Same permissions as 1.0.0** (`activeTab`, `storage`, `https://www.linkedin.com/in/*`); no background
+    polling. Settings stay in `settings.*`, so an update keeps the saved connection.
+  - **Fixed:** a saved `https://www.craftmyfunnel.live` workspace address is sent to the bare domain; the www
+    address redirects, which fails these requests.
+  - **Also:** `manifest.json` is 1.1.0; `STORE_SUBMISSION.md` holds the listing text and permission answers.
+  - **Removed:** the sideload-only task-polling worker, so the store package carries no polling or
+    tab-opening code: the gated block in `background.js`, the task executor in `content.js`,
+    `manifest.v2.json`, `options.*`, `background.v2-planned.js` and their tests. The guards that still apply
+    (no click or key press on the page, unchanged permissions) moved to `due-steps.test.ts`.
+  - **Also fixed:** a profile address counts as LinkedIn only when its host is linkedin.com or a subdomain of
+    it (background, popup and page checks); a host that merely ends in those letters is refused.
+  - **Not covered:** the server's task queue routes (`/extension/tasks/*`) and the tasks the sequence engine
+    queues for them are unchanged; nothing in the extension reads them now. The invitation note field is not filled;
+    the message for an invitation is copied by hand. Needs OPEN-341 deployed first. Not load-tested in Chrome
+    from here.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

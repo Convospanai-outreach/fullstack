@@ -31,6 +31,10 @@ const els = {
   sequencePicker: document.getElementById("sequencePicker"),
   sequenceSelect: document.getElementById("sequenceSelect"),
   addToSequence: document.getElementById("addToSequence"),
+  dueTab: document.getElementById("dueTab"),
+  dueSteps: document.getElementById("dueSteps"),
+  dueStepsHint: document.getElementById("dueStepsHint"),
+  refreshDueSteps: document.getElementById("refreshDueSteps"),
   connectionStatus: document.getElementById("connectionStatus"),
   checkConnection: document.getElementById("checkConnection"),
   clearLocalData: document.getElementById("clearLocalData"),
@@ -86,7 +90,7 @@ init();
 function init() {
   renderStaticOptions();
   bindEvents();
-  loadState().then(checkConnection);
+  loadState().then(checkConnection).then(loadDueSteps);
 }
 
 function bindEvents() {
@@ -102,6 +106,7 @@ function bindEvents() {
   els.openLead.addEventListener("click", openLeadInWorkspace);
   els.addToSequence.addEventListener("click", addToSequence);
   els.checkConnection.addEventListener("click", checkConnection);
+  els.refreshDueSteps.addEventListener("click", loadDueSteps);
   els.clearLocalData.addEventListener("click", clearLocalData);
 
   Object.values(fields).forEach((field) => {
@@ -466,6 +471,105 @@ async function addToSequence() {
   setBusy(els.addToSequence, false);
   await loadState();
   setStatus(response?.ok ? response.message : response?.error || "Could not add the lead to the sequence.", response?.ok ? "success" : "error");
+}
+
+// LinkedIn sequence steps waiting on this person. A step for the profile in the current tab is
+// listed first, and the popup opens on this list when there is one.
+async function loadDueSteps() {
+  const response = await chrome.runtime.sendMessage({ type: "CMF_LIST_DUE_STEPS" });
+  const steps = response?.ok ? response.steps || [] : [];
+  const tab = await getActiveTab();
+  const here = cmfLinkedInHandle(tab?.url);
+  const isHere = (step) => Boolean(here) && cmfLinkedInHandle(step.profileUrl) === here;
+  steps.sort((a, b) => Number(isHere(b)) - Number(isHere(a)));
+
+  els.dueTab.textContent = steps.length ? `Due (${steps.length})` : "Due";
+  els.dueStepsHint.textContent = response?.ok ? "No LinkedIn steps are waiting on you." : response?.error || "Couldn't load your due steps.";
+  els.dueStepsHint.classList.toggle("hidden", steps.length > 0);
+  els.dueSteps.replaceChildren(...steps.map((step) => renderDueStep(step, isHere(step), tab)));
+  if (steps.some(isHere)) showTab("due");
+}
+
+function renderDueStep(step, onThisProfile, tab) {
+  const item = document.createElement("li");
+  const name = document.createElement("strong");
+  name.textContent = step.name || step.profileUrl;
+  const detail = document.createElement("small");
+  detail.textContent = [step.action, step.company, step.sequence].filter(Boolean).join(" - ");
+  item.append(name, detail);
+
+  if (step.message) {
+    const message = document.createElement("p");
+    message.className = "due-message";
+    message.textContent = step.message;
+    item.append(message);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "actions two";
+  if (!onThisProfile) actions.append(dueButton("Open profile", () => openStepProfile(step)));
+  if (onThisProfile && step.message) actions.append(dueButton("Put in message box", () => putInMessageBox(step, tab)));
+  if (step.message) actions.append(dueButton("Copy message", () => copyStepMessage(step)));
+  actions.append(dueButton("Mark done", (button) => markStepDone(step, button)));
+  item.append(actions);
+  return item;
+}
+
+function dueButton(label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary";
+  button.textContent = label;
+  button.addEventListener("click", () => onClick(button));
+  return button;
+}
+
+function openStepProfile(step) {
+  if (!cmfIsLinkedInProfileUrl(step.profileUrl)) {
+    setStatus("This step has no LinkedIn profile address.", "error");
+    return;
+  }
+  chrome.tabs.create({ url: step.profileUrl });
+}
+
+async function copyStepMessage(step) {
+  await navigator.clipboard.writeText(step.message);
+  setStatus("Message copied.", "success");
+}
+
+// Hands the draft to the profile page. It goes into LinkedIn's message box if that is open and
+// empty; otherwise the page shows it and places it once the person opens the box.
+function putInMessageBox(step, tab) {
+  chrome.tabs.sendMessage(tab.id, { type: "CMF_SHOW_DRAFT", name: step.name, message: step.message }, (response) => {
+    if (chrome.runtime.lastError) {
+      setStatus("Refresh the LinkedIn profile page and try again.", "error");
+      return;
+    }
+    if (!response?.ok) {
+      setStatus(response?.error || "Could not show the draft.", "error");
+      return;
+    }
+    setStatus(
+      response.inserted
+        ? "Draft placed in the message box. Review it and press Send yourself."
+        : "The draft is shown on the page. Click Message on the profile and it goes into the box.",
+      "success"
+    );
+  });
+}
+
+async function markStepDone(step, button) {
+  setBusy(button, true, "Marking...");
+  const response = await chrome.runtime.sendMessage({ type: "CMF_MARK_STEP_DONE", runId: step.runId });
+  if (!response?.ok) {
+    setBusy(button, false);
+    setStatus(response?.error || "Could not mark the step done.", "error");
+    await loadDueSteps();
+    return;
+  }
+  renderActivity(response.activityLog);
+  await loadDueSteps();
+  setStatus(response.sequenceResumed ? "Marked done. The sequence moves on to its next step." : "Marked done.", "success");
 }
 
 function openLeadInWorkspace() {

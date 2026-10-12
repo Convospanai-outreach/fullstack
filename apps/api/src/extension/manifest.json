@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "CraftMyFunnel Assistant",
   "description": "Capture visible LinkedIn profile details and prepare manual outreach drafts.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "permissions": [
     "activeTab",
     "storage"
