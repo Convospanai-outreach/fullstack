@@ -7022,6 +7022,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     queues for them are unchanged; nothing in the extension reads them now. The invitation note field is not filled;
     the message for an invitation is copied by hand. Needs OPEN-341 deployed first. Not load-tested in Chrome
     from here.
+- **OPEN-343 (Fixed — the extension task queue is removed from the server):** 2026-10-12.
+  - **Why:** the only reader of the queue was the sideload-only worker removed in OPEN-342. The published
+    extension lists due steps from the waiting step runs (OPEN-341) and never called these routes.
+  - **Removed:** `GET /extension/tasks`, `GET /extension/tasks/pending`, `POST /extension/tasks/result` and
+    `POST /extension/tasks/complete`; the job a LinkedIn sequence step queued for the extension
+    (`enqueueExtensionTask`, the `awaiting_extension` status, the task type list) and the code that closed it
+    when the step was marked done.
+  - **Unchanged:** a LinkedIn step still creates its task for the campaign owner and still waits
+    (`AWAITING_MANUAL_REVIEW` / `MANUAL_REVIEW`); `GET /extension/steps` and marking a step done work as before.
+  - **Not covered:** jobs already queued for the extension stay in the table as they are; nothing reads or runs
+    them, and the stale-job remark in OPEN-341 no longer applies. `/extension/action`, `/extension/push` and
+    `receiveExtensionPayload` had no caller before this change and are left alone. No schema change.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

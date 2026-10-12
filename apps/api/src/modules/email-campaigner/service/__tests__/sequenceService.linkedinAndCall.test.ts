@@ -8,6 +8,7 @@ const mockDb: any = vi.hoisted(() => ({
     sequenceEnrollment: { findUnique: vi.fn(), update: vi.fn() },
     lead: { findUnique: vi.fn() },
     team: { findUnique: vi.fn(), update: vi.fn() },
+    job: { create: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -29,14 +30,10 @@ vi.mock("@/modules/analytics/service/PipelineService", () => ({
 vi.mock("@/modules/caller/CallerService", () => ({
     CallerService: { ensureQueueEntry: vi.fn() },
 }));
-vi.mock("@/linkedin/extension-bridge", () => ({
-    enqueueExtensionTask: vi.fn().mockResolvedValue({ id: "ext-job-1", created: true }),
-}));
 
 import { SequenceService } from "../sequenceService";
 import { PipelineService } from "@/modules/analytics/service/PipelineService";
 import { CallerService } from "@/modules/caller/CallerService";
-import { enqueueExtensionTask } from "@/linkedin/extension-bridge";
 
 function baseRun(overrides: any = {}) {
     return {
@@ -89,64 +86,18 @@ describe("SequenceService.executeRun - LinkedIn step types", () => {
         }
     );
 
-    it("also enqueues an OPEN_PROFILE extension task (idempotent, best-effort) alongside the manual task", async () => {
-        const run = baseRun({ step: { stepType: "LI_INVITE", body: "Hi!" } });
-        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
-
-        await SequenceService.executeRun({ runId: "run-1" });
-
-        expect(enqueueExtensionTask).toHaveBeenCalledWith(
-            expect.objectContaining({
-                teamId: "team-1",
-                type: "OPEN_PROFILE",
-                idempotencyKey: "ext_openprofile_run-1",
-                payload: expect.objectContaining({ profileUrl: "https://linkedin.com/in/lead-1", leadId: "lead-1", runId: "run-1" }),
-            })
-        );
-    });
-
-    it("does not fail the run when enqueuing the extension task throws (best-effort)", async () => {
-        (enqueueExtensionTask as any).mockRejectedValueOnce(new Error("db down"));
-        const run = baseRun({ step: { stepType: "LI_INVITE", body: "Hi!" } });
+    it("queues no job: the step waits on its task and on the step run the extension lists", async () => {
+        const run = baseRun({ step: { stepType: "LI_CHAT", body: "Hey there, quick note." } });
         mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
 
         const result = await SequenceService.executeRun({ runId: "run-1" });
 
-        expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
-    });
-
-    it.each(["LI_CHAT", "CHAT_MESSAGE"])(
-        "enqueues an INSERT_DRAFT task for %s steps that carry a drafted body",
-        async (stepType) => {
-            const run = baseRun({ step: { stepType, body: "Hey there, quick note." } });
-            mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
-
-            await SequenceService.executeRun({ runId: "run-1" });
-
-            expect(enqueueExtensionTask).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    teamId: "team-1",
-                    type: "INSERT_DRAFT",
-                    idempotencyKey: "ext_insertdraft_run-1",
-                    payload: expect.objectContaining({
-                        profileUrl: "https://linkedin.com/in/lead-1",
-                        leadId: "lead-1",
-                        body: "Hey there, quick note.",
-                    }),
-                })
-            );
-        }
-    );
-
-    it("falls back to OPEN_PROFILE for a chat step with no drafted body", async () => {
-        const run = baseRun({ step: { stepType: "LI_CHAT", body: "" } });
-        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
-
-        await SequenceService.executeRun({ runId: "run-1" });
-
-        expect(enqueueExtensionTask).toHaveBeenCalledWith(
-            expect.objectContaining({ type: "OPEN_PROFILE", idempotencyKey: "ext_openprofile_run-1" })
+        expect(mockDb.job.create).not.toHaveBeenCalled();
+        expect(PipelineService.createTask).toHaveBeenCalledTimes(1);
+        expect(mockDb.sequenceStepRun.update).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { id: "run-1" }, data: expect.objectContaining({ status: "AWAITING_MANUAL_REVIEW" }) })
         );
+        expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
     });
 });
 

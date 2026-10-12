@@ -7,7 +7,6 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
-import { EXTENSION_TASK_STATUS } from "@/linkedin/extension-bridge";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -704,35 +703,6 @@ export class SequenceService {
             });
         }
 
-        // Also surface the lead to the browser extension (if the team has it
-        // installed) so a rep can act on the profile in-context. Best-effort and
-        // additive - the human task above is the fallback for teams without the
-        // extension, so a failure here must not fail the run. Deterministic
-        // idempotencyKey keeps a re-run of this step from duplicating the task.
-        try {
-            const { enqueueExtensionTask } = await import("@/linkedin/extension-bridge");
-            // Chat/message steps with a drafted body → INSERT_DRAFT (the extension
-            // inserts the draft into the LinkedIn composer for the rep to review and
-            // send). Every other LinkedIn step → OPEN_PROFILE (open the profile tab).
-            const stepType = run.step?.stepType;
-            const body = run.step?.body ?? null;
-            const useDraft = (stepType === "LI_CHAT" || stepType === "CHAT_MESSAGE") && Boolean(body);
-            await enqueueExtensionTask({
-                teamId: run.teamId,
-                type: useDraft ? "INSERT_DRAFT" : "OPEN_PROFILE",
-                payload: {
-                    profileUrl: lead.linkedIn,
-                    leadId: run.leadId,
-                    runId: run.id,
-                    campaignId: run.enrollment?.campaign?.id ?? run.campaignId ?? null,
-                    ...(useDraft ? { body } : { note: body }),
-                },
-                idempotencyKey: `ext_${useDraft ? "insertdraft" : "openprofile"}_${run.id}`,
-            });
-        } catch (err) {
-            console.warn("[sequenceService] Failed to enqueue LinkedIn extension task:", err);
-        }
-
         await client.sequenceStepRun.update({
             where: { id: run.id },
             data: { status: "AWAITING_MANUAL_REVIEW", completedAt: now },
@@ -863,18 +833,10 @@ export class SequenceService {
             throw error;
         }
 
-        // The step is closed wherever it was marked done, so its task and the extension's copy go too.
+        // The step is closed wherever it was marked done, so its task goes too.
         await prisma.task.updateMany({
             where: { teamId, sequenceStepRunId: run.id, status: "TODO" },
             data: { status: "DONE" },
-        });
-        await prisma.job.updateMany({
-            where: {
-                teamId,
-                idempotencyKey: { in: [`ext_insertdraft_${run.id}`, `ext_openprofile_${run.id}`] },
-                status: { in: [EXTENSION_TASK_STATUS, "processing"] },
-            },
-            data: { status: "completed", completedAt: now },
         });
         return { resumed: resuming };
     }

@@ -65,10 +65,10 @@ The extension has no background task polling, no options page and no second mani
 sideload-only preview that polled `GET /api/extension/tasks/pending` and opened profile tabs was
 removed in 1.1.0; the Due tab replaces it, and every action there starts with a click in the popup.
 
-Server-side, LinkedIn sequence steps still enqueue extension tasks best-effort
-(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`). Nothing in the extension reads that
-queue: due steps come from `GET /api/extension/steps`, and marking a step done closes its queued
-task. The human `PipelineService` task remains the fallback for teams without the extension.
+Server-side, a LinkedIn sequence step waits on a person (`sequenceService.executeLinkedInRun`): the
+step run is what `GET /api/extension/steps` lists, and the `PipelineService` task is the same step for
+people without the extension. The server no longer queues a separate extension task per step, and the
+`/api/extension/tasks/*` routes are gone.
 
 The disabled V2 request-recorder/data-normalizer architecture is scaffolded in TypeScript:
 
