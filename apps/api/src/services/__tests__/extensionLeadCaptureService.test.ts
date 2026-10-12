@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, enqueue, enroll, completeLinkedInRunsForLead } = vi.hoisted(() => ({
+const { db, enqueue, enroll, completeLinkedInRunsForLead, findDueLinkedInStep, completeManualRun } = vi.hoisted(() => ({
     db: {
         lead: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
         campaignSequence: { findMany: vi.fn() },
@@ -13,6 +13,8 @@ const { db, enqueue, enroll, completeLinkedInRunsForLead } = vi.hoisted(() => ({
     enqueue: vi.fn(),
     enroll: vi.fn(),
     completeLinkedInRunsForLead: vi.fn(),
+    findDueLinkedInStep: vi.fn(),
+    completeManualRun: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: db }));
@@ -24,11 +26,12 @@ vi.mock("@/modules/creator-funnel/nurtureProvider", () => ({
 }));
 
 vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({
-    SequenceService: { completeLinkedInRunsForLead },
+    SequenceService: { completeLinkedInRunsForLead, findDueLinkedInStep, completeManualRun },
 }));
 
 import {
     chooseSequenceForLead,
+    completeLinkedInStep,
     enrollPendingSequence,
     enrollWaitingSequences,
     listSequencesForExtension,
@@ -225,5 +228,60 @@ describe("marking LinkedIn outreach done", () => {
         await expect(markLinkedInOutreachDone({ teamId: "team-a", userId: "user-1", leadId: "lead-x" })).rejects.toThrow("Lead not found");
 
         expect(completeLinkedInRunsForLead).not.toHaveBeenCalled();
+    });
+});
+
+describe("marking one LinkedIn sequence step done", () => {
+    const step = { teamId: "team-a", userId: "user-1", runId: "run-1" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.lead.findFirst.mockResolvedValue({ id: "lead-1", teamId: "team-a", status: "LINKEDIN_CAPTURED", channelStatuses: [], emails: [] });
+        db.lead.update.mockResolvedValue({ id: "lead-1", status: "CONTACTED" });
+        findDueLinkedInStep.mockResolvedValue({ leadId: "lead-1", action: "Send invitation", reachesPerson: true });
+        completeManualRun.mockResolvedValue({ resumed: true });
+    });
+
+    it("records the outreach on the lead, then moves that one sequence on", async () => {
+        const result = await completeLinkedInStep(step);
+
+        expect(db.leadChannelStatus.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            where: { leadId_channel: { leadId: "lead-1", channel: "LINKEDIN" } },
+            update: expect.objectContaining({ status: "CONTACTED" }),
+        }));
+        expect(db.leadActivity.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ leadId: "lead-1", notes: "Sequence step: Send invitation", createdBy: "user-1" }),
+        });
+        expect(findDueLinkedInStep).toHaveBeenCalledWith("team-a", "run-1", "user-1");
+        expect(completeManualRun).toHaveBeenCalledWith("team-a", "run-1", expect.any(Date));
+        expect(db.lead.update.mock.invocationCallOrder[0]).toBeLessThan(completeManualRun.mock.invocationCallOrder[0]);
+        expect(completeLinkedInRunsForLead).not.toHaveBeenCalled();
+        expect(result).toEqual({ success: true, action: "Send invitation", sequenceResumed: true });
+    });
+
+    it("does not call a profile visit outreach", async () => {
+        findDueLinkedInStep.mockResolvedValue({ leadId: "lead-1", action: "Visit profile", reachesPerson: false });
+
+        await completeLinkedInStep(step);
+
+        expect(db.lead.update).not.toHaveBeenCalled();
+        expect(db.leadActivity.create).not.toHaveBeenCalled();
+        expect(completeManualRun).toHaveBeenCalledWith("team-a", "run-1", expect.any(Date));
+    });
+
+    it("refuses a step that is not waiting", async () => {
+        findDueLinkedInStep.mockResolvedValue(null);
+
+        await expect(completeLinkedInStep(step)).rejects.toThrow("Step not found");
+
+        expect(completeManualRun).not.toHaveBeenCalled();
+    });
+
+    it("leaves the step waiting when the lead could not be updated", async () => {
+        db.lead.update.mockRejectedValue(new Error("db down"));
+
+        await expect(completeLinkedInStep(step)).rejects.toThrow("db down");
+
+        expect(completeManualRun).not.toHaveBeenCalled();
     });
 });

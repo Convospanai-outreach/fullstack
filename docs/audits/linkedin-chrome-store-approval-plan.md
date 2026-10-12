@@ -15,7 +15,7 @@ DB Phase 5 remains `BLOCKED_EXTERNAL_ACCESS`. This workstream does not continue 
 - Existing readiness doc: `docs/LINKEDIN_EXTENSION_READINESS_2026-04-02.md`
 - Extension README: `apps/api/src/extension/README.md`
 - Active V1 background worker: `apps/api/src/extension/background.js`
-- Planned V2 worker, not active in manifest: `apps/api/src/extension/background.v2-planned.js`
+- Planned V2 worker: removed from the repo in extension 1.1.0 (OPEN-342)
 - Extension manifest: `apps/api/src/extension/manifest.json`
 - Backend extension routes: `apps/api/routes/extension/**`
 
@@ -91,7 +91,6 @@ Submit the narrowest V1 scope:
   - `debugger`
   - `nativeMessaging`
   - broad `scripting` permissions
-- Confirm `background.v2-planned.js` is not referenced by `manifest.json`.
 - Confirm task polling is disabled or absent from the submitted build.
 - Confirm content script reads visible profile page details only after explicit popup action.
 - Confirm no remote code, `eval`, inline scripts, or dynamic script injection.
@@ -150,7 +149,7 @@ Submit the narrowest V1 scope:
 ## Smoke Test Checklist
 
 - Install unpacked from `apps/api/src/extension`.
-- Confirm manifest references `background.js`, not `background.v2-planned.js`.
+- Confirm manifest references `background.js`.
 - Login/auth validate if backend sync is enabled for the smoke.
 - Open a LinkedIn `/in/` profile page.
 - Trigger manual profile capture from the popup.
@@ -178,9 +177,6 @@ Submit the narrowest V1 scope:
   - `icons/**`
   - `README.md` if desired
 - Exclude:
-  - `background.v2-planned.js`
-  - `options.html`
-  - `options.js`
   - unused V2 TypeScript scaffolding
   - source maps containing secrets
   - local env files

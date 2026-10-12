@@ -4,7 +4,7 @@ CraftMyFunnel Assistant is a V1 Chrome Web Store approval-safe LinkedIn profile 
 
 ## V1 Approval Scope
 
-Version 1.0.0 is intentionally minimal and approval-safe: **V1 approval scope: visible LinkedIn profile capture and outreach prep only.** The active extension only captures visible public details from the LinkedIn profile page the user is currently viewing after an explicit user click:
+The published build (version 1.1.0) is intentionally minimal and approval-safe: **V1 approval scope: visible LinkedIn profile capture and outreach prep only.** The active extension only captures visible public details from the LinkedIn profile page the user is currently viewing after an explicit user click:
 
 - profile URL
 - name
@@ -12,7 +12,7 @@ Version 1.0.0 is intentionally minimal and approval-safe: **V1 approval scope: v
 - current company only when confidently visible in the top profile card
 - location only when confidently visible
 
-The capture is scoped to the visible top profile card, stored locally with `chrome.storage`, and can be copied from the popup for manual review. Missing optional fields are shown as `Not detected from visible profile.` Version 1 does not poll background jobs, open tabs, insert drafts into LinkedIn, send LinkedIn actions, read cookies, or request broad host access.
+The capture is scoped to the visible top profile card, stored locally with `chrome.storage`, and can be copied from the popup for manual review. Missing optional fields are shown as `Not detected from visible profile.` The published build does not poll background jobs, open tabs on its own, send LinkedIn actions, read cookies, or request broad host access. It opens a profile tab, or places a draft in the LinkedIn message box, only when the user clicks that button in the popup (see "Due steps" below).
 
 The popup provides:
 
@@ -26,6 +26,7 @@ The popup provides:
 - after a lead is synced, adding it to one of the team's switched-on sequences (a lead with no email yet joins once it has one)
 - settings for workspace URL, optional token, default tone, and default outreach angle
 - a connection check that names the CraftMyFunnel team and account the sync token belongs to (the token is tied to the team it was generated in)
+- a Due tab listing the LinkedIn sequence steps that are waiting on the signed-in person (see "Due steps" below)
 
 Active Version 1 permissions:
 
@@ -33,31 +34,41 @@ Active Version 1 permissions:
 - `activeTab`
 - LinkedIn profile host access only: `https://www.linkedin.com/in/*`
 
-## V2 Preview (task polling) — sideload only
+## Due steps (1.1.0)
 
-Version 2 adds authenticated **task polling**: the extension polls
-`GET /api/extension/tasks/pending`, opens the requested LinkedIn profile in a tab, or inserts a
-drafted message into the LinkedIn composer **for the user to review and send**, and reports the
-result to `POST /api/extension/tasks/result`. It is **assistive, not autonomous** — it never clicks
-Send or Connect on the user's behalf.
+A LinkedIn step in a CraftMyFunnel sequence waits for a person. The Due tab lists the steps waiting
+on the person whose sync token is saved (`GET /api/extension/steps`), fetched when the popup opens.
+There is no background polling, so the build needs no permission beyond 1.0.0's.
 
-V2 ships as a **separate sideload build**, not in the published store listing:
+For each step the popup shows who it is for, what to do and the suggested message, with these buttons:
 
-- `manifest.json` (v1.0.0) is unchanged and remains the published, approval-safe store build.
-- `manifest.v2.json` (v2.0.0) is the v2 preview manifest, adding `alarms`, `notifications`, `tabs`,
-  and the CraftMyFunnel API host (declared as `optional_host_permissions` for arbitrary
-  self-hosted origins), plus `options_page`.
-- The v2 task worker is **merged into `background.js`** behind a capability gate
-  (`typeof chrome.alarms !== "undefined"`), so it is completely inert under the v1 manifest (which
-  grants no `alarms`). The old `background.v2-planned.js` remains only as a historical reference and
-  is not loaded by either manifest.
-- The `EXECUTE_TASK` executor lives in `content.js`; settings (API base, token, extension key,
-  team id, poll interval) are entered on `options.html`.
+- **Open profile** opens the person's LinkedIn profile in a new tab.
+- **Put in message box** (on that person's profile) hands the draft to the page. If LinkedIn's
+  chat with that person is open and its message box is empty, the draft is placed in it. Otherwise
+  the page shows the draft in a small panel with a Copy button, and places it once the user opens
+  that chat. A chat is recognised by the person's name in its heading, so a chat left open with
+  someone else is never filled; when the name cannot be matched the draft stays in the panel to be
+  copied. Text the user has already typed is never replaced. The extension never clicks Message,
+  Connect or Send.
+- **Copy message** copies the draft.
+- **Mark done** tells CraftMyFunnel the user did the step (`POST /api/extension/steps/<id>/done`),
+  and the sequence moves on to its next step.
 
-Server-side, LinkedIn sequence steps enqueue extension tasks best-effort
-(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`): chat/message steps with a drafted
-body enqueue `INSERT_DRAFT`, every other LinkedIn step enqueues `OPEN_PROFILE`. The human
-`PipelineService` task remains the fallback for teams without the extension.
+Settings stay where 1.0.0 saved them (`settings.workspaceUrl`, `settings.extensionKey`,
+`settings.syncToken` in `chrome.storage.local`), so an update keeps the connection. A saved
+`https://www.craftmyfunnel.live` address is sent to `https://craftmyfunnel.live`, because the www
+address redirects and the browser does not follow a redirect for these requests.
+
+## Not in the extension
+
+The extension has no background task polling, no options page and no second manifest. The earlier
+sideload-only preview that polled `GET /api/extension/tasks/pending` and opened profile tabs was
+removed in 1.1.0; the Due tab replaces it, and every action there starts with a click in the popup.
+
+Server-side, LinkedIn sequence steps still enqueue extension tasks best-effort
+(`sequenceService.executeLinkedInRun` → `enqueueExtensionTask`). Nothing in the extension reads that
+queue: due steps come from `GET /api/extension/steps`, and marking a step done closes its queued
+task. The human `PipelineService` task remains the fallback for teams without the extension.
 
 The disabled V2 request-recorder/data-normalizer architecture is scaffolded in TypeScript:
 
@@ -136,31 +147,12 @@ The following are intentionally disabled in the V1 approval build:
 From the repository root:
 
 ```powershell
-Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/extension/background.js,apps/api/src/extension/content.js,apps/api/src/extension/popup.html,apps/api/src/extension/popup.js,apps/api/src/extension/popup.css,apps/api/src/extension/utils.js,apps/api/src/extension/icons,apps/api/src/extension/README.md -DestinationPath dist/craftmyfunnel-extension-v1.zip
+Compress-Archive -Force -Path apps/api/src/extension/manifest.json,apps/api/src/extension/background.js,apps/api/src/extension/content.js,apps/api/src/extension/popup.html,apps/api/src/extension/popup.js,apps/api/src/extension/popup.css,apps/api/src/extension/utils.js,apps/api/src/extension/icons -DestinationPath dist/craftmyfunnel-extension-v1.zip
 ```
 
-The ZIP intentionally contains only the active V1 extension files and docs.
-
-## Build & Sideload the V2 Preview
-
-The v2 preview is not published. To load-test it locally, stage the files with `manifest.v2.json`
-renamed to `manifest.json`:
-
-```powershell
-$src = "apps/api/src/extension"
-$dst = "dist/chrome-extension-v2"
-Remove-Item -Recurse -Force $dst -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dst | Out-Null
-Copy-Item "$src/manifest.v2.json" "$dst/manifest.json"
-Copy-Item "$src/background.js","$src/content.js","$src/popup.html","$src/popup.js","$src/popup.css","$src/options.html","$src/options.js","$src/utils.js" $dst
-Copy-Item "$src/icons" $dst -Recurse
-```
-
-Then in Chrome: `chrome://extensions` → Developer mode → Load unpacked → select `dist/chrome-extension-v2`.
-Open the extension's Options, set the API base (e.g. `https://craftmyfunnel.live/api`), paste an
-extension token (minted via the app) and the extension key, save, then run a LinkedIn sequence step
-and confirm the profile opens / the draft is inserted for review. Publishing v2 to the Chrome Web
-Store is a separate decision and triggers a new permission review.
+The ZIP intentionally contains only the active extension files.
+`scripts/package-extension.ps1` builds the same file set into `dist/CraftMyFunnel-extension.zip`.
+The listing text and permission answers for the store form are in `STORE_SUBMISSION.md`.
 
 ## Manual Test Checklist
 
@@ -173,6 +165,15 @@ Store is a separate decision and triggers a new permission review.
 - Save Lead succeeds locally when workspace sync is unavailable.
 - Activity Log keeps only the last five events.
 - Settings page stores workspace URL, optional token, default tone, and default angle locally.
+- Due tab, not connected: it asks to connect CraftMyFunnel in Settings.
+- Due tab, connected, with a LinkedIn step waiting in a sequence: the step is listed with its message.
+- Open profile opens the profile in a new tab; reopening the popup there shows the Due tab with that step first.
+- Put in message box with LinkedIn's message box closed: the draft panel appears on the page, and the draft lands in the box after clicking Message.
+- Put in message box with text already typed in the message box: the typed text is left alone.
+- Put in message box with a chat open with someone else: that chat is left alone and the draft stays in the panel.
+- If Message opens LinkedIn's full messaging page instead of the chat overlay, the panel is gone with the profile page; use Copy message in the popup instead.
+- Mark done removes the step from the list, and the sequence's next step is scheduled in CraftMyFunnel.
+- Updating from 1.0.0 keeps the saved workspace URL, extension key and sync token.
 
 ## Safe Usage
 
