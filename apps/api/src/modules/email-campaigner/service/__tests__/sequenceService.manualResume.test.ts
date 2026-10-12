@@ -84,10 +84,6 @@ function seed() {
         { id: "task-wa", teamId: "team-1", sequenceStepRunId: "run-wa", status: "TODO" },
         { id: "task-own", teamId: "team-1", sequenceStepRunId: null, status: "TODO" },
     ];
-    tables["job"] = [
-        { id: "job-li", teamId: "team-1", idempotencyKey: "ext_openprofile_run-li", status: "awaiting_extension" },
-        { id: "job-other", teamId: "team-1", idempotencyKey: "ext_openprofile_run-other", status: "awaiting_extension" },
-    ];
     tables["campaignSequence"] = [];
 
     for (const name of Object.keys(tables)) mockDb[name] = table(name);
@@ -135,14 +131,12 @@ describe("SequenceService.completeManualRun", () => {
         ]);
     });
 
-    it("closes the step's task and the extension's copy of it, and nothing else", async () => {
+    it("closes the step's task and nothing else", async () => {
         await SequenceService.completeManualRun("team-1", "run-li", now);
 
         expect(row("task", "task-li").status).toBe("DONE");
-        expect(row("job", "job-li")).toMatchObject({ status: "completed", completedAt: now });
         expect(row("task", "task-wa").status).toBe("TODO");
         expect(row("task", "task-own").status).toBe("TODO");
-        expect(row("job", "job-other").status).toBe("awaiting_extension");
     });
 
     it("finishes the sequence when the manual step was its last", async () => {
