@@ -1,9 +1,9 @@
 import { logger } from "@/lib/logger";
 import { aiService } from "@/lib/aiService";
 
-// Uploads AI-generated section images to the same Cloudflare Worker that serves
-// landing pages (workers/landing-pages), via its R2-backed internal upload route -
-// this avoids needing R2 API credentials/aws-sdk in this app. Mirrors
+// Uploads AI-generated section images to the public `landing-images` Supabase
+// Storage bucket (the same storage apps/web uses for logos and post media), over
+// the Storage REST API so this app needs no Supabase client. Mirrors
 // cloudflarePagesService.ts's no-op/error-return shape: never throws into callers,
 // just returns a status.
 
@@ -13,37 +13,42 @@ export interface ImageGenerationResult {
     details?: string;
 }
 
+const BUCKET = "landing-images";
+
 function getConfig() {
-    const origin = process.env["CLOUDFLARE_LANDING_PAGES_ORIGIN"];
-    const secret = process.env["CLOUDFLARE_LANDING_PAGES_INTERNAL_SECRET"];
-    if (!origin || !secret) return null;
-    return { origin, secret };
+    const url = process.env["SUPABASE_URL"];
+    const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+    if (!url || !serviceRoleKey) return null;
+    return { origin: new URL(url).origin, serviceRoleKey };
 }
 
 class ImageGenerationService {
     async generateSectionImage(prompt: string, teamId: string, key: string): Promise<ImageGenerationResult> {
         const config = getConfig();
         if (!config) {
-            return { status: "skipped", details: "Cloudflare is not configured (CLOUDFLARE_LANDING_PAGES_ORIGIN/INTERNAL_SECRET missing)" };
+            return { status: "skipped", details: "Supabase Storage is not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing)" };
         }
 
         try {
             const imageBuffer = await aiService.generateImage(prompt, teamId);
+            const objectPath = `${BUCKET}/${encodeURIComponent(key)}`;
 
-            const res = await fetch(`${config.origin}/internal/assets/${encodeURIComponent(key)}`, {
+            const res = await fetch(`${config.origin}/storage/v1/object/${objectPath}`, {
                 method: "POST",
                 headers: {
-                    "X-Internal-Secret": config.secret,
+                    Authorization: `Bearer ${config.serviceRoleKey}`,
+                    apikey: config.serviceRoleKey,
                     "Content-Type": "image/png",
+                    "x-upsert": "true",
                 },
                 body: new Uint8Array(imageBuffer),
             });
 
             if (!res.ok) {
-                throw new Error(`Asset upload failed: ${res.status} ${await res.text()}`);
+                throw new Error(`Image upload failed: ${res.status} ${await res.text()}`);
             }
 
-            return { status: "generated", url: `${config.origin}/assets/${key}` };
+            return { status: "generated", url: `${config.origin}/storage/v1/object/public/${objectPath}` };
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error";
             logger.error(`[ImageGenerationService] generateSectionImage error for key ${key}:`, { error: message });

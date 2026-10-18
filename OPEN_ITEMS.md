@@ -7074,6 +7074,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Not covered:** unpublishing or deleting a page does not clear it as a home page; the Worker has to be
     redeployed for the root to work. Same Cloudflare setup owed as OPEN-345.
 
+- **OPEN-347 (Fixed in code, not yet live — landing page images stored in Supabase instead of R2):** 2026-10-19.
+  - **Why:** R2 is not enabled on the Cloudflare account, and the Worker could not be deployed with its R2
+    binding. The owner chose Supabase/Oracle storage; AI section images are needed so a page can be judged
+    before it is approved.
+  - **Changed:** `imageGenerationService.ts` uploads to the public `landing-images` Supabase Storage bucket over
+    the Storage REST API and stores its public URL; it reads `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+    (replacing `CLOUDFLARE_LANDING_PAGES_ORIGIN`/`_INTERNAL_SECRET`). The landing-pages Worker drops its R2
+    binding, `/assets/*` and `/internal/assets/*` routes and the `INTERNAL_UPLOAD_SECRET` secret.
+  - **Owed:** create the public `landing-images` bucket; set both `SUPABASE_*` vars on both Oracle VMs (same
+    values as Render). Without them "Generate images" stays a no-op, as before.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

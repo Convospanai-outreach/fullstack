@@ -15,8 +15,8 @@ describe("imageGenerationService.generateSectionImage", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env["CLOUDFLARE_LANDING_PAGES_ORIGIN"] = "https://pages.example.com";
-        process.env["CLOUDFLARE_LANDING_PAGES_INTERNAL_SECRET"] = "secret-1";
+        process.env["SUPABASE_URL"] = "https://abcdefghijklmnopqrst.supabase.co";
+        process.env["SUPABASE_SERVICE_ROLE_KEY"] = "service-key-1";
     });
 
     afterEach(() => {
@@ -24,8 +24,8 @@ describe("imageGenerationService.generateSectionImage", () => {
         global.fetch = originalFetch;
     });
 
-    it("is a no-op when Cloudflare isn't configured", async () => {
-        delete process.env["CLOUDFLARE_LANDING_PAGES_INTERNAL_SECRET"];
+    it("is a no-op when Supabase Storage isn't configured", async () => {
+        delete process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
         const result = await imageGenerationService.generateSectionImage("a hero image", "team-1", "page-1-hero.png");
 
@@ -33,7 +33,7 @@ describe("imageGenerationService.generateSectionImage", () => {
         expect(mockAiService.generateImage).not.toHaveBeenCalled();
     });
 
-    it("uploads the generated image bytes to the Worker's internal route and returns the public URL", async () => {
+    it("uploads the generated image bytes to the landing-images bucket and returns its public URL", async () => {
         mockAiService.generateImage.mockResolvedValue(Buffer.from("fake-png-bytes"));
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
         global.fetch = fetchMock as any;
@@ -41,11 +41,12 @@ describe("imageGenerationService.generateSectionImage", () => {
         const result = await imageGenerationService.generateSectionImage("a hero image", "team-1", "page-1-hero.png");
 
         expect(result.status).toBe("generated");
-        expect(result.url).toBe("https://pages.example.com/assets/page-1-hero.png");
+        expect(result.url).toBe("https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/public/landing-images/page-1-hero.png");
         const [url, init] = fetchMock.mock.calls[0];
-        expect(url).toBe("https://pages.example.com/internal/assets/page-1-hero.png");
+        expect(url).toBe("https://abcdefghijklmnopqrst.supabase.co/storage/v1/object/landing-images/page-1-hero.png");
         expect(init.method).toBe("POST");
-        expect(init.headers["X-Internal-Secret"]).toBe("secret-1");
+        expect(init.headers.Authorization).toBe("Bearer service-key-1");
+        expect(init.headers["Content-Type"]).toBe("image/png");
     });
 
     it("returns an error result (not a thrown exception) when the upload fails", async () => {
