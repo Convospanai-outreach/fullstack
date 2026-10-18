@@ -12,6 +12,7 @@ import {
     publishCampaignSchema,
     selectWireframeSchema,
 } from "../schemas";
+import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
 import { sanitizeRenderedJsonHtml } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
@@ -238,6 +239,32 @@ export async function putEditorState(req: Request, ctx?: ParamContext) {
             renderedJson: parsed.data.renderedJson,
         });
         return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function putPageTracking(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const body = await req.json().catch(() => null);
+        const parsed = pageTrackingSchema.safeParse(body);
+        if (!parsed.success) {
+            throw new APIError("Use a GA4 ID like G-XXXXXXX, a Tag Manager ID like GTM-XXXXXX and a numeric Hotjar site ID", 400, "VALIDATION_ERROR");
+        }
+
+        const result = await landingAgentService.savePageTracking({
+            teamId,
+            campaignId,
+            pageId,
+            tracking: parsed.data,
+        });
+        return successResponse(result);
     } catch (error) {
         return handleAPIError(error);
     }
