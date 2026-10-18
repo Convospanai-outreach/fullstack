@@ -1,9 +1,7 @@
 export interface Env {
 	LANDING_PAGES: KVNamespace;
-	LANDING_ASSETS: R2Bucket;
 	API_ORIGIN: string;
 	DEFAULT_HOST: string;
-	INTERNAL_UPLOAD_SECRET: string;
 }
 
 interface StoredPage {
@@ -54,19 +52,6 @@ async function assertHostnameOwnsPage(env: Env, host: string, page: StoredPage):
 	return ownerTeamId !== null && ownerTeamId === page.teamId;
 }
 
-// Plain !== short-circuits on the first differing byte, leaking how many
-// leading bytes of a guessed secret are correct via response timing - this
-// endpoint is internet-reachable (served on every landing-page hostname),
-// so compare with the Workers runtime's constant-time primitive instead
-// (same fix class as OPEN-144's scraper-ingest HMAC comparison).
-function constantTimeEqual(a: string, b: string): boolean {
-	const encoder = new TextEncoder();
-	const aBytes = encoder.encode(a);
-	const bBytes = encoder.encode(b);
-	if (aBytes.byteLength !== bBytes.byteLength) return false;
-	return crypto.subtle.timingSafeEqual(aBytes, bBytes);
-}
-
 async function proxyToApi(env: Env, request: Request, path: string): Promise<Response> {
 	const upstream = new URL(path, env.API_ORIGIN);
 	const clientIp = request.headers.get("CF-Connecting-IP");
@@ -86,31 +71,6 @@ export default {
 		const url = new URL(request.url);
 		const host = url.hostname;
 		const segments = url.pathname.split("/").filter(Boolean);
-
-		if (segments[0] === "assets" && segments[1] && request.method === "GET") {
-			const key = segments.slice(1).join("/");
-			const object = await env.LANDING_ASSETS.get(key);
-			if (!object) {
-				return new Response("Not found", { status: 404 });
-			}
-			const headers = new Headers();
-			object.writeHttpMetadata(headers);
-			headers.set("Cache-Control", "public, max-age=31536000, immutable");
-			return new Response(object.body, { headers });
-		}
-
-		if (segments[0] === "internal" && segments[1] === "assets" && segments[2] && request.method === "POST") {
-			const secret = request.headers.get("X-Internal-Secret");
-			if (!secret || !constantTimeEqual(secret, env.INTERNAL_UPLOAD_SECRET)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-			const key = segments.slice(2).join("/");
-			const contentType = request.headers.get("Content-Type") || "application/octet-stream";
-			await env.LANDING_ASSETS.put(key, request.body, { httpMetadata: { contentType } });
-			return new Response(JSON.stringify({ ok: true, key }), {
-				headers: { "Content-Type": "application/json" },
-			});
-		}
 
 		// A connected domain's root shows the page its team picked as the home page
 		// (home:<hostname>, written from Settings -> Branding). Our own shared host

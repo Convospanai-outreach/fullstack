@@ -8,10 +8,8 @@ function makeEnv(stored: Record<string, unknown> | null) {
         LANDING_PAGES: {
             get: async (key: string) => (key.startsWith("page:") ? stored : null),
         },
-        LANDING_ASSETS: {},
         API_ORIGIN: "https://api.example.test",
         DEFAULT_HOST: "pages.example.test",
-        INTERNAL_UPLOAD_SECRET: "secret",
     } as any;
 }
 
