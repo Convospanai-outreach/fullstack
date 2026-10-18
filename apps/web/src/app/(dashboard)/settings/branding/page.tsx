@@ -12,6 +12,7 @@ interface CustomDomainRecord {
     id: string;
     domain: string;
     status: "pending" | "active" | "invalid";
+    homeSlug?: string | null;
     ownershipVerificationName?: string | null;
     ownershipVerificationValue?: string | null;
 }
@@ -51,6 +52,7 @@ export default function BrandingSettingsPage() {
     const [newDomain, setNewDomain] = useState("");
     const [connecting, setConnecting] = useState(false);
     const [cnameTarget, setCnameTarget] = useState("");
+    const [publishedPages, setPublishedPages] = useState<{ slug: string; title?: string | null }[]>([]);
 
     const loadDomains = () => {
         fetch("/api/settings/branding/domains")
@@ -58,6 +60,7 @@ export default function BrandingSettingsPage() {
             .then((data) => {
                 setDomains(data?.domains || []);
                 setCnameTarget(data?.cnameTarget || "");
+                setPublishedPages(data?.pages || []);
             })
             .catch(() => {});
     };
@@ -99,6 +102,25 @@ export default function BrandingSettingsPage() {
             toast.error("Error connecting domain");
         } finally {
             setConnecting(false);
+        }
+    };
+
+    const handleSetHomePage = async (d: CustomDomainRecord, homeSlug: string) => {
+        try {
+            const res = await fetch("/api/settings/branding/domains", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: d.id, homeSlug: homeSlug || null }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                toast.success(homeSlug ? `${d.domain} now opens that page` : `${d.domain} has no home page`);
+                loadDomains();
+            } else {
+                toast.error(data?.error || "Failed to set the home page");
+            }
+        } catch (e) {
+            toast.error("Error setting the home page");
         }
     };
 
@@ -293,7 +315,8 @@ export default function BrandingSettingsPage() {
                         <p className="text-sm text-muted-foreground">
                             Connect a domain you already own to host your landing pages under your own brand
                             (e.g., go.yourdomain.com). Your domain stays with your current DNS provider — you
-                            just add one DNS record. Each page is then live at yourdomain/page-name.
+                            just add one DNS record. Each page is then live at yourdomain/page-name, and you
+                            can pick one to open at the domain itself.
                         </p>
 
                         <div className="flex gap-2">
@@ -355,6 +378,23 @@ export default function BrandingSettingsPage() {
                                                 </>
                                             )}
                                         </div>
+                                    )}
+                                    {d.status === "active" && (
+                                        <label className="block text-xs text-muted-foreground space-y-1">
+                                            <span>Page shown at {d.domain} itself (every page is also at {d.domain}/page-name):</span>
+                                            <select
+                                                className="block w-full bg-muted/40 border border-border rounded-md px-2 py-1 text-foreground"
+                                                value={d.homeSlug || ""}
+                                                onChange={(e) => handleSetHomePage(d, e.target.value)}
+                                            >
+                                                <option value="">No home page</option>
+                                                {publishedPages.map((p) => (
+                                                    <option key={p.slug} value={p.slug}>
+                                                        {p.title || p.slug}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
                                     )}
                                     <button
                                         onClick={() => handleRemoveDomain(d)}

@@ -15,6 +15,42 @@ function makeEnv(stored: Record<string, unknown> | null) {
     } as any;
 }
 
+describe("landing-pages worker domain root", () => {
+    function makeKv(entries: Record<string, unknown>) {
+        return { ...makeEnv(null), LANDING_PAGES: { get: async (key: string) => entries[key] ?? null } } as any;
+    }
+    const page = { html: "<p>home</p>", teamId: "team-1" };
+
+    it("serves the team's chosen home page at a connected domain's root", async () => {
+        const env = makeKv({ "home:go.example.com": "spring", "host:go.example.com": "team-1", "page:spring": page });
+        const res = await worker.fetch(new Request("https://go.example.com/"), env);
+
+        expect(res.status).toBe(200);
+        expect(await res.text()).toContain("<p>home</p>");
+    });
+
+    it("404s at the root when no home page is set", async () => {
+        const env = makeKv({ "host:go.example.com": "team-1", "page:spring": page });
+        const res = await worker.fetch(new Request("https://go.example.com/"), env);
+
+        expect(res.status).toBe(404);
+    });
+
+    it("never serves another team's page as a domain's home page", async () => {
+        const env = makeKv({ "home:go.example.com": "spring", "host:go.example.com": "team-2", "page:spring": page });
+        const res = await worker.fetch(new Request("https://go.example.com/"), env);
+
+        expect(res.status).toBe(404);
+    });
+
+    it("has no home page on our own shared host", async () => {
+        const env = makeKv({ "home:pages.example.test": "spring", "page:spring": page });
+        const res = await worker.fetch(new Request("https://pages.example.test/"), env);
+
+        expect(res.status).toBe(404);
+    });
+});
+
 // S-09 (roadmap 3.3): landing pages were served with no CSP / X-Frame-Options.
 describe("landing-pages worker security headers", () => {
     it("serves a page with enforced frame-ancestors + XFO and a report-only CSP pinned to the stored script hash", async () => {

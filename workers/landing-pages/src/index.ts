@@ -112,7 +112,10 @@ export default {
 			});
 		}
 
-		const slug = segments[0];
+		// A connected domain's root shows the page its team picked as the home page
+		// (home:<hostname>, written from Settings -> Branding). Our own shared host
+		// has no home page.
+		const slug = segments[0] ?? (host === env.DEFAULT_HOST ? null : await env.LANDING_PAGES.get(`home:${host}`));
 
 		if (!slug) {
 			return new Response("Not found", { status: 404 });

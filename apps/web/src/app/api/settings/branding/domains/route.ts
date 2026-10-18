@@ -18,12 +18,21 @@ export async function GET() {
         }
 
         const { prisma } = await import("@/lib/db");
-        const domains = await prisma.customDomain.findMany({
-            where: { teamId },
-            select: { id: true, domain: true, status: true, ownershipVerificationName: true, ownershipVerificationValue: true, createdAt: true },
-            orderBy: { createdAt: "desc" },
-        });
-        return NextResponse.json({ domains, cnameTarget: getCnameTarget() });
+        const [domains, pages] = await Promise.all([
+            prisma.customDomain.findMany({
+                where: { teamId },
+                select: { id: true, domain: true, status: true, homeSlug: true, ownershipVerificationName: true, ownershipVerificationValue: true, createdAt: true },
+                orderBy: { createdAt: "desc" },
+            }),
+            // The published pages a domain's home page can be picked from.
+            prisma.landingPage.findMany({
+                where: { teamId, status: "published" },
+                select: { slug: true, title: true },
+                orderBy: { updatedAt: "desc" },
+                take: 200,
+            }),
+        ]);
+        return NextResponse.json({ domains, pages, cnameTarget: getCnameTarget() });
     } catch (error) {
         console.error("[settings:branding:domains:get]", error);
         return NextResponse.json({ domains: [], degraded: true });
@@ -70,6 +79,30 @@ export async function POST(req: NextRequest) {
         }
         console.error("[settings:branding:domains:post]", error);
         return NextResponse.json({ ok: false, error: "Unable to connect domain right now." }, { status: 500 });
+    }
+}
+
+// Sets the page shown at a domain's root: { id, homeSlug } (homeSlug null clears it).
+export async function PATCH(req: NextRequest) {
+    try {
+        const auth = await requireAdmin();
+        if ("error" in auth) return auth.error;
+
+        const body = await req.json().catch(() => ({}));
+        const id = typeof body?.id === "string" ? body.id : "";
+        const homeSlug = typeof body?.homeSlug === "string" && body.homeSlug ? body.homeSlug : null;
+        if (!id) {
+            return NextResponse.json({ ok: false, error: "Missing domain id" }, { status: 400 });
+        }
+
+        const saved = await BrandingService.setHomePage(auth.teamId, id, homeSlug);
+        if (!saved) {
+            return NextResponse.json({ ok: false, error: "Domain or published page not found" }, { status: 404 });
+        }
+        return NextResponse.json({ ok: true });
+    } catch (error) {
+        console.error("[settings:branding:domains:patch]", error);
+        return NextResponse.json({ ok: false, error: "Unable to set the home page right now." }, { status: 500 });
     }
 }
 
