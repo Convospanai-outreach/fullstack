@@ -7085,7 +7085,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Owed:** create the public `landing-images` bucket; set both `SUPABASE_*` vars on both Oracle VMs (same
     values as Render). Without them "Generate images" stays a no-op, as before.
   - **Landing domain:** the owner chose a separate domain over `pages.craftmyfunnel.live` (keeps customer pages
-    off the brand domain); `smc-india.services` for now, a bought domain later. `scripts/setup_landing_domain.py
+    off the brand domain). Not `smc-india.services`: it sends outreach email, and blocklists judge the whole
+    domain, so a subdomain there is no protection. Waiting for a newly bought domain used only for landing pages. `scripts/setup_landing_domain.py
     <zone>` (owner-run) adds `pages.<zone>`, deploys the Worker with that `DEFAULT_HOST`, adds a no-Worker route
     for each existing proxied name before the `*/*` route, sets the SaaS fallback origin and prints the app
     settings. A name proxied on that zone later needs its own no-Worker route.

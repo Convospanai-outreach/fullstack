@@ -3,6 +3,8 @@ Set up a Cloudflare zone to host customer landing pages
 =======================================================
 Makes <zone> the landing pages domain: customers point their own domain at
 pages.<zone> with one CNAME record, and the landing-pages Worker serves it.
+Use a domain that does nothing else, and never one that sends email: a page
+reported as spam or phishing can get the whole domain blocklisted.
 
 1. Finds the zone and the LANDING_PAGES KV namespace (must match wrangler.jsonc)
 2. Adds pages.<zone> as an originless proxied record (AAAA 100::)
@@ -20,8 +22,8 @@ on the account.
 
 Usage (PowerShell, from the repo root):
     $env:CLOUDFLARE_API_TOKEN = "<token>"
-    python scripts\\setup_landing_domain.py smc-india.services --dry-run
-    python scripts\\setup_landing_domain.py smc-india.services
+    python scripts\\setup_landing_domain.py landing-domain.example --dry-run
+    python scripts\\setup_landing_domain.py landing-domain.example
 """
 
 import argparse
@@ -91,7 +93,7 @@ def deploy_worker(token, account_id, pages_host):
 
 def main():
     parser = argparse.ArgumentParser(description="Set up a Cloudflare zone to host customer landing pages.")
-    parser.add_argument("zone", help="the domain on Cloudflare, e.g. smc-india.services")
+    parser.add_argument("zone", help="the domain on Cloudflare, e.g. landing-domain.example")
     parser.add_argument("--dry-run", action="store_true", help="read only; print what would change")
     args = parser.parse_args()
     token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
