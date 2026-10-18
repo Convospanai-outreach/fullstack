@@ -7084,6 +7084,11 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     binding, `/assets/*` and `/internal/assets/*` routes and the `INTERNAL_UPLOAD_SECRET` secret.
   - **Owed:** create the public `landing-images` bucket; set both `SUPABASE_*` vars on both Oracle VMs (same
     values as Render). Without them "Generate images" stays a no-op, as before.
+  - **Landing domain:** the owner chose a separate domain over `pages.craftmyfunnel.live` (keeps customer pages
+    off the brand domain); `smc-india.services` for now, a bought domain later. `scripts/setup_landing_domain.py
+    <zone>` (owner-run) adds `pages.<zone>`, deploys the Worker with that `DEFAULT_HOST`, adds a no-Worker route
+    for each existing proxied name before the `*/*` route, sets the SaaS fallback origin and prints the app
+    settings. A name proxied on that zone later needs its own no-Worker route.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
