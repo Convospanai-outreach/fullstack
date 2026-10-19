@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContext, mockAuthorizeRole, mockPrisma, mockCheckCampaignStartApproval, mockStartCampaign } = vi.hoisted(() => ({
+const { mockGetCurrentContext, mockAuthorizeRole, mockPrisma, mockCheckCampaignStartApproval, mockStartCampaign, mockPauseCampaign, mockAddLeads } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockAuthorizeRole: vi.fn(),
     mockCheckCampaignStartApproval: vi.fn(),
     mockStartCampaign: vi.fn(),
+    mockPauseCampaign: vi.fn(),
+    mockAddLeads: vi.fn(),
     mockPrisma: {
         campaign: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
         aiDraftBatch: { findFirst: vi.fn() },
@@ -17,7 +19,7 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { VIEWER: "VIEWER", MEMBER: "MEMBER", ADMIN: "ADMIN" },
 }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
-vi.mock("@/lib/campaignService", () => ({ CampaignService: { getCampaignStats: vi.fn().mockResolvedValue({}), startCampaign: mockStartCampaign } }));
+vi.mock("@/lib/campaignService", () => ({ CampaignService: { getCampaignStats: vi.fn().mockResolvedValue({}), startCampaign: mockStartCampaign, pauseCampaign: mockPauseCampaign, addLeadsToCampaign: mockAddLeads } }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 
 import { GET, PATCH } from "./route";
@@ -99,6 +101,10 @@ describe("PATCH /api/campaigns/[id] - campaign start approval", () => {
 
     it("does not ask for approval for edits that don't start the campaign", async () => {
         await PATCH(patch({ name: "Renamed" }), ctx);
+        await PATCH(patch({ action: "pause" }), ctx);
+        await PATCH(patch({ leadIds: ["lead-1"] }), ctx);
+        expect(mockPauseCampaign).toHaveBeenCalledWith("campaign-1");
+        expect(mockAddLeads).toHaveBeenCalledWith("campaign-1", ["lead-1"], "team-a");
         mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-a", status: "active", leadList: [] });
         await PATCH(patch({ status: "active" }), ctx);
 

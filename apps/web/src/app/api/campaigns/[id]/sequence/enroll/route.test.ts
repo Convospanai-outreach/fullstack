@@ -104,3 +104,26 @@ describe("POST /api/campaigns/[id]/sequence/enroll - requires at least MEMBER (O
         expect(data.map((d: any) => d.mailboxId)).toEqual(["resend-mailbox-1", "gmail-mailbox-1", "resend-mailbox-1"]);
     });
 });
+
+describe("POST /api/campaigns/[id]/sequence/enroll - errors", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(true);
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
+    });
+
+    it("returns 401 signed out, 404 for another team's campaign and 500 on a database error", async () => {
+        mockGetCurrentContext.mockResolvedValueOnce({ userId: null, teamId: null });
+        expect((await POST(new Request("http://localhost") as any, paramsFor("campaign-1"))).status).toBe(401);
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce(null);
+        expect((await POST(new Request("http://localhost") as any, paramsFor("campaign-1"))).status).toBe(404);
+
+        mockPrisma.campaign.findFirst.mockRejectedValueOnce(new Error("db down"));
+        expect((await POST(new Request("http://localhost") as any, paramsFor("campaign-1"))).status).toBe(500);
+
+        expect(mockCheckCampaignStartApproval).not.toHaveBeenCalled();
+        expect(mockPrisma.sequenceEnrollment.createMany).not.toHaveBeenCalled();
+    });
+});

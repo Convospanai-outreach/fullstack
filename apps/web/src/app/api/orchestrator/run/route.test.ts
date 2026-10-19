@@ -56,6 +56,30 @@ describe("POST /api/orchestrator/run (web)", () => {
         expect(mockHandleCampaignExecution).not.toHaveBeenCalled();
     });
 
+    it("rejects a signed-out caller, a missing campaignId and another team's campaign", async () => {
+        mockGetCurrentContext.mockResolvedValueOnce({ userId: null, teamId: null });
+        expect((await run()).status).toBe(401);
+
+        const noId = await POST(new Request("http://localhost/api/orchestrator/run", { method: "POST", body: "{}" }));
+        expect(noId.status).toBe(400);
+
+        mockPrisma.campaign.findFirst.mockResolvedValueOnce(null);
+        expect((await run()).status).toBe(404);
+
+        expect(mockCheckCampaignStartApproval).not.toHaveBeenCalled();
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("still reports the campaign active when the execution worker fails, and returns 500 on errors", async () => {
+        mockHandleCampaignExecution.mockRejectedValueOnce(new Error("queue down"));
+        const res = await run();
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ success: true, enqueued: 0 });
+
+        mockPrisma.campaign.update.mockRejectedValueOnce(new Error("db down"));
+        expect((await run()).status).toBe(500);
+    });
+
     it("starts the campaign when no approval is needed or it is approved", async () => {
         const res = await run();
 
