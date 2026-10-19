@@ -198,3 +198,67 @@ describe("POST /api/approvals/[id] - content posts", () => {
         expect(mockDecideContentPost).not.toHaveBeenCalled();
     });
 });
+
+describe("POST /api/approvals/[id] - campaign start requests cannot be self-approved", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.update.mockImplementation(async ({ data }: { data: object }) => ({ id: "req-1", ...data }));
+    });
+
+    const stored = (overrides: object) => ({
+        id: "req-1",
+        teamId: "team-1",
+        entityType: "Campaign",
+        entityId: "camp-1",
+        actionType: "CAMPAIGN_START",
+        requesterId: "user-1",
+        payload: {},
+        ...overrides,
+    });
+
+    it("refuses when the requester approves their own CAMPAIGN_START request", async () => {
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue(stored({}));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+
+    it("lets a different reviewer approve it", async () => {
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue(stored({ requesterId: "user-2" }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.approvalRequest.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "APPROVED", reviewerId: "user-1" }) }),
+        );
+    });
+
+    it("still lets the requester reject their own request", async () => {
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue(stored({}));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "REJECT" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+    });
+
+    it("does not touch the normal flow where a user approves their own email draft", async () => {
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue(
+            stored({ entityType: "email", entityId: "email-1", actionType: "email_draft_approval", payload: { emailId: "email-1" } }),
+        );
+        mockPrisma.email.findFirst.mockResolvedValue({ id: "email-1" });
+        mockPrisma.email.update.mockResolvedValue({});
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+    });
+});

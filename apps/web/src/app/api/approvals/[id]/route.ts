@@ -56,6 +56,11 @@ export async function POST(
             return NextResponse.json({ success: true, approval: updated });
         }
 
+        // The person who asked for a campaign to start cannot also be the one who allows it.
+        if (approval.actionType === "CAMPAIGN_START" && approval.requesterId === ctx.userId) {
+            return NextResponse.json({ error: "A campaign start request must be approved by someone other than the person who requested it." }, { status: 403 });
+        }
+
         // Action === "APPROVE"
         const updated = await prisma.approvalRequest.update({
             where: { id },

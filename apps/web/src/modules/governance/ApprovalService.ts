@@ -1,5 +1,6 @@
 
 import { prisma } from "@/lib/db";
+import { APIError } from "@/lib/apiResponse";
 import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
 import { getBreakerState } from "./breakerState";
 
@@ -169,6 +170,11 @@ export class ApprovalService {
         // approve()'s CAMPAIGN_START side-effect on that team's campaign.
         const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
+
+        // The person who asked for a campaign to start cannot also be the one who allows it.
+        if (request.actionType === "CAMPAIGN_START" && request.requesterId === reviewerId) {
+            throw new APIError("A campaign start request must be approved by someone other than the person who requested it.", 403);
+        }
 
         const updateData: any = {
             status: ApprovalStatus.APPROVED,

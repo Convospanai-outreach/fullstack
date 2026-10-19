@@ -385,3 +385,38 @@ describe("ApprovalService.approve / reject - content posts", () => {
         expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
     });
 });
+
+describe("ApprovalService.approve - self-approval of campaign starts", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.campaign.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    const request = (overrides: object) => ({ id: "req-1", teamId: "team-a", entityId: "camp-1", requesterId: "user-a", ...overrides });
+
+    it("refuses to let the requester approve their own CAMPAIGN_START request", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(request({ actionType: "CAMPAIGN_START" }));
+
+        await expect(ApprovalService.approve("req-1", "user-a", "team-a")).rejects.toMatchObject({ statusCode: 403 });
+
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+        expect(mockPrisma.campaign.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("lets a different reviewer approve it", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(request({ actionType: "CAMPAIGN_START" }));
+
+        await ApprovalService.approve("req-1", "user-b", "team-a");
+
+        expect(mockPrisma.approvalRequest.updateMany).toHaveBeenCalled();
+    });
+
+    it("still lets a requester approve their own non-campaign request (an email draft)", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(request({ actionType: "email_draft_approval" }));
+
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+
+        expect(mockPrisma.approvalRequest.updateMany).toHaveBeenCalled();
+    });
+});

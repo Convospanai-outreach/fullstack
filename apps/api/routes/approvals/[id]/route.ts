@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { getCurrentContextFromRequest } from "@/lib/auth";
+import { authorizePermission, Permission } from "@/lib/permissions";
 
 export async function POST(
   req: NextRequest,
@@ -11,6 +12,7 @@ export async function POST(
   try {
     const ctx = await getCurrentContextFromRequest(req);
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await authorizePermission(ctx.userId, ctx.teamId, Permission.RESOLVE_APPROVALS);
 
     const { action, reason } = await req.json(); // action: "APPROVE" | "REJECT"
 
@@ -25,6 +27,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Failed to process approval:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal Error" },
+      { status: (error as { statusCode?: number }).statusCode ?? 500 }
+    );
   }
 }
