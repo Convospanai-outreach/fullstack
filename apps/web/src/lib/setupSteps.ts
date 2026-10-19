@@ -4,9 +4,6 @@
 
 export type OutreachMode = "personal" | "company";
 
-/** Teams created from this date are sent to the wizard until they answer. */
-export const OUTREACH_MODE_REQUIRED_SINCE = new Date("2026-10-20T00:00:00Z");
-
 /** Workspace Identity (brand), Handoffs, Invite Your Team. */
 export const PERSONAL_HIDDEN_STEPS: ReadonlySet<number> = new Set([2, 11, 13]);
 

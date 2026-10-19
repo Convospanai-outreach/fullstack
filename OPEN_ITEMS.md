@@ -7109,8 +7109,8 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     "Outreach Connectors" for both: Email, LinkedIn, Meta and WhatsApp. Meta shows "Coming soon" while the
     workspace's creator-funnel switch is off (its Connect page is behind it); WhatsApp stays available, since
     sequence sends don't depend on the "whatsapp" switch (that only hides the `/whatsapp` page).
-  - **Login:** `/dashboard` sends a team created on or after 2026-10-20 to `/setup` until it answers
-    (`(dashboard)/dashboard/layout.tsx`); older teams and viewers are never redirected.
+  - **Login:** `/dashboard` sends every team (new and existing) to `/setup` until it answers
+    (`(dashboard)/dashboard/layout.tsx`); viewers are never redirected.
   - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
     a lead's "View Org Chart" button.
 
