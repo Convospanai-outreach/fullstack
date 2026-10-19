@@ -7,46 +7,19 @@ import { execSync } from "node:child_process";
 const ALLOWLIST = new Map([
     [
         "GHSA-w3rx-r6r6-pgpr",
-        "image-size (via pptxgenjs): ICNS parser DoS. No patched version exists " +
-        "(advisory range <=2.0.2 covers every release). apps/web only ever passes " +
-        "a synthetic, in-process SVG string to pptxgenjs.addImage() " +
-        "(apps/web/src/modules/studio/presentationDeck.ts) - never an ICNS file, " +
-        "never user-supplied input. See OPEN_ITEMS.md OPEN-13.",
+        "image-size (via pptxgenjs): ICNS parser DoS. Fixed in image-size 2.0.3, " +
+        "but pptxgenjs@4.0.1 (latest) depends on ^1.2.1 and a root override does " +
+        "not apply (same conflicting-override-sets problem as OPEN-40). pptxgenjs " +
+        "never loads image-size: its only call site is commented out in its " +
+        "bundle. apps/web only passes a synthetic, in-process SVG string to " +
+        "pptxgenjs.addImage() (apps/web/src/modules/studio/presentationDeck.ts). " +
+        "See OPEN_ITEMS.md OPEN-13 and OPEN-351.",
     ],
     [
         "GHSA-5p2g-fcmc-qvqq",
         "image-size (via pptxgenjs): JXL/HEIF parser DoS. Same package, same " +
-        "unpatched advisory range, same non-exploitable usage as GHSA-w3rx-r6r6-pgpr " +
-        "above. See OPEN_ITEMS.md OPEN-13.",
-    ],
-    [
-        "GHSA-ggr8-5vv4-36mx",
-        "deepmerge-ts@7.1.5 (via prisma -> @prisma/config): stack exhaustion on " +
-        "a self-referential object graph. Only reachable call site is " +
-        "@prisma/config's prisma.config.ts/.js loader (c12's `merger` option), " +
-        "invoked solely by the `prisma` CLI (generate/migrate/studio) - never on " +
-        "the running server's request path, never fed network or user-supplied " +
-        "data. A patched version (8.0.0) exists but @prisma/config@7.9.1 (latest) " +
-        "still pins 7.1.5, and forcing it via npm overrides conflicts with the " +
-        "pre-existing per-workspace overrides in apps/api and apps/web " +
-        "package.json. See OPEN_ITEMS.md OPEN-40.",
-    ],
-    [
-        "GHSA-3f6p-5ww8-9rcr",
-        "mysql2 (via prisma, <3.22.0): auth-plugin downgrade to " +
-        "mysql_clear_password can leak plaintext credentials to a malicious/" +
-        "MITM'd server. This repo's Prisma schema (apps/api/prisma/schema.prisma) " +
-        "uses provider = \"postgresql\" exclusively - mysql2 is bundled by " +
-        "prisma's multi-driver support but never imported, configured, or " +
-        "connected to anywhere in this codebase, so the vulnerable auth " +
-        "negotiation path is unreachable. See OPEN_ITEMS.md OPEN-125.",
-    ],
-    [
-        "GHSA-rgwj-5xj2-c3m3",
-        "mysql2 (via prisma, <=3.23.0): unbounded zlib inflate in the " +
-        "compressed MySQL protocol handler allows a decompression-bomb DoS. " +
-        "Same unreachable dependency as GHSA-3f6p-5ww8-9rcr above (postgresql-" +
-        "only schema, mysql2 never connected to). See OPEN_ITEMS.md OPEN-125.",
+        "pptxgenjs pin and same never-loaded usage as GHSA-w3rx-r6r6-pgpr above. " +
+        "See OPEN_ITEMS.md OPEN-13 and OPEN-351.",
     ],
     [
         "GHSA-5jgf-p345-68v8",
@@ -81,24 +54,6 @@ const ALLOWLIST = new Map([
         "fast-uri: host confusion via percent-encoded scheme normalization. " +
         "Same unreachable dependency chain and override conflict as " +
         "GHSA-5jgf-p345-68v8 above. See OPEN_ITEMS.md OPEN-125.",
-    ],
-    [
-        "GHSA-92pp-h63x-v22m",
-        "@hono/node-server (via prisma -> @prisma/dev, Prisma Studio's bundled " +
-        "dev server, <1.19.13): middleware bypass via repeated slashes in " +
-        "serveStatic. Confirmed via repo-wide search that no app source imports " +
-        "@hono/node-server or @prisma/dev directly - the only @hono/node-server " +
-        "this repo's own server.ts actually runs is the top-level dependency at " +
-        "2.x, pinned safe by the existing overrides. This vulnerable copy is " +
-        "only ever invoked by the `prisma` CLI (e.g. `prisma studio`), never by " +
-        "the running api/web server processes. See OPEN_ITEMS.md OPEN-125.",
-    ],
-    [
-        "GHSA-frvp-7c67-39w9",
-        "@hono/node-server (via prisma -> @prisma/dev, <1.19.15): path traversal " +
-        "in serve-static on Windows via an encoded backslash. Same unreachable " +
-        "Prisma-Studio-only dependency as GHSA-92pp-h63x-v22m above. See " +
-        "OPEN_ITEMS.md OPEN-125.",
     ],
     [
         "GHSA-5qjj-4xww-7phc",
