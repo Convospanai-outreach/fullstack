@@ -36,7 +36,15 @@ permissions:
 
 jobs:
   resolve-sha:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # docker-ghcr.yml also runs on pull_request, and workflow_run fires for
+    # those runs too (with prod secrets). Only deploy from a push to this
+    # repo's own main: a fork PR branch can be named "main" and would
+    # otherwise match the branches filter above.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}
@@ -61,7 +69,7 @@ jobs:
     steps:
       - name: Wait for ci.yml to complete for this commit
         id: wait
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const sha = '${{ needs.resolve-sha.outputs.sha }}';
@@ -100,7 +108,7 @@ jobs:
     if: needs.check-ci-gate.outputs.passed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.resolve-sha.outputs.sha }}
           fetch-depth: 2
@@ -118,7 +126,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24.x'
 
@@ -138,12 +146,12 @@ jobs:
     needs: [resolve-sha, scan-new-migrations]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.resolve-sha.outputs.sha }}
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22.x'
           cache: 'npm'
@@ -180,7 +188,7 @@ jobs:
             health_check: running
     steps:
       - name: Deploy, health-check, and roll back on failure (${{ matrix.host_secret }})
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         env:
           IMAGE_TAG: ${{ needs.resolve-sha.outputs.image_tag }}
           CONTAINER: ${{ matrix.container }}

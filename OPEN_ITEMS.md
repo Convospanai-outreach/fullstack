@@ -7098,6 +7098,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     wireframe step, as before (the flow is unchanged by the owner's choice). `templates.test.ts` checks every
     template starts with a hero, has a call to action, has unique section ids and renders each section.
 
+- **OPEN-349 (Fixed in code, not yet live — per-page GA4 / Tag Manager / Hotjar IDs):** 2026-10-19.
+  - **Why:** the owner asked for Google Tag Manager, Google Analytics and Hotjar on landing pages; they chose
+    IDs set per page, running only on a team's connected domain.
+  - **Added:** `LandingPage.tracking` (migration `20261025100000_landing_page_tracking`). A Tracking panel in the
+    page editor saves through `PUT /landing-agent/campaigns/:id/pages/:pageId/tracking` (MEMBER), which checks
+    the formats (`G-…`, `GTM-…`, numeric Hotjar ID; `tracking.ts`), keeps the page's status, and re-pushes a
+    published page to Cloudflare. The loaders go inside the Cloudflare copy's one hashed inline script, so they
+    run only on a connected domain; `/p/[slug]` on the app's origin never loads them. The Worker adds
+    `'strict-dynamic'`, `connect-src https: wss:` and `frame-src https:` to its report-only policy for pages
+    flagged `tracking`.
+  - **Before merge:** run Web Prisma Migrate on the branch (new column). The Worker must be redeployed (the
+    setup script does this).
+  - **Not covered:** no cookie-consent banner; customers are responsible for consent where the law requires it.
+- **OPEN-350 (Fixed in code — setup wizard asks personal or company, and lists outreach connectors):** 2026-10-19.
+  - **Why:** the owner couldn't find the setup wizard (login always went to `/dashboard`; only Sign up with
+    Google/LinkedIn reached `/setup`), and asked the wizard to ask whether the user does lead gen for themselves
+    or on behalf of a company, and to show the outreach connectors.
+  - **Added:** step 1 (Launch Brief) asks "My own lead generation" / "On behalf of a company", saved as
+    `Team.aiConfig.outreachMode` through `/setup/save` step 1 (MEMBER; only `personal` or `company`). A personal
+    team doesn't see steps 2 (brand), 11 (Handoffs) or 13 (Invite team), and brand no longer counts against its
+    progress. Step ids are unchanged (`lib/setupSteps.ts`), so `/setup?step=3` links still work. Step 4 is now
+    "Outreach Connectors" for both: Email, LinkedIn, Meta and WhatsApp. Meta shows "Coming soon" while the
+    workspace's creator-funnel switch is off (its Connect page is behind it); WhatsApp stays available, since
+    sequence sends don't depend on the "whatsapp" switch (that only hides the `/whatsapp` page).
+  - **Login:** `/dashboard` sends every team (new and existing) to `/setup` until it answers
+    (`(dashboard)/dashboard/layout.tsx`); viewers are never redirected.
+  - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
+    a lead's "View Org Chart" button.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

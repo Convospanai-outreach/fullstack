@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
         let updateData: any = {};
 
         switch (step) {
+            case 1: // Launch Brief: outreach for the user's own lead gen, or on behalf of a company
+                if (data.outreachMode !== "personal" && data.outreachMode !== "company") {
+                    return NextResponse.json({ error: "Choose personal or company." }, { status: 400 });
+                }
+                updateData.aiConfig = { ...currentAiConfig, outreachMode: data.outreachMode };
+                break;
+
             case 2: // Brand Identity
                 // data should contain { companyName, logoUrl, primaryColor, accentColor, portalTitle, guidelinesUrl }
                 if (data.companyName) {
@@ -97,7 +104,7 @@ export async function POST(req: NextRequest) {
                 break;
 
             default:
-                // Steps like 1, 3, 4, 7, 8, 10, 11 are either read-only stats, redirect out, or use existing endpoints (like /api/upload)
+                // Steps like 3, 4, 7, 8, 10, 11 are either read-only stats, redirect out, or use existing endpoints (like /api/upload)
                 return NextResponse.json({ message: "No save logic defined for this step" });
         }
 

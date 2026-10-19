@@ -20,7 +20,7 @@ services:
       context: ./apps/edge-fastapi
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - EDGE_MODE=true
       - EDGE_API_KEY=local-sim-key-change-me
@@ -44,12 +44,12 @@ services:
     volumes:
       - edge_pgdata:/var/lib/postgresql/data
     ports:
-      - "5433:5432" # Exposed on 5433 to avoid conflict with main app DB
+      - "127.0.0.1:5433:5432" # Exposed on 5433 to avoid conflict with main app DB
 
   browser-node:
     image: browserless/chrome:latest
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - MAX_CONCURRENT_SESSIONS=10
 
