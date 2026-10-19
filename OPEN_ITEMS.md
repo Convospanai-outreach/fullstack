@@ -7098,6 +7098,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     wireframe step, as before (the flow is unchanged by the owner's choice). `templates.test.ts` checks every
     template starts with a hero, has a call to action, has unique section ids and renders each section.
 
+- **OPEN-350 (Fixed in code — setup wizard asks personal or company, and lists outreach connectors):** 2026-10-19.
+  - **Why:** the owner couldn't find the setup wizard (login always went to `/dashboard`; only Sign up with
+    Google/LinkedIn reached `/setup`), and asked the wizard to ask whether the user does lead gen for themselves
+    or on behalf of a company, and to show the outreach connectors.
+  - **Added:** step 1 (Launch Brief) asks "My own lead generation" / "On behalf of a company", saved as
+    `Team.aiConfig.outreachMode` through `/setup/save` step 1 (MEMBER; only `personal` or `company`). A personal
+    team doesn't see steps 2 (brand), 11 (Handoffs) or 13 (Invite team), and brand no longer counts against its
+    progress. Step ids are unchanged (`lib/setupSteps.ts`), so `/setup?step=3` links still work. Step 4 is now
+    "Outreach Connectors" for both: Email, LinkedIn, Meta and WhatsApp, with Meta and WhatsApp shown as "Coming
+    soon" (and the WhatsApp Business setup hidden) while their feature switch is off for the workspace.
+  - **Login:** `/dashboard` sends a team created on or after 2026-10-20 to `/setup` until it answers
+    (`(dashboard)/dashboard/layout.tsx`); older teams and viewers are never redirected.
+  - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
+    a lead's "View Org Chart" button.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
