@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContext, mockPrisma, mockCheckTeamPermission } = vi.hoisted(() => ({
+const { mockGetCurrentContext, mockPrisma, mockCheckTeamPermission, mockCheckCampaignStartApproval } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
+    mockCheckCampaignStartApproval: vi.fn(),
     mockPrisma: {
         campaign: { findFirst: vi.fn() },
         campaignSequence: { findFirst: vi.fn(), update: vi.fn() },
@@ -18,6 +19,7 @@ vi.mock("@/lib/permissions", () => ({
     checkTeamPermission: mockCheckTeamPermission,
     TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
 }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 
 import { POST } from "./route";
 
@@ -30,6 +32,7 @@ describe("POST /api/campaigns/[id]/sequence/enroll - requires at least MEMBER (O
         vi.clearAllMocks();
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
         mockCheckTeamPermission.mockResolvedValue(true);
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
         mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-1" });
         mockPrisma.campaignSequence.findFirst.mockResolvedValue({
             id: "seq-1",
@@ -48,6 +51,16 @@ describe("POST /api/campaigns/[id]/sequence/enroll - requires at least MEMBER (O
 
         expect(res.status).toBe(403);
         expect(mockPrisma.campaign.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.sequenceEnrollment.createMany).not.toHaveBeenCalled();
+    });
+
+    it("returns 202 and enrolls no lead while the campaign awaits approval", async () => {
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: false, status: 202, body: { status: "pending_approval", approvalId: "appr-1", message: "waiting" } });
+
+        const res = await POST(new Request("http://localhost") as any, paramsFor("campaign-1"));
+
+        expect(res.status).toBe(202);
+        expect(mockCheckCampaignStartApproval).toHaveBeenCalledWith({ teamId: "team-1", userId: "user-1", campaignId: "campaign-1" });
         expect(mockPrisma.sequenceEnrollment.createMany).not.toHaveBeenCalled();
     });
 

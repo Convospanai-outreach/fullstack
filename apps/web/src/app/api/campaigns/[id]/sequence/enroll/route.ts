@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { enrollCampaignLeads } from "@/lib/campaigns/enrollment";
+import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         });
         if (!campaign) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        const gate = await checkCampaignStartApproval({ teamId, userId, campaignId });
+        if (!gate.allowed) {
+            return NextResponse.json(gate.body, { status: gate.status });
         }
 
         const result = await enrollCampaignLeads(campaignId, teamId);
