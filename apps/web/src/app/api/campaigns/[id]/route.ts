@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +70,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { prisma, teamId, campaign } = await getCampaignContext(id, TeamRole.MEMBER);
+        const { prisma, teamId, userId, campaign } = await getCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
+
+        // Starting the campaign, or setting it active, needs the approval the team's policy may require.
+        if (body.action === "start" || (body.status === "active" && campaign.status !== "active")) {
+            const gate = await checkCampaignStartApproval({ teamId, userId, campaignId: id });
+            if (!gate.allowed) {
+                return NextResponse.json(gate.body, { status: gate.status });
+            }
+        }
 
         const { CampaignService } = await import("@/lib/campaignService");
 

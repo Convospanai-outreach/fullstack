@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
 
 export async function POST(
@@ -27,6 +28,11 @@ export async function POST(
 
         if (!campaign) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        const gate = await checkCampaignStartApproval({ teamId, userId, campaignId });
+        if (!gate.allowed) {
+            return NextResponse.json(gate.body, { status: gate.status });
         }
 
         await prisma.campaign.update({

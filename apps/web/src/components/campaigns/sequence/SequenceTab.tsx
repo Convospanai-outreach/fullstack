@@ -136,6 +136,10 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 toast.error(data.error || "Failed to enroll leads");
                 return;
             }
+            if (data.status === "pending_approval") {
+                toast.info(data.message || "Approval requested - start this campaign again once it is approved");
+                return;
+            }
             if (data.enrolled > 0) {
                 toast.success(
                     `Enrolled ${data.enrolled} lead${data.enrolled === 1 ? "" : "s"}` +

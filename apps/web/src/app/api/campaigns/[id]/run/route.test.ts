@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContext, mockPrisma, mockCheckTeamPermission, mockHandleCampaignExecution } = vi.hoisted(() => ({
+const { mockGetCurrentContext, mockPrisma, mockCheckTeamPermission, mockHandleCampaignExecution, mockCheckCampaignStartApproval } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
         campaign: { findFirst: vi.fn(), update: vi.fn() },
     },
     mockCheckTeamPermission: vi.fn(),
     mockHandleCampaignExecution: vi.fn(),
+    mockCheckCampaignStartApproval: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/permissions", () => ({
     checkTeamPermission: mockCheckTeamPermission,
     TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
 }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 vi.mock("@/workers/handlers/campaign-execution-worker", () => ({
     handleCampaignExecution: mockHandleCampaignExecution,
 }));
@@ -33,6 +35,7 @@ describe("POST /api/campaigns/[id]/run - requires at least MEMBER (OPEN-218)", (
         mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-1" });
         mockPrisma.campaign.update.mockResolvedValue({ id: "campaign-1", status: "active" });
         mockHandleCampaignExecution.mockResolvedValue({ enqueued: 1 });
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
     });
 
     it("rejects a caller below MEMBER role before activating the campaign", async () => {
@@ -54,5 +57,21 @@ describe("POST /api/campaigns/[id]/run - requires at least MEMBER (OPEN-218)", (
             data: { status: "active" },
         });
         expect(mockHandleCampaignExecution).toHaveBeenCalled();
+    });
+
+    it("files an approval request instead of activating when the team policy requires one", async () => {
+        mockCheckCampaignStartApproval.mockResolvedValue({
+            allowed: false,
+            status: 202,
+            body: { status: "pending_approval", approvalId: "approval-1", message: "pending" },
+        });
+
+        const res = await POST(new Request("http://localhost") as any, paramsFor("campaign-1"));
+
+        expect(res.status).toBe(202);
+        expect(await res.json()).toMatchObject({ status: "pending_approval", approvalId: "approval-1" });
+        expect(mockCheckCampaignStartApproval).toHaveBeenCalledWith({ teamId: "team-1", userId: "user-1", campaignId: "campaign-1" });
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+        expect(mockHandleCampaignExecution).not.toHaveBeenCalled();
     });
 });

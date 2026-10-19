@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
 
 export async function POST(request: Request) {
@@ -8,6 +10,10 @@ export async function POST(request: Request) {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // Same bar as the other campaign start routes: a VIEWER can't start outreach.
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const body = await request.json().catch(() => ({}));
@@ -24,6 +30,11 @@ export async function POST(request: Request) {
 
         if (!campaign) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        const gate = await checkCampaignStartApproval({ teamId, userId, campaignId });
+        if (!gate.allowed) {
+            return NextResponse.json(gate.body, { status: gate.status });
         }
 
         await prisma.campaign.update({
