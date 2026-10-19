@@ -7091,6 +7091,13 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     for each existing proxied name before the `*/*` route, sets the SaaS fallback origin and prints the app
     settings. A name proxied on that zone later needs its own no-Worker route.
 
+- **OPEN-348 (Fixed in code — more landing page templates):** 2026-10-19.
+  - **Why:** the owner asked for more templates; only 4 existed (SaaS launch, ebook, webinar, consultation).
+  - **Added:** Online Course / Cohort, Agency / Done-for-You Services, Local Business, and Product Waitlist /
+    Pre-launch in `templates.ts`, using existing section types. They appear next to the AI options on the
+    wireframe step, as before (the flow is unchanged by the owner's choice). `templates.test.ts` checks every
+    template starts with a hero, has a call to action, has unique section ids and renders each section.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
