@@ -7098,6 +7098,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     wireframe step, as before (the flow is unchanged by the owner's choice). `templates.test.ts` checks every
     template starts with a hero, has a call to action, has unique section ids and renders each section.
 
+- **OPEN-349 (Fixed in code, not yet live — per-page GA4 / Tag Manager / Hotjar IDs):** 2026-10-19.
+  - **Why:** the owner asked for Google Tag Manager, Google Analytics and Hotjar on landing pages; they chose
+    IDs set per page, running only on a team's connected domain.
+  - **Added:** `LandingPage.tracking` (migration `20261025100000_landing_page_tracking`). A Tracking panel in the
+    page editor saves through `PUT /landing-agent/campaigns/:id/pages/:pageId/tracking` (MEMBER), which checks
+    the formats (`G-…`, `GTM-…`, numeric Hotjar ID; `tracking.ts`), keeps the page's status, and re-pushes a
+    published page to Cloudflare. The loaders go inside the Cloudflare copy's one hashed inline script, so they
+    run only on a connected domain; `/p/[slug]` on the app's origin never loads them. The Worker adds
+    `'strict-dynamic'`, `connect-src https: wss:` and `frame-src https:` to its report-only policy for pages
+    flagged `tracking`.
+  - **Before merge:** run Web Prisma Migrate on the branch (new column). The Worker must be redeployed (the
+    setup script does this).
+  - **Not covered:** no cookie-consent banner; customers are responsible for consent where the law requires it.
 - **OPEN-350 (Fixed in code — setup wizard asks personal or company, and lists outreach connectors):** 2026-10-19.
   - **Why:** the owner couldn't find the setup wizard (login always went to `/dashboard`; only Sign up with
     Google/LinkedIn reached `/setup`), and asked the wizard to ask whether the user does lead gen for themselves

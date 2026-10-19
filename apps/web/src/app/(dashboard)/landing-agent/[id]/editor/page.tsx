@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import GrapesEditor from "@/components/landing-agent/GrapesEditor";
+import PageTrackingPanel from "@/components/landing-agent/PageTrackingPanel";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaign } from "@/modules/landing-agent/types";
 
@@ -103,6 +104,17 @@ export default function LandingAgentEditorPage() {
                             router.push(`/p/${slug}`);
                         }
                     }
+                }}
+            />
+
+            <PageTrackingPanel
+                initial={page.tracking ?? null}
+                onSave={async (tracking) => {
+                    const result = await landingAgentApi.saveTracking(campaignId, page.id, tracking);
+                    if (result.page.status !== "published") return "Saved. Tracking starts once the page is published.";
+                    if (result.cloudflare?.status === "pushed") return "Saved. The live page on your connected domain now uses these IDs.";
+                    if (result.cloudflare?.status === "error") throw new Error("Saved, but updating the live page failed. Publish again to retry.");
+                    return "Saved. Tracking will run once a domain is connected in Settings → Branding.";
                 }}
             />
         </div>
