@@ -36,7 +36,15 @@ permissions:
 
 jobs:
   resolve-sha:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # docker-ghcr.yml also runs on pull_request, and workflow_run fires for
+    # those runs too (with prod secrets). Only deploy from a push to this
+    # repo's own main: a fork PR branch can be named "main" and would
+    # otherwise match the branches filter above.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.resolve.outputs.sha }}

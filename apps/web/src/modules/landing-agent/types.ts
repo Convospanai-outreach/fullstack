@@ -30,6 +30,12 @@ export interface WireframeOption {
 }
 
 // One row of the dashboard list (GET /landing-agent/campaigns).
+export interface LandingPageTracking {
+    ga4Id?: string;
+    gtmId?: string;
+    hotjarId?: string;
+}
+
 export interface LandingCampaignSummary {
     id: string;
     name: string;
@@ -62,5 +68,6 @@ export interface LandingCampaign {
         status: string;
         renderedJson: unknown;
         editorState?: unknown;
+        tracking?: LandingPageTracking | null;
     }>;
 }
