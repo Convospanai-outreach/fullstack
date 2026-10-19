@@ -52,6 +52,30 @@ describe("/setup/save", () => {
         expect(mockPrisma.team.update).toHaveBeenCalled();
     });
 
+    it("saves the outreach mode (step 1) into aiConfig, keeping the other settings", async () => {
+        mockCheckTeamPermission.mockResolvedValue(true);
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: {}, aiConfig: { tone: "Friendly" } });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 1, data: { outreachMode: "personal" } }));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledWith({
+            where: { id: "team-1" },
+            data: { aiConfig: { tone: "Friendly", outreachMode: "personal" } },
+        });
+    });
+
+    it("rejects an outreach mode other than personal or company", async () => {
+        mockCheckTeamPermission.mockResolvedValue(true);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 1, data: { outreachMode: "agency" } }));
+
+        expect(response.status).toBe(400);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+
     it("still blocks a user with no team membership at all", async () => {
         mockCheckTeamPermission.mockResolvedValue(false);
         const { POST } = await import("./route");

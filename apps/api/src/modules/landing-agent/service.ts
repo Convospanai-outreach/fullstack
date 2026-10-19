@@ -8,6 +8,7 @@ import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
 import { LANDING_PAGE_TEMPLATES } from "./templates";
+import { normalizeTracking } from "./tracking";
 import { landingEventNameEnum } from "./schemas";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
@@ -553,6 +554,33 @@ export const landingAgentService = {
             version: { increment: 1 },
             status: page.status === "published" ? "draft" : page.status,
         });
+    },
+
+    // Saving tracking IDs leaves the page's status alone; a published page's
+    // live copy is re-pushed so the change shows on the connected domain.
+    async savePageTracking(input: {
+        teamId: string;
+        campaignId: string;
+        pageId: string;
+        tracking: unknown;
+    }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+
+        const tracking = normalizeTracking(input.tracking);
+        const updatedPage = await updateOwnedPage(page.id, input.teamId, {
+            tracking: tracking ? (tracking as Prisma.InputJsonValue) : Prisma.DbNull,
+        });
+
+        let cloudflare: { status: string; details?: string } | null = null;
+        if (updatedPage.status === "published") {
+            const { cloudflarePagesService } = await import("./service/cloudflarePagesService");
+            cloudflare = await cloudflarePagesService.publishPageToCloudflare(updatedPage.id);
+        }
+        return { page: updatedPage, cloudflare };
     },
 
     async publishCampaign(input: {
