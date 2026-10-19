@@ -103,7 +103,7 @@ export const LANDING_PAGE_TEMPLATES: WireframeOption[] = [
         description: "Template: Booking page for a local shop, clinic, studio or home service.",
         framework: "AIDA",
         sections: [
-            { id: "hero", type: "hero", heading: "Friendly, reliable service right in your neighbourhood", body: "Book in a minute and get a confirmed time that suits you - no phone tag.", ctaLabel: "Book an Appointment", imagePrompt: "Welcoming storefront of a small local business on a sunny street, warm and inviting, no visible brand names" },
+            { id: "hero", type: "hero", heading: "Friendly, reliable service right in your neighbourhood", body: "Book in a minute and we'll confirm a time that suits you - no phone tag.", ctaLabel: "Book an Appointment", imagePrompt: "Welcoming storefront of a small local business on a sunny street, warm and inviting, no visible brand names" },
             { id: "services", type: "services", heading: "What we offer", bullets: ["Same-week appointments", "Clear prices before we start", "Friendly, trained staff"] },
             { id: "benefits", type: "benefits", heading: "Why locals choose us", bullets: ["Years of serving the community", "Flexible hours, including weekends", "Easy rescheduling if plans change"] },
             { id: "testimonial", type: "testimonial", heading: "What neighbours say", body: "\"Booked online in a minute, they were on time and explained everything clearly.\"" },
