@@ -170,11 +170,12 @@ export async function GET(req: Request) {
             hasVariants &&
             hasAssignedLeads;
 
-        // Completion percent (rough estimate, 11 boolean checks)
+        // Completion percent (rough estimate, 11 boolean checks). A personal user never sees
+        // the brand step (setup wizard step 2), so it doesn't count against them.
         const checks = [
             hasAccount && isEmailVerified,
             !!hasTeamRole,
-            brandingComplete,
+            ...(rawAiConfig.outreachMode === "personal" ? [] : [brandingComplete]),
             canSendEmail,
             hasLinkedInSession,
             emailVoiceComplete,

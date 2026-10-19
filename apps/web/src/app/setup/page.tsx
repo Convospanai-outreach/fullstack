@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import {
   AlertTriangle,
   Bell,
   Bot,
+  Building2,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -14,6 +16,7 @@ import {
   Copy,
   CreditCard,
   ExternalLink,
+  Facebook,
   FileText,
   LayoutGrid,
   Linkedin,
@@ -24,11 +27,14 @@ import {
   RefreshCw,
   ShieldCheck,
   Target,
+  User,
   UserPlus,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
+import { useLiveFeatureKeys } from "@/components/dashboard/SectionTabs";
+import { nextStepId, previousStepId, readOutreachMode, visibleStepIds, type OutreachMode } from "@/lib/setupSteps";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
@@ -89,10 +95,10 @@ type DomainCheckResult = {
 };
 
 const STEPS = [
-  { id: 1, title: "Launch Brief", icon: Users, description: "Confirm account access and the operating goal for the first campaign." },
+  { id: 1, title: "Launch Brief", icon: Users, description: "Tell us who you're reaching out for, and confirm account access." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
   { id: 3, title: "Sending Mailbox", icon: Mail, description: "Choose how outreach gets sent: Google Workspace, Microsoft 365, SMTP, or Resend." },
-  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep the first launch email-first, then add LinkedIn or WhatsApp context when needed." },
+  { id: 4, title: "Outreach Connectors", icon: Linkedin, description: "See which outreach channels you can connect: email, LinkedIn, Meta and WhatsApp." },
   { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
   { id: 6, title: "AI Drafting", icon: Bot, description: "Add the provider key used for draft preparation and enrichment support." },
   { id: 7, title: "Lead Inputs", icon: Users, description: "Import the reachable segment for review-ready campaign work." },
@@ -124,11 +130,14 @@ export default function SetupWizardPage() {
 
   const completion = Math.max(0, Math.min(100, status?.completionPercent ?? 0));
   const connectedMailboxes = mailboxes.filter((mailbox) => mailbox.status === "CONNECTED").length;
+  const outreachMode: OutreachMode | null = formData.step1?.outreachMode ?? null;
+  const visibleIds = visibleStepIds(STEPS.map((step) => step.id), outreachMode);
+  const visibleSteps = STEPS.filter((step) => visibleIds.includes(step.id));
 
   const stepComplete = useMemo(() => {
     if (!status) return () => false;
     return (stepId: number) => {
-      if (stepId === 1) return status.hasAccount && status.isEmailVerified;
+      if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig);
       if (stepId === 2) return status.brandingComplete;
       if (stepId === 3) return status.canSendEmail || connectedMailboxes > 0;
       if (stepId === 4) return PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
@@ -152,6 +161,7 @@ export default function SetupWizardPage() {
       const data = await readJson(res);
       setStatus(data);
       setFormData({
+        step1: { outreachMode: readOutreachMode(data.aiConfig) },
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
@@ -247,6 +257,10 @@ export default function SetupWizardPage() {
   }, []);
 
   async function handleSaveStep(stepId: number) {
+    if (stepId === 1 && !outreachMode) {
+      setActionMessage("Choose who you're reaching out for to continue.");
+      return;
+    }
     setSaving(true);
     setActionMessage(null);
     try {
@@ -307,7 +321,7 @@ export default function SetupWizardPage() {
         }
         // GOOGLE / MICROSOFT connect via their own OAuth buttons, not this form submit — nothing to POST here.
       } else {
-        const payload = stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
+        const payload = stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
           const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
@@ -324,7 +338,8 @@ export default function SetupWizardPage() {
 
       await loadStatus();
       await loadMailboxes();
-      if (stepId < STEPS.length) setActiveStep(stepId + 1);
+      const next = nextStepId(visibleIds, stepId);
+      if (next) setActiveStep(next);
       else router.push("/dashboard");
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Unable to save setup step.");
@@ -422,8 +437,10 @@ export default function SetupWizardPage() {
     );
   }
 
-  const active = STEPS[activeStep - 1];
+  // A deep link to a step this mode hides (e.g. ?step=13 for a personal user) opens step 1.
+  const active = visibleSteps.find((step) => step.id === activeStep) ?? visibleSteps[0]!;
   const ActiveIcon = active.icon;
+  const previous = previousStepId(visibleIds, active.id);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -445,10 +462,10 @@ export default function SetupWizardPage() {
             </div>
 
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
-              {STEPS.map((step) => {
+              {visibleSteps.map((step, index) => {
                 const Icon = step.icon;
                 const complete = stepComplete(step.id);
-                const selected = activeStep === step.id;
+                const selected = active.id === step.id;
                 return (
                   <button
                     key={step.id}
@@ -460,7 +477,7 @@ export default function SetupWizardPage() {
                       {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                     </span>
                     <span>
-                      <span className="block text-sm font-semibold">{step.id}. {step.title}</span>
+                      <span className="block text-sm font-semibold">{index + 1}. {step.title}</span>
                       <span className={`mt-0.5 block text-xs ${selected ? "text-slate-600" : "text-slate-500"}`}>{complete ? "Ready" : "Needs review"}</span>
                     </span>
                     <ChevronRight className="h-4 w-4 opacity-50" />
@@ -479,19 +496,29 @@ export default function SetupWizardPage() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
                     <ActiveIcon className="h-5 w-5" />
                   </span>
-                  <p className="text-sm font-medium text-cyan-200">Step {activeStep} of {STEPS.length}</p>
+                  <p className="text-sm font-medium text-cyan-200">Step {visibleIds.indexOf(active.id) + 1} of {visibleIds.length}</p>
                 </div>
                 <h2 className="mt-5 text-3xl font-semibold tracking-tight text-white">{active.title}</h2>
                 <p className="mt-2 max-w-2xl text-base text-slate-400">{active.description}</p>
               </div>
-              <StatusPill ready={stepComplete(activeStep)} />
+              <StatusPill ready={stepComplete(active.id)} />
             </div>
           </header>
 
-          <form className="mt-5 space-y-5" onSubmit={(event) => { event.preventDefault(); handleSaveStep(activeStep); }}>
-            {activeStep === 1 && <LaunchBrief status={status} />}
-            {activeStep === 2 && <WorkspaceIdentity formData={formData} setFormData={setFormData} />}
-            {activeStep === 3 && (
+          <form className="mt-5 space-y-5" onSubmit={(event) => { event.preventDefault(); handleSaveStep(active.id); }}>
+            {active.id === 1 && (
+              <LaunchBrief
+                status={status}
+                mode={outreachMode}
+                message={actionMessage}
+                onChoose={(mode) => {
+                  setActionMessage(null);
+                  setFormData({ ...formData, step1: { outreachMode: mode } });
+                }}
+              />
+            )}
+            {active.id === 2 && <WorkspaceIdentity formData={formData} setFormData={setFormData} />}
+            {active.id === 3 && (
               <MailboxProviderStep
                 status={status}
                 formData={formData}
@@ -509,22 +536,22 @@ export default function SetupWizardPage() {
                 saving={saving}
               />
             )}
-            {activeStep === 4 && <OptionalChannels status={status} />}
-            {activeStep === 5 && <MessageVoice formData={formData} setFormData={setFormData} />}
-            {activeStep === 6 && <AiDrafting formData={formData} setFormData={setFormData} status={status} />}
-            {activeStep === 7 && <LeadInputs status={status} onOpenLeads={() => router.push("/leads/import")} />}
-            {activeStep === 8 && <CampaignPlan status={status} onOpenCampaigns={() => router.push("/campaigns")} />}
-            {activeStep === 9 && <MeetingAssets formData={formData} setFormData={setFormData} status={status} />}
-            {activeStep === 10 && <CommercialReadiness status={status} />}
-            {activeStep === 11 && <Handoffs status={status} />}
-            {activeStep === 12 && <NotificationsStep />}
-            {activeStep === 13 && <InviteTeamStep />}
+            {active.id === 4 && <OptionalChannels status={status} emailReady={stepComplete(3)} onOpenEmail={() => setActiveStep(3)} />}
+            {active.id === 5 && <MessageVoice formData={formData} setFormData={setFormData} />}
+            {active.id === 6 && <AiDrafting formData={formData} setFormData={setFormData} status={status} />}
+            {active.id === 7 && <LeadInputs status={status} onOpenLeads={() => router.push("/leads/import")} />}
+            {active.id === 8 && <CampaignPlan status={status} onOpenCampaigns={() => router.push("/campaigns")} />}
+            {active.id === 9 && <MeetingAssets formData={formData} setFormData={setFormData} status={status} />}
+            {active.id === 10 && <CommercialReadiness status={status} />}
+            {active.id === 11 && <Handoffs status={status} />}
+            {active.id === 12 && <NotificationsStep />}
+            {active.id === 13 && <InviteTeamStep />}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"
-                onClick={() => setActiveStep((value) => Math.max(1, value - 1))}
-                disabled={activeStep === 1}
+                onClick={() => previous && setActiveStep(previous)}
+                disabled={!previous}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" /> Back
@@ -535,7 +562,7 @@ export default function SetupWizardPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {continueLabel(activeStep, formData.step3?.provider)}
+                {continueLabel(active.id, formData.step3?.provider)}
               </button>
             </footer>
           </form>
@@ -852,17 +879,48 @@ function MailboxProviderStep(props: {
   );
 }
 
-function LaunchBrief({ status }: { status: SetupStatus }) {
+const OUTREACH_MODES: Array<{ mode: OutreachMode; title: string; text: string; icon: typeof User }> = [
+  { mode: "personal", title: "My own lead generation", text: "You're finding and contacting leads for yourself. Skips brand, handoff and team steps.", icon: User },
+  { mode: "company", title: "On behalf of a company", text: "You're reaching out to other companies for your company or a client, with teammates and brand details.", icon: Building2 },
+];
+
+function LaunchBrief({ status, mode, message, onChoose }: { status: SetupStatus; mode: OutreachMode | null; message: string | null; onChoose: (mode: OutreachMode) => void }) {
   return (
-    <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <ChecklistItem label="Account exists" passed={status.hasAccount} />
-        <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
-        <ChecklistItem label="Qualified lead definition reviewed" passed={false} />
-        <ChecklistItem label="Meeting workflow tracking confirmed" passed={false} />
-      </div>
-    </section>
+    <div className="space-y-5">
+      <section className={panelClass}>
+        <h3 className="text-xl font-semibold text-white">Who are you reaching out for?</h3>
+        <div className="mt-5 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Who are you reaching out for?">
+          {OUTREACH_MODES.map((option) => {
+            const selected = mode === option.mode;
+            const Icon = option.icon;
+            return (
+              <button
+                key={option.mode}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onChoose(option.mode)}
+                className={`rounded-lg border p-4 text-left transition ${selected ? "border-cyan-400 bg-cyan-400/10" : "border-white/10 bg-slate-950/40 hover:border-white/30"}`}
+              >
+                <Icon className={`h-5 w-5 ${selected ? "text-cyan-300" : "text-slate-400"}`} />
+                <span className="mt-3 block text-sm font-semibold text-white">{option.title}</span>
+                <span className="mt-1 block text-sm text-slate-400">{option.text}</span>
+              </button>
+            );
+          })}
+        </div>
+        {message ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{message}</p> : null}
+      </section>
+      <section className={panelClass}>
+        <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <ChecklistItem label="Account exists" passed={status.hasAccount} />
+          <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
+          <ChecklistItem label="Qualified lead definition reviewed" passed={false} />
+          <ChecklistItem label="Meeting workflow tracking confirmed" passed={false} />
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -880,10 +938,80 @@ function WorkspaceIdentity({ formData, setFormData }: any) {
   );
 }
 
-function OptionalChannels({ status }: { status: SetupStatus }) {
+const SOCIAL_ACCOUNTS_URL = getBrowserApiUrl("/social/accounts");
+
+function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupStatus; emailReady: boolean; onOpenEmail: () => void }) {
+  const liveKeys = useLiveFeatureKeys();
+  // Meta connects on /settings/social, which the creator-funnel switch hides. WhatsApp sends from
+  // sequences don't depend on the "whatsapp" switch (that only hides the /whatsapp page).
+  const metaLive = liveKeys.has("creator-funnel");
+  const { data: social } = useSWR<{ accounts: Array<{ platform: string; status: string }> }>(
+    metaLive ? SOCIAL_ACCOUNTS_URL : null,
+    (url: string) => fetch(url, { cache: "no-store" }).then((res) => (res.ok ? res.json() : { accounts: [] })),
+  );
+  const metaConnected = (social?.accounts ?? []).some((a) => (a.platform === "FACEBOOK_PAGE" || a.platform === "INSTAGRAM") && a.status === "CONNECTED");
+  const setUpBelow = <span className="text-xs text-slate-400">Set up below</span>;
+
+  const connectors = [
+    {
+      label: "Email",
+      icon: Mail,
+      text: "Send sequences from Google Workspace, Microsoft 365, SMTP or Resend.",
+      live: true,
+      connected: emailReady,
+      action: <button type="button" onClick={onOpenEmail} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Set up email</button>,
+    },
+    {
+      label: "LinkedIn",
+      icon: Linkedin,
+      text: "The Chrome extension saves profiles as leads and gives you LinkedIn steps to do yourself.",
+      live: true,
+      connected: status.hasLinkedInSession,
+      action: setUpBelow,
+    },
+    {
+      label: "Meta (Facebook and Instagram)",
+      icon: Facebook,
+      text: "Post from your Facebook Page and Instagram, and answer DMs and comments.",
+      live: metaLive,
+      connected: metaConnected,
+      action: <a href="/settings/social" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Connect</a>,
+    },
+    {
+      label: "WhatsApp",
+      icon: MessageSquare,
+      text: "Send WhatsApp messages from sequences through the WhatsApp Business API.",
+      live: true,
+      connected: status.hasWhatsApp,
+      action: setUpBelow,
+    },
+  ];
+
   return (
     <div className="space-y-5">
-      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey], ["WhatsApp Business API connected", status.hasWhatsApp]]} />
+      <section className={panelClass}>
+        <h3 className="text-xl font-semibold text-white">Your outreach channels</h3>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {connectors.map((connector) => {
+            const Icon = connector.icon;
+            return (
+              <div key={connector.label} className={`rounded-lg border border-white/10 bg-slate-950/40 p-4 ${connector.live || connector.connected ? "" : "opacity-60"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 text-sm font-semibold text-white"><Icon className="h-4 w-4 text-slate-400" />{connector.label}</span>
+                  {connector.connected ? (
+                    <span className="flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+                  ) : !connector.live ? (
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-slate-400">Coming soon</span>
+                  ) : (
+                    connector.action
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-slate-400">{connector.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
       <ExtensionSyncToken />
       <ExtensionAutoEnrich />
       <WabaSetupSection />
