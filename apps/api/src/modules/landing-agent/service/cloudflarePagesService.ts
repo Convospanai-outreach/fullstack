@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
+import { buildTrackingScript } from "../tracking";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -167,7 +168,9 @@ class CloudflarePagesService {
             }
 
             const payload = getLandingRenderPayload(page.renderedJson);
-            const script = buildLeadFormScript(page.slug);
+            // The page's analytics loaders (if any) share the one hashed inline script.
+            const trackingScript = buildTrackingScript(page.tracking);
+            const script = trackingScript + buildLeadFormScript(page.slug);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
             const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn });
             // CSP source for the one inline script the worker is expected to run
@@ -179,7 +182,7 @@ class CloudflarePagesService {
                 {
                     method: "PUT",
                     headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ html, teamId: page.campaign.teamId, scriptHash }),
+                    body: JSON.stringify({ html, teamId: page.campaign.teamId, scriptHash, ...(trackingScript ? { tracking: true } : {}) }),
                 }
             );
 

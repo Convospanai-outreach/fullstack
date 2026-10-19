@@ -66,6 +66,20 @@ describe("landing-pages worker security headers", () => {
         expect(await res.text()).toContain("<p>hi</p>");
     });
 
+    it("lets a tracked page's hashed loader add vendor scripts and connections, in report-only", async () => {
+        const tracked = await worker.fetch(new Request("https://pages.example.test/my-page"), makeEnv({ html: "<p>hi</p>", teamId: "team-1", scriptHash: "sha256-abc123=", tracking: true }));
+        const trackedPolicy = tracked.headers.get("Content-Security-Policy-Report-Only") ?? "";
+        expect(trackedPolicy).toContain("script-src 'sha256-abc123=' 'strict-dynamic'");
+        expect(trackedPolicy).toContain("connect-src 'self' https: wss:");
+        expect(trackedPolicy).toContain("frame-src 'self' https:");
+
+        const plain = await worker.fetch(new Request("https://pages.example.test/my-page"), makeEnv({ html: "<p>hi</p>", teamId: "team-1", scriptHash: "sha256-abc123=" }));
+        const plainPolicy = plain.headers.get("Content-Security-Policy-Report-Only") ?? "";
+        expect(plainPolicy).not.toContain("strict-dynamic");
+        expect(plainPolicy).toContain("connect-src 'self';");
+        expect(plainPolicy).not.toContain("frame-src");
+    });
+
     it("falls back to script-src 'none' in report-only for pages pushed before scriptHash existed", async () => {
         const env = makeEnv({ html: "<p>old</p>", teamId: "team-1" });
         const res = await worker.fetch(new Request("https://pages.example.test/old-page"), env);

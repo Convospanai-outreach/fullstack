@@ -10,23 +10,29 @@ interface StoredPage {
 	// sha256 CSP source of the page's one inline script, written by
 	// cloudflarePagesService.ts. Absent on pages pushed before it existed.
 	scriptHash?: string;
+	// Set when the page loads its team's GA4/GTM/Hotjar (see tracking.ts in
+	// apps/api); those loaders run inside the hashed script.
+	tracking?: boolean;
 }
 
 // Clickjacking protection is enforced (nothing legitimately frames these pages).
 // The rest of the policy ships Report-Only because customer HTML/CSS varies
 // (external images, @import'd fonts): it only allows the page's own inline
 // script by hash, so it can be switched to enforcing once reports are clean.
-function securityHeaders(scriptHash?: string): Record<string, string> {
+function securityHeaders(scriptHash?: string, tracking = false): Record<string, string> {
 	return {
 		"Content-Security-Policy": "frame-ancestors 'none'",
 		"X-Frame-Options": "DENY",
 		"Content-Security-Policy-Report-Only": [
 			"default-src 'self'",
-			`script-src ${scriptHash ? `'${scriptHash}'` : "'none'"}`,
+			// 'strict-dynamic' trusts the scripts the hashed loader adds, and only those.
+			`script-src ${scriptHash ? `'${scriptHash}'${tracking ? " 'strict-dynamic'" : ""}` : "'none'"}`,
 			"style-src 'self' 'unsafe-inline' https:",
 			"img-src 'self' https: data:",
 			"font-src 'self' https: data:",
-			"connect-src 'self'",
+			tracking ? "connect-src 'self' https: wss:" : "connect-src 'self'",
+			// Hotjar surveys and Tag Manager's preview open frames.
+			...(tracking ? ["frame-src 'self' https:"] : []),
 			"form-action 'self'",
 			"base-uri 'none'",
 			"object-src 'none'",
@@ -111,7 +117,7 @@ export default {
 			headers: {
 				"Content-Type": "text/html; charset=utf-8",
 				"Cache-Control": "public, max-age=60",
-				...securityHeaders(stored.scriptHash),
+				...securityHeaders(stored.scriptHash, stored.tracking === true),
 			},
 		});
 	},
