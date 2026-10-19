@@ -263,6 +263,9 @@ jobs:
     - name: Keep slow image builds out of the deploy trigger
       run: node --test scripts/ci/deploy-trigger-workflows.test.mjs
 
+    - name: Production secrets only in protected environments
+      run: node --test scripts/ci/prod-secrets-environment.test.mjs
+
     - name: Mautic CloudFormation template invariants
       run: node --test scripts/ci/mautic-template.test.mjs
 

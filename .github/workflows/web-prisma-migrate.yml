@@ -12,6 +12,9 @@ jobs:
     name: Migrate apps/web Prisma schema
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Runs migrations against the production DB from whichever branch is dispatched, so each run
+    # waits for a required reviewer's approval (see the GitHub environment's rules).
+    environment: production-migrate
 
     steps:
       - name: Checkout repository
