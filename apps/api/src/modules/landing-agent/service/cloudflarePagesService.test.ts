@@ -109,6 +109,30 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(JSON.parse(fetchMock.mock.calls[1][1].body).html).not.toContain('name="whatsappConsent"');
     });
 
+    it("puts the page's tracking loaders in the one hashed script and flags the page for the Worker", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        const page = { id: "page-1", slug: "my-campaign", title: "My Campaign", renderedJson: { html: "<p>Hello</p>", css: "" }, campaign: { teamId: "team-1" } };
+
+        mockPrisma.landingPage.findUnique.mockResolvedValue({ ...page, tracking: { ga4Id: "G-ABC1234", gtmId: "GTM-AB12CD", hotjarId: "1234567" } });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)];
+        expect(scripts).toHaveLength(1);
+        expect(scripts[0]![1]).toContain("gtm.js?id=");
+        expect(scripts[0]![1]).toContain('window.gtag("config", "G-ABC1234")');
+        expect(scripts[0]![1]).toContain("hjid: 1234567");
+        expect(scripts[0]![1]).toContain('var slug = "my-campaign"');
+        expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(scripts[0]![1]!, "utf8").digest("base64")}`);
+        expect(body.tracking).toBe(true);
+
+        mockPrisma.landingPage.findUnique.mockResolvedValue({ ...page, tracking: null });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const plain = JSON.parse(fetchMock.mock.calls[1][1].body);
+        expect(plain.html).not.toContain("googletagmanager");
+        expect(plain.tracking).toBeUndefined();
+    });
+
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {
         mockPrisma.landingPage.findUnique.mockResolvedValue({
             id: "page-1",
