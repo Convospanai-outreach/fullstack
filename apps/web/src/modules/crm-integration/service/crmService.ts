@@ -1,6 +1,7 @@
 import { Client } from "@hubspot/api-client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { encryptCrmToken, decryptCrmToken } from "./crmSecrets";
 
 export interface SyncResult {
     status: "success" | "exists" | "failed" | "error";
@@ -29,10 +30,11 @@ class CRMService {
                 return { status: "failed", details: "HubSpot not configured or inactive" };
             }
 
-            let accessToken = config.accessToken;
+            let accessToken = decryptCrmToken(config.accessToken);
+            const refreshToken = decryptCrmToken(config.refreshToken);
 
             // Refresh token if expired
-            if (config.refreshToken && config.expiresAt && config.expiresAt < new Date()) {
+            if (refreshToken && config.expiresAt && config.expiresAt < new Date()) {
                 const clientId = process.env["HUBSPOT_CLIENT_ID"];
                 const clientSecret = process.env["HUBSPOT_CLIENT_SECRET"];
                 if (!clientId || !clientSecret) {
@@ -42,7 +44,7 @@ class CRMService {
                 logger.info(`[CRM Service] Refreshing HubSpot token for team ${teamId}`);
                 const params = new URLSearchParams();
                 params.set("grant_type", "refresh_token");
-                params.set("refresh_token", config.refreshToken);
+                params.set("refresh_token", refreshToken);
                 params.set("client_id", clientId);
                 params.set("client_secret", clientSecret);
 
@@ -70,8 +72,8 @@ class CRMService {
                 await prisma.crmIntegration.update({
                     where: { teamId_provider: { teamId, provider: "HUBSPOT" } },
                     data: {
-                        accessToken: nextAccessToken,
-                        refreshToken: nextRefreshToken || config.refreshToken,
+                        accessToken: encryptCrmToken(nextAccessToken),
+                        refreshToken: nextRefreshToken ? encryptCrmToken(nextRefreshToken) : config.refreshToken,
                         expiresAt: nextExpiry
                     }
                 });
