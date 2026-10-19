@@ -942,8 +942,9 @@ const SOCIAL_ACCOUNTS_URL = getBrowserApiUrl("/social/accounts");
 
 function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupStatus; emailReady: boolean; onOpenEmail: () => void }) {
   const liveKeys = useLiveFeatureKeys();
+  // Meta connects on /settings/social, which the creator-funnel switch hides. WhatsApp sends from
+  // sequences don't depend on the "whatsapp" switch (that only hides the /whatsapp page).
   const metaLive = liveKeys.has("creator-funnel");
-  const whatsappLive = liveKeys.has("whatsapp");
   const { data: social } = useSWR<{ accounts: Array<{ platform: string; status: string }> }>(
     metaLive ? SOCIAL_ACCOUNTS_URL : null,
     (url: string) => fetch(url, { cache: "no-store" }).then((res) => (res.ok ? res.json() : { accounts: [] })),
@@ -980,7 +981,7 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
       label: "WhatsApp",
       icon: MessageSquare,
       text: "Send WhatsApp messages from sequences through the WhatsApp Business API.",
-      live: whatsappLive,
+      live: true,
       connected: status.hasWhatsApp,
       action: setUpBelow,
     },
@@ -994,13 +995,13 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
           {connectors.map((connector) => {
             const Icon = connector.icon;
             return (
-              <div key={connector.label} className={`rounded-lg border border-white/10 bg-slate-950/40 p-4 ${connector.live ? "" : "opacity-60"}`}>
+              <div key={connector.label} className={`rounded-lg border border-white/10 bg-slate-950/40 p-4 ${connector.live || connector.connected ? "" : "opacity-60"}`}>
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2 text-sm font-semibold text-white"><Icon className="h-4 w-4 text-slate-400" />{connector.label}</span>
-                  {!connector.live ? (
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-slate-400">Coming soon</span>
-                  ) : connector.connected ? (
+                  {connector.connected ? (
                     <span className="flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+                  ) : !connector.live ? (
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-slate-400">Coming soon</span>
                   ) : (
                     connector.action
                   )}
@@ -1013,7 +1014,7 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
       </section>
       <ExtensionSyncToken />
       <ExtensionAutoEnrich />
-      {whatsappLive ? <WabaSetupSection /> : null}
+      <WabaSetupSection />
     </div>
   );
 }

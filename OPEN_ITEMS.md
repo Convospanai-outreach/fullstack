@@ -7106,8 +7106,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     `Team.aiConfig.outreachMode` through `/setup/save` step 1 (MEMBER; only `personal` or `company`). A personal
     team doesn't see steps 2 (brand), 11 (Handoffs) or 13 (Invite team), and brand no longer counts against its
     progress. Step ids are unchanged (`lib/setupSteps.ts`), so `/setup?step=3` links still work. Step 4 is now
-    "Outreach Connectors" for both: Email, LinkedIn, Meta and WhatsApp, with Meta and WhatsApp shown as "Coming
-    soon" (and the WhatsApp Business setup hidden) while their feature switch is off for the workspace.
+    "Outreach Connectors" for both: Email, LinkedIn, Meta and WhatsApp. Meta shows "Coming soon" while the
+    workspace's creator-funnel switch is off (its Connect page is behind it); WhatsApp stays available, since
+    sequence sends don't depend on the "whatsapp" switch (that only hides the `/whatsapp` page).
   - **Login:** `/dashboard` sends a team created on or after 2026-10-20 to `/setup` until it answers
     (`(dashboard)/dashboard/layout.tsx`); older teams and viewers are never redirected.
   - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
