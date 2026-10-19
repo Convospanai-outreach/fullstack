@@ -266,6 +266,9 @@ jobs:
     - name: Mautic CloudFormation template invariants
       run: node --test scripts/ci/mautic-template.test.mjs
 
+    - name: Keep monitoring and edge-sim ports on loopback
+      run: node --test scripts/ci/compose-port-binding.test.mjs
+
     # Same allowlisted high/critical gate the web jobs run. Run inside a workspace
     # folder, `npm audit` only covers that workspace's tree, so the web jobs never
     # covered dependencies that only apps/api uses.
