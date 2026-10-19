@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // roadmap 3.3 (S-10): PATCH /api/campaigns/[id] wrote any `status` string
 // straight into Campaign.status. It must now be one of the real statuses.
 
-const { mockCampaign } = vi.hoisted(() => ({
+const { mockCampaign, mockCheckCampaignStartApproval } = vi.hoisted(() => ({
     mockCampaign: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    mockCheckCampaignStartApproval: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -18,6 +19,7 @@ vi.mock("@/lib/db", () => ({ prisma: { campaign: mockCampaign } }));
 vi.mock("@/lib/campaignService", () => ({
     CampaignService: { startCampaign: vi.fn(), pauseCampaign: vi.fn(), addLeadsToCampaign: vi.fn() },
 }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 
 import { PATCH } from "@/app/api/campaigns/[id]/route";
 
@@ -38,6 +40,7 @@ describe("PATCH /api/campaigns/[id] status validation", () => {
         mockCampaign.findFirst.mockResolvedValue({ id: "camp-1", teamId: "team-1", leadList: [] });
         mockCampaign.findUnique.mockResolvedValue({ id: "camp-1", leadList: [] });
         mockCampaign.update.mockResolvedValue({});
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
     });
 
     it("rejects an arbitrary status string without writing it", async () => {
@@ -53,5 +56,18 @@ describe("PATCH /api/campaigns/[id] status validation", () => {
             where: { id: "camp-1" },
             data: { status: "completed", name: "Q4 push" },
         });
+    });
+
+    it("holds a status change to active while the campaign awaits approval", async () => {
+        mockCheckCampaignStartApproval.mockResolvedValue({
+            allowed: false,
+            status: 202,
+            body: { status: "pending_approval", approvalId: "appr-1", message: "waiting" },
+        });
+
+        const res = await patch({ status: "active" });
+
+        expect(res.status).toBe(202);
+        expect(mockCampaign.update).not.toHaveBeenCalled();
     });
 });
