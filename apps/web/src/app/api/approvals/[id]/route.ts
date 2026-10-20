@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizePermission, Permission } from "@/lib/permissions";
+import { isBlockedSelfApproval } from "@/lib/governance/campaignStartApproval";
 import { handleEmailSending } from "@/workers/handlers/email-sending-worker";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,9 @@ export async function POST(
         }
 
         // Action === "APPROVE"
+        if (await isBlockedSelfApproval(approval, ctx.userId)) {
+            return NextResponse.json({ error: "Someone else on your team needs to approve a campaign start you requested." }, { status: 403 });
+        }
         const updated = await prisma.approvalRequest.update({
             where: { id },
             data: {
