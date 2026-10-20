@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Role enforcement has its own coverage (routes/__tests__/viewerReadOnly.test.ts): here the caller is a member.
+vi.mock("@/lib/permissions", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/permissions")>()),
+    forbiddenUnlessRole: vi.fn().mockResolvedValue(null),
+    authorizeRole: vi.fn().mockResolvedValue(undefined),
+}));
 import { NextRequest } from "next/server";
 
 const { mockPrisma, mockAuth, mockQueue, mockCampaignNeedsApproval } = vi.hoisted(() => ({
