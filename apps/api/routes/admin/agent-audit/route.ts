@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
                     const taskId = (e.payload as any).taskId || "N/A";
                     return `${e.timestamp.toISOString()},${cell(e.name)},${cell(e.actorId)},${cell(e.teamId)},${cell(taskId)}`;
                 })
-            ].join("\\n");
+            ].join("\n");
 
             return new NextResponse(csv, {
                 headers: {

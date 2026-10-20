@@ -15,7 +15,7 @@ async function getActorEnterpriseRole() {
 // Helper to sanitize and resolve paths safely
 function getSafePath(file: string): string {
     const resolved = path.resolve(CONTENT_DIR, file);
-    if (!resolved.startsWith(CONTENT_DIR)) {
+    if (resolved !== CONTENT_DIR && !resolved.startsWith(CONTENT_DIR + path.sep)) {
         throw new Error("Directory traversal detected");
     }
     return resolved;
