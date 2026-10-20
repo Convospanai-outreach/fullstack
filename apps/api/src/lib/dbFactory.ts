@@ -64,6 +64,7 @@ export class DbFactory {
         const pool = new Pool({
             connectionString: databaseUrl,
         });
+        pool.on("error", (error: Error) => console.error("[db] idle client error:", error.message));
         return new PrismaPg(pool as any);
     }
 }
