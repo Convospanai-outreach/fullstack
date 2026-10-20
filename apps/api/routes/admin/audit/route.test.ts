@@ -48,6 +48,19 @@ describe("GET /admin/audit - tenant isolation", () => {
         );
     });
 
+    it("only scopes an ORG_ADMIN through an active membership", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
+        mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
+        mockPrisma.teamMember.findFirst.mockResolvedValue({ teamId: "team-1" });
+
+        await GET(getRequest());
+
+        expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
+            where: { userId: "user-1", status: "active" },
+            select: { teamId: true },
+        });
+    });
+
     it("allows a SYSTEM_ADMIN to query platform-wide with no team filter", async () => {
         mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "admin-1" });
         mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "SYSTEM_ADMIN" });
