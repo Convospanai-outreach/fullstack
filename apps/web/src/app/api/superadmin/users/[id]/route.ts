@@ -84,6 +84,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await prisma.user.update({ where: { id: targetUserId }, data });
+    // Extension tokens live in Session rows and are not covered by sessionVersion, so end them here too.
+    if (action === "suspend" || action === "signOut") {
+      await prisma.session.deleteMany({ where: { userId: targetUserId } });
+    }
     const { forgetUserAccess } = await import("@/lib/userAccess");
     forgetUserAccess(targetUserId);
     const auditAction = { suspend: "USER_SUSPEND", reactivate: "USER_REACTIVATE", signOut: "USER_SIGN_OUT", setRole: "USER_ROLE_SET" }[action]!;
