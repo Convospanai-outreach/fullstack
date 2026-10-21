@@ -35,5 +35,8 @@ export async function isValidInternalRelay(req: NextRequest, secret: string): Pr
     if (!Number.isFinite(age) || age < 0 || age > MAX_AGE_MS) return false;
 
     const expected = await hmacHex(secret, `relay.${timestamp}`);
-    return expected === signature;
+    if (expected.length !== signature.length) return false;
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+    return diff === 0;
 }
