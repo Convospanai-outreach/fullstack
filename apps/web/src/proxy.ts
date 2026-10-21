@@ -188,7 +188,7 @@ async function appProxy(req: NextRequest) {
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
-        "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/health", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
@@ -220,7 +220,7 @@ async function appProxy(req: NextRequest) {
         if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+        if (!metricsToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
     }

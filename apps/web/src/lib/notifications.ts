@@ -55,7 +55,7 @@ export class NotificationDispatcher {
                         from: 'CraftMyFunnel <contact.us@craftmyfunnel.live>',
                         to: user.email,
                         subject: `[CraftMyFunnel] ${title}`,
-                        html: `<p>${message}</p>`
+                        html: `<p>${message.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</p>`
                     });
                 }
             }

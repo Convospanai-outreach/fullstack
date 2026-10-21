@@ -25,6 +25,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing step or data payload" }, { status: 400 });
         }
 
+        // Step 6 stores the team's AI provider key, which every member's AI usage is billed to, so it stays an admin action.
+        if (step === 6 && !await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
         const team = await prisma.team.findUnique({
             where: { id: ctx.teamId },
             select: { branding: true, aiConfig: true }

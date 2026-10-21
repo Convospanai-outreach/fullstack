@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
             // A workspace-level ORG_ADMIN/COMPLIANCE_OFFICER may only see their own
             // team's logs, never the whole platform's.
             const membership = await prisma.teamMember.findFirst({
-                where: { userId: userId as string },
+                where: { userId: userId as string, status: "active" },
                 select: { teamId: true }
             });
             if (!membership) {
