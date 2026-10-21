@@ -3,6 +3,17 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 
+// Only the columns the profile page shows: the full row includes the password hash.
+const PROFILE_SELECT = {
+    id: true,
+    name: true,
+    email: true,
+    image: true,
+    address: true,
+    role: true,
+    createdAt: true,
+} as const;
+
 // GET: Get current user profile
 export async function GET() {
     try {
@@ -10,7 +21,8 @@ export async function GET() {
         if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
 
         const user = await prisma.user.findUnique({
-            where: { id: userId }
+            where: { id: userId },
+            select: PROFILE_SELECT,
         });
 
         if (!user) throw new APIError("User not found", 404, "NOT_FOUND");
@@ -46,7 +58,8 @@ export async function PUT(req: Request) {
                 name,
                 image,
                 address
-            }
+            },
+            select: PROFILE_SELECT,
         });
 
         return NextResponse.json(updatedUser);

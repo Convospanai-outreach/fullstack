@@ -5,6 +5,7 @@ const { mockGetCurrentContext, mockAuthorizePermission, mockPrisma, mockApproval
     mockAuthorizePermission: vi.fn(),
     mockPrisma: {
         approvalRequest: { findFirst: vi.fn(), findMany: vi.fn() },
+        teamMember: { count: vi.fn() },
     },
     mockApprovalService: {
         approve: vi.fn(),
@@ -102,5 +103,33 @@ describe("agent.ts server actions - identity/tenancy cannot be spoofed by the ca
         await expect(approveTask("req-1", "user")).rejects.toThrow("Unauthorized");
         await expect(rejectTask("req-1", "user")).rejects.toThrow("Unauthorized");
         await expect(getPendingApprovals("team")).rejects.toThrow("Unauthorized");
+    });
+});
+
+describe("approveTask - campaign start self-approval", () => {
+    const ownStart = { id: "req-1", teamId: "real-team", actionType: "CAMPAIGN_START", requesterId: "real-user" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "real-user", teamId: "real-team" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(ownStart);
+    });
+
+    it("refuses to let the requester approve while another admin could", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+        const { approveTask } = await import("./agent");
+
+        await expect(approveTask("req-1", "real-user")).rejects.toThrow("Someone else on your team needs to approve");
+        expect(mockApprovalService.approve).not.toHaveBeenCalled();
+    });
+
+    it("lets a sole approver approve their own request", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(0);
+        const { approveTask } = await import("./agent");
+
+        await approveTask("req-1", "real-user");
+
+        expect(mockApprovalService.approve).toHaveBeenCalledWith("req-1", "real-user", "real-team", undefined);
     });
 });

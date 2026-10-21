@@ -22,6 +22,8 @@ import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
 import { createSharedReplayCache } from '@/lib/sharedReplayCache';
+import { isInternalOnlyRoute } from '@/lib/internalOnlyRoutes';
+import { serializeRequestForLog } from '@/lib/requestLogSerializer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +55,7 @@ const fastify = Fastify({
   requestTimeout: 60_000,
   logger: {
     level: 'info',
+    serializers: { req: serializeRequestForLog },
     // pino-pretty is a dev-only transport (a devDependency, and it serializes
     // synchronously); in production emit the default structured JSON so logs are
     // parseable by aggregators and there's no pretty-print overhead (roadmap I-06).
@@ -313,6 +316,11 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       
       if (!token) {
         reply.status(401).send({ error: 'Unauthorized' });
+        return;
+      }
+
+      if (isInternalOnlyRoute(registeredPath) && !internalIdentity) {
+        reply.status(403).send({ error: 'Forbidden' });
         return;
       }
       authUserId = typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;

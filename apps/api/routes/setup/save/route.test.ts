@@ -76,6 +76,26 @@ describe("/setup/save", () => {
         expect(mockPrisma.team.update).not.toHaveBeenCalled();
     });
 
+    it("keeps the AI provider key (step 6) for admins", async () => {
+        mockCheckTeamPermission.mockImplementation(async (_userId, _teamId, role) => role === "member");
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 6, data: { geminiKey: "AIza-test" } }));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+
+    it("lets an admin save the AI provider key (step 6)", async () => {
+        mockCheckTeamPermission.mockResolvedValue(true);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 6, data: { geminiKey: "AIza-test" } }));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledTimes(1);
+    });
+
     it("still blocks a user with no team membership at all", async () => {
         mockCheckTeamPermission.mockResolvedValue(false);
         const { POST } = await import("./route");
