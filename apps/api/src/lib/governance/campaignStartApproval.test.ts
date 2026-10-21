@@ -4,12 +4,13 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         organizationPolicy: { findUnique: vi.fn() },
         approvalRequest: { findFirst: vi.fn() },
+        teamMember: { count: vi.fn() },
     },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { campaignStartNeedsApproval, findApprovedCampaignStartId } from "./campaignStartApproval";
+import { campaignStartNeedsApproval, findApprovedCampaignStartId, isBlockedSelfApproval } from "./campaignStartApproval";
 
 describe("campaignStartNeedsApproval", () => {
     beforeEach(() => {
@@ -53,5 +54,32 @@ describe("findApprovedCampaignStartId", () => {
     it("returns null when nothing is approved", async () => {
         mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
         expect(await findApprovedCampaignStartId("team-1", "campaign-1")).toBeNull();
+    });
+});
+
+describe("isBlockedSelfApproval", () => {
+    const own = { teamId: "team-1", actionType: "CAMPAIGN_START", requesterId: "user-1" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+    });
+
+    it("blocks the requester while another active owner or admin could approve", async () => {
+        expect(await isBlockedSelfApproval(own, "user-1")).toBe(true);
+        expect(mockPrisma.teamMember.count).toHaveBeenCalledWith({
+            where: { teamId: "team-1", status: "active", role: { in: ["owner", "admin"] }, userId: { not: "user-1" } },
+        });
+    });
+
+    it("lets the requester approve when they are the team's only approver", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(0);
+        expect(await isBlockedSelfApproval(own, "user-1")).toBe(false);
+    });
+
+    it("never blocks someone else's request or other approval types", async () => {
+        expect(await isBlockedSelfApproval(own, "user-2")).toBe(false);
+        expect(await isBlockedSelfApproval({ ...own, actionType: "SEND_EMAIL" }, "user-1")).toBe(false);
+        expect(mockPrisma.teamMember.count).not.toHaveBeenCalled();
     });
 });
