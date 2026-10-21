@@ -58,3 +58,22 @@ export async function checkCampaignStartApproval({
     });
     return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: created.id, message: PENDING_MESSAGE } };
 }
+
+// Team roles that hold Permission.RESOLVE_APPROVALS (see lib/permissions).
+const APPROVER_ROLES = ["owner", "admin"];
+
+/**
+ * True when the reviewer filed this campaign start request themselves and another active owner
+ * or admin could approve it instead. A team whose only approver is the requester can still
+ * approve its own starts, so turning the policy on never leaves its campaigns stuck.
+ */
+export async function isBlockedSelfApproval(
+    approval: { teamId: string; actionType: string; requesterId: string | null },
+    reviewerId: string
+): Promise<boolean> {
+    if (approval.actionType !== "CAMPAIGN_START" || approval.requesterId !== reviewerId) return false;
+    const otherApprovers = await prisma.teamMember.count({
+        where: { teamId: approval.teamId, status: "active", role: { in: APPROVER_ROLES }, userId: { not: reviewerId } },
+    });
+    return otherApprovers > 0;
+}
