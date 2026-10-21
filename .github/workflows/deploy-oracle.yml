@@ -145,6 +145,8 @@ jobs:
   migrate:
     needs: [resolve-sha, scan-new-migrations]
     runs-on: ubuntu-latest
+    # Holds the production DB secrets: only runs from main (see the GitHub environment's rules).
+    environment: production-deploy
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -177,6 +179,8 @@ jobs:
   deploy:
     needs: [resolve-sha, migrate]
     runs-on: ubuntu-latest
+    # Holds the Oracle SSH key: only runs from main (see the GitHub environment's rules).
+    environment: production-deploy
     strategy:
       matrix:
         include:
