@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentContext } from "@/lib/auth";
 import { ClientErrorAlertService } from "@/lib/errors/ClientErrorAlertService";
 import { logger } from "@/lib/logger";
 
@@ -43,7 +44,6 @@ export async function POST(req: NextRequest) {
             componentStack,
             url,
             userAgent,
-            userId,
             metadata
         } = body;
 
@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Anyone can post here, so the reporter's identity comes from the session, never from the body.
+        const userId = await getCurrentContext().then((ctx) => ctx.userId ?? null).catch(() => null);
+
         // Store error in database
         const errorLog = await prisma.clientError.create({
             data: {
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
                 componentStack: componentStack ? componentStack.substring(0, 2000) : null,
                 url: url || req.headers.get("referer") || "unknown",
                 userAgent: userAgent || req.headers.get("user-agent") || "unknown",
-                userId: userId || null,
+                userId,
                 ip,
                 metadata: metadata || {}
             }

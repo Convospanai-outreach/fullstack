@@ -36,11 +36,17 @@ describe("/api/metrics", () => {
     expect(body).toContain("# HELP");
   });
 
-  it("allows access when METRICS_TOKEN is not set in non-production", async () => {
+  it("denies access when METRICS_TOKEN is not set, in any environment", async () => {
     delete (process.env as Record<string, string | undefined>)["METRICS_TOKEN"];
     (process.env as Record<string, string | undefined>)["NODE_ENV"] = "development";
     const response = await GET(request());
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(401);
+    expect((await GET(request({ Authorization: "Bearer " }))).status).toBe(401);
+  });
+
+  it("rejects a token of a different length without throwing", async () => {
+    const response = await GET(request({ Authorization: "Bearer test-token-and-more" }));
+    expect(response.status).toBe(401);
   });
 
   it("returns 500 when getMetrics throws an error", async () => {

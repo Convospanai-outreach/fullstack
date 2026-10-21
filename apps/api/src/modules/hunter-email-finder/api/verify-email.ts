@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
+import { getCurrentContext } from "@/lib/auth";
 import { hunterService } from "../service/hunterService";
 
 export async function POST(req: Request) {
     try {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await req.json();
         const { email, leadId } = body;
 

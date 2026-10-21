@@ -57,6 +57,15 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
         expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 
+    it("rejects a sibling directory that merely shares the content directory's name as a prefix", async () => {
+        const { PUT } = await import("./route");
+
+        const response = await PUT(putRequest({ file: "../content-evil/x.md" }));
+
+        expect(response.status).toBe(500);
+        expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+
     it("rejects a caller without CMS access", async () => {
         mockGetServerSession.mockResolvedValue(sessionWithRole("SALES_USER"));
         const { PUT } = await import("./route");
