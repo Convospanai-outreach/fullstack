@@ -109,6 +109,18 @@ describe("POST /admin/agent-audit - tenant isolation", () => {
         expect(mockPrisma.systemEvent.findMany).not.toHaveBeenCalled();
     });
 
+    it("separates CSV rows with real newlines", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
+        mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "SYSTEM_ADMIN" });
+        const event = { timestamp: new Date("2026-01-01T00:00:00.000Z"), name: "a", actorId: "SYSTEM", teamId: "team-1", payload: {} };
+        mockPrisma.systemEvent.findMany.mockResolvedValue([event, event]);
+
+        const text = await (await POST(postRequest({ format: "csv" }))).text();
+
+        expect(text.split("\n")).toHaveLength(3);
+        expect(text).not.toContain("\\n");
+    });
+
     it("quotes and formula-neutralizes CSV cells from the event payload (roadmap 3.5 / S-14)", async () => {
         mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
         mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "SYSTEM_ADMIN" });
