@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { enforcePolicy } from "@/lib/governance/guard";
+import { findApprovedCampaignStartId } from "@/lib/governance/campaignStartApproval";
 import { audit } from "@/lib/governance/audit";
 import { checkLimits } from "@/lib/governance/limits";
 
@@ -40,7 +41,8 @@ export async function POST(req: NextRequest) {
       orgId: teamId,
       userId,
       action: "CAMPAIGN_RUN",
-      payload: { campaignId, scheduled: !!startDate, approvalId: body.approvalId }
+      // The UI never sends an approvalId; the approved CAMPAIGN_START request is looked up for it.
+      payload: { campaignId, scheduled: !!startDate, approvalId: body.approvalId ?? await findApprovedCampaignStartId(teamId, campaignId) ?? undefined }
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 403 });

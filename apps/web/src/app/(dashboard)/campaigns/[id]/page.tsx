@@ -205,6 +205,10 @@ export default function CampaignDetailPage({
                 toast.error(data.error || "Failed to start campaign");
                 return;
             }
+            if (data.status === "pending_approval") {
+                toast.info(data.message || "Approval requested - start this campaign again once it is approved");
+                return;
+            }
             if (data.mode === "sequence") {
                 if (data.enrolled > 0) {
                     toast.success(

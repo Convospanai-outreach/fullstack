@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { enrollCampaignLeads } from "@/lib/campaigns/enrollment";
+import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,11 @@ export async function POST(
         });
         if (!campaign) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        const gate = await checkCampaignStartApproval({ teamId, userId, campaignId });
+        if (!gate.allowed) {
+            return NextResponse.json(gate.body, { status: gate.status });
         }
 
         const enroll = await enrollCampaignLeads(campaignId, teamId);

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { mockPrisma, mockAuth, mockQueue } = vi.hoisted(() => ({
+const { mockPrisma, mockAuth, mockQueue, mockCampaignNeedsApproval } = vi.hoisted(() => ({
+    mockCampaignNeedsApproval: vi.fn(),
     mockPrisma: {
         job: {
             findMany: vi.fn(),
@@ -22,10 +23,12 @@ const { mockPrisma, mockAuth, mockQueue } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockAuth.getCurrentContext }));
 vi.mock("@/lib/queue", () => ({ JobQueue: mockQueue.JobQueue }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ campaignStartNeedsApproval: mockCampaignNeedsApproval }));
 
 describe("/api/jobs route handlers (SEC-02)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockCampaignNeedsApproval.mockResolvedValue(false);
     });
 
     describe("GET /api/jobs", () => {
@@ -93,6 +96,63 @@ describe("/api/jobs route handlers (SEC-02)", () => {
                 { leadId: "l1", teamId: "team-alpha" },
                 expect.objectContaining({ teamId: "team-alpha" })
             );
+        });
+
+        it("refuses to enqueue campaign_execution while the team policy requires approval and none is granted (legacy shape)", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockCampaignNeedsApproval.mockResolvedValue(true);
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({ type: "campaign_execution", payload: { campaignId: "c1" } }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(await res.json()).toMatchObject({ code: "APPROVAL_REQUIRED" });
+            expect(mockCampaignNeedsApproval).toHaveBeenCalledWith("team-alpha", "c1");
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("refuses to enqueue campaign_execution while approval is required (envelope shape)", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockCampaignNeedsApproval.mockResolvedValue(true);
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    version: 1,
+                    task_type: "campaign_execution",
+                    tenant_id: "team-alpha",
+                    execution_mode: "saas_only",
+                    target_runtime: "saas_only",
+                    task_id: "task-1",
+                    idempotency_key: "idem-1",
+                    created_at: new Date().toISOString(),
+                    payload: { campaignId: "c1" },
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("still enqueues campaign_execution when approval is not required or already granted", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({ type: "campaign_execution", payload: { campaignId: "c1" } }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(201);
+            expect(mockQueue.JobQueue.enqueue).toHaveBeenCalled();
         });
 
         it("rejects warmup_seed_reply as a client-enqueueable job type (legacy shape)", async () => {

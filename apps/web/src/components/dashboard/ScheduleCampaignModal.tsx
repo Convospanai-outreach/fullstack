@@ -36,6 +36,12 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
             });
 
             if (!res.ok) throw new Error("Failed to schedule campaign");
+            const data = await res.json().catch(() => ({}));
+            if (data.status === "pending_approval") {
+                toast.info(data.message || "Approval requested - start this campaign again once it is approved");
+                onClose();
+                return;
+            }
 
             toast.success(`Campaign scheduled for ${new Date(date).toLocaleString()}`);
             onSchedule();

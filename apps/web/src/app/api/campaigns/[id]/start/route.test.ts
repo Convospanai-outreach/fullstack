@@ -6,6 +6,7 @@ const {
     mockPrisma,
     mockEnrollCampaignLeads,
     mockHandleCampaignExecution,
+    mockCheckCampaignStartApproval,
 } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
@@ -15,6 +16,7 @@ const {
     },
     mockEnrollCampaignLeads: vi.fn(),
     mockHandleCampaignExecution: vi.fn(),
+    mockCheckCampaignStartApproval: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
@@ -24,6 +26,7 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
 }));
 vi.mock("@/lib/campaigns/enrollment", () => ({ enrollCampaignLeads: mockEnrollCampaignLeads }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 vi.mock("@/workers/handlers/campaign-execution-worker", () => ({ handleCampaignExecution: mockHandleCampaignExecution }));
 
 import { POST } from "./route";
@@ -43,6 +46,7 @@ describe("POST /api/campaigns/[id]/start - unified guarded start (roadmap 2.12 /
         mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-1" });
         mockPrisma.campaign.update.mockResolvedValue({});
         mockPrisma.lead.count.mockResolvedValue(3);
+        mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
     });
 
     it("401s an unauthenticated caller", async () => {
@@ -67,6 +71,21 @@ describe("POST /api/campaigns/[id]/start - unified guarded start (roadmap 2.12 /
         expect(res.status).toBe(404);
         expect(mockEnrollCampaignLeads).not.toHaveBeenCalled();
         expect(mockHandleCampaignExecution).not.toHaveBeenCalled();
+    });
+
+    it("files an approval request instead of starting when the team policy requires one", async () => {
+        mockCheckCampaignStartApproval.mockResolvedValue({
+            allowed: false,
+            status: 202,
+            body: { status: "pending_approval", approvalId: "approval-1", message: "pending" },
+        });
+        const res = await call();
+        expect(res.status).toBe(202);
+        expect(await res.json()).toMatchObject({ status: "pending_approval", approvalId: "approval-1" });
+        expect(mockCheckCampaignStartApproval).toHaveBeenCalledWith({ teamId: "team-1", userId: "user-1", campaignId: "campaign-1" });
+        expect(mockEnrollCampaignLeads).not.toHaveBeenCalled();
+        expect(mockHandleCampaignExecution).not.toHaveBeenCalled();
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
     });
 
     it("takes the sequence path and marks the campaign active when a runnable sequence exists", async () => {

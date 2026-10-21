@@ -7126,6 +7126,24 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     (`(dashboard)/dashboard/layout.tsx`); viewers are never redirected.
   - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
     a lead's "View Org Chart" button.
+- **OPEN-351 (Fixed — 8 of 10 open Dependabot alerts cleared by upgrades; 2 stay allowlisted):** 2026-10-19.
+  - **Why:** GitHub listed 10 open Dependabot alerts on main. None was reachable from the running app or API,
+    but patched versions now exist for most of them.
+  - **Upgraded:** `prisma`, `@prisma/client` and `@prisma/adapter-pg` to 7.10.1 in both apps, plus
+    `@prisma/config` in apps/api (web was pinned to exactly 7.8.0, api resolved 7.9.1). This brings mysql2 3.24.4
+    (alerts 330, 333), deepmerge-ts 8.0.2 (329), and drops the `@hono/node-server` 1.19.11 that Prisma Studio's
+    dev server bundled (247, 347). `vitest`, `@vitest/coverage-v8` and `@vitest/ui` to ^4.1.11 (342, 346).
+    `sharp` 0.35.5 pinned in `workers/landing-pages` (its own lockfile; pulled in by wrangler's local dev server,
+    363). Supersedes Dependabot PR #661, whose lockfile left vitest without vite.
+  - **Allowlist:** removed the entries for GHSA-ggr8-5vv4-36mx, GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3,
+    GHSA-92pp-h63x-v22m and GHSA-frvp-7c67-39w9 (no longer in the tree). The two image-size entries
+    (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq, alerts 349, 350) stay, with corrected text: image-size 2.0.3 is
+    fixed, but pptxgenjs 4.0.1 (latest) depends on ^1.2.1, a root override does not apply (tried; same
+    conflicting-override-sets problem as OPEN-40), and pptxgenjs never loads it (its only call site is
+    commented out in both bundles).
+  - **Checked:** with both apps on 7.10.1, npm keeps one shared `@prisma/client` at the root. Both apps'
+    `prisma generate` still works and the root scripts can import the client, so the OPEN-18 failure does not
+    come back locally. No schema change and no migration.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
