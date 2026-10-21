@@ -9,6 +9,7 @@ const { mockGetCurrentContext, mockAuthorizePermission, mockPrisma, mockHandleEm
         lead: { update: vi.fn(), findFirst: vi.fn() },
         campaign: { findFirst: vi.fn() },
         connectedMailbox: { findFirst: vi.fn() },
+        teamMember: { count: vi.fn() },
     },
     mockHandleEmailSending: vi.fn(),
 }));
@@ -196,5 +197,38 @@ describe("POST /api/approvals/[id] - content posts", () => {
         const { POST } = await import("./route");
         expect((await POST(postRequest({}), paramsFor("req-1"))).status).toBe(400);
         expect(mockDecideContentPost).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /api/approvals/[id] - campaign start self-approval", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1", teamId: "team-1", actionType: "CAMPAIGN_START", entityType: "Campaign", entityId: "campaign-1",
+            requesterId: "user-1", payload: { campaignId: "campaign-1" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+    });
+
+    it("refuses to let the requester approve while another admin could", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+
+    it("lets a sole approver approve their own request, and anyone reject it", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(0);
+        const { POST } = await import("./route");
+        expect((await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"))).status).toBe(200);
+
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+        expect((await POST(postRequest({ action: "REJECT" }), paramsFor("req-1"))).status).toBe(200);
+        expect(mockPrisma.approvalRequest.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED" }) }));
     });
 });
