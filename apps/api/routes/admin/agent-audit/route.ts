@@ -23,7 +23,7 @@ async function resolveScopedTeamId(userId: string, role: UserRole, requestedTeam
     if (PLATFORM_LEVEL_ROLES.includes(role)) {
         return requestedTeamId;
     }
-    const membership = await prisma.teamMember.findFirst({ where: { userId }, select: { teamId: true } });
+    const membership = await prisma.teamMember.findFirst({ where: { userId, status: "active" }, select: { teamId: true } });
     if (!membership) return { forbidden: true };
     if (requestedTeamId && requestedTeamId !== membership.teamId) {
         return { forbidden: true };

@@ -44,6 +44,19 @@ describe("GET /admin/agent-audit - tenant isolation", () => {
         );
     });
 
+    it("only scopes an ORG_ADMIN through an active membership", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
+        mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
+        mockPrisma.teamMember.findFirst.mockResolvedValue({ teamId: "team-1" });
+
+        await GET(getRequest());
+
+        expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
+            where: { userId: "user-1", status: "active" },
+            select: { teamId: true },
+        });
+    });
+
     it("403s an ORG_ADMIN who requests a teamId they don't belong to", async () => {
         mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
         mockPrisma.user.findUnique.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
