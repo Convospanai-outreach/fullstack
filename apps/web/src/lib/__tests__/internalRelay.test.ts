@@ -30,6 +30,13 @@ describe("isValidInternalRelay", () => {
         await expect(isValidInternalRelay(reqWithHeader(`${timestamp}.${signature}`), SECRET)).resolves.toBe(true);
     });
 
+    it("rejects a signature of the wrong length without throwing", async () => {
+        const timestamp = String(Date.now());
+        const signature = await signRelay(SECRET, timestamp);
+
+        await expect(isValidInternalRelay(reqWithHeader(`${timestamp}.${signature.slice(0, -2)}`), SECRET)).resolves.toBe(false);
+    });
+
     it("rejects a missing header", async () => {
         await expect(isValidInternalRelay(reqWithHeader(null), SECRET)).resolves.toBe(false);
     });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { JobQueue } from "@/lib/queue";
 import { getCurrentContext } from "@/lib/auth";
+import { enforcePolicy } from "@/lib/governance/guard";
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -14,9 +15,15 @@ const ALLOWED_CSV_TYPES = new Set([
 
 export async function POST(req: Request) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { teamId, userId } = await getCurrentContext();
+        if (!teamId || !userId) {
             return NextResponse.json({ ok: false, error: "No active workspace" }, { status: 401 });
+        }
+
+        try {
+            await enforcePolicy({ orgId: teamId, userId, action: "UPLOAD" });
+        } catch (error: any) {
+            return NextResponse.json({ ok: false, error: error.message }, { status: 403 });
         }
 
         const formData = await req.formData();
