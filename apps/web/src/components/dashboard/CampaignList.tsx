@@ -19,6 +19,11 @@ export default function CampaignList({ campaigns }: any) {
                 body: JSON.stringify({ campaignId: id }),
             });
             if (!res.ok) throw new Error("Failed to start campaign");
+            const data = await res.json().catch(() => ({}));
+            if (data.status === "pending_approval") {
+                toast.info(data.message || "Approval requested - start this campaign again once it is approved");
+                return;
+            }
             toast.success("Campaign triggered!");
         } catch (err) {
             console.error(err);

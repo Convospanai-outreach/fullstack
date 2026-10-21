@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
     }
 
     if (credential.lockedUntil && credential.lockedUntil.getTime() > Date.now()) {
-        return NextResponse.json({ error: "Account locked. Try again later." }, { status: 429 });
+        // Same response as a wrong password: a distinct "locked" status would confirm this email is a superadmin.
+        return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
     const valid = await verifySuperAdminPassword(password, credential.passwordHash);

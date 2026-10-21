@@ -482,6 +482,7 @@ describe("/webhooks/razorpay", () => {
         it("does not re-publish when the order is no longer PENDING or the amount differs (no-op)", async () => {
             mockPrisma.order.findFirst.mockResolvedValue({ id: "order-2" });
             mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-2", teamId: "team-1", gatewayPaymentId: "pay_route_2" });
 
             const { POST } = await import("./route");
             const response = await POST(signedRequest({
@@ -494,8 +495,51 @@ describe("/webhooks/razorpay", () => {
             }) as any);
 
             expect(response.status).toBe(200);
-            expect(mockTx.order.findUnique).not.toHaveBeenCalled();
             expect(mockTx.outboxEvent.create).not.toHaveBeenCalled();
+            // A retry of an already-applied payment is not a problem worth recording.
+            expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+        });
+
+        it("records a durable audit entry when a captured payment could not be applied to its order", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-4" });
+            mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-4", teamId: "team-1", status: "PENDING", gatewayPaymentId: null, amount: 9999 });
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_route_4", order_id: "rzp_order_4", amount: 5000, currency: "INR", notes: {} } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({ action: "WEBHOOK_ORDER_NOT_APPLIED", orgId: "team-1" }),
+            }));
+        });
+
+        it("500s (so Razorpay retries) when that audit entry cannot be written", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-5" });
+            mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-5", teamId: "team-1", status: "PENDING", gatewayPaymentId: null, amount: 9999 });
+            mockPrisma.auditLog.create.mockRejectedValue(new Error("db unavailable"));
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_route_5", order_id: "rzp_order_5", amount: 5000, notes: {} } } },
+            }) as any);
+
+            expect(response.status).toBe(500);
+        });
+
+        it("does not crash on a captured payment that has no notes at all", async () => {
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_no_notes", order_id: "rzp_none", amount: 100 } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
         });
     });
 });

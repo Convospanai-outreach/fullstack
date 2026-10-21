@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { TaskEnvelopeSchema, LegacyJobSchema } from "@/contracts/taskEnvelope";
 import { getCurrentContext } from "@/lib/auth";
+import { campaignStartNeedsApproval } from "@/lib/governance/campaignStartApproval";
 
 // GET /api/jobs - List all jobs for current tenant
 export async function GET(req: NextRequest) {
@@ -37,6 +38,14 @@ export async function GET(req: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+// A raw campaign_execution job would start a campaign without the approval the team's policy requires.
+function campaignApprovalRequired() {
+    return NextResponse.json(
+        { error: "This team requires approval before a campaign starts. Start it from the campaign page to request one.", code: "APPROVAL_REQUIRED" },
+        { status: 403 }
+    );
 }
 
 // POST /api/jobs - Create new job
@@ -77,6 +86,9 @@ export async function POST(req: NextRequest) {
             if (clientBlockedTypes.has(envelope.task_type)) {
                 return NextResponse.json({ error: "Job type cannot be enqueued directly" }, { status: 403 });
             }
+            if (envelope.task_type === "campaign_execution" && await campaignStartNeedsApproval(ctx.teamId, (envelope.payload as any)?.campaignId)) {
+                return campaignApprovalRequired();
+            }
             // payload.teamId is read by worker handlers as the authoritative
             // tenant for ownership checks (e.g. email-worker.ts,
             // enrichment-worker.ts) - never let the caller set it to a
@@ -101,6 +113,9 @@ export async function POST(req: NextRequest) {
             const legacy = LegacyJobSchema.parse(body);
             if (clientBlockedTypes.has(legacy.type)) {
                 return NextResponse.json({ error: "Job type cannot be enqueued directly" }, { status: 403 });
+            }
+            if (legacy.type === "campaign_execution" && await campaignStartNeedsApproval(ctx.teamId, (legacy.payload as any)?.campaignId)) {
+                return campaignApprovalRequired();
             }
             const scopedPayload = { ...legacy.payload, teamId: ctx.teamId };
             job = await JobQueue.enqueue(legacy.type as any, scopedPayload, {

@@ -58,7 +58,7 @@ export class NotificationDispatcher {
                         from: SYSTEM_EMAIL_FROM,
                         to: user.email,
                         subject: `[CraftMyFunnel] ${title}`,
-                        html: `<p>${message}</p>`
+                        html: `<p>${message.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</p>`
                     });
                 }
             }

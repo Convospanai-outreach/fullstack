@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContextFromRequest, mockPrisma, mockEnqueue, mockEnforcePolicy, mockCheckLimits, mockAudit } = vi.hoisted(() => ({
+const { mockGetCurrentContextFromRequest, mockPrisma, mockEnqueue, mockEnforcePolicy, mockCheckLimits, mockAudit, mockFindApproved } = vi.hoisted(() => ({
+    mockFindApproved: vi.fn(),
     mockGetCurrentContextFromRequest: vi.fn(),
     mockPrisma: {
         campaign: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
@@ -17,6 +18,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/governance/guard", () => ({ enforcePolicy: mockEnforcePolicy }));
 vi.mock("@/lib/governance/limits", () => ({ checkLimits: mockCheckLimits }));
 vi.mock("@/lib/governance/audit", () => ({ audit: mockAudit }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ findApprovedCampaignStartId: mockFindApproved }));
 
 import { POST } from "./route";
 
@@ -35,6 +37,7 @@ describe("POST /orchestrator/run - governance ordering and team scoping", () => 
         mockCheckLimits.mockResolvedValue(undefined);
         mockEnqueue.mockResolvedValue({ id: "job-1" });
         mockAudit.mockResolvedValue(undefined);
+        mockFindApproved.mockResolvedValue(null);
     });
 
     it("returns 401 when the caller has no session team", async () => {
@@ -80,5 +83,29 @@ describe("POST /orchestrator/run - governance ordering and team scoping", () => 
             data: { status: "scheduled", scheduledStart: new Date("2026-09-05T00:00:00.000Z") },
         });
         expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("passes the campaign's approved CAMPAIGN_START request to the policy check when the caller sends no approvalId", async () => {
+        mockFindApproved.mockResolvedValue("approval-9");
+        mockEnforcePolicy.mockResolvedValue(true);
+
+        const res = await POST(postRequest({ campaignId: "campaign-1" }));
+
+        expect(res.status).toBe(200);
+        expect(mockFindApproved).toHaveBeenCalledWith("team-1", "campaign-1");
+        expect(mockEnforcePolicy).toHaveBeenCalledWith(
+            expect.objectContaining({ payload: expect.objectContaining({ approvalId: "approval-9" }) }),
+        );
+    });
+
+    it("keeps an explicit approvalId from the caller", async () => {
+        mockFindApproved.mockResolvedValue("approval-9");
+        mockEnforcePolicy.mockResolvedValue(true);
+
+        await POST(postRequest({ campaignId: "campaign-1", approvalId: "approval-explicit" }));
+
+        expect(mockEnforcePolicy).toHaveBeenCalledWith(
+            expect.objectContaining({ payload: expect.objectContaining({ approvalId: "approval-explicit" }) }),
+        );
     });
 });

@@ -90,3 +90,54 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
         expect(init.signal).toBeInstanceOf(AbortSignal);
     });
 });
+
+describe("forwardRequest upstream failures", () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => { global.fetch = originalFetch; });
+
+    function post() {
+        const url = "http://localhost:3000/api/proxy/workflows/wf-1";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        return POST(req, { params: Promise.resolve({ path: ["workflows", "wf-1"] }) });
+    }
+
+    it("does not tell the browser where the internal API lives when it is unreachable", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        global.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(502);
+        expect(body.code).toBe("PROXY_UPSTREAM_UNAVAILABLE");
+        expect(body).not.toHaveProperty("upstream");
+        expect(JSON.stringify(body)).not.toMatch(/localhost:3001|127\.0\.0\.1|API_INTERNAL_ORIGIN/);
+    });
+
+    it("does not tell the browser where the internal API lives when it times out", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const abort = new Error("aborted");
+        abort.name = "AbortError";
+        global.fetch = vi.fn().mockRejectedValue(abort) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(504);
+        expect(body.code).toBe("PROXY_UPSTREAM_TIMEOUT");
+        expect(body).not.toHaveProperty("upstream");
+    });
+
+    it("returns a fixed message instead of an internal error's text", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        global.fetch = vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 10.0.0.12:3001")) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(502);
+        expect(JSON.stringify(body)).not.toContain("10.0.0.12");
+    });
+});

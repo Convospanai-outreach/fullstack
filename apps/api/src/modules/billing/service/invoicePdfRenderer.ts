@@ -1,4 +1,5 @@
 import puppeteer, { type Browser } from "puppeteer";
+import { chromiumSandboxArgs } from "@/lib/security/chromiumSandbox";
 
 // Dedicated, lazily-launched singleton - kept separate from the scraper-bridge
 // browserManager (stealth-plugin, scraping-purpose) so invoice rendering never
@@ -10,7 +11,7 @@ async function getBrowser(): Promise<Browser> {
     if (!browserPromise) {
         browserPromise = puppeteer.launch({
             headless: true,
-            args: ["--no-sandbox", "--disable-setuid-sandbox"]
+            args: chromiumSandboxArgs()
         }).then((browser) => {
             // A crashed/disconnected browser must not stay cached, or every
             // subsequent download fails until the process restarts.

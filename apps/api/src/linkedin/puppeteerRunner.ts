@@ -1,5 +1,6 @@
 import { browserManager } from "@/modules/scraper-bridge/service/browserManager";
 import { logger } from "@/lib/logger";
+import { gotoPublicUrl } from "@/modules/scraper-bridge/service/safeNavigation";
 
 export interface LinkedInActionResult {
     ok: boolean;
@@ -21,7 +22,7 @@ export async function runLinkedInAction(params: any): Promise<LinkedInActionResu
     try {
         // Here we would typically handle authentication via loginToken if provided
         // or cookies from the session. For now, we'll navigate.
-        await page.goto(profileUrl, { waitUntil: 'networkidle2' });
+        await gotoPublicUrl(page, profileUrl, { waitUntil: 'networkidle2' });
 
         if (action === 'scrape') {
             const data = await page.evaluate(() => {

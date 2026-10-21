@@ -306,7 +306,9 @@ export const authOptions: NextAuthOptions = {
         },
     },
     session: {
-        strategy: "jwt"
+        strategy: "jwt",
+        // NextAuth's default is 30 days; a stolen cookie should not outlive a working day.
+        maxAge: 24 * 60 * 60,
     },
     pages: {
         signIn: "/login",
