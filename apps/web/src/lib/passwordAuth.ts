@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { createHash } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
@@ -63,6 +64,20 @@ function clientIp(req: unknown) {
     return value?.split(",")[0]?.trim() || "unknown";
 }
 
+// Failed sign-ins were not recorded anywhere, so a guessing run could not be seen. Only a short hash of the
+// email is logged (enough to correlate attempts), never the address or the password, and wrong-password and
+// unknown-email share one reason so the log does not reveal which emails exist.
+function logLoginFailure(reason: "bad_credentials" | "rate_limited", req: unknown, email: string) {
+    console.warn(
+        JSON.stringify({
+            event: "login_failed",
+            reason,
+            ip: clientIp(req),
+            emailHash: createHash("sha256").update(email).digest("hex").slice(0, 12),
+        }),
+    );
+}
+
 export async function authorizeCredentials(
     credentials: Record<string, string> | undefined,
     req?: unknown
@@ -75,12 +90,16 @@ export async function authorizeCredentials(
     // of their own account just by guessing at it.
     const { checkRateLimit } = await import("@/lib/rateLimit");
     const limit = await checkRateLimit(`${clientIp(req)}:${email}`, LOGIN_ATTEMPT_LIMIT, "credentials-login");
-    if (!limit.allowed) throw new Error(AUTH_ERROR_RATE_LIMITED);
+    if (!limit.allowed) {
+        logLoginFailure("rate_limited", req, email);
+        throw new Error(AUTH_ERROR_RATE_LIMITED);
+    }
 
     // The IP above comes from a client-settable header, so also cap guesses per
     // address across all IPs. Generous enough that it is a ceiling on a distributed
     // guessing attack, not a way to lock a real user out.
     if (!(await allowForEmail(email, "credentials-login-email", EMAIL_ATTEMPT_LIMIT.maxRequests, EMAIL_ATTEMPT_LIMIT.windowMs))) {
+        logLoginFailure("rate_limited", req, email);
         throw new Error(AUTH_ERROR_RATE_LIMITED);
     }
 
@@ -90,7 +109,10 @@ export async function authorizeCredentials(
     });
 
     const passwordOk = await bcrypt.compare(password, user?.password ?? getDummyHash());
-    if (!user || !user.password || !passwordOk) return null;
+    if (!user || !user.password || !passwordOk) {
+        logLoginFailure("bad_credentials", req, email);
+        return null;
+    }
 
     // Only after the password checks out, so these don't reveal which emails exist.
     if (!user.emailVerified) throw new Error(AUTH_ERROR_EMAIL_NOT_VERIFIED);
