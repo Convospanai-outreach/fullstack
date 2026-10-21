@@ -46,7 +46,7 @@ export async function POST(
         // If teamId not provided in body, fall back to the admin's first team
         if (!teamId && userId) {
             const membership = await prisma.teamMember.findFirst({
-                where: { userId },
+                where: { userId, status: "active" },
                 select: { teamId: true }
             });
             teamId = membership?.teamId ?? null;
@@ -54,7 +54,7 @@ export async function POST(
             // A client-supplied teamId must not let a workspace-level ORG_ADMIN act on
             // another tenant's data - verify membership before honoring it.
             const membership = await prisma.teamMember.findFirst({
-                where: { userId, teamId },
+                where: { userId, teamId, status: "active" },
                 select: { teamId: true }
             });
             if (!membership) {

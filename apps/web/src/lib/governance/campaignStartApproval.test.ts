@@ -4,12 +4,13 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         organizationPolicy: { findUnique: vi.fn() },
         approvalRequest: { findFirst: vi.fn(), create: vi.fn() },
+        teamMember: { count: vi.fn() },
     },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { checkCampaignStartApproval } from "./campaignStartApproval";
+import { checkCampaignStartApproval, isBlockedSelfApproval } from "./campaignStartApproval";
 
 const args = { teamId: "team-1", userId: "user-1", campaignId: "campaign-1" };
 
@@ -78,5 +79,32 @@ describe("checkCampaignStartApproval", () => {
 
         expect(result).toMatchObject({ allowed: false, status: 202, body: { approvalId: "new-approval" } });
         expect(mockPrisma.approvalRequest.create).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("isBlockedSelfApproval", () => {
+    const own = { teamId: "team-1", actionType: "CAMPAIGN_START", requesterId: "user-1" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+    });
+
+    it("blocks the requester while another active owner or admin could approve", async () => {
+        expect(await isBlockedSelfApproval(own, "user-1")).toBe(true);
+        expect(mockPrisma.teamMember.count).toHaveBeenCalledWith({
+            where: { teamId: "team-1", status: "active", role: { in: ["owner", "admin"] }, userId: { not: "user-1" } },
+        });
+    });
+
+    it("lets the requester approve when they are the team's only approver", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(0);
+        expect(await isBlockedSelfApproval(own, "user-1")).toBe(false);
+    });
+
+    it("never blocks someone else's request or other approval types", async () => {
+        expect(await isBlockedSelfApproval(own, "user-2")).toBe(false);
+        expect(await isBlockedSelfApproval({ ...own, actionType: "SEND_EMAIL" }, "user-1")).toBe(false);
+        expect(mockPrisma.teamMember.count).not.toHaveBeenCalled();
     });
 });
