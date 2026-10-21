@@ -82,7 +82,7 @@ export async function PUT(req: Request) {
             action: "UPDATE_POLICY",
             entity: "OrganizationPolicy",
             entityId: updatedPolicy.id,
-            metadata: body
+            metadata: updateData
         });
 
         return NextResponse.json(updatedPolicy);
