@@ -200,6 +200,24 @@ sudo apt-get install -y \
 docker run --shm-size=2g your-image
 ```
 
+## Enabling the sandbox in the Docker deployment
+
+`ENABLE_BROWSER_SANDBOX` is read by every Chromium launch in `apps/api` (the scraper's `browserManager`, `services/browser/BrowserSandbox`, and the invoice PDF renderer) through `src/lib/security/chromiumSandbox.ts`. It defaults to off, which keeps `--no-sandbox`, because the API container cannot run Chromium's sandbox out of the box:
+
+- Docker's default seccomp profile blocks the user-namespace syscalls the sandbox needs.
+- Do **not** work around that with `--cap-add SYS_ADMIN`, `--privileged` or `seccomp=unconfined`; each removes more protection than the sandbox adds.
+
+To turn it on for a container, in this order:
+
+1. Confirm the host allows user namespaces: `sysctl user.max_user_namespaces` must be above 0.
+2. Run the container with a seccomp profile that permits them, for example the published Chrome profile: `security_opt: ["seccomp=/path/to/chrome.json"]` in the compose file.
+3. Set `ENABLE_BROWSER_SANDBOX=true` in that VM's `.env` and recreate the container.
+4. Check a scrape and an invoice PDF download both still work.
+
+With the flag on and no usable sandbox, Chromium refuses to start ("No usable sandbox") instead of running unsandboxed, so a misconfiguration shows up as failed launches. To roll back, set the flag back to `false`.
+
+Not yet verified on the Oracle VMs; test on one VM before the other.
+
 ## Migration Guide
 
 ### From Unsafe to Safe Configuration

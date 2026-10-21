@@ -101,7 +101,7 @@ export async function POST(req: Request) {
 
         if (event === "payment.captured") {
             const payment = payload.payment.entity;
-            const notes = payment.notes;
+            const notes = payment.notes ?? {};
 
             // Route (funnel checkout) orders are a separate flow from the platform's
             // own credit-grant/subscription billing below - they never create a
@@ -120,6 +120,7 @@ export async function POST(req: Request) {
                 : null;
             if (checkoutOrder || notes?.checkoutOrderId) {
                 if (!checkoutOrder) return NextResponse.json({ status: "ok" });
+                let notApplied: { teamId: string } | null = null;
                 await prisma.$transaction(async (tx) => {
                     const claim = await tx.order.updateMany({
                         where: {
@@ -131,6 +132,12 @@ export async function POST(req: Request) {
                         },
                         data: { status: "CAPTURED", gatewayPaymentId: payment.id },
                     });
+                    if (claim.count === 0) {
+                        // Either a retry of a delivery already applied (same payment id), or a captured payment that
+                        // could not be applied (amount differs, or the order is no longer PENDING).
+                        const current = await tx.order.findUnique({ where: { id: checkoutOrder.id } });
+                        if (current && current.gatewayPaymentId !== payment.id) notApplied = { teamId: current.teamId };
+                    }
                     if (claim.count === 1) {
                         const order = await tx.order.findUnique({ where: { id: checkoutOrder.id } });
                         if (order) {
@@ -151,6 +158,22 @@ export async function POST(req: Request) {
                         }
                     }
                 });
+                if (notApplied) {
+                    // Money was captured but the order was not marked paid. strict:true so a failed write 500s and
+                    // Razorpay retries, rather than acknowledging an event nothing durable records.
+                    const { AuditService } = await import("@/modules/audit/auditService");
+                    await AuditService.log(
+                        (notApplied as { teamId: string }).teamId,
+                        null,
+                        "WEBHOOK_ORDER_NOT_APPLIED",
+                        "Order",
+                        checkoutOrder.id,
+                        { paymentId: payment.id, amount: payment.amount, currency: payment.currency },
+                        null,
+                        null,
+                        true
+                    );
+                }
                 return NextResponse.json({ status: "ok" });
             }
 

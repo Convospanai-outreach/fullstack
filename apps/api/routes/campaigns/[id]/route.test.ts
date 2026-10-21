@@ -117,6 +117,13 @@ describe("PATCH /api/campaigns/[id]", () => {
         expect(prisma.campaign.update).not.toHaveBeenCalled();
     });
 
+    it("does not let a client write the progress counters", async () => {
+        const response = await PATCH(patchRequest({ completedCount: 999999, targetCount: 1 }), { params: Promise.resolve({ id: "campaign-1" }) });
+
+        expect(response.status).toBe(400);
+        expect(prisma.campaign.update).not.toHaveBeenCalled();
+    });
+
     it("returns 400 (not 500) for a malformed JSON body", async () => {
         const response = await PATCH(
             new Request("http://localhost:3001/api/campaigns/campaign-1", { method: "PATCH", body: "{not json" }),

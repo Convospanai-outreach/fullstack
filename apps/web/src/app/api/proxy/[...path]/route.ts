@@ -274,18 +274,21 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
             headers: responseHeaders,
         });
     } catch (error) {
+        // The detail (internal origin, config or socket errors) stays in the server log: the browser only
+        // needs to know the upstream API did not answer.
+        console.error("[proxy] upstream request failed", {
+            upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
+            error: error instanceof Error ? error.message : String(error),
+        });
         if (error instanceof Error && error.name === "AbortError") {
             return NextResponse.json({
                 error: `Upstream API did not respond within ${PROXY_TIMEOUT_MS / 1000}s.`,
                 code: "PROXY_UPSTREAM_TIMEOUT",
-                upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
             }, { status: 504 });
         }
-        const message = error instanceof Error ? error.message : "Proxy failure";
         return NextResponse.json({
-            error: message === "fetch failed" ? "Upstream API is unavailable or API_INTERNAL_ORIGIN is misconfigured." : message,
+            error: "Upstream API is unavailable.",
             code: "PROXY_UPSTREAM_UNAVAILABLE",
-            upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
         }, { status: 502 });
     }
 }

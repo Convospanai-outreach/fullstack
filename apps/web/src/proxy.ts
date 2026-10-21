@@ -182,12 +182,13 @@ async function appProxy(req: NextRequest) {
         "/api/auth/error",
     ];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
+    const underPrefix = (candidate: string, prefix: string) => candidate === prefix || candidate.startsWith(prefix + "/");
     // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
     const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
-        "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/health", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
@@ -219,7 +220,7 @@ async function appProxy(req: NextRequest) {
         if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+        if (!metricsToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
     }
@@ -270,7 +271,7 @@ async function appProxy(req: NextRequest) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
         // 4. Webhook endpoints
-        else if (webhookApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+        else if (webhookApiPrefixes.some((prefix) => underPrefix(path, prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
         // 5. Error logging endpoint
@@ -373,8 +374,8 @@ async function appProxy(req: NextRequest) {
         cleanPath.startsWith("/_next") ||
         cleanPath.startsWith("/static") ||
         cleanPath.startsWith("/images") ||
-        webhookApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
-        extensionApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        webhookApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
+        extensionApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         publicApiPrefixes.some((prefix) => cleanPath.startsWith(prefix));
 
     if (!isPublic) {
