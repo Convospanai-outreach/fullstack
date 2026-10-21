@@ -12,6 +12,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         creditTransaction: { findFirst: vi.fn() },
         invoice: { findFirst: vi.fn() },
         plan: { findUnique: vi.fn() },
+        auditLog: { create: vi.fn() },
         $transaction: vi.fn(),
     };
     return { mockPrisma, mockTx };
@@ -122,6 +123,24 @@ describe("/webhooks/stripe-billing", () => {
 
         expect(response.status).toBe(200);
         expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("records a durable audit entry, and 500s if it cannot, when the plan in the metadata is unknown", async () => {
+        mockGetSubscriptionMetadata.mockResolvedValue({ teamId: "team-1", userId: "user-1", planId: "gone" });
+        mockPrisma.plan.findUnique.mockResolvedValue(null);
+        mockPrisma.auditLog.create.mockResolvedValue({});
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+        const { POST } = await import("./route");
+
+        const ok = await POST(webhookRequest("{}"));
+
+        expect(ok.status).toBe(200);
+        expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "WEBHOOK_UNRECOGNIZED_PLAN", orgId: "team-1" }),
+        }));
+
+        mockPrisma.auditLog.create.mockRejectedValue(new Error("db unavailable"));
+        expect((await POST(webhookRequest("{}"))).status).toBe(500);
     });
 
     it("skips fulfillment when subscription metadata is missing required fields", async () => {
