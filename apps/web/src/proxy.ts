@@ -219,7 +219,7 @@ async function appProxy(req: NextRequest) {
         if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+        if (!metricsToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
     }
