@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 
-const { mockPrisma, mockCheckCredits, mockDeductCredits, mockEnqueue } = vi.hoisted(() => ({
+const { mockPrisma, mockCheckCredits, mockDeductCredits, mockEnqueue, mockNeedsApproval } = vi.hoisted(() => ({
+    mockNeedsApproval: vi.fn(),
     mockPrisma: {
         schedule: { findMany: vi.fn(), updateMany: vi.fn() },
         scheduleLog: { create: vi.fn() },
@@ -13,6 +14,7 @@ const { mockPrisma, mockCheckCredits, mockDeductCredits, mockEnqueue } = vi.hois
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/credits", () => ({ checkCredits: mockCheckCredits, deductCredits: mockDeductCredits }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
+vi.mock("@/lib/governance/campaignStartApproval", () => ({ campaignStartNeedsApproval: mockNeedsApproval }));
 
 import { schedulerService } from "../schedulerService";
 
@@ -45,6 +47,7 @@ describe("SchedulerService.processDueSchedules", () => {
         mockDeductCredits.mockResolvedValue(undefined);
         mockPrisma.scheduleLog.create.mockResolvedValue({});
         mockEnqueue.mockResolvedValue({ id: "job-1" });
+        mockNeedsApproval.mockResolvedValue(false);
     });
 
     it("claims the schedule's nextRunAt via CAS before enqueueing (B-03 regression: no double-dispatch)", async () => {
@@ -62,6 +65,45 @@ describe("SchedulerService.processDueSchedules", () => {
         const enqueueOrder = (mockEnqueue as Mock).mock.invocationCallOrder[0];
         expect(updateManyOrder).toBeLessThan(enqueueOrder);
         expect(results).toEqual([{ id: "sched-1", status: "dispatched" }]);
+    });
+
+    it("does not start a campaign whose team policy requires approval that has not been granted", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([dueSchedule()]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+        mockNeedsApproval.mockResolvedValue(true);
+
+        const results = await schedulerService.processDueSchedules();
+
+        expect(mockNeedsApproval).toHaveBeenCalledWith("team-1", "campaign-1");
+        expect(mockEnqueue).not.toHaveBeenCalled();
+        expect(mockDeductCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.scheduleLog.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ scheduleId: "sched-1", status: "failed", message: expect.stringContaining("approval") }),
+        });
+        expect(results).toEqual([{ id: "sched-1", status: "skipped" }]);
+    });
+
+    it("still advances nextRunAt for a skipped run, so it logs once per cron occurrence and not on every tick", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([dueSchedule()]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+        mockNeedsApproval.mockResolvedValue(true);
+
+        await schedulerService.processDueSchedules();
+
+        expect(mockPrisma.schedule.updateMany).toHaveBeenCalledWith({
+            where: { id: "sched-1", nextRunAt: PRIOR_NEXT_RUN_AT },
+            data: { lastRunAt: NOW, nextRunAt: expect.any(Date) },
+        });
+    });
+
+    it("does not consult the approval policy for a schedule that runs an agent, not a campaign", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([{ ...dueSchedule(), campaignId: null, agentId: "agent-1" }]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+
+        await schedulerService.processDueSchedules();
+
+        expect(mockNeedsApproval).not.toHaveBeenCalled();
+        expect(mockEnqueue).toHaveBeenCalledWith("agent_run", expect.anything(), expect.anything());
     });
 
     it("skips enqueueing when another tick already claimed the schedule (CAS lost)", async () => {

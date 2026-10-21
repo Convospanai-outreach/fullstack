@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { z } from "zod";
 
 const TemplateSchema = z.object({
@@ -13,10 +14,11 @@ const TemplateSchema = z.object({
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const body = await req.json();
         const validation = TemplateSchema.safeParse(body);
@@ -51,10 +53,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         // Verify ownership
         const existing = await prisma.emailTemplate.findUnique({
