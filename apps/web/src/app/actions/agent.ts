@@ -6,6 +6,7 @@ import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizePermission, Permission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { isBlockedSelfApproval } from "@/lib/governance/campaignStartApproval";
 import { revalidatePath } from "next/cache";
 
 // These are Next.js Server Actions - directly callable with arbitrary arguments by
@@ -35,6 +36,9 @@ export async function approveTask(requestId: string, _approverId: string, revise
 
     const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     if (!request) throw new Error("Request not found");
+    if (await isBlockedSelfApproval(request, userId)) {
+        throw new Error("Someone else on your team needs to approve a campaign start you requested.");
+    }
 
     console.log("[Action] Approving Request:", requestId, revisedPayload ? "(with edits)" : "");
     await ApprovalService.approve(requestId, userId, teamId, revisedPayload);

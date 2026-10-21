@@ -21,6 +21,7 @@ const createPrismaClient = () => {
         idleTimeoutMillis: 30_000,
         connectionTimeoutMillis: 15_000,
     });
+    pool.on("error", (error: Error) => console.error("[db] idle client error:", error.message));
     const adapter = new PrismaPg(pool);
 
     const options: any = { log: ["error"], adapter };

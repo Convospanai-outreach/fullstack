@@ -39,6 +39,31 @@ describe("authorizeCredentials", () => {
         expect(await authorizeCredentials({ email: "a@b.com", password: "wrong-password-123" })).toBeNull();
     });
 
+    it("logs a failed sign-in without the email, the password, or whether the account exists", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockPrisma.user.findUnique.mockResolvedValue(verifiedUser);
+        await authorizeCredentials({ email: "a@b.com", password: "wrong-password-123" }, { headers: { "x-forwarded-for": "203.0.113.9" } });
+        mockPrisma.user.findUnique.mockResolvedValue(null);
+        await authorizeCredentials({ email: "nobody@b.com", password: "wrong-password-123" }, { headers: { "x-forwarded-for": "203.0.113.9" } });
+
+        const lines = warn.mock.calls.map((call) => String(call[0]));
+        expect(lines).toHaveLength(2);
+        for (const line of lines) {
+            expect(JSON.parse(line)).toMatchObject({ event: "login_failed", reason: "bad_credentials", ip: "203.0.113.9" });
+            expect(line).not.toContain("@b.com");
+            expect(line).not.toContain("wrong-password-123");
+        }
+        warn.mockRestore();
+    });
+
+    it("does not log a successful sign-in as a failure", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockPrisma.user.findUnique.mockResolvedValue(verifiedUser);
+        await authorizeCredentials({ email: "a@b.com", password: goodPassword });
+        expect(warn).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
     it("rejects an unknown email without revealing it", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(null);
         expect(await authorizeCredentials({ email: "nobody@b.com", password: goodPassword })).toBeNull();

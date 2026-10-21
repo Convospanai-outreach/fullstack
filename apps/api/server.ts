@@ -23,6 +23,7 @@ import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
 import { createSharedReplayCache } from '@/lib/sharedReplayCache';
 import { isInternalOnlyRoute } from '@/lib/internalOnlyRoutes';
+import { serializeRequestForLog } from '@/lib/requestLogSerializer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +55,7 @@ const fastify = Fastify({
   requestTimeout: 60_000,
   logger: {
     level: 'info',
+    serializers: { req: serializeRequestForLog },
     // pino-pretty is a dev-only transport (a devDependency, and it serializes
     // synchronously); in production emit the default structured JSON so logs are
     // parseable by aggregators and there's no pretty-print overhead (roadmap I-06).
