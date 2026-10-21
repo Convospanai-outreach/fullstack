@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { ingestService } from "@/modules/rag/service/ingest";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const { teamId } = await getCurrentContext();
-    if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     try {
         const { type, url, fileName, content } = await req.json();
@@ -54,8 +57,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const { teamId } = await getCurrentContext();
-    if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     // Scoped by teamId in the actual delete too, not just this pre-check - same
     // "scope the mutation" fix already applied elsewhere this session (OPEN-99/109/

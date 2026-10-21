@@ -220,6 +220,37 @@ describe("WorkerManager maintenance tick", () => {
         expect(runRetentionSweep).toHaveBeenCalled();
     });
 
+    it("a failing maintenance sweep neither stops the sweeps after it nor retries on the next pass", async () => {
+        const { syncDueGoogleMailboxes } = await import("@/modules/email-campaigner/service/googleMailboxService");
+        const { OutboxService } = await import("@/lib/outboxService");
+        (syncDueGoogleMailboxes as Mock).mockRejectedValueOnce(new Error("google down"));
+        const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+        const manager = new WorkerManager();
+
+        await expect((manager as any).handleMaintenanceTick()).resolves.toBeUndefined();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(OutboxService.relayPendingEvents).toHaveBeenCalledTimes(1);
+        expect(runRetentionSweep).toHaveBeenCalledTimes(1);
+        expect(syncDueGoogleMailboxes).toHaveBeenCalledTimes(1);
+        expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("MailboxSync sweep failed"));
+        errorLog.mockRestore();
+    });
+
+    it("keeps dequeuing jobs when the scheduler sweep throws", async () => {
+        const { schedulerService } = await import("@/modules/scheduler/schedulerService");
+        (schedulerService.processDueSchedules as Mock).mockRejectedValueOnce(new Error("db down"));
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        (JobQueue.dequeue as Mock).mockResolvedValueOnce(null);
+        const manager = new WorkerManager();
+        (manager as any).idleDelay = 10;
+
+        const loop = manager.start();
+        await vi.waitFor(() => expect(JobQueue.dequeue).toHaveBeenCalled());
+        await manager.stop();
+        await loop;
+    });
+
     it("runs the retention sweep on the maintenance tick, at most once per day", async () => {
         const manager = new WorkerManager();
 

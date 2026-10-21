@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 
 async function getTeamId(userId: string): Promise<string | null> {
     const member = await prisma.teamMember.findFirst({
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
+
+        const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+        if (denied) return denied;
 
         const body = await req.json();
         const { action } = body;
@@ -128,6 +132,9 @@ export async function DELETE(req: NextRequest) {
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
+
+        const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+        if (denied) return denied;
 
         const { searchParams } = new URL(req.url);
         const caseStudyId = searchParams.get("id");

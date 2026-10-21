@@ -94,31 +94,48 @@ export class WorkerManager {
         }
     }
 
+    // Each maintenance sweep is marked done before it runs (by the caller) and its failure is logged, never rethrown.
+    // A throw here would reach the loop's catch, which skips job dequeue for that pass, and because the sweep would
+    // still be due on the next pass, one broken sweep would starve every sweep after it and all job processing.
+    private async runSweep(label: string, work: () => Promise<void>) {
+        try {
+            await work();
+        } catch (error) {
+            console.error(`[Worker] ${label} sweep failed (${safeErrorType(error)}): ${safeErrorMessage(error)}`);
+        }
+    }
+
     private async handleMaintenanceTick() {
         const now = Date.now();
 
         if (now - this.lastHeartbeatTick >= this.heartbeatInterval) {
             this.lastHeartbeatTick = now;
-            await recordHeartbeat("worker", this.startedAt, { ...processStats(), activeJobs: this.activeJobs.size });
+            await this.runSweep("Heartbeat", async () => {
+                await recordHeartbeat("worker", this.startedAt, { ...processStats(), activeJobs: this.activeJobs.size });
+            });
         }
 
         // Run scheduler every minute
         if (now - this.lastScheduleTick >= this.scheduleInterval) {
-            console.log("[Worker] Running internal scheduler tick...");
-            await schedulerService.processDueSchedules();
             this.lastScheduleTick = now;
+            await this.runSweep("Schedule", async () => {
+                console.log("[Worker] Running internal scheduler tick...");
+                await schedulerService.processDueSchedules();
+            });
         }
 
         // Advance due CampaignSequence enrollments (nothing else drives this periodically -
         // see OPEN-32)
         if (now - this.lastSequenceTick >= this.sequenceInterval) {
-            console.log("[Worker] Processing due sequence steps...");
-            const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
-            const results = await SequenceService.processDue({});
-            if (results.length > 0) {
-                console.log(`[Worker] Processed ${results.length} due sequence step(s).`);
-            }
             this.lastSequenceTick = now;
+            await this.runSweep("Sequence", async () => {
+                console.log("[Worker] Processing due sequence steps...");
+                const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+                const results = await SequenceService.processDue({});
+                if (results.length > 0) {
+                    console.log(`[Worker] Processed ${results.length} due sequence step(s).`);
+                }
+            });
         }
 
         // Creator funnel: publish approved posts whose time has come (contentPublisher.ts).
@@ -175,133 +192,155 @@ export class WorkerManager {
 
         // Fix [HIGH-2]: Reset stale jobs every 5 minutes
         if (now - this.lastStaleResetTick >= this.staleResetInterval) {
-            console.log("[Worker] Running stale job watchdog...");
-            const resetCount = await JobQueue.resetStaleJobs();
-            if (resetCount > 0) {
-                console.log(`[Worker] Watchdog reset ${resetCount} stuck jobs.`);
-            }
             this.lastStaleResetTick = now;
+            await this.runSweep("StaleReset", async () => {
+                console.log("[Worker] Running stale job watchdog...");
+                const resetCount = await JobQueue.resetStaleJobs();
+                if (resetCount > 0) {
+                    console.log(`[Worker] Watchdog reset ${resetCount} stuck jobs.`);
+                }
+            });
         }
 
         if (now - this.lastMailboxSyncTick >= this.mailboxSyncInterval) {
-            console.log("[Worker] Syncing due Google mailboxes...");
-            const { renewDueGoogleMailboxWatches, syncDueGoogleMailboxes } = await import("@/modules/email-campaigner/service/googleMailboxService");
-            const renewals = await renewDueGoogleMailboxWatches();
-            const renewedCount = renewals.filter((result) => result.renewed).length;
-            if (renewedCount > 0) {
-                console.log(`[Worker] Renewed ${renewedCount} Gmail mailbox watches.`);
-            }
-            const results = await syncDueGoogleMailboxes();
-            if (results.length > 0) {
-                console.log(`[Worker] Synced ${results.length} Google mailboxes.`);
-            }
             this.lastMailboxSyncTick = now;
+            await this.runSweep("MailboxSync", async () => {
+                console.log("[Worker] Syncing due Google mailboxes...");
+                const { renewDueGoogleMailboxWatches, syncDueGoogleMailboxes } = await import("@/modules/email-campaigner/service/googleMailboxService");
+                const renewals = await renewDueGoogleMailboxWatches();
+                const renewedCount = renewals.filter((result) => result.renewed).length;
+                if (renewedCount > 0) {
+                    console.log(`[Worker] Renewed ${renewedCount} Gmail mailbox watches.`);
+                }
+                const results = await syncDueGoogleMailboxes();
+                if (results.length > 0) {
+                    console.log(`[Worker] Synced ${results.length} Google mailboxes.`);
+                }
+            });
         }
 
         if (now - this.lastImapSyncTick >= this.imapSyncInterval) {
-            console.log("[Worker] Syncing due IMAP mailboxes for reply detection...");
-            const { syncDueImapMailboxes } = await import("@/modules/email-campaigner/service/imapMailboxService");
-            const results = await syncDueImapMailboxes();
-            if (results.length > 0) {
-                console.log(`[Worker] Synced ${results.length} IMAP mailbox(es).`);
-            }
             this.lastImapSyncTick = now;
+            await this.runSweep("ImapSync", async () => {
+                console.log("[Worker] Syncing due IMAP mailboxes for reply detection...");
+                const { syncDueImapMailboxes } = await import("@/modules/email-campaigner/service/imapMailboxService");
+                const results = await syncDueImapMailboxes();
+                if (results.length > 0) {
+                    console.log(`[Worker] Synced ${results.length} IMAP mailbox(es).`);
+                }
+            });
         }
 
         if (now - this.lastWarmupTick >= this.warmupInterval) {
-            console.log("[Worker] Advancing mailbox warmup state...");
-            const { advanceMailboxWarmup } = await import("@/modules/email-campaigner/service/googleMailboxService");
-            const result = await advanceMailboxWarmup();
-            if (result.count > 0) {
-                console.log(`[Worker] Advanced warmup for ${result.count} mailboxes.`);
-            }
             this.lastWarmupTick = now;
+            await this.runSweep("Warmup", async () => {
+                console.log("[Worker] Advancing mailbox warmup state...");
+                const { advanceMailboxWarmup } = await import("@/modules/email-campaigner/service/googleMailboxService");
+                const result = await advanceMailboxWarmup();
+                if (result.count > 0) {
+                    console.log(`[Worker] Advanced warmup for ${result.count} mailboxes.`);
+                }
+            });
         }
 
         if (now - this.lastWarmupSeedTick >= this.warmupSeedInterval) {
-            console.log("[Worker] Sending warmup seed traffic...");
-            const { sendWarmupSeedTraffic } = await import("@/modules/email-campaigner/service/warmupSeedService");
-            const result = await sendWarmupSeedTraffic();
-            if (result.sent > 0) {
-                console.log(`[Worker] Sent warmup seed traffic for ${result.sent} mailbox(es).`);
-            }
             this.lastWarmupSeedTick = now;
+            await this.runSweep("WarmupSeed", async () => {
+                console.log("[Worker] Sending warmup seed traffic...");
+                const { sendWarmupSeedTraffic } = await import("@/modules/email-campaigner/service/warmupSeedService");
+                const result = await sendWarmupSeedTraffic();
+                if (result.sent > 0) {
+                    console.log(`[Worker] Sent warmup seed traffic for ${result.sent} mailbox(es).`);
+                }
+            });
         }
 
         if (now - this.lastOutboxTick >= this.outboxInterval) {
-            const { OutboxService } = await import("@/lib/outboxService");
-            const relayedCount = await OutboxService.relayPendingEvents(50);
-            if (relayedCount > 0) {
-                console.log(`[Worker] Relayed ${relayedCount} outbox event(s).`);
-            }
             this.lastOutboxTick = now;
+            await this.runSweep("Outbox", async () => {
+                const { OutboxService } = await import("@/lib/outboxService");
+                const relayedCount = await OutboxService.relayPendingEvents(50);
+                if (relayedCount > 0) {
+                    console.log(`[Worker] Relayed ${relayedCount} outbox event(s).`);
+                }
+            });
         }
 
         if (now - this.lastApprovalSweepTick >= this.approvalSweepInterval) {
-            const { ApprovalService } = await import("@/modules/governance/ApprovalService");
-            // Warn approvers about soon-to-expire requests BEFORE denying the
-            // already-expired ones, so a reviewer gets a heads-up rather than
-            // finding a campaign silently auto-denied (F-07).
-            const warnedCount = await ApprovalService.warnExpiringApprovals();
-            if (warnedCount > 0) {
-                console.log(`[Worker] Warned ${warnedCount} approver(s) about soon-to-expire approval request(s).`);
-            }
-            const deniedCount = await ApprovalService.autoDenyExpiredApprovals();
-            if (deniedCount > 0) {
-                console.log(`[Worker] Auto-denied ${deniedCount} expired QUEUED-tier approval request(s).`);
-            }
             this.lastApprovalSweepTick = now;
+            await this.runSweep("ApprovalSweep", async () => {
+                const { ApprovalService } = await import("@/modules/governance/ApprovalService");
+                // Warn approvers about soon-to-expire requests BEFORE denying the
+                // already-expired ones, so a reviewer gets a heads-up rather than
+                // finding a campaign silently auto-denied (F-07).
+                const warnedCount = await ApprovalService.warnExpiringApprovals();
+                if (warnedCount > 0) {
+                    console.log(`[Worker] Warned ${warnedCount} approver(s) about soon-to-expire approval request(s).`);
+                }
+                const deniedCount = await ApprovalService.autoDenyExpiredApprovals();
+                if (deniedCount > 0) {
+                    console.log(`[Worker] Auto-denied ${deniedCount} expired QUEUED-tier approval request(s).`);
+                }
+            });
         }
 
         if (now - this.lastOverseerTick >= this.overseerInterval) {
-            const { evaluateBreakers } = await import("@/modules/overseer/breakerService");
-            const breakerResult = await evaluateBreakers();
-            if (breakerResult.tripped > 0) {
-                console.log(`[Worker] Circuit breaker tripped OPEN for ${breakerResult.tripped} team(s) out of ${breakerResult.teamsEvaluated} evaluated.`);
-            }
-
-            const { processOverseerTick } = await import("./handlers/overseerHandler");
-            const result = await processOverseerTick();
-            if (result.nudgesCreated > 0) {
-                console.log(`[Worker] Overseer flagged ${result.nudgesCreated} stalled enrollment(s) out of ${result.candidates} candidate(s).`);
-            }
-
-            const { detectProviderDegradation } = await import("@/modules/overseer/overseerSignalService");
-            const shadowResult = await detectProviderDegradation();
-            if (shadowResult.signalsOpened > 0) {
-                console.log(`[Worker] OverseerSignal opened ${shadowResult.signalsOpened} provider-degradation signal(s).`);
-            }
-
             this.lastOverseerTick = now;
+            await this.runSweep("Overseer", async () => {
+                const { evaluateBreakers } = await import("@/modules/overseer/breakerService");
+                const breakerResult = await evaluateBreakers();
+                if (breakerResult.tripped > 0) {
+                    console.log(`[Worker] Circuit breaker tripped OPEN for ${breakerResult.tripped} team(s) out of ${breakerResult.teamsEvaluated} evaluated.`);
+                }
+
+                const { processOverseerTick } = await import("./handlers/overseerHandler");
+                const result = await processOverseerTick();
+                if (result.nudgesCreated > 0) {
+                    console.log(`[Worker] Overseer flagged ${result.nudgesCreated} stalled enrollment(s) out of ${result.candidates} candidate(s).`);
+                }
+
+                const { detectProviderDegradation } = await import("@/modules/overseer/overseerSignalService");
+                const shadowResult = await detectProviderDegradation();
+                if (shadowResult.signalsOpened > 0) {
+                    console.log(`[Worker] OverseerSignal opened ${shadowResult.signalsOpened} provider-degradation signal(s).`);
+                }
+
+            });
         }
 
         if (now - this.lastFacebookLeadsTick >= this.facebookLeadsInterval) {
-            console.log("[Worker] Syncing due Facebook/Instagram Lead Ads sources...");
-            const { syncDueFacebookLeadSources } = await import("./handlers/facebook-leads-worker");
-            const results = await syncDueFacebookLeadSources();
-            const synced = results.reduce((sum, r: any) => sum + (r.synced || 0), 0);
-            if (synced > 0) {
-                console.log(`[Worker] Synced ${synced} Facebook lead(s) across ${results.length} form(s).`);
-            }
             this.lastFacebookLeadsTick = now;
+            await this.runSweep("FacebookLeads", async () => {
+                console.log("[Worker] Syncing due Facebook/Instagram Lead Ads sources...");
+                const { syncDueFacebookLeadSources } = await import("./handlers/facebook-leads-worker");
+                const results = await syncDueFacebookLeadSources();
+                const synced = results.reduce((sum, r: any) => sum + (r.synced || 0), 0);
+                if (synced > 0) {
+                    console.log(`[Worker] Synced ${synced} Facebook lead(s) across ${results.length} form(s).`);
+                }
+            });
         }
 
         if (now - this.lastCustomDomainTick >= this.customDomainInterval) {
-            const { pollPendingCustomDomains } = await import("@/modules/branding/customDomainPoller");
-            const results = await pollPendingCustomDomains();
-            if (results.length > 0) {
-                console.log(`[Worker] ${results.length} custom domain(s) changed status: ${results.map(r => `${r.domain}=${r.status}`).join(", ")}`);
-            }
             this.lastCustomDomainTick = now;
+            await this.runSweep("CustomDomain", async () => {
+                const { pollPendingCustomDomains } = await import("@/modules/branding/customDomainPoller");
+                const results = await pollPendingCustomDomains();
+                if (results.length > 0) {
+                    console.log(`[Worker] ${results.length} custom domain(s) changed status: ${results.map(r => `${r.domain}=${r.status}`).join(", ")}`);
+                }
+            });
         }
 
         if (now - this.lastShadowSignalReconcileTick >= this.shadowSignalReconcileInterval) {
-            const { reconcileOrphanedShadowSignals } = await import("./handlers/shadowSignalReconciliationWorker");
-            const result = await reconcileOrphanedShadowSignals();
-            if (result.matched > 0) {
-                console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
-            }
             this.lastShadowSignalReconcileTick = now;
+            await this.runSweep("ShadowSignalReconcile", async () => {
+                const { reconcileOrphanedShadowSignals } = await import("./handlers/shadowSignalReconciliationWorker");
+                const result = await reconcileOrphanedShadowSignals();
+                if (result.matched > 0) {
+                    console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
+                }
+            });
         }
 
         // Daily Action Inbox digest: once per clock hour (keyed on the hour itself rather than
@@ -343,9 +382,11 @@ export class WorkerManager {
         // RETENTION_ENABLED=true. Kept last, and the sweep never throws, so a
         // failing table can't starve the ticks above or retry every loop.
         if (now - this.lastRetentionTick >= this.retentionInterval) {
-            const { runRetentionSweep } = await import("./handlers/retentionSweep");
-            await runRetentionSweep();
             this.lastRetentionTick = now;
+            await this.runSweep("Retention", async () => {
+                const { runRetentionSweep } = await import("./handlers/retentionSweep");
+                await runRetentionSweep();
+            });
         }
     }
 

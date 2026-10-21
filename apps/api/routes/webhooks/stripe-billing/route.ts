@@ -114,6 +114,20 @@ export async function POST(req: Request) {
                             }
                         } else {
                             console.error(`[Stripe Billing Webhook] Unknown planId in subscription metadata: ${planId}`);
+                            // Payment was taken but nothing was provisioned. strict:true, as in the Razorpay webhook: if this
+                            // write fails nothing durable exists for the event, so 500 and let Stripe retry.
+                            const { AuditService } = await import("@/modules/audit/auditService");
+                            await AuditService.log(
+                                teamId,
+                                userId,
+                                "WEBHOOK_UNRECOGNIZED_PLAN",
+                                "Billing",
+                                paymentId,
+                                { planId, amount: invoice.amount_paid, currency: invoice.currency, gateway: "STRIPE" },
+                                null,
+                                null,
+                                true
+                            );
                         }
                     } else {
                         console.error(`[Stripe Billing Webhook] Subscription ${subscriptionId} is missing teamId/userId/planId metadata`);

@@ -2,6 +2,7 @@ import CronExpressionParser from "cron-parser";
 import { prisma } from "@/lib/db";
 import { JobQueue, JobType } from "@/lib/queue";
 import { checkCredits, deductCredits } from "@/lib/credits"; // Assuming these exist or will use billingService
+import { campaignStartNeedsApproval } from "@/lib/governance/campaignStartApproval";
 
 export class SchedulerService {
     /**
@@ -83,6 +84,15 @@ export class SchedulerService {
                     },
                 });
                 if (claim.count === 0) {
+                    continue;
+                }
+
+                // A team whose policy requires approval to start campaigns must not get one started
+                // here without it. Checked after the claim so a skipped occurrence is logged once
+                // and the schedule moves on to its next cron time, instead of re-logging every tick.
+                if (schedule.campaignId && await campaignStartNeedsApproval(schedule.teamId, schedule.campaignId)) {
+                    await this.logExecution(schedule.id, "failed", "Skipped: starting this campaign requires approval. Start it from the campaign page to request one.", 0, 0);
+                    results.push({ id: schedule.id, status: "skipped" });
                     continue;
                 }
 
