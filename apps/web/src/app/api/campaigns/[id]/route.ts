@@ -112,8 +112,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                 }
                 allowedUpdates["draftGenerationMode"] = body.draftGenerationMode;
             }
-            if (typeof body.targetCount === "number") allowedUpdates["targetCount"] = body.targetCount;
-            if (typeof body.completedCount === "number") allowedUpdates["completedCount"] = body.completedCount;
 
             if (Object.keys(allowedUpdates).length > 0) {
                 await prisma.campaign.update({

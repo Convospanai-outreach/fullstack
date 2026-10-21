@@ -2,6 +2,7 @@
 import { Browser, LaunchOptions } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { chromiumSandboxArgs } from "../../src/lib/security/chromiumSandbox";
 
 puppeteer.use(StealthPlugin());
 
@@ -16,8 +17,7 @@ export class BrowserSandbox {
         const launchOptions: any = {
             headless: true,
             args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
+                ...chromiumSandboxArgs(),
                 '--disable-dev-shm-usage',
                 `--max-old-space-size=${config.maxMemory || 512}`
             ]

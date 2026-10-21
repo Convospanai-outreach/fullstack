@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 export enum TeamRole {
@@ -86,6 +87,19 @@ export async function authorizeRole(userId: string, teamId: string, requiredRole
         const { APIError } = await import("@/lib/apiResponse");
         throw new APIError("Insufficient permissions", 403);
     }
+}
+
+/**
+ * For handlers that answer with plain NextResponses instead of throwing APIErrors: a 403 response when the
+ * caller's team role is below `requiredRole`, otherwise null.
+ */
+export async function forbiddenUnlessRole(
+    userId: string,
+    teamId: string,
+    requiredRole: TeamRole
+): Promise<NextResponse | null> {
+    if (await checkTeamPermission(userId, teamId, requiredRole)) return null;
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 }
 
 export function canManageMembers(role: string): boolean {

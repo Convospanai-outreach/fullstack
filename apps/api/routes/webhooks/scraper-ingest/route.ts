@@ -25,10 +25,9 @@ export async function POST(req: Request) {
         const complianceHash = req.headers.get("X-Compliance-Hash");
 
         const hmacSecret = process.env['SCRAPER_SECRET'] || "";
-        if (!hmacSecret && process.env['NODE_ENV'] === 'production') {
+        if (!hmacSecret) {
             throw new Error("CRITICAL: SCRAPER_SECRET is not configured. Webhook cannot verify signatures.");
         }
-        const effectiveSecret = hmacSecret || "dev-secret-key-32-chars-long-####"; // Allow fallback ONLY in local dev if explicitly empty
 
         if (!timestamp || !complianceHash) {
             return NextResponse.json({ error: "Unauthorized: Missing security headers" }, { status: 401 });
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
 
         // Fix [HIGH-3]: Real HMAC Validation
         const expectedHash = cryptoNode
-            .createHmac("sha256", effectiveSecret)
+            .createHmac("sha256", hmacSecret)
             .update(`${bodyText}.${timestamp}`)
             .digest("hex");
 
