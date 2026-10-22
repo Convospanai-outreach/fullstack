@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSuperAdminUserId } from "@/lib/superadmin/session";
 import { fetchSuperAdminUserDetail } from "@/lib/superadmin/apiClient";
 import { auditSuperAdmin, getSuperAdminActor } from "@/lib/superadmin/actor";
+import { clientIp } from "@/lib/clientIp";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { prisma } = await import("@/lib/db");
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id: targetUserId } = await params;
     const range = new URL(req.url).searchParams.get("range") || "30d";
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const ipAddress = clientIp(req.headers);
 
     try {
         const { status, body } = await fetchSuperAdminUserDetail(

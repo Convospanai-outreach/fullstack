@@ -46,12 +46,15 @@ describe("rateLimit extended behavior", () => {
         process.env = { ...originalEnv, NODE_ENV: "test" };
     });
 
-    it("builds stable identifiers from user id, api key, forwarded IP, real IP, and unknown clients", async () => {
+    it("builds stable identifiers from user id, Cloudflare IP, forwarded IP, real IP, and unknown clients", async () => {
         const { getClientIdentifier } = await loadRateLimit();
 
         expect(getClientIdentifier(request(), "user-1")).toBe("user:user-1");
-        expect(getClientIdentifier(request({ "x-api-key": "key-1" }))).toBe("apikey:key-1");
-        expect(getClientIdentifier(request({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" }))).toBe("ip:203.0.113.1");
+        // A caller-chosen value must not pick the bucket: an unchecked x-api-key and the leftmost
+        // (client-written) X-Forwarded-For entry are ignored.
+        expect(getClientIdentifier(request({ "x-api-key": "key-1", "cf-connecting-ip": "203.0.113.8" }))).toBe("ip:203.0.113.8");
+        expect(getClientIdentifier(request({ "cf-connecting-ip": "203.0.113.8", "x-forwarded-for": "198.18.0.1" }))).toBe("ip:203.0.113.8");
+        expect(getClientIdentifier(request({ "x-forwarded-for": "203.0.113.1, 10.0.0.1" }))).toBe("ip:10.0.0.1");
         expect(getClientIdentifier(request({ "x-real-ip": "198.51.100.2" }))).toBe("ip:198.51.100.2");
         expect(getClientIdentifier(request())).toBe("ip:unknown");
     });

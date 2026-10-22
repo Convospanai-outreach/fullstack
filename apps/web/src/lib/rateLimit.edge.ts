@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { clientIp } from './clientIp';
 
 interface RateLimitConfig {
   windowMs: number;
@@ -71,17 +72,8 @@ function getClientIdentifier(req: NextRequest, userId?: string): string {
     return `user:${userId}`;
   }
 
-  const apiKey = req.headers.get('x-api-key');
-  if (apiKey) {
-    return `apikey:${apiKey}`;
-  }
-
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip') ||
-    'unknown';
-
-  return `ip:${ip}`;
+  // Same rule as rateLimit.ts: no caller-chosen value (x-api-key, leftmost X-Forwarded-For) picks the bucket.
+  return `ip:${clientIp(req.headers) ?? 'unknown'}`;
 }
 
 export async function applyRateLimit(

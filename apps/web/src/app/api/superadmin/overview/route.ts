@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSuperAdminUserId } from "@/lib/superadmin/session";
 import { fetchSuperAdminOverview } from "@/lib/superadmin/apiClient";
+import { clientIp } from "@/lib/clientIp";
 
 export async function GET(req: NextRequest) {
     const { prisma } = await import("@/lib/db");
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     }
 
     const range = new URL(req.url).searchParams.get("range") || "30d";
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const ipAddress = clientIp(req.headers);
 
     try {
         const { status, body } = await fetchSuperAdminOverview(

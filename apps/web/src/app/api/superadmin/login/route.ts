@@ -3,19 +3,15 @@ import { verifySuperAdminPassword } from "@/lib/superadmin/crypto";
 import { signSuperAdminToken, SUPERADMIN_COOKIE_NAME, SUPERADMIN_COOKIE_MAX_AGE_SECONDS } from "@/lib/superadmin/session";
 import { serializeCookie } from "@/lib/superadmin/cookieHeader";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { clientIp } from "@/lib/clientIp";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 
-function clientIp(req: NextRequest): string | null {
-    return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-}
-
 export async function POST(req: NextRequest) {
     // Per-IP attempt cap, checked before any DB work so a throttled source can't
-    // add to the per-account failure counter below. Keyed explicitly on the IP -
-    // not applyRateLimit's identifier, which trusts a caller-chosen x-api-key.
-    const ipAddress = clientIp(req);
+    // add to the per-account failure counter below.
+    const ipAddress = clientIp(req.headers);
     const ipLimit = await checkRateLimit(`ip:${ipAddress ?? "unknown"}`, RATE_LIMITS.AUTH, "superadmin-login");
     if (!ipLimit.allowed) {
         const retryAfter = Math.max(1, Math.ceil((ipLimit.resetTime - Date.now()) / 1000));

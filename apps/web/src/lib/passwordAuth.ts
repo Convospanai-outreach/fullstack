@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { provisionUserTeam } from "@/lib/passwordOnboarding";
 import { allowForEmail } from "@/lib/botCheck";
+import { clientIp as ipFromHeaders } from "@/lib/clientIp";
 
 export const PASSWORD_MIN_LENGTH = 10;
 // bcrypt silently ignores everything past 72 bytes, so longer passwords would
@@ -59,9 +60,7 @@ function getDummyHash() {
 
 function clientIp(req: unknown) {
     const headers = (req as { headers?: Record<string, string | string[] | undefined> } | undefined)?.headers;
-    const forwarded = headers?.["x-forwarded-for"];
-    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-    return value?.split(",")[0]?.trim() || "unknown";
+    return ipFromHeaders(headers) || "unknown";
 }
 
 // Failed sign-ins were not recorded anywhere, so a guessing run could not be seen. Only a short hash of the

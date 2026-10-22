@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { clientIp } from "@/lib/clientIp";
 
 // Honeypot + minimum fill time + Cloudflare Turnstile + a per-address throttle.
 // The first two catch naive form-posting bots; Turnstile catches the rest. All
@@ -58,7 +59,7 @@ export async function isBreachedPassword(password: string): Promise<boolean> {
 }
 
 export function clientIpFromRequest(req: Request) {
-    return req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    return clientIp(req.headers) || "unknown";
 }
 
 // Caps how often one address can be targeted regardless of the (spoofable)
