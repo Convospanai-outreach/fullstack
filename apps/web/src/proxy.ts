@@ -376,7 +376,7 @@ async function appProxy(req: NextRequest) {
         cleanPath.startsWith("/images") ||
         webhookApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         extensionApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
-        publicApiPrefixes.some((prefix) => cleanPath.startsWith(prefix));
+        publicApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix));
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting
