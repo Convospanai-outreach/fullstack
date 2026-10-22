@@ -15,6 +15,7 @@ import { LRUCache } from 'lru-cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { safeGet, safeDel, getRedisClient } from './redis';
 import { logger } from './logger';
+import { clientIp } from './clientIp';
 
 interface RateLimitConfig {
   windowMs: number;       // Time window in milliseconds
@@ -85,26 +86,15 @@ export const RATE_LIMITS = {
 
 /**
  * Get client identifier from request
- * Priority: User ID > API Key > IP Address
+ * Priority: User ID > IP Address. Nothing the caller chooses (an unchecked x-api-key, the leftmost
+ * X-Forwarded-For entry) picks the bucket, or a fresh value per request would skip the limit.
  */
 export function getClientIdentifier(req: NextRequest, userId?: string): string {
   if (userId) {
     return `user:${userId}`;
   }
 
-  // Check for API key
-  const apiKey = req.headers.get('x-api-key');
-  if (apiKey) {
-    return `apikey:${apiKey}`;
-  }
-
-  // Fall back to IP address
-  const ip =
-    (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()) ||
-    req.headers.get('x-real-ip') ||
-    'unknown';
-
-  return `ip:${ip}`;
+  return `ip:${clientIp(req.headers) ?? 'unknown'}`;
 }
 
 
