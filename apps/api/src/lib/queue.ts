@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/db";
-import { Job } from "@prisma/client";
+import { Job, Prisma } from "@prisma/client";
 import { EXECUTION_MODES, RUNTIME_TARGETS } from "@/contracts/executionModes";
 import { NotificationDispatcher } from "@/lib/notifications";
 
@@ -21,6 +21,13 @@ const DEQUEUEABLE_JOB_STATUSES: string[] = [JOB_STATUS.QUEUED, JOB_STATUS.PENDIN
 const RECOVERABLE_STALE_JOB_STATUSES: string[] = [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING];
 
 export const STALE_JOB_RECOVERY_PAGE_SIZE = 100;
+
+/**
+ * Most jobs one team may have running while another team has work waiting. A campaign start
+ * enqueues one job per lead, so without this cap one large campaign fills every worker slot and
+ * every other team's sends, syncs and webhooks wait behind the whole batch.
+ */
+export const MAX_RUNNING_JOBS_PER_TEAM = 2;
 export const STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES = 5;
 
 /** A claim is immutable for the lifetime of one worker execution. */
@@ -187,19 +194,36 @@ export class JobQueue {
      */
     static async dequeue(): Promise<ClaimedJob | null> {
         const now = new Date();
-
-        // Find next eligible job
-        const candidates = await prisma.job.findMany({
-            where: {
-                status: { in: DEQUEUEABLE_JOB_STATUSES },
-                processAt: { lte: now },
-            },
+        const eligible = {
+            status: { in: DEQUEUEABLE_JOB_STATUSES },
+            processAt: { lte: now },
+        };
+        const findCandidates = (where: Prisma.JobWhereInput) => prisma.job.findMany({
+            where,
             orderBy: [
                 { priority: "desc" },
                 { processAt: "asc" },
             ],
             take: 5,
         });
+
+        // Teams already at their running cap wait while other teams have eligible jobs.
+        const running = await prisma.job.groupBy({
+            by: ["teamId"],
+            where: { status: JOB_STATUS.RUNNING, teamId: { not: null } },
+            _count: { _all: true },
+        });
+        const cappedTeamIds = running
+            .filter((group) => group._count._all >= MAX_RUNNING_JOBS_PER_TEAM)
+            .map((group) => group.teamId as string);
+
+        let candidates = cappedTeamIds.length > 0
+            ? await findCandidates({ ...eligible, OR: [{ teamId: null }, { teamId: { notIn: cappedTeamIds } }] })
+            : await findCandidates(eligible);
+        // Nobody else is waiting: let the capped teams use the free slots rather than leave them idle.
+        if (candidates.length === 0 && cappedTeamIds.length > 0) {
+            candidates = await findCandidates(eligible);
+        }
 
         for (const candidate of candidates) {
             try {

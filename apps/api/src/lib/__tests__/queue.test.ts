@@ -1,8 +1,9 @@
-import { vi, Mock, beforeEach, describe, it, expect } from "vitest";
+import { vi, Mock, afterEach, beforeEach, describe, it, expect } from "vitest";
 import {
     JOB_STATUS,
     JobClaimLostError,
     JobQueue,
+    MAX_RUNNING_JOBS_PER_TEAM,
     STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES,
     STALE_JOB_RECOVERY_PAGE_SIZE,
 } from "../queue";
@@ -13,6 +14,7 @@ vi.mock("@/lib/db", () => ({
     prisma: {
         job: {
             findMany: vi.fn(),
+            groupBy: vi.fn(),
             updateMany: vi.fn(),
             findFirst: vi.fn(),
             findUnique: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("@/lib/notifications", () => ({
 describe("JobQueue.dequeue", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        (prisma.job.groupBy as Mock).mockResolvedValue([]);
     });
 
     it("skips a candidate that loses the claim race and returns the next eligible job", async () => {
@@ -113,6 +116,82 @@ describe("JobQueue.dequeue", () => {
         }));
         expect(JOB_STATUS.PENDING).toBe("pending");
         expect((prisma.job.findMany as Mock).mock.calls[0][0].where.status.in).not.toContain("PENDING");
+    });
+});
+
+describe("JobQueue.dequeue - fairness between teams", () => {
+    const claimAs = (id: string) => {
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce({ id, status: "running", version: 1 });
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    // Drop any queued values a test left unused, so they can't leak into later describe blocks.
+    afterEach(() => {
+        (prisma.job.findMany as Mock).mockReset();
+        (prisma.job.updateMany as Mock).mockReset();
+        (prisma.job.findFirst as Mock).mockReset();
+        (prisma.job.groupBy as Mock).mockReset().mockResolvedValue([]);
+    });
+
+    it("counts running jobs per team, ignoring jobs without a team", async () => {
+        (prisma.job.groupBy as Mock).mockResolvedValue([]);
+        (prisma.job.findMany as Mock).mockResolvedValue([]);
+
+        await JobQueue.dequeue();
+
+        expect(prisma.job.groupBy).toHaveBeenCalledWith(expect.objectContaining({
+            by: ["teamId"],
+            where: { status: "running", teamId: { not: null } },
+        }));
+    });
+
+    it("skips a team already at its running cap while another team has work waiting", async () => {
+        (prisma.job.groupBy as Mock).mockResolvedValue([
+            { teamId: "team-a", _count: { _all: MAX_RUNNING_JOBS_PER_TEAM } },
+            { teamId: "team-c", _count: { _all: MAX_RUNNING_JOBS_PER_TEAM - 1 } },
+        ]);
+        (prisma.job.findMany as Mock).mockResolvedValueOnce([{ id: "job-b", version: 0 }]);
+        claimAs("job-b");
+
+        const job = await JobQueue.dequeue();
+
+        expect(job?.id).toBe("job-b");
+        expect(prisma.job.findMany).toHaveBeenCalledTimes(1);
+        expect((prisma.job.findMany as Mock).mock.calls[0][0].where).toEqual(expect.objectContaining({
+            OR: [{ teamId: null }, { teamId: { notIn: ["team-a"] } }],
+        }));
+    });
+
+    it("does not filter by team when no team is at its cap", async () => {
+        (prisma.job.groupBy as Mock).mockResolvedValue([
+            { teamId: "team-a", _count: { _all: MAX_RUNNING_JOBS_PER_TEAM - 1 } },
+        ]);
+        (prisma.job.findMany as Mock).mockResolvedValueOnce([{ id: "job-a", version: 0 }]);
+        claimAs("job-a");
+
+        await JobQueue.dequeue();
+
+        expect((prisma.job.findMany as Mock).mock.calls[0][0].where).not.toHaveProperty("OR");
+    });
+
+    it("lets a capped team use free slots when no other team has work waiting", async () => {
+        (prisma.job.groupBy as Mock).mockResolvedValue([
+            { teamId: "team-a", _count: { _all: MAX_RUNNING_JOBS_PER_TEAM } },
+        ]);
+        (prisma.job.findMany as Mock)
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([{ id: "job-a3", version: 0 }]);
+        claimAs("job-a3");
+
+        const job = await JobQueue.dequeue();
+
+        expect(job?.id).toBe("job-a3");
+        expect(prisma.job.findMany).toHaveBeenCalledTimes(2);
+        expect((prisma.job.findMany as Mock).mock.calls[1][0].where).not.toHaveProperty("OR");
     });
 });
 
