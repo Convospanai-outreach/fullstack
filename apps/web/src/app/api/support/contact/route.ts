@@ -37,11 +37,12 @@ async function sendGa4MeasurementProtocolEvent(params: {
 }) {
     const measurementId = process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] || process.env["GA_MEASUREMENT_ID"];
     const apiSecret = process.env["GA_API_SECRET"];
-    if (!measurementId || !apiSecret) return;
+    // Only the browser can supply a client id, and it exists only after analytics consent.
+    if (!measurementId || !apiSecret || !params.clientId) return;
 
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
     const body = {
-        client_id: params.clientId || `server.${randomUUID()}`,
+        client_id: params.clientId,
         events: [
             {
                 name: "generate_lead",

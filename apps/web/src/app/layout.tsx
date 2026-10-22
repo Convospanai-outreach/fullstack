@@ -79,6 +79,7 @@ export const metadata = {
 
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
@@ -122,26 +123,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <link rel="api-catalog" type="application/linkset+json" href="/.well-known/api-catalog" />
           <link rel="service-desc" type="application/json" href="/api/openapi.json" />
           <link rel="service-doc" type="text/html" href="/docs/api" />
-          {/* Google Analytics 4 Script with data-cfasync="false" to prevent Cloudflare Rocket Loader deferral */}
-          <script
-            async
-            src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-            data-cfasync="false"
-          />
-          <script
-            id="google-analytics-init"
-            data-cfasync="false"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaMeasurementId}', {
-                  send_page_view: true
-                });
-              `,
-            }}
-          />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
@@ -240,7 +221,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               posthog.init(${JSON.stringify(posthogKey)}, {
                 api_host: ${JSON.stringify(posthogHost)},
                 defaults: "2026-05-30",
-                person_profiles: "identified_only"
+                person_profiles: "identified_only",
+                opt_out_capturing_by_default: true
               });
             `}
             </Script>
@@ -248,6 +230,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </head>
         <body className="min-h-screen flex flex-col font-sans antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary">
           <GoogleAnalytics />
+          <ConsentBanner measurementId={gaMeasurementId} />
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:shadow-xl focus:outline-none transition-all"
