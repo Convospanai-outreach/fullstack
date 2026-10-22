@@ -300,7 +300,7 @@ async function appProxy(req: NextRequest) {
 
     // 1. CORS for API routes
     // Extension routes handle their own CORS/OPTIONS (chrome-extension:// origins) in their route handler.
-    if (path.startsWith("/api") && !extensionApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+    if (path.startsWith("/api") && !extensionApiPrefixes.some((prefix) => underPrefix(path, prefix))) {
         const origin = req.headers.get("origin");
         const allowedOrigins = process.env['ALLOWED_ORIGINS']?.split(",") || ["http://localhost:3000"];
 
@@ -370,7 +370,7 @@ async function appProxy(req: NextRequest) {
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
         path.startsWith("/p/") ||
-        authApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        authApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         cleanPath.startsWith("/_next") ||
         cleanPath.startsWith("/static") ||
         cleanPath.startsWith("/images") ||
