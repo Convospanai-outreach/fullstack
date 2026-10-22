@@ -63,6 +63,14 @@ const ALLOWLIST = new Map([
         "dev tooling, never invoked by the running api/web server processes. See " +
         "OPEN_ITEMS.md OPEN-125.",
     ],
+    [
+        "GHSA-mchm-gjx6-7h55",
+        "@sentry/nextjs (<10.75.2): middleware bypass on the Sentry tunnel route. " +
+        "Only applies when `tunnelRoute` is configured; apps/web/next.config.mjs " +
+        "calls withSentryConfig with org/project/silent only, so no tunnel route " +
+        "exists. Fixed by upgrading the Sentry packages (pinned at 10.69.0 in " +
+        "both apps) together, as a separate change.",
+    ],
 ]);
 
 function runAudit() {
