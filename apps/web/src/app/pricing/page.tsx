@@ -73,7 +73,7 @@ const PRESENTATION: Record<PricingTier["name"], PlanPresentation> = {
 
 const plans: Plan[] = PRICING_TIERS.map((tier) => ({
     ...tier,
-    monthlyPrice: tier.inrMonthly,
+    monthlyPrice: tier.usdMonthly,
     ...PRESENTATION[tier.name],
 }));
 
@@ -263,12 +263,12 @@ export default function PricingPage() {
                         // annual column stays on the static marketing estimate either way.
                         // Only trust the live price when the currency is actually available
                         // (INR today; USD only once Plan.stripePrices is seeded). Otherwise
-                        // fall back to the canonical INR figure - never a fabricated "$49".
+                        // fall back to the USD list price.
                         const liveAmount = !isAnnual && live?.available === true && live.amount != null ? live.amount : null;
                         const price = isAnnual
                             ? plan.annualPrice
                             : liveAmount != null ? Math.round(liveAmount / 100) : plan.monthlyPrice;
-                        const currencySymbol = liveAmount != null ? (CURRENCY_SYMBOL[live!.currency] || live!.currency + " ") : "₹";
+                        const currencySymbol = liveAmount != null ? (CURRENCY_SYMBOL[live!.currency] || live!.currency + " ") : "$";
                         const isEnterprise = plan.name === "Enterprise";
                         let ctaText = isEnterprise ? "Talk to Sales" : "Start Pilot";
                         

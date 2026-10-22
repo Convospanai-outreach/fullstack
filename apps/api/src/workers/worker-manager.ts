@@ -58,6 +58,8 @@ export class WorkerManager {
     private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastRetentionTick: number = 0;
     private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastInrPriceTick: number = 0;
+    private inrPriceInterval: number = 24 * 60 * 60 * 1000; // daily, matching the published USD/INR rate
     private lastDigestHourSlot: number | null = null;
     private startedAt: Date = new Date();
     private lastHeartbeatTick: number = 0;
@@ -381,6 +383,17 @@ export class WorkerManager {
         // Log-table retention (roadmap 3.2 / I-08). Dry run unless
         // RETENTION_ENABLED=true. Kept last, and the sweep never throws, so a
         // failing table can't starve the ticks above or retry every loop.
+        // Indian plan prices follow the day's USD/INR rate (inrPricing.ts). Also runs on worker start,
+        // so a deploy applies a price change at once. A failed rate fetch keeps the current prices.
+        if (now - this.lastInrPriceTick >= this.inrPriceInterval) {
+            this.lastInrPriceTick = now;
+            await this.runSweep("InrPrices", async () => {
+                const { refreshInrPlanPrices } = await import("@/modules/billing/service/inrPricing");
+                const { rate, prices } = await refreshInrPlanPrices();
+                console.log(`[Worker] INR plan prices set at USD/INR ${rate}: ${JSON.stringify(prices)}`);
+            });
+        }
+
         if (now - this.lastRetentionTick >= this.retentionInterval) {
             this.lastRetentionTick = now;
             await this.runSweep("Retention", async () => {
