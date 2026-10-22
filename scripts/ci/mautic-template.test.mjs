@@ -100,6 +100,25 @@ test("state survives stack deletion and replacement, and no secret is a paramete
   }
 });
 
+// PHP2Shell stopgap: session upload progress off in every Mautic container (web, cron, worker
+// share the x-mautic anchor). Remove with the ini once the image's PHP is confirmed patched.
+test("every Mautic container mounts the ini that disables session upload progress", () => {
+  const template = loadTemplate();
+  assert.match(initFile(template, "/opt/mautic/php-php2shell.ini"), /^session\.upload_progress\.enabled = 0$/m);
+  const compose = yaml.load(initFile(template, "/opt/mautic/compose.yaml"));
+  for (const name of ["mautic_web", "mautic_cron", "mautic_worker"]) {
+    assert.ok(
+      compose.services[name].volumes.includes("/opt/mautic/php-php2shell.ini:/usr/local/etc/php/conf.d/zz-php2shell.ini:ro"),
+      `${name} mounts the PHP2Shell ini`,
+    );
+  }
+});
+
+// CloudFormation rejects a template body over 51,200 bytes unless it is uploaded to S3 first.
+test("the template stays under CloudFormation's inline body limit", () => {
+  assert.ok(fs.statSync(templatePath).size < 51200, `mautic.yaml is ${fs.statSync(templatePath).size} bytes`);
+});
+
 test("the embedded shell scripts parse", { skip: process.platform === "win32" && "bash -n runs in CI (Linux)" }, () => {
   const template = loadTemplate();
   for (const file of ["/opt/mautic/host-setup.sh", "/opt/mautic/bootstrap.sh"]) {

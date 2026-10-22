@@ -461,6 +461,13 @@ Resources:
                 if [ "$CERT_CHANGED" = 1 ]; then
                   docker compose "${PROFILE[@]}" restart caddy
                 fi
+            /opt/mautic/php-php2shell.ini:
+              mode: "000644"
+              owner: root
+              group: root
+              content: |
+                ; PHP2Shell stopgap until the image ships PHP >= 8.3.36. Remove once patched.
+                session.upload_progress.enabled = 0
             /opt/mautic/compose.yaml:
               mode: "000644"
               owner: root
@@ -470,9 +477,10 @@ Resources:
                 name: mautic
 
                 x-mautic: &mautic
-                  image: mautic/mautic:7.2.1-apache
+                  image: mautic/mautic:7.2.1-20261021-apache
                   restart: unless-stopped
                   volumes:
+                    - /opt/mautic/php-php2shell.ini:/usr/local/etc/php/conf.d/zz-php2shell.ini:ro
                     - /srv/mautic/config:/var/www/html/config
                     - /srv/mautic/logs:/var/www/html/var/logs
                     - /srv/mautic/media/files:/var/www/html/docroot/media/files
