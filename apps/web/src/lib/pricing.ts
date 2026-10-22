@@ -1,11 +1,11 @@
 // Single source of truth for the three paid marketing tiers, so the /pricing
 // page copy, its JSON-LD structured data, and the plan taxonomy can't drift into
-// the three-conflicting-price-lists state F-02 flagged. Prices are in INR (the
-// currency /billing/plans returns by default and the only currency currently
-// seeded on Plan rows); the live per-visitor price still comes from the
-// /billing/plans fetch at runtime, and real USD will flow through once
-// Plan.stripePrices is populated. `dbName` matches the Plan.name rows and the
-// checkout PLAN_ALIASES table (apps/api/routes/billing/checkout/route.ts).
+// the three-conflicting-price-lists state F-02 flagged. Prices are USD list
+// prices (PLAN_USD_MONTHLY_CENTS in apps/api/src/modules/billing/service/inrPricing.ts
+// must match). Indian visitors see the live INR price from /billing/plans,
+// which the worker re-derives daily from the USD rate. `dbName` matches the
+// Plan.name rows and the checkout PLAN_ALIASES table
+// (apps/api/routes/billing/checkout/route.ts).
 
 export type PricingTier = {
     /** Internal marketing key used by the pricing page's checkout handler. */
@@ -15,8 +15,8 @@ export type PricingTier = {
     /** Customer-facing tier name (shown on the page and in JSON-LD). */
     displayName: string;
     description: string;
-    /** Monthly price in whole INR rupees. */
-    inrMonthly: number;
+    /** Monthly list price in whole US dollars. */
+    usdMonthly: number;
     credits: number;
 };
 
@@ -26,7 +26,7 @@ export const PRICING_TIERS: PricingTier[] = [
         dbName: "PRO",
         displayName: "Pilot",
         description: "30-day growth pilot package for one ICP, one geography, and one offer",
-        inrMonthly: 49,
+        usdMonthly: 49,
         credits: 500,
     },
     {
@@ -34,7 +34,7 @@ export const PRICING_TIERS: PricingTier[] = [
         dbName: "GROWTH",
         displayName: "Growth Autopilot",
         description: "Monthly managed campaign operations for repeatable pipeline tracking",
-        inrMonthly: 99,
+        usdMonthly: 99,
         credits: 2500,
     },
     {
@@ -42,7 +42,7 @@ export const PRICING_TIERS: PricingTier[] = [
         dbName: "ENTERPRISE",
         displayName: "Enterprise / Partner",
         description: "Custom vertical playbooks, governance, and private-data execution options",
-        inrMonthly: 499,
+        usdMonthly: 499,
         credits: 15000,
     },
 ];
@@ -54,8 +54,8 @@ const PRICING_URL = "https://craftmyfunnel.live/pricing";
  * one currency. Pure and deterministic so it can be unit-tested and statically
  * rendered (no DB / request access), which keeps /pricing a static route.
  */
-export function buildPricingSchema(tiers: PricingTier[], currency = "INR") {
-    const prices = tiers.map((t) => t.inrMonthly);
+export function buildPricingSchema(tiers: PricingTier[], currency = "USD") {
+    const prices = tiers.map((t) => t.usdMonthly);
     // Math.min/max of an empty array are ±Infinity, which would emit invalid
     // structured data; clamp to 0 for the (today impossible) empty-tier case.
     const lowPrice = prices.length ? Math.min(...prices) : 0;
@@ -84,7 +84,7 @@ export function buildPricingSchema(tiers: PricingTier[], currency = "INR") {
                     "offers": tiers.map((t) => ({
                         "@type": "Offer",
                         "name": t.displayName,
-                        "price": String(t.inrMonthly),
+                        "price": String(t.usdMonthly),
                         "priceCurrency": currency,
                         "description": t.description,
                         "availability": "https://schema.org/InStock",

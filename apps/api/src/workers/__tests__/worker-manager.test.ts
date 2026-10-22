@@ -3,6 +3,7 @@ import { JobQueue } from "@/lib/queue";
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { worker } from "../job-processor";
 import { runRetentionSweep } from "../handlers/retentionSweep";
+import { refreshInrPlanPrices } from "@/modules/billing/service/inrPricing";
 import { recordHeartbeat } from "@/lib/serviceHeartbeat";
 import { WorkerManager } from "../worker-manager";
 
@@ -89,6 +90,10 @@ vi.mock("@/modules/branding/customDomainPoller", () => ({
 
 vi.mock("../handlers/shadowSignalReconciliationWorker", () => ({
     reconcileOrphanedShadowSignals: vi.fn().mockResolvedValue({ scanned: 0, matched: 0 }),
+}));
+
+vi.mock("@/modules/billing/service/inrPricing", () => ({
+    refreshInrPlanPrices: vi.fn().mockResolvedValue({ rate: 94.47, prices: {} }),
 }));
 
 vi.mock("../handlers/retentionSweep", () => ({
@@ -197,6 +202,15 @@ describe("WorkerManager maintenance tick", () => {
 
         expect(recordHeartbeat).toHaveBeenCalledTimes(1);
         expect(recordHeartbeat).toHaveBeenCalledWith("worker", expect.any(Date), { uptimeSec: 1, rssMb: 100, heapUsedMb: 50, activeJobs: 0 });
+    });
+
+    it("re-prices plans in INR on the first pass and then daily, not on every pass", async () => {
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(refreshInrPlanPrices).toHaveBeenCalledTimes(1);
     });
 
     it("does not re-run sequence processing before its interval elapses", async () => {
