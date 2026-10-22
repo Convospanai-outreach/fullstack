@@ -34,6 +34,11 @@ export function createSmtpTransport(config: SmtpConfig): Transporter {
             user: config.user,
             pass: config.password,
         },
+        // Without these, a stuck SMTP server hangs the send (roadmap B-07, same as apps/api):
+        // bound TCP connect, the SMTP greeting, and socket inactivity.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
     });
 }
 
