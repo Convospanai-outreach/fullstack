@@ -150,8 +150,10 @@ def require_edge_api_key(
     x_api_key: Optional[str] = Header(None),
     authorization: Optional[str] = Header(None),
 ):
+    # Fail closed whatever EDGE_MODE is: the workflow, activity and compliance routes
+    # don't check EDGE_MODE themselves. Only an explicit EDGE_REQUIRE_API_KEY=false opens them.
     if not EDGE_API_KEY:
-        if EDGE_REQUIRE_API_KEY and EDGE_MODE:
+        if EDGE_REQUIRE_API_KEY:
             raise HTTPException(status_code=503, detail="EDGE_API_KEY is not configured")
         return
 
