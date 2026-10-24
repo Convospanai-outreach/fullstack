@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { PipelineService } from "@/modules/analytics/service/PipelineService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
         const tasks = await PipelineService.getTasks(ctx.teamId, leadId || undefined);
         return NextResponse.json({ success: true, data: tasks });
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }
 
@@ -32,6 +33,6 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ success: true, data: task });
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

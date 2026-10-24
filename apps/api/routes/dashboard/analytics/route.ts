@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { analyticsService } from "@/modules/analytics/service/analyticsService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     const ctx = await getCurrentContext();
@@ -22,6 +23,6 @@ export async function GET() {
             }
         });
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

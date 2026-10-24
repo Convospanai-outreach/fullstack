@@ -12,6 +12,7 @@ import { leadScoringService } from "@/modules/scoring";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@prisma/client";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // updateWeights mutates a process-wide singleton (LeadScoringService's `this.config`
 // is per-process, not per-team) - any authenticated user able to reach this endpoint
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json(
-            { error: error.message || "Failed to calculate score" },
+            { error: internalErrorMessage(error, "Failed to calculate score") },
             { status: 500 }
         );
     }
@@ -135,7 +136,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         logger.error("[API] Get Score Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to get score" },
+            { error: internalErrorMessage(error, "Failed to get score") },
             { status: 500 }
         );
     }

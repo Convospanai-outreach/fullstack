@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { evaluationService } from "@/modules/ml-training/evaluation/EvaluationService";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(
     req: NextRequest,
@@ -47,6 +48,6 @@ export async function GET(
 
     } catch (error: any) {
         console.error("[ML-Training] Metrics fetch failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

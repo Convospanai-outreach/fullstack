@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("Setup save error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 

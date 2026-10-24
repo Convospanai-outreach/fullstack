@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { onboardingService } from "../service/onboardingService";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     try {
@@ -17,7 +18,7 @@ export async function GET() {
         return NextResponse.json({ ok: true, progress });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

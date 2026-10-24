@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { analyticsService } from "@/modules/analytics/service/analyticsService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     try {
@@ -17,6 +18,6 @@ export async function GET(_req: NextRequest) {
         return NextResponse.json(stats);
     } catch (error: any) {
         console.error("Error fetching funnel stats:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -13,6 +14,6 @@ export async function GET(_req: NextRequest) {
         const status = await billingService.getSubscriptionStatus(teamId);
         return NextResponse.json(status);
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

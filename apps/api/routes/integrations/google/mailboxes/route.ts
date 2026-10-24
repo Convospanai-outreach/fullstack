@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { listConnectedMailboxes, updateMailboxControls } from "@/modules/email-campaigner/service/googleMailboxService";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const UpdateMailboxSchema = z.object({
     mailboxId: z.string().min(1),
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
         const mailboxes = await listConnectedMailboxes(ctx.teamId);
         return NextResponse.json({ mailboxes });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to load mailboxes." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to load mailboxes.") }, { status: 500 });
     }
 }
 
@@ -52,6 +53,6 @@ export async function PATCH(req: NextRequest) {
         const mailbox = await updateMailboxControls(ctx.teamId, mailboxId, data);
         return NextResponse.json({ mailbox });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to update mailbox." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to update mailbox.") }, { status: 500 });
     }
 }

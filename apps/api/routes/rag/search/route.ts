@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         console.error("[RAG API] Error:", error);
         return NextResponse.json(
-            { error: "RAG retrieval failed", details: error.message },
+            { error: "RAG retrieval failed" },
             { status: 500 }
         );
     }
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error("[RAG API] Error:", error);
         return NextResponse.json(
-            { error: "RAG retrieval failed", details: error.message },
+            { error: "RAG retrieval failed" },
             { status: 500 }
         );
     }

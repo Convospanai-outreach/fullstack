@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentContext } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { enforcePolicy } from '@/lib/governance/guard';
+import { internalErrorMessage } from "@/lib/internalError";
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -85,6 +86,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('[PDF Upload] Error:', error);
-        return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Upload failed") }, { status: 500 });
     }
 }

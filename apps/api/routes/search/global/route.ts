@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { SearchService } from "@/modules/search/service/SearchService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -19,6 +20,6 @@ export async function GET(req: NextRequest) {
         const results = await SearchService.globalSearch(ctx.teamId, query);
         return NextResponse.json({ success: true, data: results });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
