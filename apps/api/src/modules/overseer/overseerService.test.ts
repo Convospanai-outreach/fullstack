@@ -177,7 +177,7 @@ describe("runOverseerTick", () => {
 
         it("passes the latest reply's classification, preferring a rep's correction", async () => {
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
-                phone: null, whatsappConsent: false, repliedAt: replyAt(2),
+                phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(2) }],
                 replies: [{ receivedAt: replyAt(2), aiClassification: "INTERESTED", humanCorrection: "NOT_INTERESTED" }]
             })]);
 
@@ -188,7 +188,7 @@ describe("runOverseerTick", () => {
 
         it("ignores a reply from before the enrollment started", async () => {
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
-                phone: null, whatsappConsent: false, repliedAt: replyAt(30),
+                phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(30) }],
                 replies: [{ receivedAt: replyAt(30), aiClassification: "DNC", humanCorrection: null }]
             })]);
 
@@ -198,7 +198,7 @@ describe("runOverseerTick", () => {
         });
 
         it("marks a reply with no classification yet as replied", async () => {
-            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, repliedAt: replyAt(1), replies: [] })]);
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(1) }], replies: [] })]);
 
             await runOverseerTick();
 

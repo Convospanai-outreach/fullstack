@@ -59,7 +59,12 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
                 select: {
                     phone: true,
                     whatsappConsent: true,
-                    repliedAt: true,
+                    messages: {
+                        where: { direction: "INBOUND" },
+                        orderBy: { createdAt: "desc" },
+                        take: 1,
+                        select: { createdAt: true }
+                    },
                     replies: {
                         orderBy: { receivedAt: "desc" },
                         take: 1,
@@ -93,13 +98,14 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
         // Only a reply since this enrollment started says anything about it.
         const latestReply = enrollment.lead?.replies?.[0];
         const replyInEnrollment = latestReply && latestReply.receivedAt >= enrollment.startedAt ? latestReply : null;
+        const lastInbound = enrollment.lead?.messages?.[0]?.createdAt;
         return {
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,
             stage: totalSteps > 0 ? `step ${enrollment.currentStepOrder + 1} of ${totalSteps}` : `step ${enrollment.currentStepOrder + 1}`,
             stallDays,
             whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true,
-            replied: !!replyInEnrollment || (!!enrollment.lead?.repliedAt && enrollment.lead.repliedAt >= enrollment.startedAt),
+            replied: !!replyInEnrollment || (!!lastInbound && lastInbound >= enrollment.startedAt),
             replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null
         };
     });
