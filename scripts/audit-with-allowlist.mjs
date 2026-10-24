@@ -63,6 +63,16 @@ const ALLOWLIST = new Map([
         "dev tooling, never invoked by the running api/web server processes. See " +
         "OPEN_ITEMS.md OPEN-125.",
     ],
+    [
+        "GHSA-mrhx-c7xc-m3w5",
+        "zod (<4.6.6): memory exhaustion validating oversized constrained " +
+        "collections. The app's own zod is 4.6.7. The remaining copy is " +
+        "zod 3.25.76 pinned by chromium-bidi@17 (via puppeteer), and zod 3 has " +
+        "no patched release. chromium-bidi is puppeteer's WebDriver BiDi " +
+        "mapper; apps/api launches Chrome over CDP (puppeteer's default, no " +
+        "`protocol: \"webDriverBiDi\"` anywhere), so that code never runs. " +
+        "Drop this entry once puppeteer ships a chromium-bidi on zod >=4.6.6.",
+    ],
 ]);
 
 function runAudit() {

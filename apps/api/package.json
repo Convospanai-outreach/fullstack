@@ -48,7 +48,7 @@
         "mailparser": "^3.9.28",
         "next": "^16.4.1",
         "next-auth": "^4.24.14",
-        "nodemailer": "^10.0.2",
+        "nodemailer": "~10.1.5",
         "openai": "^6.16.0",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",
@@ -68,7 +68,7 @@
         "tsx": "^4.22.4",
         "uuid": "^14.0.0",
         "winston": "^3.19.0",
-        "zod": "^4.3.6"
+        "zod": "^4.6.6"
     },
     "overrides": {
         "form-data": "^4.0.6",
@@ -77,7 +77,7 @@
         "fastify": "^5.12.6",
         "fast-uri": "4.1.5",
         "js-yaml": "4.3.2",
-        "nodemailer": "^10.0.2",
+        "nodemailer": "~10.1.5",
         "sharp": "0.35.5",
         "@hono/node-server": "^2.0.5",
         "hono": "^4.12.27"
