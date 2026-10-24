@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { judgeStalledEnrollments, StallCandidate } from "./deepseekClient";
+import { judgeStalledEnrollments, StallCandidate } from "./stallJudgment";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
@@ -55,7 +55,18 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             lastRunAt: true,
             startedAt: true,
             sequence: { select: { name: true, _count: { select: { steps: true } } } },
-            lead: { select: { phone: true, whatsappConsent: true } }
+            lead: {
+                select: {
+                    phone: true,
+                    whatsappConsent: true,
+                    repliedAt: true,
+                    replies: {
+                        orderBy: { receivedAt: "desc" },
+                        take: 1,
+                        select: { receivedAt: true, aiClassification: true, humanCorrection: true }
+                    }
+                }
+            }
         }
     });
 
@@ -79,16 +90,21 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
         const anchor = enrollment.lastRunAt || enrollment.startedAt;
         const stallDays = (now - anchor.getTime()) / MS_PER_DAY;
         const totalSteps = enrollment.sequence._count.steps;
+        // Only a reply since this enrollment started says anything about it.
+        const latestReply = enrollment.lead?.replies?.[0];
+        const replyInEnrollment = latestReply && latestReply.receivedAt >= enrollment.startedAt ? latestReply : null;
         return {
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,
             stage: totalSteps > 0 ? `step ${enrollment.currentStepOrder + 1} of ${totalSteps}` : `step ${enrollment.currentStepOrder + 1}`,
             stallDays,
-            whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true
+            whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true,
+            replied: !!replyInEnrollment || (!!enrollment.lead?.repliedAt && enrollment.lead.repliedAt >= enrollment.startedAt),
+            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null
         };
     });
 
-    const judgments = await judgeStalledEnrollments(candidates);
+    const judgments = judgeStalledEnrollments(candidates);
     const byEnrollmentId = new Map(stalled.map((e) => [e.id, e]));
 
     let created = 0;

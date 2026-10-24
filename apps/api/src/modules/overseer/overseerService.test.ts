@@ -23,7 +23,7 @@ vi.mock("@/lib/db", () => ({
     prisma: mockPrisma,
 }));
 
-vi.mock("./deepseekClient", () => ({
+vi.mock("./stallJudgment", () => ({
     judgeStalledEnrollments: mockJudge,
 }));
 
@@ -81,7 +81,7 @@ describe("runOverseerTick", () => {
                 sequence: { name: "Cold Outreach", _count: { steps: 5 } }
             }
         ]);
-        mockJudge.mockResolvedValue([
+        mockJudge.mockReturnValue([
             { enrollmentId: "enr-1", nudgeType: "ROUTE_MANUAL", suggestion: "Stalled - route to manual." }
         ]);
         mockPrisma.overseerNudge.create.mockResolvedValue({});
@@ -121,7 +121,7 @@ describe("runOverseerTick", () => {
         }
 
         beforeEach(() => {
-            mockJudge.mockResolvedValue([{ enrollmentId: "enr-1", nudgeType: "TRY_WHATSAPP", suggestion: "Try WhatsApp." }]);
+            mockJudge.mockReturnValue([{ enrollmentId: "enr-1", nudgeType: "TRY_WHATSAPP", suggestion: "Try WhatsApp." }]);
             mockPrisma.overseerNudge.create.mockResolvedValue({});
         });
 
@@ -157,6 +157,52 @@ describe("runOverseerTick", () => {
             expect(mockPrisma.overseerNudge.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({ enrollmentId: "enr-1", nudgeType: "TRY_WHATSAPP" })
             });
+        });
+    });
+
+    describe("replies since the enrollment started", () => {
+        const startedAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+        const lastRunAt = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+        function stalledEnrollment(lead: any) {
+            return {
+                id: "enr-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", currentStepOrder: 1,
+                lastRunAt, startedAt, sequence: { name: "Cold Outreach", _count: { steps: 5 } }, lead
+            };
+        }
+        const replyAt = (daysAgo: number) => new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+
+        beforeEach(() => {
+            mockJudge.mockReturnValue([]);
+        });
+
+        it("passes the latest reply's classification, preferring a rep's correction", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false, repliedAt: replyAt(2),
+                replies: [{ receivedAt: replyAt(2), aiClassification: "INTERESTED", humanCorrection: "NOT_INTERESTED" }]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: true, replyClassification: "NOT_INTERESTED" })]);
+        });
+
+        it("ignores a reply from before the enrollment started", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false, repliedAt: replyAt(30),
+                replies: [{ receivedAt: replyAt(30), aiClassification: "DNC", humanCorrection: null }]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: false, replyClassification: null })]);
+        });
+
+        it("marks a reply with no classification yet as replied", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, repliedAt: replyAt(1), replies: [] })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: true, replyClassification: null })]);
         });
     });
 });
