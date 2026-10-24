@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { authorizePermission, Permission } from "@/lib/permissions";
 import { isBlockedSelfApproval } from "@/lib/governance/campaignStartApproval";
 import { handleEmailSending } from "@/workers/handlers/email-sending-worker";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -164,6 +165,8 @@ export async function POST(
         return NextResponse.json({ success: true, approval: updated, sendResult });
     } catch (error: any) {
         console.error("Failed to process approval:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: error?.statusCode || 500 });
+        // A statusCode below 500 marks an error thrown on purpose, with a message meant for the caller.
+        const status = error?.statusCode || 500;
+        return NextResponse.json({ error: status < 500 ? error.message : internalErrorMessage(error, "Internal Server Error") }, { status });
     }
 }

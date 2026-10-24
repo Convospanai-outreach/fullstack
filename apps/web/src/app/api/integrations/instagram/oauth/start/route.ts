@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildInstagramLoginAuthUrl } from "@/modules/instagram-login/service/instagramLoginService";
 import { resolveEnabledFeatureKeys } from "@/lib/hiddenFeaturesReadiness";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,6 @@ export async function GET(req: NextRequest) {
         const authUrl = buildInstagramLoginAuthUrl({ teamId, userId, ...(nextPath ? { nextPath } : {}) });
         return NextResponse.json({ authUrl });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to start Instagram sign-in." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to start Instagram sign-in.") }, { status: 500 });
     }
 }

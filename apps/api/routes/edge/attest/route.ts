@@ -3,6 +3,7 @@ import { FirmwareService } from "@/modules/security/FirmwareService";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
 import { hashEdgeSessionToken, verifyEdgeRequestSignature } from "@/lib/edgeRuntime";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const EDGE_SESSION_TTL_MS = 15 * 60 * 1000;
 
@@ -110,6 +111,6 @@ export async function POST(req: Request) {
         });
 
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

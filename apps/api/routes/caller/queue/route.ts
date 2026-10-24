@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { CallerService } from "@/modules/caller/CallerService";
 import { UserRole, ConversationState } from "@prisma/client";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Shared function to check caller or admin role (Enterprise RBAC)
 function isAllowed(role?: string) {
@@ -92,6 +93,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
         console.error("Caller action error:", error);
-        return NextResponse.json({ error: error.message || "Internal Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Error") }, { status: 500 });
     }
 }

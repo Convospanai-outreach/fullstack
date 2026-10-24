@@ -45,6 +45,7 @@ describe("GET /api/integrations/instagram/oauth/start", () => {
         });
         const res = await start();
         expect(res.status).toBe(500);
-        expect(await res.json()).toEqual({ error: "INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET must be configured." });
+        // The detail (which settings are missing) goes to the server log, not the response.
+        expect(await res.json()).toEqual({ error: "Unable to start Instagram sign-in." });
     });
 });

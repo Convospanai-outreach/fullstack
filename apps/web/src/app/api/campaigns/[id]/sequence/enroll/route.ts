@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { enrollCampaignLeads } from "@/lib/campaigns/enrollment";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
             ...(result.message ? { message: result.message } : {}),
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

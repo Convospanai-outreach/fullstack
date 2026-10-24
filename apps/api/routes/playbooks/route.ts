@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { playbookService } from "@/modules/playbooks/playbookService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -21,6 +22,6 @@ export async function POST(req: NextRequest) {
         const playbook = await playbookService.createPlaybook(ctx.teamId, body);
         return NextResponse.json(playbook);
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

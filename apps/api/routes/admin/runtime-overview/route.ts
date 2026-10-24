@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 import { getRedisClient, getRedisStatus } from "@/lib/redis";
+import { internalErrorMessage } from "@/lib/internalError";
 
 type ServiceStatus = "UP" | "DOWN" | "DEGRADED" | "NOT_CONFIGURED";
 
@@ -279,7 +280,7 @@ export async function GET(req: Request) {
         });
     } catch (error: any) {
         return NextResponse.json(
-            { error: error?.message || "Failed to load runtime overview" },
+            { error: internalErrorMessage(error, "Failed to load runtime overview") },
             { status: 500 }
         );
     }

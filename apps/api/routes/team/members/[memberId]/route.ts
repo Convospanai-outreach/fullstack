@@ -3,6 +3,7 @@ import { teamService } from "@/modules/team/service/teamService";
 import { TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { getCurrentContext } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const TEAM_ROLES = new Set<string>(Object.values(TeamRole));
 
@@ -53,7 +54,7 @@ export async function PATCH(
         if (error.message?.includes("Insufficient permissions")) {
             return NextResponse.json({ success: false, error: error.message }, { status: 403 });
         }
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -90,6 +91,6 @@ export async function DELETE(
         if (error.message?.includes("Insufficient permissions")) {
             return NextResponse.json({ success: false, error: error.message }, { status: 403 });
         }
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

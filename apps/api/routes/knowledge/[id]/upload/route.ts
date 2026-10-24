@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { knowledgeService } from "@/modules/knowledge/knowledgeService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(
     req: NextRequest,
@@ -24,7 +25,7 @@ export async function POST(
         return NextResponse.json({ success: true, data: item });
     } catch (error: any) {
         console.error("Upload error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -50,6 +51,6 @@ export async function GET(
         const results = await knowledgeService.search(id, query, 5, ctx.teamId);
         return NextResponse.json({ success: true, data: results });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

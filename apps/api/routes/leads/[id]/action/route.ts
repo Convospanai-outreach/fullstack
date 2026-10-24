@@ -3,6 +3,7 @@ import { JobQueue } from "@/lib/queue";
 import { prisma } from "@/lib/db";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import type { NextRequest } from "next/server";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -38,6 +39,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
