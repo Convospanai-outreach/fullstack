@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
-import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
+import { decryptCredential, encryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
+import { isInstagramLogin } from "./instagramLogin";
+import { IG_GRAPH_BASE_URL } from "./metaGraph";
 
 // Daily check of connected Meta (Facebook Page / Instagram) tokens. A token Meta reports as
 // invalid moves the account to NEEDS_RECONNECT; one that expires within a week warns the team's
@@ -30,7 +32,51 @@ const PLATFORM_LABEL: Record<string, string> = {
 };
 const LINKEDIN = ["LINKEDIN_MEMBER", "LINKEDIN_ORG"];
 
-type Verdict = { valid: boolean; expiresAt: Date | null; reason: string } | "unknown";
+type Verdict = { valid: boolean; expiresAt: Date | null; reason: string; newToken?: string } | "unknown";
+
+// Instagram Login accounts (no Facebook Page) hold an Instagram User token that debug_token can't
+// check. GET /me says whether it still works, and GET /refresh_access_token (token at least 24 hours
+// old, not expired, instagram_business_basic) swaps it for a fresh 60-day one, so unlike the Facebook
+// ones these never need a manual reconnect while they're used. Checked 2026-10-24:
+// https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login
+const IG_REFRESH_URL = "https://graph.instagram.com/refresh_access_token";
+const IG_REFRESH_WHEN_LEFT_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function checkInstagramLogin(token: string, expiresAt: Date | null, now: Date): Promise<Verdict> {
+    let res: Response;
+    try {
+        res = await fetch(`${IG_GRAPH_BASE_URL}/me?` + new URLSearchParams({ fields: "user_id" }), {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+    } catch {
+        return "unknown";
+    }
+    if (!res.ok) {
+        const json: any = await res.json().catch(() => null);
+        // Error code 190 is Meta's "token invalid or expired"; any other failure (rate limits, 5xx) isn't a verdict.
+        if (res.status === 401 || json?.error?.code === 190) {
+            return { valid: false, expiresAt, reason: String(json?.error?.message || "Instagram reports the connection is no longer valid.").slice(0, 300) };
+        }
+        return "unknown";
+    }
+
+    if (!expiresAt || expiresAt.getTime() - now.getTime() < IG_REFRESH_WHEN_LEFT_MS) {
+        try {
+            const refreshed = await fetch(`${IG_REFRESH_URL}?` + new URLSearchParams({ grant_type: "ig_refresh_token", access_token: token }), {
+                signal: AbortSignal.timeout(TIMEOUT_MS),
+            });
+            const json: any = await refreshed.json().catch(() => null);
+            const seconds = Number(json?.expires_in);
+            if (refreshed.ok && typeof json?.access_token === "string" && Number.isFinite(seconds) && seconds > 0) {
+                return { valid: true, expiresAt: new Date(now.getTime() + seconds * 1000), reason: "", newToken: json.access_token };
+            }
+        } catch {
+            // The token still works; try the refresh again tomorrow.
+        }
+    }
+    return { valid: true, expiresAt, reason: "" };
+}
 
 async function checkMeta(token: string, appId: string, appSecret: string): Promise<Verdict> {
     const res = await fetch(
@@ -76,18 +122,22 @@ export async function checkSocialTokens(now = new Date()) {
     const result = { checked: 0, needsReconnect: 0, warned: 0 };
     const appId = process.env["FACEBOOK_APP_ID"];
     const appSecret = process.env["FACEBOOK_APP_SECRET"];
-    // Meta accounts need the app credentials to be checked; LinkedIn accounts don't.
+    // Facebook-connected Meta accounts need the app credentials to be checked. LinkedIn accounts and
+    // Instagram Login accounts (no Page, parentExternalId null) don't, so they're always checked:
+    // the worker, where this runs, may not hold the Meta secrets.
     const platforms = appId && appSecret ? ["FACEBOOK_PAGE", "INSTAGRAM", ...LINKEDIN] : LINKEDIN;
 
     const accounts = await prisma.socialAccount.findMany({
         where: {
-            platform: { in: platforms as any },
             status: "CONNECTED",
-            OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date(now.getTime() - CHECK_EVERY_MS) } }],
+            AND: [
+                { OR: [{ platform: { in: platforms as any } }, { platform: "INSTAGRAM", parentExternalId: null }] },
+                { OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date(now.getTime() - CHECK_EVERY_MS) } }] },
+            ],
         },
         orderBy: { lastCheckedAt: { sort: "asc", nulls: "first" } },
         take: BATCH,
-        select: { id: true, teamId: true, platform: true, handle: true, encryptedToken: true, expiryWarnedAt: true, tokenExpiresAt: true },
+        select: { id: true, teamId: true, platform: true, parentExternalId: true, handle: true, encryptedToken: true, expiryWarnedAt: true, tokenExpiresAt: true },
     });
 
     for (const account of accounts) {
@@ -99,13 +149,15 @@ export async function checkSocialTokens(now = new Date()) {
                 ? { valid: false, expiresAt: null, reason: "The saved token can't be read." }
                 : LINKEDIN.includes(account.platform)
                   ? await checkLinkedIn(account.platform, token, account.tokenExpiresAt, now)
-                  : await checkMeta(token, appId as string, appSecret as string);
+                  : isInstagramLogin(account)
+                    ? await checkInstagramLogin(token, account.tokenExpiresAt, now)
+                    : await checkMeta(token, appId as string, appSecret as string);
             if (verdict === "unknown") {
                 // Couldn't ask the platform; leave the status alone and try again tomorrow.
                 await prisma.socialAccount.update({ where: { id: account.id }, data: { lastCheckedAt: now } });
                 continue;
             }
-            const { valid, expiresAt, reason } = verdict;
+            const { valid, expiresAt, reason, newToken } = verdict;
 
             if (!valid) {
                 await prisma.socialAccount.update({
@@ -120,7 +172,14 @@ export async function checkSocialTokens(now = new Date()) {
             const warn = expiresAt !== null && expiresAt.getTime() - now.getTime() < WARN_BEFORE_MS && !account.expiryWarnedAt;
             await prisma.socialAccount.update({
                 where: { id: account.id },
-                data: { tokenExpiresAt: expiresAt, lastCheckedAt: now, lastError: null, ...(warn ? { expiryWarnedAt: now } : {}) },
+                data: {
+                    tokenExpiresAt: expiresAt,
+                    lastCheckedAt: now,
+                    lastError: null,
+                    // A refreshed Instagram Login token replaces the old one, and a fresh expiry re-arms the warning.
+                    ...(newToken ? { encryptedToken: (await encryptCredential(newToken)) as any, expiryWarnedAt: null } : {}),
+                    ...(warn ? { expiryWarnedAt: now } : {}),
+                },
             });
             if (warn) {
                 result.warned++;

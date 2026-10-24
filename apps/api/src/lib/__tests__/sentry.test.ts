@@ -134,8 +134,8 @@ describe("structural guard: every OpenAI/Anthropic client is Sentry-wrapped", ()
                 if (!before.endsWith(`${wrapper}(`)) unwrapped.push(site);
             }
         }
-        // 4 OpenAI + 3 Anthropic today; guards against a bad glob silently matching nothing.
-        expect(sites.length).toBeGreaterThanOrEqual(7);
+        // 3 OpenAI + 3 Anthropic today; guards against a bad glob silently matching nothing.
+        expect(sites.length).toBeGreaterThanOrEqual(6);
         expect(unwrapped).toEqual([]);
     });
 });

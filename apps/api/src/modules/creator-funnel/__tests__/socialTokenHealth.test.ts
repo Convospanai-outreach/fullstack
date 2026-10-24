@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send } }));
 vi.mock("@/lib/security/credentialVault", () => ({
     decryptCredential: vi.fn(async (secret: any) => (secret?.cipher === "bad" ? Promise.reject(new Error("bad tag")) : "page-token")),
+    encryptCredential: vi.fn(async (value: string) => ({ v: 1, cipher: `enc:${value}`, iv: "i", tag: "t" })),
 }));
 
 import { checkSocialTokens } from "../socialTokenHealth";
@@ -44,11 +45,26 @@ describe("checkSocialTokens", () => {
         vi.unstubAllGlobals();
     });
 
-    it("checks only LinkedIn accounts without the Meta app credentials", async () => {
+    it("checks only LinkedIn and Instagram Login accounts without the Meta app credentials", async () => {
         delete process.env["FACEBOOK_APP_SECRET"];
         mockDb.socialAccount.findMany.mockResolvedValue([]);
         expect(await checkSocialTokens(now)).toEqual({ checked: 0, needsReconnect: 0, warned: 0 });
-        expect(mockDb.socialAccount.findMany.mock.calls[0][0].where.platform).toEqual({ in: ["LINKEDIN_MEMBER", "LINKEDIN_ORG"] });
+        expect(mockDb.socialAccount.findMany.mock.calls[0][0].where.AND[0]).toEqual({
+            OR: [{ platform: { in: ["LINKEDIN_MEMBER", "LINKEDIN_ORG"] } }, { platform: "INSTAGRAM", parentExternalId: null }],
+        });
+    });
+
+    it("still checks and refreshes an Instagram Login account where the Meta app secret isn't set (the worker)", async () => {
+        delete process.env["FACEBOOK_APP_ID"];
+        delete process.env["FACEBOOK_APP_SECRET"];
+        mockDb.socialAccount.findMany.mockResolvedValue([account({ parentExternalId: null, tokenExpiresAt: new Date("2026-10-10T00:00:00Z") })]);
+        fetchMock
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ user_id: "ig-1" }) })
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ access_token: "fresh-token", expires_in: 5183944 }) });
+
+        expect(await checkSocialTokens(now)).toMatchObject({ checked: 1, needsReconnect: 0 });
+        expect(fetchMock.mock.calls[0][0]).toContain("graph.instagram.com");
+        expect(mockDb.socialAccount.update.mock.calls[0][0].data.encryptedToken).toEqual({ v: 1, cipher: "enc:fresh-token", iv: "i", tag: "t" });
     });
 
     it("checks connected Meta accounts not checked in the last day, with an app token", async () => {
@@ -58,9 +74,11 @@ describe("checkSocialTokens", () => {
 
         expect(mockDb.socialAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: {
-                platform: { in: ["FACEBOOK_PAGE", "INSTAGRAM", "LINKEDIN_MEMBER", "LINKEDIN_ORG"] },
                 status: "CONNECTED",
-                OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date("2026-09-29T06:00:00Z") } }],
+                AND: [
+                    { OR: [{ platform: { in: ["FACEBOOK_PAGE", "INSTAGRAM", "LINKEDIN_MEMBER", "LINKEDIN_ORG"] } }, { platform: "INSTAGRAM", parentExternalId: null }] },
+                    { OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: new Date("2026-09-29T06:00:00Z") } }] },
+                ],
             },
         }));
         const url = new URL(fetchMock.mock.calls[0][0]);
@@ -123,6 +141,75 @@ describe("checkSocialTokens", () => {
         expect(mockDb.socialAccount.update).toHaveBeenCalledWith({ where: { id: "acc-1" }, data: { lastCheckedAt: now } });
         expect(send).not.toHaveBeenCalled();
     });
+    describe("Instagram Login (no Facebook Page)", () => {
+        const igLogin = (overrides: any = {}) => account({ parentExternalId: null, tokenExpiresAt: new Date("2026-12-01T00:00:00Z"), ...overrides });
+        const res = (status: number, body: unknown = {}) => ({ ok: status < 400, status, json: async () => body });
+
+        it("checks the token on graph.instagram.com instead of debug_token, and leaves a healthy one alone", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([igLogin()]);
+            fetchMock.mockResolvedValue(res(200, { user_id: "ig-1" }));
+
+            await checkSocialTokens(now);
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(fetchMock.mock.calls[0][0]).toBe("https://graph.instagram.com/v26.0/me?fields=user_id");
+            expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer page-token");
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({
+                where: { id: "acc-1" },
+                data: { tokenExpiresAt: new Date("2026-12-01T00:00:00Z"), lastCheckedAt: now, lastError: null },
+            });
+        });
+
+        it("refreshes a token with under 30 days left and stores the new one with its new expiry", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([igLogin({ tokenExpiresAt: new Date("2026-10-10T00:00:00Z"), expiryWarnedAt: now })]);
+            fetchMock
+                .mockResolvedValueOnce(res(200, { user_id: "ig-1" }))
+                .mockResolvedValueOnce(res(200, { access_token: "fresh-token", token_type: "bearer", expires_in: 5183944 }));
+
+            expect((await checkSocialTokens(now)).warned).toBe(0);
+
+            const refreshUrl = new URL(fetchMock.mock.calls[1][0]);
+            expect(refreshUrl.origin + refreshUrl.pathname).toBe("https://graph.instagram.com/refresh_access_token");
+            expect(refreshUrl.searchParams.get("grant_type")).toBe("ig_refresh_token");
+            expect(refreshUrl.searchParams.get("access_token")).toBe("page-token");
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({
+                where: { id: "acc-1" },
+                data: {
+                    tokenExpiresAt: new Date(now.getTime() + 5183944 * 1000),
+                    lastCheckedAt: now,
+                    lastError: null,
+                    encryptedToken: { v: 1, cipher: "enc:fresh-token", iv: "i", tag: "t" },
+                    expiryWarnedAt: null,
+                },
+            });
+            expect(send).not.toHaveBeenCalled();
+        });
+
+        it("keeps a working token when the refresh isn't possible yet, and still warns near expiry", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([igLogin({ tokenExpiresAt: new Date("2026-10-03T00:00:00Z") })]);
+            fetchMock.mockResolvedValueOnce(res(200, { user_id: "ig-1" })).mockResolvedValueOnce(res(400, { error: { message: "token too new" } }));
+
+            expect((await checkSocialTokens(now)).warned).toBe(1);
+            expect(mockDb.socialAccount.update.mock.calls[0][0].data).not.toHaveProperty("encryptedToken");
+        });
+
+        it("marks a rejected token NEEDS_RECONNECT, but not on a rate limit or an outage", async () => {
+            mockDb.socialAccount.findMany.mockResolvedValue([igLogin()]);
+            fetchMock.mockResolvedValue(res(400, { error: { code: 190, message: "Error validating access token: Session has expired" } }));
+            expect((await checkSocialTokens(now)).needsReconnect).toBe(1);
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({
+                where: { id: "acc-1" },
+                data: { status: "NEEDS_RECONNECT", lastError: "Error validating access token: Session has expired", lastCheckedAt: now },
+            });
+
+            vi.clearAllMocks();
+            mockDb.socialAccount.findMany.mockResolvedValue([igLogin()]);
+            fetchMock.mockResolvedValue(res(400, { error: { code: 4, message: "Application request limit reached" } }));
+            expect((await checkSocialTokens(now)).needsReconnect).toBe(0);
+            expect(mockDb.socialAccount.update).toHaveBeenCalledWith({ where: { id: "acc-1" }, data: { lastCheckedAt: now } });
+        });
+    });
+
     describe("LinkedIn", () => {
         const linkedin = (overrides: any = {}) => account({ platform: "LINKEDIN_MEMBER", handle: "Asha Rao", tokenExpiresAt: new Date("2026-11-20T00:00:00Z"), ...overrides });
 

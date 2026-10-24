@@ -34,6 +34,16 @@ Recheck them right before submitting. Meta renames and splits permissions betwee
    - That Page managed by a Facebook user who has a role on the app (admin, developer or tester). Until approval, only app-role users can connect.
    - On that Instagram account, turn on **Settings > Messages and story replies > Message controls > Connected tools > Allow access to messages**. Without it, DMs won't arrive.
 
+## Instagram Login ("Connect Instagram only")
+
+For teams with no Facebook Page, Settings > Social accounts has a second button that uses the Instagram API with Instagram Login (https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login, checked 2026-10-24). It asks for `instagram_business_basic`, `instagram_business_manage_comments` and `instagram_business_manage_messages` (not publishing), and stores the account without a parent Page.
+
+- **Credentials:** the Instagram app ID and secret from the App Dashboard, Instagram use case, "API setup with Instagram business login". They are not the Meta app's `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`. apps/web needs `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` and `INSTAGRAM_LOGIN_REDIRECT_URI`; apps/api on api-main needs `INSTAGRAM_APP_SECRET` (the webhook accepts a signature from either app secret).
+- **Valid OAuth redirect URI** (in that Instagram setup): `https://craftmyfunnel.live/api/integrations/instagram/oauth/callback`, identical to `INSTAGRAM_LOGIN_REDIRECT_URI`.
+- **Webhooks:** that setup has its own webhook section. Use the same callback URL and `META_WEBHOOK_VERIFY_TOKEN` as above, and subscribe `comments` and `messages`. Connecting an account also calls `POST graph.instagram.com/{ig-id}/subscribed_apps`.
+- **Access:** Standard Access covers accounts with a role on the app. Other businesses' accounts need Advanced Access for the same permissions, which needs App Review and Business Verification.
+- **Tokens** last 60 days; the daily check in apps/api refreshes them, so these accounts need no manual reconnect while in use.
+
 ## Permissions requested
 
 The "Connect Instagram and Facebook" button (Settings > Social accounts, with the creator funnel on) requests these permissions.
