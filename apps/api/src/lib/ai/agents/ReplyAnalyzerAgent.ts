@@ -2,11 +2,22 @@ import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { classifyReply, type ReplyClassification } from "@/lib/ai/jev";
 
-const CLASSIFICATIONS = ['INTERESTED', 'NOT_INTERESTED', 'OOO', 'QUESTION', 'DNC'] as const;
+// SOP: the action each classification calls for. A rep still makes every change.
+const SUGGESTED_ACTIONS = {
+    INTERESTED: "SCHEDULE_MEETING",
+    QUESTION: "SENT_REPLY",
+    NOT_INTERESTED: "PAUSE_CAMPAIGN",
+    OOO: "SNOOZE",
+    DNC: "BLACKLIST"
+} as const;
+
+// Only these get a drafted response; the rest need no reply from us.
+const DRAFTED_CLASSIFICATIONS = new Set<ReplyClassification>(["INTERESTED", "QUESTION"]);
 
 export interface ReplyAnalysisResult {
-    classification: (typeof CLASSIFICATIONS)[number];
+    classification: ReplyClassification;
     confidence: number;
     reasoning: string;
     suggestedAction: 'PAUSE_CAMPAIGN' | 'SENT_REPLY' | 'SCHEDULE_MEETING' | 'SNOOZE' | 'BLACKLIST';
@@ -19,8 +30,9 @@ export class ReplyAnalyzerAgent {
      * Analyzes an incoming email reply using the SOP Reply Decision Tree.
      * Classify-and-store only: the result is a suggestion shown in the Action Inbox. It never
      * changes the lead (no DNC/blacklist, no stage change) and writes no learned memory.
-     * Metered against the lead's team through aiService. Throws when the lead is not in
-     * `teamId` or the AI call fails, so no ReplyTracker row is stored for a failed analysis.
+     * Jev classifies the reply; aiService drafts a response (metered against the lead's team)
+     * only for INTERESTED and QUESTION. Throws when the lead is not in `teamId` or either call
+     * fails, so no ReplyTracker row is stored for a failed analysis.
      *
      * @param subject Email subject
      * @param body Email body content
@@ -51,19 +63,27 @@ export class ReplyAnalyzerAgent {
         // Merge maps for later detokenization
         const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);
 
-        // Stored Crystal DISC guidance for tailoring the draft - best-effort, empty when absent.
-        let personalityGuidance = "";
-        try {
-            const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
-            personalityGuidance = await CrystalService.getGuidanceForLead(lead.teamId ?? undefined, lead, "reply to this person's email");
-        } catch {
-            // A reply draft without personality guidance is still better than none.
-        }
+        let analysis: ReplyAnalysisResult;
 
-        // 2. Construct the analysis prompt based on SOP
-        const prompt = `
-            You are the "Reply Analyzer Agent" for an email outreach system.
-            Analyze the following email reply based on the standard operating procedure (SOP).
+        try {
+            // 2. Classify with Jev, on the masked text
+            const { classification, confidence, reasoning } = await classifyReply({ subject: safeSubject, body: safeBody }, teamId);
+            analysis = { classification, confidence, reasoning, suggestedAction: SUGGESTED_ACTIONS[classification] };
+
+            // 3. Draft a response when one is called for
+            if (DRAFTED_CLASSIFICATIONS.has(classification)) {
+                // Stored Crystal DISC guidance for tailoring the draft - best-effort, empty when absent.
+                let personalityGuidance = "";
+                try {
+                    const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+                    personalityGuidance = await CrystalService.getGuidanceForLead(lead.teamId ?? undefined, lead, "reply to this person's email");
+                } catch {
+                    // A reply draft without personality guidance is still better than none.
+                }
+
+                const prompt = `
+            Draft a short, professional response to this email reply to our outreach.
+            The sender ${classification === "INTERESTED" ? "is interested" : "asked a question"}.
 
             EMAIL CONTENT:
             Subject: ${safeSubject}
@@ -72,58 +92,19 @@ ${personalityGuidance ? `
             PERSONALITY GUIDANCE (DISC) for the lead - tailor the draft response to it:
             ${personalityGuidance}
 ` : ""}
-            CLASSIFICATION CATEGORIES:
-            1. INTERESTED: "Let's talk", "Demo", "Pricing?", "Calendar", "Send more info".
-            2. QUESTION: "How does it work?", "Integration?", "Is this compliant?", "Case studies?".
-            3. NOT_INTERESTED: "No thanks", "We have a solution", "Too expensive".
-            4. OOO (Out of Office): "Automatic reply", "Vacation", "ooo".
-            5. DNC (Do Not Contact): "Unsubscribe", "Remove me", "Spam", "Stop emailing".
-
-            YOUR TASK:
-            1. Classify the email into one of the above categories.
-            2. Assign a confidence score (0.0 to 1.0).
-            3. Explain your reasoning briefly.
-            4. Suggest the MANDATORY ACTION based on SOP:
-               - INTERESTED -> SCHEDULE_MEETING
-               - QUESTION -> SENT_REPLY
-               - NOT_INTERESTED -> PAUSE_CAMPAIGN
-               - OOO -> SNOOZE
-               - DNC -> BLACKLIST
-            5. Draft a short, professional response if applicable (leave empty for DNC/OOO).
-
-            OUTPUT FORMAT (JSON ONLY):
-            {
-                "classification": "CATEGORY",
-                "confidence": 0.95,
-                "reasoning": "...",
-                "suggestedAction": "ACTION",
-                "draftResponse": "..."
-            }
+            Respond with the draft text only.
         `;
-
-        let analysis: ReplyAnalysisResult;
-
-        try {
-            // 2. Call AI Service
-            // Using a high-level "askAI" call. Ideally, we'd use a more structured output mode if available.
-            // Passing teamId is what meters the call (credits + usage log) against the team.
-            const resultText = await aiService.askAI(prompt, teamId, { taskType: "CLASSIFICATION", expectsJson: true, disableGuardrails: true });
-
-            // Clean Markdown code blocks if present
-            const cleanedJson = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
-            analysis = JSON.parse(cleanedJson);
-            if (!CLASSIFICATIONS.includes(analysis.classification) || typeof analysis.confidence !== "number") {
-                throw new Error("AI returned an unusable classification");
-            }
-
-            // 3. Detokenize Draft Response asynchronously
-            if (analysis.draftResponse) {
-                analysis.draftResponse = await SovereignFirewall.unmaskAsync(
-                    analysis.draftResponse, 
-                    combinedTokenMap, 
-                    teamId,
-                    `REPLY_ANALYSIS_UNMASK_${leadId}`
-                );
+                // Passing teamId is what meters the call (credits + usage log) against the team.
+                const draft = await aiService.askAI(prompt, teamId, { taskType: "REPLY_DRAFT", disableGuardrails: true });
+                if (draft.trim()) {
+                    // Detokenize Draft Response asynchronously
+                    analysis.draftResponse = await SovereignFirewall.unmaskAsync(
+                        draft.trim(),
+                        combinedTokenMap,
+                        teamId,
+                        `REPLY_ANALYSIS_UNMASK_${leadId}`
+                    );
+                }
             }
 
         } catch (error: any) {
@@ -131,7 +112,7 @@ ${personalityGuidance ? `
             throw error;
         }
 
-        // 3. Save the suggestion. Always PENDING_REVIEW: only a rep's click acts on it.
+        // 4. Save the suggestion. Always PENDING_REVIEW: only a rep's click acts on it.
         await prisma.replyTracker.create({
             data: {
                 leadId,

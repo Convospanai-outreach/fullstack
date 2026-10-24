@@ -415,7 +415,7 @@ async function callProvider(
 
     if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK) {
         // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
-        // just a different base URL. Mirrors modules/overseer/deepseekClient.ts.
+        // just a different base URL.
         const client = instrumentOpenAI(new OpenAI({
             apiKey: candidate.apiKey,
             timeout: LLM_TIMEOUT_MS,
