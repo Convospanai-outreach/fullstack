@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
-import { PRIVATE_SCOPES, PUBLIC_REPLY_SCOPE, REPLY_TEXT_MAX_BYTES, isMauticPageUrl, mauticReplyLink, replyLink, words } from "./keywordTriggers";
+import { REPLY_TEXT_MAX_BYTES, isMauticPageUrl, mauticReplyLink, privateScopesFor, publicReplyScopeFor, replyLink, words } from "./keywordTriggers";
+import { isInstagramLogin } from "./instagramLogin";
 import { LINK_TOKEN_MAX_LENGTH } from "./linkToken";
 import { INSTAGRAM_TEXT_MAX_BYTES } from "./socialInbox";
 import type { AccountPlatform } from "./socialInbox";
@@ -49,7 +50,7 @@ const fail = (status: number, message: string): never => {
 async function checkFields(teamId: string, input: TriggerFields, willBeActive: boolean) {
     const account = await prisma.socialAccount.findFirst({
         where: { id: input.socialAccountId, teamId, platform: { in: [...SOCIAL_PLATFORMS] } },
-        select: { id: true, platform: true, status: true, scopes: true },
+        select: { id: true, platform: true, status: true, scopes: true, parentExternalId: true },
     });
     if (!account) fail(400, "Pick a connected Instagram account or Facebook Page.");
 
@@ -113,16 +114,16 @@ ${link}`, "utf8") - INSTAGRAM_TEXT_MAX_BYTES;
 }
 
 /** The permissions an active trigger needs on its account, for the sends it can make. */
-export function neededScopes(platform: AccountPlatform, scope: TriggerFields["scope"], publicReply: boolean) {
+export function neededScopes(platform: AccountPlatform, scope: TriggerFields["scope"], publicReply: boolean, instagramLogin = false) {
     const kinds = scope === "BOTH" ? (["COMMENT", "DM"] as const) : ([scope] as const);
-    const needed = new Set(kinds.flatMap((kind) => PRIVATE_SCOPES[kind][platform]));
-    if (publicReply && scope !== "DM") needed.add(PUBLIC_REPLY_SCOPE[platform]);
+    const needed = new Set(kinds.flatMap((kind) => privateScopesFor(kind, platform, instagramLogin)));
+    if (publicReply && scope !== "DM") needed.add(publicReplyScopeFor(platform, instagramLogin));
     return [...needed];
 }
 
-function checkCanActivate(account: { platform: string; status: string; scopes: string[] }, input: TriggerFields) {
+function checkCanActivate(account: { platform: string; status: string; scopes: string[]; parentExternalId: string | null }, input: TriggerFields) {
     if (account.status !== "CONNECTED") fail(409, "Reconnect this account in Settings before switching the auto-reply on.");
-    const missing = neededScopes(account.platform as AccountPlatform, input.scope, Boolean(input.publicCommentReply)).filter(
+    const missing = neededScopes(account.platform as AccountPlatform, input.scope, Boolean(input.publicCommentReply), isInstagramLogin(account)).filter(
         (scope) => !account.scopes.includes(scope)
     );
     if (missing.length) fail(409, `Reconnect this account and allow: ${missing.join(", ")}.`);

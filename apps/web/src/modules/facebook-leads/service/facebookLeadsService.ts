@@ -56,11 +56,13 @@ const SOCIAL_GRAPH_BASE_URL = "https://graph.facebook.com/v26.0";
 
 export type FacebookConnectPurpose = "leads" | "social";
 
-type OAuthStatePayload = {
+export type OAuthStatePayload = {
     teamId: string;
     userId: string;
     nextPath?: string;
-    purpose?: FacebookConnectPurpose;
+    // "instagram" is the Instagram Login connect (instagramLoginService.ts), which shares this
+    // signed state; connectFacebookPages refuses it.
+    purpose?: FacebookConnectPurpose | "instagram";
     nonce: string;
     ts: number;
 };
@@ -87,7 +89,7 @@ function getFacebookConfig() {
 // No dedicated /settings/integrations page exists yet in this app - falls back
 // to /settings/crm, the closest existing settings page for external-integration
 // connect flows, until a Facebook-specific settings UI is built.
-function sanitizeRelativePath(path?: string | null) {
+export function sanitizeRelativePath(path?: string | null) {
     if (!path || !path.startsWith("/") || path.startsWith("//")) return "/settings/crm";
     try {
         const parsed = new URL(path, "https://app.local");
@@ -102,7 +104,7 @@ function getStateSecret(): string | undefined {
     return process.env["NEXTAUTH_SECRET"] || process.env["ENCRYPTION_KEY"];
 }
 
-function signState(payload: OAuthStatePayload): string {
+export function signState(payload: OAuthStatePayload): string {
     const secret = getStateSecret();
     if (!secret) throw new Error("NEXTAUTH_SECRET or ENCRYPTION_KEY is required for Facebook OAuth state signing.");
     const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -110,7 +112,7 @@ function signState(payload: OAuthStatePayload): string {
     return `${body}.${sig}`;
 }
 
-function verifyState(state: string): OAuthStatePayload {
+export function verifyState(state: string): OAuthStatePayload {
     const secret = getStateSecret();
     if (!secret) throw new Error("NEXTAUTH_SECRET or ENCRYPTION_KEY is required for Facebook OAuth state verification.");
     const [body, sig] = state.split(".");
@@ -165,6 +167,7 @@ export function buildFacebookLeadsAuthUrl(input: { teamId: string; userId: strin
 
 export async function connectFacebookPages(input: { code: string; state: string }) {
     const statePayload = verifyState(input.state);
+    if (statePayload.purpose === "instagram") throw new Error("Invalid OAuth state.");
     const { appId, appSecret, redirectUri } = getFacebookConfig();
 
     const tokenRes = await fetch(

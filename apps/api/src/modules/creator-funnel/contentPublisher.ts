@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE, captionFor, isOwnMediaUrl } from "./contentPostService";
 import { GraphError, graphCall } from "./metaGraph";
+import { isInstagramLogin } from "./instagramLogin";
 
 // Creator funnel publisher (phase 3b). Runs every minute from the worker tick and only ever
 // publishes APPROVED posts whose time has come, whose ApprovalRequest is APPROVED, on teams
@@ -64,7 +65,7 @@ type Target = {
     status: string;
     containerId: string | null;
     updatedAt: Date;
-    socialAccount: { platform: string; externalId: string; handle: string | null; status: string; scopes: string[]; encryptedToken: unknown };
+    socialAccount: { platform: string; externalId: string; parentExternalId?: string | null; handle: string | null; status: string; scopes: string[]; encryptedToken: unknown };
 };
 type Post = { id: string; teamId: string; body: string; channelCaptions: unknown; mediaUrls: string[]; createdById: string | null; targets: Target[] };
 type Outcome = "PUBLISHED" | "FAILED" | null;
@@ -244,6 +245,8 @@ async function publishTarget(post: Post, t: Target, now: Date) {
     if (account.status !== "CONNECTED") return fail(t, `${labelOf(t)} needs reconnecting in Settings > Social accounts.`);
     const scope = PUBLISH_SCOPE[account.platform];
     if (!scope) return fail(t, `Posting to ${PLATFORM_LABEL[account.platform] ?? "this account"} isn't available yet.`);
+    // Connected with Instagram Login only (no Facebook Page): it reads comments and messages but isn't asked to post.
+    if (isInstagramLogin(account)) return fail(t, `${labelOf(t)} is connected with Instagram only. To post to it, connect it through Facebook in Settings > Social accounts.`);
     if (!account.scopes.includes(scope)) return fail(t, `${labelOf(t)} wasn't given permission to post. Reconnect it in Settings > Social accounts.`);
     const token = await decryptCredential(account.encryptedToken as EncryptedCredential).catch(() => undefined);
     if (!token) return fail(t, `${labelOf(t)} needs reconnecting in Settings > Social accounts.`);
@@ -326,7 +329,7 @@ async function runPost(c: Candidate, now: Date, started: number): Promise<Outcom
                     where: { status: { in: ["PENDING", "SENDING"] } },
                     select: {
                         id: true, status: true, containerId: true, updatedAt: true,
-                        socialAccount: { select: { platform: true, externalId: true, handle: true, status: true, scopes: true, encryptedToken: true } },
+                        socialAccount: { select: { platform: true, externalId: true, parentExternalId: true, handle: true, status: true, scopes: true, encryptedToken: true } },
                     },
                 },
             },
