@@ -15,7 +15,7 @@ import {
 type AdminActor = {
     id: string;
     enterpriseRole: UserRole | string | null;
-    memberships: Array<{ teamId: string; status: string }>;
+    memberships: Array<{ teamId: string; status: string; role: string }>;
 };
 
 async function loadPrisma() {
@@ -35,9 +35,24 @@ async function getActor(): Promise<AdminActor | null> {
     }) as Promise<AdminActor | null>;
 }
 
+// Teams whose invitations the actor may create, list and revoke: those where they hold an
+// active owner or admin seat. The global enterpriseRole says nothing about their role in a
+// particular team.
 function getAllowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
-    return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
+    return actor.memberships
+        .filter((member) => member.status === "active" && (member.role === "owner" || member.role === "admin"))
+        .map((member) => member.teamId);
+}
+
+function defaultTeamId(actor: AdminActor, allowedTeamIds: string[] | null) {
+    return allowedTeamIds ? allowedTeamIds[0] : actor.memberships.find((member) => member.status === "active")?.teamId;
+}
+
+// An invitation may create or refresh a pending seat, never change one someone already holds
+// (or an owner's seat reserved for a founder).
+function isTakenSeat(member: { status: string; userId: string | null; role: string }) {
+    return member.status !== "invited" || member.userId !== null || member.role === "owner";
 }
 
 export async function GET() {
@@ -114,7 +129,7 @@ export async function POST(req: NextRequest) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || actor.memberships.find((member) => member.status === "active")?.teamId;
+    const teamId = requestedTeamId || defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -125,6 +140,13 @@ export async function POST(req: NextRequest) {
     }
 
     const prisma = await loadPrisma();
+    const existingMember = await prisma.teamMember.findFirst({
+        where: { teamId, email }
+    });
+    if (existingMember && isTakenSeat(existingMember)) {
+        return NextResponse.json({ error: "This person is already a member of the team." }, { status: 409 });
+    }
+
     const token = createInviteToken();
     const inviteLink = getInviteLink(token);
     const invitation = await prisma.userInvitation.create({
@@ -137,10 +159,6 @@ export async function POST(req: NextRequest) {
             expiresAt: new Date(Date.now() + INVITE_TTL_MS)
         },
         include: { team: { select: { id: true, name: true } } }
-    });
-
-    const existingMember = await prisma.teamMember.findFirst({
-        where: { teamId, email }
     });
 
     const teamRole = role === UserRole.ORG_ADMIN ? "admin" : role === UserRole.VIEWER ? "viewer" : "member";
@@ -184,7 +202,7 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || actor.memberships.find((member) => member.status === "active")?.teamId;
+    const teamId = requestedTeamId || defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -217,6 +235,11 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
 
     const results = await Promise.all(emails.map(async (email) => {
         try {
+            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
+            if (existingMember && isTakenSeat(existingMember)) {
+                return { email, ok: false as const, error: "Already a member of this team" };
+            }
+
             const token = createInviteToken();
             const inviteLink = getInviteLink(token);
             const invitation = await prisma.userInvitation.create({
@@ -230,7 +253,6 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
                 }
             });
 
-            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
             if (existingMember) {
                 await prisma.teamMember.update({
                     where: { id: existingMember.id },
