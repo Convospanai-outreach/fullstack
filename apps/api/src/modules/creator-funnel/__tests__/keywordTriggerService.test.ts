@@ -112,6 +112,12 @@ describe("keywordTriggerService", () => {
         expect(neededScopes("INSTAGRAM", "DM", true)).toEqual(["instagram_manage_messages"]);
     });
 
+    it("needs the Instagram Login permissions, and no Page permission, for an account connected without a Page", () => {
+        expect(neededScopes("INSTAGRAM", "COMMENT", true, true)).toEqual(["instagram_business_manage_comments"]);
+        expect(neededScopes("INSTAGRAM", "DM", false, true)).toEqual(["instagram_business_manage_messages"]);
+        expect(neededScopes("INSTAGRAM", "BOTH", true, true).sort()).toEqual(["instagram_business_manage_comments", "instagram_business_manage_messages"]);
+    });
+
     it("deletes only the team's trigger", async () => {
         mockDb.keywordTrigger.deleteMany.mockResolvedValueOnce({ count: 0 });
         await expect(deleteTrigger("team-a", "trig-x")).rejects.toMatchObject({ status: 404 });

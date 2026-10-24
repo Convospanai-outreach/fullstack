@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { computeAutoDenyAt, resolveApprovalTier } from "@/modules/governance/approvalPolicy";
 import { getBreakerState } from "@/modules/overseer/breakerService";
 import { escapeLittleText } from "./linkedinApi";
+import { isInstagramLogin } from "./instagramLogin";
 
 // Creator funnel content calendar. A post is a DRAFT until someone sends it for approval
 // (IN_REVIEW, backed by an ApprovalRequest that shows in Inbox > Approvals). Only an APPROVED
@@ -338,7 +339,7 @@ async function approvalSubject(db: Tx, postId: string, at: Date, timezone: strin
 export async function submitPost(teamId: string, postId: string, userId: string) {
     const post = await prisma.contentPost.findFirst({
         where: { id: postId, teamId },
-        include: { targets: { select: { status: true, socialAccount: { select: { platform: true, handle: true, status: true, scopes: true } } } } },
+        include: { targets: { select: { status: true, socialAccount: { select: { platform: true, handle: true, status: true, scopes: true, parentExternalId: true } } } } },
     });
     if (!post) throw new ContentPostError(404, "Post not found");
     // On a retry after a partial failure, only the accounts it didn't reach are posted to again.
@@ -355,6 +356,11 @@ export async function submitPost(teamId: string, postId: string, userId: string)
     }
     const unsupported = targets.find((t) => !PUBLISH_SCOPE[t.socialAccount.platform]);
     if (unsupported) throw new ContentPostError(400, `Posting to ${PLATFORM_LABEL[unsupported.socialAccount.platform]} isn't available yet.`);
+    // Connected with Instagram Login (no Facebook Page): reads comments and messages, isn't asked to post.
+    const instagramOnly = targets.find((t) => isInstagramLogin(t.socialAccount));
+    if (instagramOnly) {
+        throw new ContentPostError(400, `${instagramOnly.socialAccount.handle || "This Instagram account"} is connected with Instagram only, which can't post. Connect it through Facebook in Settings > Social accounts to post.`);
+    }
     const noPermission = targets.find((t) => !t.socialAccount.scopes.includes(PUBLISH_SCOPE[t.socialAccount.platform]));
     if (noPermission) {
         throw new ContentPostError(400, `${noPermission.socialAccount.handle || PLATFORM_LABEL[noPermission.socialAccount.platform]} wasn't given permission to post. Reconnect it in Settings > Social accounts and allow posting.`);

@@ -28,6 +28,7 @@ describe("/webhooks/meta-social", () => {
         vi.clearAllMocks();
         process.env["META_WEBHOOK_VERIFY_TOKEN"] = VERIFY_TOKEN;
         process.env["FACEBOOK_APP_SECRET"] = APP_SECRET;
+        delete process.env["INSTAGRAM_APP_SECRET"];
         ingestMetaWebhook.mockResolvedValue({ events: 1, stored: 1, failed: 0 });
     });
 
@@ -53,6 +54,21 @@ describe("/webhooks/meta-social", () => {
             expect(res.status).toBe(200);
             expect(ingestMetaWebhook).toHaveBeenCalledWith(JSON.parse(RAW));
             expect(ingestMetaWebhook.mock.calls[0][0].entry[0].messaging[0].message.text).toBe("café / hi");
+        });
+
+        it("also accepts the Instagram app's secret (Instagram Login accounts), and rejects any other", async () => {
+            process.env["INSTAGRAM_APP_SECRET"] = "test-instagram-secret";
+            expect((await post(RAW, sign(RAW, "test-instagram-secret"))).status).toBe(200);
+            expect((await post(RAW, sign(RAW))).status).toBe(200);
+            expect((await post(RAW, sign(RAW, "other-secret"))).status).toBe(401);
+            expect(ingestMetaWebhook).toHaveBeenCalledTimes(2);
+        });
+
+        it("works with only the Instagram app secret configured", async () => {
+            delete process.env["FACEBOOK_APP_SECRET"];
+            process.env["INSTAGRAM_APP_SECRET"] = "test-instagram-secret";
+            expect((await post(RAW, sign(RAW, "test-instagram-secret"))).status).toBe(200);
+            expect((await post(RAW, sign(RAW))).status).toBe(401);
         });
 
         it("rejects unsigned and wrongly signed deliveries before parsing them", async () => {

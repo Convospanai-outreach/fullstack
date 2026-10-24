@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { withUtm } from "@/lib/utm";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { GraphError, graphCall, graphPostJson } from "./metaGraph";
+import { IG_LOGIN_COMMENTS_SCOPE, IG_LOGIN_MESSAGES_SCOPE, graphBaseArg, isInstagramLogin } from "./instagramLogin";
 import {
     ACCOUNT_PLATFORM_FOR_OBJECT,
     INSTAGRAM_TEXT_MAX_BYTES,
@@ -103,6 +104,18 @@ export const PRIVATE_SCOPES: Record<"COMMENT" | "DM", Record<AccountPlatform, st
     DM: { INSTAGRAM: ["instagram_manage_messages"], FACEBOOK_PAGE: ["pages_messaging"] },
 };
 export const PUBLIC_REPLY_SCOPE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_manage_comments", FACEBOOK_PAGE: "pages_manage_engagement" };
+
+// An Instagram account connected without a Facebook Page (Instagram Login) is granted
+// differently named permissions, and needs no Page permission for private replies.
+const IG_LOGIN_PRIVATE_SCOPES: Record<"COMMENT" | "DM", string[]> = { COMMENT: [IG_LOGIN_COMMENTS_SCOPE], DM: [IG_LOGIN_MESSAGES_SCOPE] };
+
+export function privateScopesFor(kind: "COMMENT" | "DM", platform: AccountPlatform, instagramLogin: boolean) {
+    return instagramLogin ? IG_LOGIN_PRIVATE_SCOPES[kind] : PRIVATE_SCOPES[kind][platform];
+}
+
+export function publicReplyScopeFor(platform: AccountPlatform, instagramLogin: boolean) {
+    return instagramLogin ? IG_LOGIN_COMMENTS_SCOPE : PUBLIC_REPLY_SCOPE[platform];
+}
 
 // ---- Matching -------------------------------------------------------------------------------
 
@@ -417,10 +430,11 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     if (kind === "COMMENT" && age > PRIVATE_REPLY_MAX_AGE_MS) return skip("Meta only allows a private reply within 7 days of the comment.");
     if (kind === "DM" && age > REPLY_WINDOW_MS) return skip("Meta only allows replies within 24 hours of the person's message.");
     if (account.status !== "CONNECTED") return fail("The account is disconnected. Reconnect it in Settings.");
-    const missing = missingScopes(account.scopes, PRIVATE_SCOPES[kind][platform]);
+    const instagramLogin = isInstagramLogin(account);
+    const missing = missingScopes(account.scopes, privateScopesFor(kind, platform, instagramLogin));
     if (missing.length) return fail(`Reconnect the account and allow: ${missing.join(", ")}.`);
     const token = await pageTokenFor(account);
-    if (!token) return fail("The Facebook Page this account uses isn't connected.");
+    if (!token) return fail(instagramLogin ? "The account's connection is missing. Reconnect it." : "The Facebook Page this account uses isn't connected.");
     // The post this reply is about: the trigger's own, or the one the comment was on (when CMf
     // published it). Tags the link (utm_content) and becomes the lead's first touch.
     const postId = row.trigger.contentPostId ?? (await commentedPost(row));
@@ -435,19 +449,21 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     const claimed = await setStatus(row.id, "PENDING", { status: "SENDING" });
     if (claimed.count !== 1) return null;
 
-    const pageId = encodeURIComponent(platform === "INSTAGRAM" ? (account.parentExternalId as string) : account.externalId);
+    // Instagram Login sends from the account's own id as JSON; through Facebook, from the linked Page.
+    const pageId = encodeURIComponent(platform === "INSTAGRAM" && !instagramLogin ? (account.parentExternalId as string) : account.externalId);
     const recipient = kind === "COMMENT" ? { comment_id: row.commentId } : { id: row.personKey };
     let result: any;
     try {
-        result =
-            platform === "INSTAGRAM"
-                ? await graphCall(
-                      "POST",
-                      kind === "COMMENT" ? `${pageId}/messages` : "me/messages",
-                      { recipient: JSON.stringify(recipient), message: JSON.stringify({ text }) },
-                      token
-                  )
-                : await graphPostJson(`${pageId}/messages`, { recipient, ...(kind === "DM" ? { messaging_type: "RESPONSE" } : {}), message: { text } }, token);
+        result = instagramLogin
+            ? await graphPostJson(`${pageId}/messages`, { recipient, message: { text } }, token, ...graphBaseArg(account))
+            : platform === "INSTAGRAM"
+              ? await graphCall(
+                    "POST",
+                    kind === "COMMENT" ? `${pageId}/messages` : "me/messages",
+                    { recipient: JSON.stringify(recipient), message: JSON.stringify({ text }) },
+                    token
+                )
+              : await graphPostJson(`${pageId}/messages`, { recipient, ...(kind === "DM" ? { messaging_type: "RESPONSE" } : {}), message: { text } }, token);
     } catch (error) {
         const uncertain = error instanceof GraphError && error.uncertain;
         await setStatus(row.id, "SENDING", {
@@ -513,7 +529,8 @@ async function sendPublic(row: ReplyRow, flagOn: boolean) {
     }
     const failPublic = (reason: string) => setPublicStatus(row.id, "PENDING", { publicStatus: "FAILED", lastError: `Public reply: ${reason}` });
     if (account.status !== "CONNECTED") return failPublic("the account is disconnected.");
-    if (!account.scopes.includes(PUBLIC_REPLY_SCOPE[platform])) return failPublic(`reconnect and allow ${PUBLIC_REPLY_SCOPE[platform]}.`);
+    const publicScope = publicReplyScopeFor(platform, isInstagramLogin(account));
+    if (!account.scopes.includes(publicScope)) return failPublic(`reconnect and allow ${publicScope}.`);
     // Instagram comment replies use the account's own User token; Facebook uses the Page token.
     const token =
         platform === "INSTAGRAM"
@@ -525,7 +542,7 @@ async function sendPublic(row: ReplyRow, flagOn: boolean) {
     if (claimed.count !== 1) return;
     const commentId = encodeURIComponent(row.commentId);
     try {
-        await graphCall("POST", platform === "INSTAGRAM" ? `${commentId}/replies` : `${commentId}/comments`, { message }, token);
+        await graphCall("POST", platform === "INSTAGRAM" ? `${commentId}/replies` : `${commentId}/comments`, { message }, token, ...graphBaseArg(account));
         await setPublicStatus(row.id, "SENDING", { publicStatus: "SENT" });
     } catch (error) {
         const uncertain = error instanceof GraphError && error.uncertain;
