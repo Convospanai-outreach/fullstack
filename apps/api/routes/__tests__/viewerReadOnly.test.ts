@@ -43,6 +43,7 @@ const cases: Array<{ name: string; load: () => Promise<any>; method: string; arg
     { name: "POST /templates", load: () => import("../templates/route"), method: "POST", args: () => [json("POST", { name: "n", subject: "s", body: "b" })] },
     { name: "PUT /templates/[id]", load: () => import("../templates/[id]/route"), method: "PUT", args: () => [json("PUT", { name: "n", subject: "s", body: "b" }), idParams] },
     { name: "DELETE /templates/[id]", load: () => import("../templates/[id]/route"), method: "DELETE", args: () => [json("DELETE"), idParams] },
+    { name: "POST /jobs", load: () => import("../jobs/route"), method: "POST", args: () => [json("POST", { type: "lead_scoring", payload: {} })] },
     { name: "DELETE /jobs/[id]", load: () => import("../jobs/[id]/route"), method: "DELETE", args: () => [json("DELETE"), idParams] },
     { name: "POST /inbox/drafts", load: () => import("../inbox/drafts/route"), method: "POST", args: () => [json("POST", { leadId: "lead-1", content: "hi" })] },
     { name: "DELETE /inbox/drafts", load: () => import("../inbox/drafts/route"), method: "DELETE", args: () => [new Request("http://localhost/inbox/drafts?draftId=d-1", { method: "DELETE" }) as any] },
