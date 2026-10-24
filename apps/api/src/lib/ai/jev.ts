@@ -1,4 +1,4 @@
-import { TypeSafeClient, choice, noul, type EntryType, type Questions, type SystemOneResult } from "@typesafe-ai/sdk";
+import { TypeSafeClient, choice, noul, type EntryType, type Questions, type RequestOptions, type SystemOneResult } from "@typesafe-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -59,11 +59,11 @@ async function logUsage(teamId: string | undefined, taskType: string, model: str
     }
 }
 
-async function ask<Q extends Questions>(taskType: string, teamId: string | undefined, state: NonNullable<EntryType>, questions: Q): Promise<SystemOneResult<Q>["answers"]> {
+async function ask<Q extends Questions>(taskType: string, teamId: string | undefined, state: NonNullable<EntryType>, questions: Q, options?: RequestOptions): Promise<SystemOneResult<Q>["answers"]> {
     const client = getClient();
     const start = Date.now();
     try {
-        const result = await client.systemOne({ state, questions });
+        const result = await client.systemOne({ state, questions }, options);
         await logUsage(teamId, taskType, result.model, result.usage.input_tokens ?? 0, Date.now() - start);
         return result.answers;
     } catch (error) {
@@ -134,7 +134,8 @@ export async function classifyReply(reply: { subject: string; body: string }, te
 
 /**
  * How strongly scraped text shows each kind of friction, as probabilities. Send it already
- * masked. Not billed to a team: the scraper webhook has no authenticated team.
+ * masked. Not billed to a team: the scraper webhook has no authenticated team. One short
+ * attempt only: the webhook waits on it inside the request.
  */
 export async function judgeFriction(text: string): Promise<{ hostile: number; rejecting: number; spam: number }> {
     const answers = await ask("FRICTION_SCORING", undefined, { content: text }, {
@@ -150,6 +151,6 @@ export async function judgeFriction(text: string): Promise<{ hostile: number; re
             true: "Unsolicited bulk promotion, a scam, or meaningless filler.",
             false: "Text written for a specific person, conversation, or audience."
         })
-    });
+    }, { timeout: 5000, retry: { maxRetries: 0 } });
     return { hostile: answers.hostile.noul, rejecting: answers.rejecting.noul, spam: answers.spam.noul };
 }

@@ -102,7 +102,7 @@ describe("jev", () => {
     });
 
     describe("judgeFriction", () => {
-        it("returns each friction probability and logs no team usage", async () => {
+        it("returns each friction probability in one short attempt, and logs no team usage", async () => {
             mockSystemOne.mockResolvedValue({
                 model: "jev-1.14.0",
                 usage: { input_tokens: 40, output_tokens: 0 },
@@ -111,6 +111,7 @@ describe("jev", () => {
 
             await expect(judgeFriction("You people again? Stop.")).resolves.toEqual({ hostile: 0.9, rejecting: 0.4, spam: 0.1 });
             expect(mockSystemOne.mock.calls[0][0].state).toEqual({ content: "You people again? Stop." });
+            expect(mockSystemOne.mock.calls[0][1]).toEqual({ timeout: 5000, retry: { maxRetries: 0 } });
             expect(mockPrisma.lLMUsageLog.create).not.toHaveBeenCalled();
         });
     });
