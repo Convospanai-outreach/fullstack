@@ -451,6 +451,45 @@ describe("sendPendingAutoReplies", () => {
         expect(graphCall).toHaveBeenCalledTimes(1);
     });
 
+    describe("Instagram Login account (no Facebook Page)", () => {
+        const noPage = {
+            ...igAccount,
+            parentExternalId: null,
+            scopes: ["instagram_business_basic", "instagram_business_manage_comments", "instagram_business_manage_messages"],
+        };
+
+        it("sends the private reply and the public comment reply from the account's own id on the Instagram host", async () => {
+            pageTokenFor.mockResolvedValue("ig-user-token");
+            const r = row({ publicStatus: "PENDING" }, { publicCommentReply: "Sent you a DM!", socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+
+            expect(graphPostJson).toHaveBeenCalledWith("ig-1/messages", { recipient: { comment_id: "c1" }, message: { text: "Here's the guide" } }, "ig-user-token", "https://graph.instagram.com/v26.0");
+            expect(graphCall).toHaveBeenCalledWith("POST", "c1/replies", { message: "Sent you a DM!" }, "user-token", "https://graph.instagram.com/v26.0");
+            expect(get(r.id)).toMatchObject({ status: "SENT", publicStatus: "SENT" });
+        });
+
+        it("answers a keyword DM through the same endpoint with the sender's id", async () => {
+            pageTokenFor.mockResolvedValue("ig-user-token");
+            row({ sourceKey: "dm:mid-1", personKey: "igsid-9", commentId: null, leadId: "lead-1" }, { socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+            expect(graphPostJson).toHaveBeenCalledWith("ig-1/messages", { recipient: { id: "igsid-9" }, message: { text: "Here's the guide" } }, "ig-user-token", "https://graph.instagram.com/v26.0");
+        });
+
+        it("needs the Instagram Login permissions, not the Facebook ones, and says which are missing", async () => {
+            const r = row({}, { socialAccount: { ...noPage, scopes: ["instagram_business_basic"] } });
+            await sendPendingAutoReplies(NOW);
+            expect(get(r.id)).toMatchObject({ status: "FAILED", lastError: "Reconnect the account and allow: instagram_business_manage_comments." });
+            expect(graphPostJson).not.toHaveBeenCalled();
+        });
+
+        it("fails clearly, not with a Page message, when the account's own token is gone", async () => {
+            pageTokenFor.mockResolvedValue(null);
+            const r = row({}, { socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+            expect(get(r.id)).toMatchObject({ status: "FAILED", lastError: "The account's connection is missing. Reconnect it." });
+        });
+    });
+
     it("doesn't post the public reply when the DM didn't go out", async () => {
         const r = row({ publicStatus: "PENDING" }, { publicCommentReply: "Sent you a DM!", socialAccount: { ...igAccount, scopes: ["pages_messaging"] } });
         await sendPendingAutoReplies(NOW);

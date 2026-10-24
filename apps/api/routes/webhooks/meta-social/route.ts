@@ -37,16 +37,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const appSecret = process.env["FACEBOOK_APP_SECRET"];
-    if (!appSecret) {
+    // Accounts connected through Facebook Login are signed with the Meta app secret. Accounts
+    // connected with Instagram Login (no Page) belong to the Instagram product, which has its own
+    // app secret; Meta's webhook docs only say "your app's App Secret", so either is accepted.
+    const appSecrets = [process.env["FACEBOOK_APP_SECRET"], process.env["INSTAGRAM_APP_SECRET"]].filter((secret): secret is string => Boolean(secret));
+    if (appSecrets.length === 0) {
         logger.error("[Meta Social Webhook] FACEBOOK_APP_SECRET is not configured.");
         return new NextResponse("Webhook not configured", { status: 503 });
     }
 
     const rawBody = Buffer.from(await req.arrayBuffer());
     const signature = req.headers.get("x-hub-signature-256");
-    const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
-    if (!signature || !sameSecret(signature, expected)) {
+    const signedBy = (secret: string) => sameSecret(signature ?? "", `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`);
+    if (!signature || !appSecrets.some(signedBy)) {
         return new NextResponse("Invalid signature", { status: 401 });
     }
 

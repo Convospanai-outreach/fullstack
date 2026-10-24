@@ -255,6 +255,13 @@ describe("contentPostService", () => {
             expect(error.message).toMatch(/permission to post/);
         });
 
+        it("explains that an account connected with Instagram only can't post, instead of asking to reconnect", async () => {
+            mockDb.contentPost.findFirst.mockResolvedValue(submittable({ targets: [ig({ parentExternalId: null, scopes: ["instagram_business_basic"] })] }));
+            const error = await expectError(submitPost(TEAM, "post-1", "user-1"), 400);
+            expect(error.message).toMatch(/connected with Instagram only/);
+            expect(error.message).toMatch(/through Facebook/);
+        });
+
         it("checks LinkedIn's limits against the LinkedIn caption, and page posts against the platform switch", async () => {
             const liTarget = (platform: string, scopes: string[]) => ({ status: "PENDING", socialAccount: { platform, handle: "Maker", status: "CONNECTED", scopes } });
             const profile = liTarget("LINKEDIN_MEMBER", ["openid", "w_member_social"]);
