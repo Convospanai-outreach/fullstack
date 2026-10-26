@@ -4,6 +4,7 @@ import { authOptions, isSuperAdminRole } from "@/lib/auth";
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
@@ -125,6 +126,6 @@ export async function PUT(req: NextRequest) {
 
         return NextResponse.json({ success: true, message: "Sync complete" });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { Permission, authorizePermission } from "@/lib/permissions";
 import { encryptClientSecret } from "@/modules/settings/ssoSecrets";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Sent to the client instead of the real secret; PUT treats it as "unchanged".
 const REDACTED_CLIENT_SECRET = "••••••••";
@@ -29,7 +30,7 @@ export async function GET() {
         });
     } catch (error: any) {
         console.error("[SSO API] GET error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -107,7 +108,7 @@ export async function PUT(req: Request) {
         });
     } catch (error: any) {
         console.error("[SSO API] PUT error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -135,6 +136,6 @@ export async function DELETE() {
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("[SSO API] DELETE error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

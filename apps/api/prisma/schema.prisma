@@ -3145,6 +3145,20 @@ model ClientError {
   @@index([url])
 }
 
+// A 500 a route handler answered with a fixed message (internalErrorMessage): the caught
+// error's details, which the response no longer carries. Superadmin only; 30-day retention.
+model ServerError {
+  id        String   @id @default(uuid())
+  source    String // "api" or "web"
+  label     String // the fixed text the caller received
+  name      String?
+  message   String   @db.VarChar(1000)
+  stack     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // --- REPLY DECISION TREE TRACKER ---
 
 model ReplyTracker {

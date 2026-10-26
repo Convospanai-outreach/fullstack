@@ -4,6 +4,7 @@ import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { enrollCampaignLeads } from "@/lib/campaigns/enrollment";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,6 @@ export async function POST(
         });
     } catch (error: any) {
         console.error("POST /api/campaigns/[id]/start error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

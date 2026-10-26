@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { reviewService } from "@/modules/ml-training/review/ReviewService";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const reviewRecordSchema = z.object({
     recordId: z.string(),
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("[ML-Training] Review submission failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -135,6 +136,6 @@ export async function GET(req: NextRequest) {
 
     } catch (error: any) {
         console.error("[ML-Training] Review fetch failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { playbookService } from "@/modules/playbooks/playbookService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(
     req: NextRequest,
@@ -15,6 +16,6 @@ export async function POST(
         const campaign = await playbookService.instantiatePlaybook(id, ctx.teamId, values || {});
         return NextResponse.json({ success: true, data: campaign });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -175,8 +175,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error("[LeadTrackingWebhook] Failed to process tracking event:", error);
         return NextResponse.json({ 
-            error: "Internal Server Error", 
-            message: error.message 
+            error: "Internal Server Error"
         }, { status: 500 });
     }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildMicrosoftMailboxAuthUrl } from "@/modules/email-campaigner/service/microsoftMailboxService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.redirect(authUrl, { status: 302 });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Unable to start Microsoft OAuth." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(error, "Unable to start Microsoft OAuth.") }, { status: 500 });
   }
 }

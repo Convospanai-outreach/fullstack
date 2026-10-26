@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     try {
@@ -24,6 +25,6 @@ export async function GET(_req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Error fetching usage stats:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

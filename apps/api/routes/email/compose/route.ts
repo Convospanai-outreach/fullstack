@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { composeNodeA, composeNodeB, composeNodeC } from "@/modules/email-campaigner/service/emailComposer";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -42,6 +43,6 @@ export async function POST(req: NextRequest) {
         if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
             return NextResponse.json({ error: message }, { status: 400 });
         }
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

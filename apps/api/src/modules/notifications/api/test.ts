@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { notificationService } from "../service/notificationService";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: Request) {
     try {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, notification });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

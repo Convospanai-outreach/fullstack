@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +38,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, messageId: data.id });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal server error during Resend test send." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(err, "Internal server error during Resend test send.") }, { status: 500 });
   }
 }
