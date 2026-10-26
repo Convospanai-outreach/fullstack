@@ -6,6 +6,7 @@ import {
   advanceLeadAfterEmailClicked,
   advanceLeadAfterReply,
 } from "@/lib/crm/leadStageTransitions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Moved here from apps/web (which sleeps on Render's free tier, delaying webhook
 // delivery/retries) so this always-on apps/api service receives Resend's webhooks
@@ -168,109 +169,120 @@ export async function POST(req: NextRequest) {
   const { prisma } = await import("@/lib/db");
   const advanceParams = { leadId: email.leadId, teamId, campaignId: email.campaignId, emailId: email.id };
 
-  const recordEmailEvent = (type: string) =>
-    prisma.emailEvent.create({
-      data: {
-        teamId,
-        emailId: email.id,
-        mailboxId: mailbox.id,
-        leadId: email.leadId,
-        campaignId: email.campaignId,
-        type,
-        provider: "RESEND",
-        providerMessageId: event.data?.email_id || null,
-        payload: event.data as any,
-      },
-    }).catch(() => undefined);
+  const emailEventData = (type: string) => ({
+    teamId,
+    emailId: email.id,
+    mailboxId: mailbox.id,
+    leadId: email.leadId,
+    campaignId: email.campaignId,
+    type,
+    provider: "RESEND",
+    providerMessageId: event.data?.email_id || null,
+    payload: event.data as any,
+  });
 
-  switch (event.type) {
-    case "email.opened": {
-      // Webhook providers redeliver at-least-once, so a plain read-then-write here (read
-      // openedAt, decide, write) could let two concurrent deliveries both see it unset and
-      // both fire the lead-stage side effect. updateMany with the guard in the WHERE clause
-      // makes the claim atomic - only the delivery that actually flips the flag proceeds.
-      // The EmailEvent write is gated behind the same claim so a redelivery doesn't also
-      // double-count analytics after the lead-stage race was already fixed (OPEN-107).
-      const claimed = await prisma.email.updateMany({ where: { id: email.id, openedAt: null }, data: { openedAt: new Date() } });
-      if (claimed.count > 0) {
-        await advanceLeadAfterEmailOpened(prisma, advanceParams).catch(() => undefined);
-        await recordEmailEvent("OPENED");
-      }
-      break;
-    }
-    case "email.clicked": {
-      const claimed = await prisma.email.updateMany({ where: { id: email.id, clickedAt: null }, data: { clickedAt: new Date() } });
-      if (claimed.count > 0) {
-        await advanceLeadAfterEmailClicked(prisma, advanceParams).catch(() => undefined);
-        await recordEmailEvent("CLICKED");
-        await rescoreLead(email.leadId);
-      }
-      break;
-    }
-    case "email.bounced": {
-      await prisma.email.update({ where: { id: email.id }, data: { bouncedAt: new Date(), status: "bounced" } });
-      await recordEmailEvent("BOUNCED");
-      break;
-    }
-    case "email.complained": {
-      const recipientEmail = event.data?.to?.[0]?.toLowerCase().trim();
-      if (recipientEmail) {
-        await prisma.suppressionEntry.upsert({
-          where: { teamId_email: { teamId, email: recipientEmail } },
-          create: { teamId, email: recipientEmail, reason: "SPAM_COMPLAINT", source: "RESEND_WEBHOOK", leadId: email.leadId },
-          update: { reason: "SPAM_COMPLAINT", source: "RESEND_WEBHOOK", leadId: email.leadId },
+  // EmailEvent is unique per (team, provider, provider message id, type), so a redelivery's
+  // event insert is a duplicate; any other error fails the webhook and Resend retries it.
+  const recordEmailEvent = (type: string) =>
+    prisma.emailEvent.create({ data: emailEventData(type) }).catch((error: any) => {
+      if (error?.code !== "P2002") throw error;
+    });
+
+  try {
+    switch (event.type) {
+      case "email.opened": {
+        // Webhook providers redeliver at-least-once. The updateMany guard makes the claim
+        // atomic, so only the delivery that flips the flag proceeds (OPEN-107). The claim,
+        // lead-stage advance and EmailEvent share one transaction: if a side effect fails,
+        // the claim rolls back too, and Resend's retry can do the work.
+        await prisma.$transaction(async (tx) => {
+          const claimed = await tx.email.updateMany({ where: { id: email.id, openedAt: null }, data: { openedAt: new Date() } });
+          if (claimed.count === 0) return;
+          await advanceLeadAfterEmailOpened(tx, advanceParams);
+          await tx.emailEvent.create({ data: emailEventData("OPENED") });
         });
-        await prisma.lead.update({ where: { id: email.leadId }, data: { status: "OPT_OUT" } }).catch(() => undefined);
+        break;
       }
-      await recordEmailEvent("COMPLAINED");
-      break;
-    }
-    case "email.received": {
-      const claimed = await prisma.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
-      if (claimed.count > 0) {
-        await advanceLeadAfterReply(prisma, advanceParams).catch(() => undefined);
-        const emailEvent = await prisma.emailEvent.create({
-          data: {
-            teamId,
-            emailId: email.id,
-            mailboxId: mailbox.id,
-            leadId: email.leadId,
-            campaignId: email.campaignId,
-            type: "REPLY_RECEIVED",
-            provider: "RESEND",
-            providerMessageId: event.data?.email_id || null,
-            payload: event.data as any,
-          },
-        }).catch(() => undefined);
+      case "email.clicked": {
+        const claimed = await prisma.$transaction(async (tx) => {
+          const result = await tx.email.updateMany({ where: { id: email.id, clickedAt: null }, data: { clickedAt: new Date() } });
+          if (result.count === 0) return false;
+          await advanceLeadAfterEmailClicked(tx, advanceParams);
+          await tx.emailEvent.create({ data: emailEventData("CLICKED") });
+          return true;
+        });
+        if (claimed) await rescoreLead(email.leadId);
+        break;
+      }
+      case "email.bounced": {
+        await prisma.email.update({ where: { id: email.id }, data: { bouncedAt: new Date(), status: "bounced" } });
+        await recordEmailEvent("BOUNCED");
+        break;
+      }
+      case "email.complained": {
+        const recipientEmail = event.data?.to?.[0]?.toLowerCase().trim();
+        if (recipientEmail) {
+          await prisma.suppressionEntry.upsert({
+            where: { teamId_email: { teamId, email: recipientEmail } },
+            create: { teamId, email: recipientEmail, reason: "SPAM_COMPLAINT", source: "RESEND_WEBHOOK", leadId: email.leadId },
+            update: { reason: "SPAM_COMPLAINT", source: "RESEND_WEBHOOK", leadId: email.leadId },
+          });
+          // A lead deleted since the send is fine to skip; any other failure is retried.
+          await prisma.lead.update({ where: { id: email.leadId }, data: { status: "OPT_OUT" } }).catch((error: any) => {
+            if (error?.code !== "P2025") throw error;
+          });
+        }
+        await recordEmailEvent("COMPLAINED");
+        break;
+      }
+      case "email.received": {
+        // Each reply is its own inbound email, so dedupe on its id (the EmailEvent unique
+        // key), not on the sent email's repliedAt: that let only a lead's first reply in.
+        const inboundEmailId = event.data?.email_id;
+        if (!inboundEmailId) {
+          console.warn("[ResendWebhook] email.received without email_id; skipped");
+          return NextResponse.json({ ok: true, skipped: true, reason: "missing_email_id" });
+        }
+        const body = await fetchReceivedEmailBody(mailbox, inboundEmailId);
 
         // Same parity as the Gmail/IMAP reply paths: a Message row is what actually makes
-        // the reply show up in the Inbox UI, not just the lead-stage/EmailEvent bookkeeping.
-        if (email.leadId) {
-          const body = await fetchReceivedEmailBody(mailbox, event.data?.email_id);
-          const inboundMessage = await prisma.message.create({
-            data: {
-              leadId: email.leadId,
-              content: body?.content || event.data?.subject || "Reply detected",
-              direction: "INBOUND",
-              platform: "EMAIL",
-              sender: body?.from || event.data?.from || "",
-              status: "received",
-              isRead: false,
-              ...(emailEvent?.id ? { emailEventId: emailEvent.id } : {}),
-            },
-          }).catch(() => undefined);
-          if (inboundMessage) {
-            const { onInboundReply } = await import("@/modules/inbox/inboundReplyNotifier");
-            void onInboundReply(inboundMessage);
-          }
+        // the reply show up in the Inbox UI. The event goes first, so a redelivery fails on
+        // the unique key before touching the lead.
+        let inboundMessage;
+        try {
+          inboundMessage = await prisma.$transaction(async (tx) => {
+            const emailEvent = await tx.emailEvent.create({ data: emailEventData("REPLY_RECEIVED") });
+            await tx.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
+            await advanceLeadAfterReply(tx, advanceParams);
+            return tx.message.create({
+              data: {
+                leadId: email.leadId,
+                content: body?.content || event.data?.subject || "Reply detected",
+                direction: "INBOUND",
+                platform: "EMAIL",
+                sender: body?.from || event.data?.from || "",
+                status: "received",
+                isRead: false,
+                emailEventId: emailEvent.id,
+              },
+            });
+          });
+        } catch (error: any) {
+          if (error?.code === "P2002") return NextResponse.json({ ok: true, duplicate: true });
+          throw error;
         }
 
+        const { onInboundReply } = await import("@/modules/inbox/inboundReplyNotifier");
+        void onInboundReply(inboundMessage);
         await rescoreLead(email.leadId);
+        break;
       }
-      break;
+      default:
+        break;
     }
-    default:
-      break;
+  } catch (error) {
+    // A 500 makes Resend redeliver; nothing above is left half-written.
+    return NextResponse.json({ error: internalErrorMessage(error, "Could not process the webhook event") }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
