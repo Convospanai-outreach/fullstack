@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { scrubBreadcrumb, scrubEvent } from './lib/sentryScrub';
 
 export async function register() {
     if (process.env['NEXT_RUNTIME'] === 'nodejs') {
@@ -11,12 +12,15 @@ export async function register() {
             tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
             debug: false,
             environment: process.env.NODE_ENV || 'development',
+            sendDefaultPii: false,
             beforeSend(event) {
                 if (process.env.NODE_ENV === 'development') {
                     return null;
                 }
-                return event;
+                return scrubEvent(event);
             },
+            beforeSendTransaction: scrubEvent,
+            beforeBreadcrumb: scrubBreadcrumb,
         });
 
         const runtimeMode = process.env['CRAFTMYFUNNEL_RUNTIME_MODE'];

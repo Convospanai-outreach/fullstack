@@ -24,7 +24,9 @@ export class IdentityService {
             }
             return null;
         } catch (error) {
-            console.error(`[IdentityVault] Re-identification failed for token ${token} in ${region}:`, error);
+            // The token and the axios error (its config holds the request body) stay out of logs.
+            const failure = axios.isAxiosError(error) ? (error.response?.status ?? error.code) : (error as Error)?.name;
+            console.error(`[IdentityVault] Re-identification failed in ${region}: ${failure ?? "unknown error"}`);
             // Fail Closed: If vault is unreachable, PII remains masked.
             return null;
         }
