@@ -13,7 +13,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { NextRequest, NextResponse } from 'next/server';
-import { safeGet, safeDel, getRedisClient } from './redis';
+import { safeDel, getRedisClient } from './redis';
 import { logger } from './logger';
 import { clientIp } from './clientIp';
 
@@ -36,6 +36,23 @@ const rateLimitCache = new LRUCache<string, RateLimitEntry>({
   updateAgeOnGet: false,
   updateAgeOnHas: false,
 });
+
+// Fixed-window counter: INCR, start the window on the first hit (or if the expiry was lost),
+// and return the count with the window's remaining milliseconds.
+const RATE_LIMIT_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
+
+// v2: the value is now an INCR counter. Keys from the old JSON format expire on their own.
+function redisKey(endpoint: string, identifier: string): string {
+  return `ratelimit:v2:${endpoint}:${identifier}`;
+}
 
 /**
  * Rate limit configurations by endpoint type
@@ -119,50 +136,24 @@ export async function checkRateLimit(
     };
   }
 
-  const key = `ratelimit:${endpoint}:${identifier}`;
-
   // 1. Try Redis First
   const redisClient = await getRedisClient();
   if (redisClient && redisClient.status === "ready") {
     try {
-      const data = await redisClient.get(key);
-      let entry: RateLimitEntry;
+      // One atomic step: a get-then-set let concurrent requests all read the same count
+      // and all pass, so a burst could exceed any tier (AUTH included).
+      const [count, ttlMs] = (await redisClient.eval(
+        RATE_LIMIT_SCRIPT,
+        1,
+        redisKey(endpoint, identifier),
+        String(config.windowMs)
+      )) as [number, number];
+      const resetTime = now + ttlMs;
 
-      if (data) {
-        entry = JSON.parse(data);
-      } else {
-        entry = { count: 0, resetTime: now + config.windowMs };
+      if (count > config.maxRequests) {
+        return { allowed: false, remaining: 0, resetTime };
       }
-
-      // Check if window expired
-      if (now > entry.resetTime) {
-        entry = { count: 0, resetTime: now + config.windowMs };
-      }
-
-      // Check Limits
-      if (entry.count >= config.maxRequests) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: entry.resetTime
-        };
-      }
-
-      // Increment
-      entry.count += 1;
-
-      // Calculate TTL in seconds
-      const ttl = Math.ceil((entry.resetTime - now) / 1000);
-      if (ttl > 0) {
-        await redisClient.set(key, JSON.stringify(entry), "EX", ttl);
-      }
-
-      return {
-        allowed: true,
-        remaining: config.maxRequests - entry.count,
-        resetTime: entry.resetTime
-      };
-
+      return { allowed: true, remaining: config.maxRequests - count, resetTime };
     } catch (error) {
       logger.warn("Redis Rate Limit Failed, falling back to LRU", error);
     }
@@ -284,7 +275,7 @@ export async function resetRateLimit(identifier: string, endpoint: string): Prom
   rateLimitCache.delete(key);
 
   // Clear Redis
-  await safeDel(`ratelimit:${endpoint}:${identifier}`);
+  await safeDel(redisKey(endpoint, identifier));
 }
 
 /**
@@ -292,10 +283,17 @@ export async function resetRateLimit(identifier: string, endpoint: string): Prom
  */
 export async function getRateLimitStatus(identifier: string, endpoint: string): Promise<RateLimitEntry | null> {
   // Check Redis first
-  const redisKey = `ratelimit:${endpoint}:${identifier}`;
-  const redisData = await safeGet(redisKey);
-  if (redisData) {
-    return JSON.parse(redisData);
+  const client = await getRedisClient();
+  if (client && client.status === "ready") {
+    try {
+      const key = redisKey(endpoint, identifier);
+      const [count, ttlMs] = await Promise.all([client.get(key), client.pttl(key)]);
+      if (count !== null) {
+        return { count: Number(count), resetTime: Date.now() + Math.max(0, ttlMs) };
+      }
+    } catch (error) {
+      logger.warn("Redis rate limit status read failed", error);
+    }
   }
 
   // Fallback to LRU

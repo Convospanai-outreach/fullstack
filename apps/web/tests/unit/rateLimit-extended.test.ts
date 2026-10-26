@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
 const redisState = vi.hoisted(() => ({
-    client: null as null | {
-        status: string;
-        get: ReturnType<typeof vi.fn>;
-        set: ReturnType<typeof vi.fn>;
-        del: ReturnType<typeof vi.fn>;
-    },
+    client: null as any,
     safeGet: vi.fn(),
     safeDel: vi.fn(),
 }));
@@ -29,6 +24,30 @@ vi.mock("@/lib/logger", () => ({
 async function loadRateLimit() {
     vi.resetModules();
     return import("@/lib/rateLimit");
+}
+
+// Implements RATE_LIMIT_SCRIPT's semantics in memory. Each eval runs to completion before the
+// next, as a Lua script does inside Redis.
+function fakeRedis() {
+    const store = new Map<string, { value: number; expiresAt: number }>();
+    const live = (key: string) => {
+        const entry = store.get(key);
+        if (entry && Date.now() >= entry.expiresAt) store.delete(key);
+        return store.get(key);
+    };
+    return {
+        status: "ready",
+        eval: vi.fn(async (_script: string, _keys: number, key: string, windowMs: string) => {
+            const entry = live(key);
+            const next = { value: (entry?.value ?? 0) + 1, expiresAt: entry?.expiresAt ?? Date.now() + Number(windowMs) };
+            store.set(key, next);
+            return [next.value, next.expiresAt - Date.now()];
+        }),
+        get: vi.fn(async (key: string) => (live(key) ? String(live(key)!.value) : null)),
+        pttl: vi.fn(async (key: string) => (live(key) ? live(key)!.expiresAt - Date.now() : -2)),
+        set: vi.fn(),
+        del: vi.fn(),
+    };
 }
 
 function request(headers: Record<string, string> = {}) {
@@ -69,35 +88,56 @@ describe("rateLimit extended behavior", () => {
         expect(result.remaining).toBe(1);
     });
 
-    it("uses Redis when available and respects stored windows", async () => {
-        let stored: string | null = JSON.stringify({ count: 1, resetTime: 2000 });
+    it("counts in Redis with one atomic script call and refuses past the limit", async () => {
         vi.spyOn(Date, "now").mockReturnValue(1000);
-        redisState.client = {
-            status: "ready",
-            get: vi.fn(async () => stored),
-            set: vi.fn(async (_key, value) => {
-                stored = value;
-            }),
-            del: vi.fn(),
-        };
+        const redis = fakeRedis();
+        redisState.client = redis;
         const { checkRateLimit } = await loadRateLimit();
 
-        const allowed = await checkRateLimit("user", { maxRequests: 2, windowMs: 1000 }, "endpoint");
-        const blocked = await checkRateLimit("user", { maxRequests: 2, windowMs: 1000 }, "endpoint");
+        const results = [];
+        for (let i = 0; i < 3; i++) results.push(await checkRateLimit("user", { maxRequests: 2, windowMs: 1000 }, "endpoint"));
 
-        expect(allowed).toEqual({ allowed: true, remaining: 0, resetTime: 2000 });
-        expect(blocked).toEqual({ allowed: false, remaining: 0, resetTime: 2000 });
-        expect(redisState.client.set).toHaveBeenCalledWith(
-            "ratelimit:endpoint:user",
-            JSON.stringify({ count: 2, resetTime: 2000 }),
-            "EX",
-            1
+        expect(results).toEqual([
+            { allowed: true, remaining: 1, resetTime: 2000 },
+            { allowed: true, remaining: 0, resetTime: 2000 },
+            { allowed: false, remaining: 0, resetTime: 2000 },
+        ]);
+        expect(redis.eval).toHaveBeenCalledWith(expect.stringContaining("INCR"), 1, "ratelimit:v2:endpoint:user", "1000");
+        // The old get-then-set is gone: that read-modify-write was the race.
+        expect(redis.get).not.toHaveBeenCalled();
+        expect(redis.set).not.toHaveBeenCalled();
+    });
+
+    it("lets no more than the limit through a concurrent burst", async () => {
+        redisState.client = fakeRedis();
+        const { checkRateLimit } = await loadRateLimit();
+
+        const burst = await Promise.all(
+            Array.from({ length: 20 }, () => checkRateLimit("burst", { maxRequests: 5, windowMs: 60_000 }, "auth"))
         );
+
+        expect(burst.filter((r) => r.allowed)).toHaveLength(5);
+    });
+
+    it("reads status from the Redis counter and resets the v2 key", async () => {
+        vi.spyOn(Date, "now").mockReturnValue(1000);
+        redisState.client = fakeRedis();
+        const { checkRateLimit, getRateLimitStatus, resetRateLimit } = await loadRateLimit();
+
+        await checkRateLimit("user", { maxRequests: 3, windowMs: 1000 }, "endpoint");
+        await checkRateLimit("user", { maxRequests: 3, windowMs: 1000 }, "endpoint");
+        await expect(getRateLimitStatus("user", "endpoint")).resolves.toEqual({ count: 2, resetTime: 2000 });
+
+        await resetRateLimit("user", "endpoint");
+        expect(redisState.safeDel).toHaveBeenCalledWith("ratelimit:v2:endpoint:user");
     });
 
     it("falls back to LRU when Redis throws", async () => {
         redisState.client = {
             status: "ready",
+            eval: vi.fn(async () => {
+                throw new Error("redis unavailable");
+            }),
             get: vi.fn(async () => {
                 throw new Error("redis unavailable");
             }),
@@ -129,20 +169,6 @@ describe("rateLimit extended behavior", () => {
         expect(response.headers.get("X-RateLimit-Limit")).toBe("5");
         expect(response.headers.get("X-RateLimit-Remaining")).toBe("3");
         expect(response.headers.get("X-RateLimit-Reset")).toBe("123");
-    });
-
-    it("reads status from Redis before falling back to memory and resets both stores", async () => {
-        redisState.safeGet.mockResolvedValueOnce(JSON.stringify({ count: 7, resetTime: 9000 })).mockResolvedValueOnce(null);
-        const { checkRateLimit, getRateLimitStatus, resetRateLimit } = await loadRateLimit();
-
-        await expect(getRateLimitStatus("user", "endpoint")).resolves.toEqual({ count: 7, resetTime: 9000 });
-
-        await checkRateLimit("user", { maxRequests: 3, windowMs: 1000 }, "endpoint");
-        await expect(getRateLimitStatus("user", "endpoint")).resolves.toMatchObject({ count: 1 });
-
-        await resetRateLimit("user", "endpoint");
-        expect(redisState.safeDel).toHaveBeenCalledWith("ratelimit:endpoint:user");
-        await expect(getRateLimitStatus("user", "endpoint")).resolves.toBeNull();
     });
 
     it("clears in-memory cache and returns stats", async () => {
