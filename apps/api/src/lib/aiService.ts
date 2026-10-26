@@ -242,7 +242,28 @@ async function reserveCreditsForGeneration(
     return credits;
 }
 
-async function settleCreditsForGeneration(
+/**
+ * Callers settle after the provider call has succeeded. A failed adjustment (a DB error) must
+ * not look like a provider failure: callLLM would discard the result, call the next provider
+ * (a second paid call) and refund the whole reservation. The reservation stands as the charge
+ * and the failure is logged for reconciliation.
+ */
+async function settleCreditsForGeneration(...args: Parameters<typeof applyCreditSettlement>) {
+    try {
+        await applyCreditSettlement(...args);
+    } catch (error: any) {
+        const [teamId, reservedCredits, actualCredits, description] = args;
+        logger.error("[AI Usage] Credit settlement failed; the reservation stands", {
+            error: error?.message || String(error),
+            teamId,
+            reservedCredits,
+            actualCredits,
+            description,
+        });
+    }
+}
+
+async function applyCreditSettlement(
     teamId: string | undefined,
     reservedCredits: number,
     actualCredits: number,

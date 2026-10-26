@@ -259,3 +259,42 @@ describe("AIService - LLM client timeouts (B-06)", () => {
         expect(llmCtorOptions.anthropic).toMatchObject({ timeout: 30_000, maxRetries: 1 });
     });
 });
+
+// A settlement error after a successful provider call used to land in the provider catch:
+// the result was discarded, the next provider was called and the reservation refunded.
+describe("AIService - credit settlement failure after a successful generation", () => {
+    const BILLED_TEAM = "11111111-1111-4111-8111-111111111111";
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o-mini" } } },
+        });
+        // Reservation succeeds; the usage-adjustment debit hits a DB error.
+        mockDeductCredits.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error("connection reset"));
+    });
+
+    it("returns the generated text, calls the provider once and keeps the reservation", async () => {
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: "Drafted reply" } }],
+            usage: { prompt_tokens: 6000, completion_tokens: 500 },
+        });
+
+        const text = await aiService.askAI("Draft a reply", BILLED_TEAM, { taskType: "GENERATION" });
+
+        expect(text).toBe("Drafted reply");
+        expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
+        expect(mockDeductCredits).toHaveBeenCalledTimes(2);
+        expect(mockRefundCredits).not.toHaveBeenCalled();
+    });
+
+    it("returns the embedding instead of throwing and refunding", async () => {
+        mockOpenAIEmbeddingsCreate.mockResolvedValue({
+            data: [{ embedding: [0.1, 0.2] }],
+            usage: { prompt_tokens: 6000 },
+        });
+
+        await expect(aiService.getRagEmbedding("some text", BILLED_TEAM)).resolves.toEqual([0.1, 0.2]);
+        expect(mockRefundCredits).not.toHaveBeenCalled();
+    });
+});
