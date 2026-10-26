@@ -1,5 +1,5 @@
 import { HardwareService } from "@/services/HardwareService";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { logger } from "@/lib/logger";
 
 export class IdentityService {
@@ -10,7 +10,9 @@ export class IdentityService {
      */
     static async resolveIdentity(maskedId: string, purpose: string, teamId: string): Promise<any> {
         // 1. Audit Log (Pre-access)
-        logger.info(`[IdentityVault] Access Request: ${maskedId} by Team ${teamId} for ${purpose}`);
+        // A hash prefix, not the token: the token plus vault access gives back the lead's data.
+        const tokenRef = createHash("sha256").update(maskedId).digest("hex").slice(0, 12);
+        logger.info(`[IdentityVault] Access Request: token ${tokenRef} by Team ${teamId} for ${purpose}`);
 
         // 2. Hardware Enclave Call
         try {
