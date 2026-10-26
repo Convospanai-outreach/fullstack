@@ -4,13 +4,21 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockLogger } = vi.hoisted(() => ({ mockLogger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+const { mockLogger, mockCreate } = vi.hoisted(() => ({
+    mockLogger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+    mockCreate: vi.fn(),
+}));
 vi.mock("@/lib/logger", () => ({ logger: mockLogger }));
+vi.mock("@/lib/db", () => ({ prisma: { serverError: { create: mockCreate } } }));
 
 import { INTERNAL_ERROR_MESSAGE, internalErrorMessage } from "../internalError";
 
 describe("internalErrorMessage", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useRealTimers();
+        mockCreate.mockResolvedValue({});
+    });
 
     it("returns the fixed text, never the error's own message", () => {
         const error = new Error('relation "Team" does not exist');
@@ -27,6 +35,35 @@ describe("internalErrorMessage", () => {
     it("logs a non-Error value as a string", () => {
         internalErrorMessage("plain failure");
         expect(mockLogger.error).toHaveBeenCalledWith(`[500] ${INTERNAL_ERROR_MESSAGE}`, { error: "plain failure" });
+    });
+
+    it("records the error for the superadmin Server Errors tab", async () => {
+        const error = new TypeError("boom");
+        internalErrorMessage(error, "Upload failed");
+
+        await vi.waitFor(() => expect(mockCreate).toHaveBeenCalled());
+        expect(mockCreate).toHaveBeenCalledWith({
+            data: { source: "api", label: "Upload failed", name: "TypeError", message: "boom", stack: error.stack },
+        });
+    });
+
+    it("still returns the fixed text when recording fails", async () => {
+        mockCreate.mockRejectedValueOnce(new Error("db down"));
+        expect(internalErrorMessage(new Error("x"))).toBe(INTERNAL_ERROR_MESSAGE);
+
+        await vi.waitFor(() => expect(mockLogger.warn).toHaveBeenCalledWith("[500] Could not record server error", { error: "db down" }));
+    });
+
+    it("records at most 60 errors a minute, and logs every one", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2030-01-01T10:00:00Z"));
+        for (let i = 0; i < 70; i++) internalErrorMessage(new Error(`e${i}`));
+        await vi.waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(60));
+        expect(mockLogger.error).toHaveBeenCalledTimes(70);
+
+        vi.setSystemTime(new Date("2030-01-01T10:01:00Z"));
+        internalErrorMessage(new Error("next minute"));
+        await vi.waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(61));
     });
 });
 
