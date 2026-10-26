@@ -1,7 +1,7 @@
 import CronExpressionParser from "cron-parser";
 import { prisma } from "@/lib/db";
 import { JobQueue, JobType } from "@/lib/queue";
-import { checkCredits, deductCredits } from "@/lib/credits"; // Assuming these exist or will use billingService
+import { checkCredits, deductCredits, refundCredits } from "@/lib/credits"; // Assuming these exist or will use billingService
 import { campaignStartNeedsApproval } from "@/lib/governance/campaignStartApproval";
 
 export class SchedulerService {
@@ -96,7 +96,17 @@ export class SchedulerService {
                     continue;
                 }
 
-                // 4. Dispatch Job
+                // 4. Charge the run before dispatching it. checkCredits above is only a
+                // pre-filter (two runs can both pass it); this conditional debit is the
+                // atomic check, and a run it refuses is not dispatched.
+                const debited = await deductCredits(schedule.teamId, 1, "Scheduled Run Execution", { scheduleId: schedule.id });
+                if (!debited) {
+                    await this.logExecution(schedule.id, "failed", "Insufficient credits", 0, 0);
+                    results.push({ id: schedule.id, status: "skipped" });
+                    continue;
+                }
+
+                // 5. Dispatch Job
                 // Payload includes batch settings and grounding config
                 const payload = {
                     scheduleId: schedule.id,
@@ -119,22 +129,40 @@ export class SchedulerService {
                 // schedule id and the nextRunAt value this tick is servicing,
                 // so even a duplicate enqueue call for the same due run is a
                 // no-op at the job-queue layer.
-                await JobQueue.enqueue(jobType, payload, {
-                    priority: 1,
-                    teamId: schedule.teamId,
-                    idempotencyKey: `sched_${schedule.id}_${schedule.nextRunAt?.toISOString()}`,
-                });
+                try {
+                    await JobQueue.enqueue(jobType, payload, {
+                        priority: 1,
+                        teamId: schedule.teamId,
+                        idempotencyKey: `sched_${schedule.id}_${schedule.nextRunAt?.toISOString()}`,
+                    });
+                } catch (error) {
+                    // Hand the occurrence back so the next tick retries it instead of skipping
+                    // it (the idempotency key keeps the retry from double-dispatching), and
+                    // return the credit.
+                    const rollback = await Promise.allSettled([
+                        prisma.schedule.updateMany({
+                            where: { id: schedule.id, nextRunAt: nextRun },
+                            data: { nextRunAt: schedule.nextRunAt, lastRunAt: schedule.lastRunAt ?? null },
+                        }),
+                        refundCredits(schedule.teamId, 1, "Scheduled Run Execution (dispatch failed)", { scheduleId: schedule.id }),
+                    ]);
+                    for (const step of rollback) {
+                        if (step.status === "rejected") console.error(`Failed to roll back schedule ${schedule.id} after a failed dispatch:`, step.reason);
+                    }
+                    throw error;
+                }
 
-                // 5. Audit Log (Initial)
-                // Deduct startup credit
-                await deductCredits(schedule.teamId, 1, "Scheduled Run Execution", { scheduleId: schedule.id });
+                // 6. Audit Log (Initial)
                 await this.logExecution(schedule.id, "success", "Job dispatched", 0, 1);
 
                 results.push({ id: schedule.id, status: "dispatched" });
 
             } catch (error: any) {
                 console.error(`Failed to process schedule ${schedule.id}:`, error);
-                await this.logExecution(schedule.id, "failed", error.message, 0, 0);
+                // A failed log write must not stop the remaining due schedules in this tick.
+                await this.logExecution(schedule.id, "failed", error.message, 0, 0).catch((logError) =>
+                    console.error(`Failed to log the failure of schedule ${schedule.id}:`, logError)
+                );
                 results.push({ id: schedule.id, status: "error", error: error.message });
             }
         }
