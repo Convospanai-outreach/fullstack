@@ -142,6 +142,14 @@ describe('EmailService', () => {
                 process.env = originalEnv;
             }
         });
+
+        it('throws when the SMTP send fails, so callers do not report it as sent', async () => {
+            const { sendViaSMTP } = await import('@/lib/email/smtpClient');
+            vi.mocked(sendViaSMTP).mockResolvedValueOnce({ success: false, error: 'connect ECONNREFUSED 127.0.0.1:587' });
+
+            await expect(EmailService.sendVerificationEmail('test@example.com', 'Test', 'tok'))
+                .rejects.toThrow(/not sent.*ECONNREFUSED/);
+        });
     });
 
     describe('sendEmail and helper methods', () => {

@@ -91,11 +91,16 @@ export class EmailService {
                 <p>Please verify your email:</p>
                 <p><a href="${verifyUrl}">Verify Email</a></p>
             `;
-            await sendViaSMTP({ host, port, secure, user, password, fromName, fromEmail }, {
+            // sendViaSMTP reports failure in its result instead of throwing; surface it so the
+            // callers can tell the user and the server log shows why.
+            const result = await sendViaSMTP({ host, port, secure, user, password, fromName, fromEmail }, {
                 to: email,
                 subject: "Verify your email",
                 html
             });
+            if (!result.success) {
+                throw new Error(`Verification email was not sent via ${host}:${port}: ${result.error ?? "unknown error"}`);
+            }
             return;
         }
         await fetch(`${API_URL}/email/send-verification`, {
