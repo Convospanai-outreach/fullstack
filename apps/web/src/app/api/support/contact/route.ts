@@ -137,19 +137,12 @@ export async function POST(req: Request) {
 
     const smtpConfig = getSmtpConfig();
     if (!smtpConfig) {
-        console.info("Support ticket queued without SMTP delivery", {
-            name: safeName,
-            email: safeEmail,
-            subject: safeSubject,
-        });
-
-        return NextResponse.json({
-            success: true,
-            ticketId,
-            status: "queued",
-            delivery: "queued",
-            message: "Support request captured. SMTP is not configured in this environment.",
-        });
+        // Never report success or log the submitter's details when nothing can deliver the message.
+        console.error("Support contact unavailable: SMTP is not configured", { ticketId });
+        return NextResponse.json(
+            { error: "Contact form is temporarily unavailable. Please email contact.us@craftmyfunnel.live.", ticketId, status: "unavailable" },
+            { status: 503 },
+        );
     }
 
     const html = `
