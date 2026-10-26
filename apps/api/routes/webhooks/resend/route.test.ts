@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceLeadAfterEmailOpened, mockAdvanceLeadAfterEmailClicked, mockAdvanceLeadAfterReply, mockResendReceivingGet, mockScoreAndPersist } = vi.hoisted(() => ({
     mockPrisma: {
-        email: { findFirst: vi.fn(), updateMany: vi.fn() },
+        email: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
         connectedMailbox: { findUnique: vi.fn() },
         emailEvent: { create: vi.fn() },
         message: { create: vi.fn() },
+        suppressionEntry: { upsert: vi.fn() },
+        lead: { update: vi.fn() },
+        // Runs the callback against the same mocks, so a rejection inside it propagates.
+        $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(mockPrisma)),
     },
     mockVerifySvixSignature: vi.fn(),
     mockDecryptCredential: vi.fn(),
@@ -248,13 +252,107 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
         }));
     });
 
-    it("does not create a Message row on a redelivered event that loses the repliedAt claim", async () => {
+    it("records a second reply to the same sent email as its own Message", async () => {
+        // repliedAt is already set by the first reply; the second must still reach the Inbox.
         mockPrisma.email.updateMany.mockResolvedValue({ count: 0 });
 
-        await POST(request(receivedEvent));
+        const res = await POST(request({ ...receivedEvent, data: { ...receivedEvent.data, email_id: "resend-inbound-2" } }));
 
-        expect(mockPrisma.message.create).not.toHaveBeenCalled();
+        expect(res.status).toBe(200);
+        expect(mockPrisma.emailEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ type: "REPLY_RECEIVED", providerMessageId: "resend-inbound-2" }),
+        });
+        expect(mockPrisma.message.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips a redelivered reply without touching the lead or the Inbox", async () => {
+        mockPrisma.emailEvent.create.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+
+        const res = await POST(request(receivedEvent));
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ duplicate: true });
         expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+        expect(mockPrisma.message.create).not.toHaveBeenCalled();
         expect(mockScoreAndPersist).not.toHaveBeenCalled();
+    });
+
+    it("answers 500 when the Message insert fails, so Resend redelivers", async () => {
+        mockPrisma.message.create.mockRejectedValue(new Error("connection reset"));
+
+        const res = await POST(request(receivedEvent));
+
+        expect(res.status).toBe(500);
+        expect(await res.json()).toEqual({ error: "Could not process the webhook event" });
+        expect(mockScoreAndPersist).not.toHaveBeenCalled();
+    });
+
+    it("skips an email.received event that has no email id", async () => {
+        const res = await POST(request({ ...receivedEvent, data: { ...receivedEvent.data, email_id: undefined } }));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.message.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /webhooks/resend - failed side effects are retried, not lost", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.email.findFirst.mockResolvedValue({
+            id: "email-1",
+            leadId: "lead-1",
+            campaignId: "campaign-1",
+            mailboxId: "mailbox-1",
+            openedAt: null,
+            clickedAt: null,
+            repliedAt: null,
+        });
+        mockPrisma.connectedMailbox.findUnique.mockResolvedValue({ id: "mailbox-1", teamId: "team-1", encryptedRefreshToken: "encrypted" });
+        mockDecryptCredential.mockResolvedValue("webhook-secret");
+        mockVerifySvixSignature.mockReturnValue(true);
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.email.update.mockResolvedValue({});
+        mockPrisma.emailEvent.create.mockResolvedValue({});
+        mockPrisma.suppressionEntry.upsert.mockResolvedValue({});
+        mockPrisma.lead.update.mockResolvedValue({});
+    });
+
+    it("answers 500 when the open's lead-stage advance fails, inside the claim's transaction", async () => {
+        mockAdvanceLeadAfterEmailOpened.mockRejectedValue(new Error("deadlock"));
+
+        const res = await POST(request({ type: "email.opened", data: { email_id: "provider-1" } }));
+
+        expect(res.status).toBe(500);
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.emailEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("answers 500 when the click's EmailEvent insert fails", async () => {
+        mockAdvanceLeadAfterEmailClicked.mockResolvedValue(undefined);
+        mockPrisma.emailEvent.create.mockRejectedValue(new Error("connection reset"));
+
+        const res = await POST(request({ type: "email.clicked", data: { email_id: "provider-1" } }));
+
+        expect(res.status).toBe(500);
+        expect(mockScoreAndPersist).not.toHaveBeenCalled();
+    });
+
+    it("treats a duplicate bounce event as already recorded", async () => {
+        mockPrisma.emailEvent.create.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+
+        const res = await POST(request({ type: "email.bounced", data: { email_id: "provider-1" } }));
+
+        expect(res.status).toBe(200);
+    });
+
+    it("answers 500 when the complaint's opt-out update fails, but not when the lead is gone", async () => {
+        const complaint = { type: "email.complained", data: { email_id: "provider-1", to: ["Lead@Example.com"] } };
+
+        mockPrisma.lead.update.mockRejectedValueOnce(new Error("connection reset"));
+        expect((await POST(request(complaint))).status).toBe(500);
+
+        mockPrisma.lead.update.mockRejectedValueOnce(Object.assign(new Error("Record not found"), { code: "P2025" }));
+        expect((await POST(request(complaint))).status).toBe(200);
+        expect(mockPrisma.emailEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ type: "COMPLAINED" }) });
     });
 });
