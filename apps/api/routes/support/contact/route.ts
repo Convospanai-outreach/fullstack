@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function generateTicketId(): string {
     const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -39,6 +40,6 @@ export async function POST(req: Request) {
             message: "Ticket submitted successfully"
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

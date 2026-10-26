@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { NurtureService } from "@/modules/learning/NurtureService";
 import { NextRequest } from "next/server"; // Added NextRequest import
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(_req: NextRequest) { // Changed type to NextRequest
     try {
@@ -26,7 +27,7 @@ export async function POST(_req: NextRequest) { // Changed type to NextRequest
 
     } catch (error: any) {
         console.error("[NurtureAPI] Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -54,6 +55,6 @@ export async function GET(_req: NextRequest) {
 
         return NextResponse.json({ ok: true, events: upcoming });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

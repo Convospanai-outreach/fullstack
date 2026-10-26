@@ -4,6 +4,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const inboxSchema = z.object({
     messages: z.array(z.object({
@@ -68,6 +69,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Inbox Agent Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

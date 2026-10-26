@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../_lib/auth";
 import { resolveExtensionTeamScope } from "../_lib/teamScope";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const VALID_ACTIONS = [
     "ADD_LEAD",
@@ -64,7 +65,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ ok: true, message: "Action recorded" });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal error";
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+        return NextResponse.json({ ok: false, error: internalErrorMessage(error, "Internal error") }, { status: 500 });
     }
 }

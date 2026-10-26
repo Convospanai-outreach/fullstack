@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getEdgeRuntimeAvailability, getEdgeNodeStatusSnapshot } from "@/lib/edgeRuntime";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const SENSITIVE_CONFIG_KEYS = [
     "apikey",
@@ -219,7 +220,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error("Setup status error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 

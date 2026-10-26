@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { webhookService } from "@/modules/webhooks/service/webhookService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -31,6 +32,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

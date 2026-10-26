@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { vectorStore } from "@/modules/rag/service/vectorStore";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function toRecord(value: unknown) {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
@@ -79,6 +80,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("[Knowledge] Failed to load campaign context", error);
-        return NextResponse.json({ error: error.message || "Failed to load campaign context" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Failed to load campaign context") }, { status: 500 });
     }
 }

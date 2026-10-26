@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { createCampaignSchema } from "@/lib/validation/schemas";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
         return NextResponse.json(campaigns);
     } catch (error: any) {
         console.error("GET /api/campaigns error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -118,6 +119,6 @@ export async function POST(req: Request) {
         return NextResponse.json(campaign, { status: 201 });
     } catch (error: any) {
         console.error("POST /api/campaigns error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
 import { checkAdmin } from "@/lib/admin";
 import { UserRole } from "@prisma/client";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
@@ -142,6 +143,6 @@ export async function GET() {
 
     } catch (error: any) {
         console.error("Stats Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

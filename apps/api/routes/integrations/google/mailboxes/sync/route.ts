@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { syncGoogleMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const SyncSchema = z.object({
     mailboxId: z.string().min(1),
@@ -27,6 +28,6 @@ export async function POST(req: NextRequest) {
         const result = await syncGoogleMailbox(ctx.teamId, parsed.data.mailboxId);
         return NextResponse.json(result);
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to sync Google mailbox." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to sync Google mailbox.") }, { status: 500 });
     }
 }

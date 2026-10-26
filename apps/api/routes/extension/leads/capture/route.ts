@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateExtensionAuth } from "../../_lib/auth";
 import { resolveExtensionTeamScope } from "../../_lib/teamScope";
 import { normalizeLinkedInProfileUrl, syncLinkedInExtensionCapture } from "@/services/extensionLeadCaptureService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function sanitizeText(value: unknown, maxLength: number): string | undefined {
     if (typeof value !== "string") return undefined;
@@ -39,7 +40,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(result);
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal error";
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error, "Internal error") }, { status: 500 });
     }
 }

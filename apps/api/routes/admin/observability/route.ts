@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { UserRole } from "@prisma/client";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: Request) {
     // Strict Admin Check
@@ -75,6 +76,6 @@ export async function GET(req: Request) {
         });
 
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
