@@ -59,6 +59,15 @@ describe("POST /api/campaigns/[id]/attachments - content checks", () => {
         );
     });
 
+    it("accepts a PDF with a few bytes before its header, as PDF readers do", async () => {
+        const { POST } = await import("./route");
+
+        const leading = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf, 0x0a]), PDF]);
+        const response = await POST(upload("brochure.pdf", "application/pdf", leading.toString("base64")), params);
+
+        expect(response.status).toBe(201);
+    });
+
     it("refuses an executable that claims to be a PDF", async () => {
         const { POST } = await import("./route");
 

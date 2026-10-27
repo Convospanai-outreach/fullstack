@@ -10,7 +10,8 @@ const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10MB — generous for a PDF/PP
 // enough: the filename extension and the bytes must both match it.
 const OLE_SIGNATURE = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
 const ZIP_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
-const isPdf = (bytes: Buffer) => bytes.subarray(0, 5).equals(Buffer.from("%PDF-"));
+// Readers (Acrobat included) accept the %PDF- header anywhere in the first 1024 bytes.
+const isPdf = (bytes: Buffer) => bytes.subarray(0, 1024).includes(Buffer.from("%PDF-"));
 // Legacy .ppt/.pps: an OLE container holding a "PowerPoint Document" stream.
 const isLegacyPowerPoint = (bytes: Buffer) =>
     bytes.subarray(0, 8).equals(OLE_SIGNATURE) && bytes.includes(Buffer.from("PowerPoint Document", "utf16le"));
