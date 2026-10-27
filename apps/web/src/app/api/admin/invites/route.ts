@@ -55,6 +55,16 @@ function isTakenSeat(member: { status: string; userId: string | null; role: stri
     return member.status !== "invited" || member.userId !== null || member.role === "owner";
 }
 
+// Every invitation sends a platform email, so cap how many go out. Counted over all statuses: a
+// revoked invitation was still emailed. The address limit spans teams because anyone can found one.
+const TEAM_DAILY_INVITE_LIMIT = 100;
+const ADDRESS_DAILY_INVITE_LIMIT = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function invitesSentToday(prisma: Awaited<ReturnType<typeof loadPrisma>>, where: { teamId: string } | { email: string }) {
+    return prisma.userInvitation.count({ where: { ...where, createdAt: { gte: new Date(Date.now() - DAY_MS) } } });
+}
+
 export async function GET() {
     const actor = await getActor();
     if (!actor || !canInviteUsers(actor.enterpriseRole)) {
@@ -147,6 +157,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "This person is already a member of the team." }, { status: 409 });
     }
 
+    if (await invitesSentToday(prisma, { teamId }) >= TEAM_DAILY_INVITE_LIMIT) {
+        return NextResponse.json({ error: `This team can send up to ${TEAM_DAILY_INVITE_LIMIT} invitations a day. Try again tomorrow.` }, { status: 429 });
+    }
+    if (await invitesSentToday(prisma, { email }) >= ADDRESS_DAILY_INVITE_LIMIT) {
+        return NextResponse.json({ error: "This address has received too many invitations today. Try again tomorrow." }, { status: 429 });
+    }
+
     const token = createInviteToken();
     const inviteLink = getInviteLink(token);
     const invitation = await prisma.userInvitation.create({
@@ -231,6 +248,11 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
     }
 
     const prisma = await loadPrisma();
+    const remaining = TEAM_DAILY_INVITE_LIMIT - await invitesSentToday(prisma, { teamId });
+    if (emails.length > remaining) {
+        return NextResponse.json({ error: `This team can send ${Math.max(0, remaining)} more invitations today.` }, { status: 429 });
+    }
+
     const teamRole = role === UserRole.ORG_ADMIN ? "admin" : role === UserRole.VIEWER ? "viewer" : "member";
 
     const results = await Promise.all(emails.map(async (email) => {
@@ -238,6 +260,9 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
             const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
             if (existingMember && isTakenSeat(existingMember)) {
                 return { email, ok: false as const, error: "Already a member of this team" };
+            }
+            if (await invitesSentToday(prisma, { email }) >= ADDRESS_DAILY_INVITE_LIMIT) {
+                return { email, ok: false as const, error: "Too many invitations to this address today" };
             }
 
             const token = createInviteToken();
