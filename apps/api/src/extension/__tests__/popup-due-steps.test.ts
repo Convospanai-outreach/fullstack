@@ -21,6 +21,7 @@ async function openPopup(tabUrl: string) {
     document.body.replaceChildren(...Array.from(markup.body.childNodes).map((node) => document.importNode(node, true)));
     chrome = {
         runtime: {
+            id: "ext-id-1",
             lastError: undefined,
             sendMessage: vi.fn(async (msg: any) => (typeof background[msg.type] === "function" ? background[msg.type](msg) : background[msg.type])),
         },
@@ -44,7 +45,7 @@ const activeTab = () => document.querySelector(".tab.active")?.getAttribute("dat
 describe("popup: Due tab", () => {
     beforeEach(() => {
         background = {
-            CMF_GET_V1_STATE: { ok: true, settings: { workspaceUrl: "https://craftmyfunnel.live", extensionKey: "key", syncToken: "token" } },
+            CMF_GET_V1_STATE: { ok: true, settings: { workspaceUrl: "https://craftmyfunnel.live", syncToken: "token" } },
             CMF_UPDATE_ASSISTANT_STATE: { ok: true },
             CMF_CHECK_CONNECTION: { ok: true, user: { email: "me@example.com" }, team: { name: "Team A" } },
             CMF_LIST_DUE_STEPS: { ok: true, steps: [omar, jane] },
@@ -122,5 +123,85 @@ describe("popup: Due tab", () => {
         expect(items()).toHaveLength(0);
         expect(document.getElementById("dueStepsHint")?.textContent).toBe("Connect CraftMyFunnel in Settings to see your due steps.");
         expect(document.getElementById("dueTab")?.textContent).toBe("Due");
+    });
+});
+
+describe("popup: connecting to CraftMyFunnel", () => {
+    const inDays = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const withSettings = (settings: Record<string, any>) => {
+        background = {
+            CMF_GET_V1_STATE: { ok: true, settings },
+            CMF_UPDATE_ASSISTANT_STATE: { ok: true },
+            CMF_CHECK_CONNECTION: { ok: false, error: "Not connected." },
+            CMF_LIST_DUE_STEPS: { ok: true, steps: [] },
+        };
+    };
+    const connectButton = () => document.getElementById("connectWorkspace") as HTMLButtonElement;
+    const detail = () => document.getElementById("connectionDetail")?.textContent;
+
+    it("offers Connect and opens the connect page for this extension", async () => {
+        withSettings({ workspaceUrl: "", syncToken: "" });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        expect(connectButton().textContent).toBe("Connect to CraftMyFunnel");
+        expect(detail()).toContain("Not connected yet");
+        connectButton().click();
+
+        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://craftmyfunnel.live/extension/connect?ext=ext-id-1" });
+    });
+
+    it("opens the connect page on the bare domain when the www address was saved", async () => {
+        withSettings({ workspaceUrl: "https://www.craftmyfunnel.live/", syncToken: "" });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        connectButton().click();
+
+        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://craftmyfunnel.live/extension/connect?ext=ext-id-1" });
+    });
+
+    it("shows the connected team and until when the connection is valid", async () => {
+        withSettings({ workspaceUrl: "https://craftmyfunnel.live", syncToken: "token", team: { id: "t1", name: "Team A" }, syncTokenExpiresAt: inDays(30) });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        expect(connectButton().textContent).toBe("Connect to CraftMyFunnel");
+        expect(detail()).toContain('Connected to the team "Team A". Valid until');
+    });
+
+    it("offers Reconnect when the connection is about to run out or has run out", async () => {
+        withSettings({ workspaceUrl: "https://craftmyfunnel.live", syncToken: "token", syncTokenExpiresAt: inDays(2) });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+        expect(connectButton().textContent).toBe("Reconnect to CraftMyFunnel");
+
+        withSettings({ workspaceUrl: "https://craftmyfunnel.live", syncToken: "token", syncTokenExpiresAt: inDays(-1) });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+        expect(connectButton().textContent).toBe("Reconnect to CraftMyFunnel");
+        expect(detail()).toContain("expired");
+    });
+
+    it("offers Reconnect when the workspace refused the sync token", async () => {
+        withSettings({ workspaceUrl: "https://craftmyfunnel.live", syncToken: "token", needsReconnect: true });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        expect(connectButton().textContent).toBe("Reconnect to CraftMyFunnel");
+        expect(detail()).toContain("Click Reconnect");
+    });
+
+    it("keeps the manual fields under Advanced and has no extension key field", async () => {
+        withSettings({ workspaceUrl: "", syncToken: "" });
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        expect(document.getElementById("extensionKey")).toBeNull();
+        const advanced = document.getElementById("syncToken")?.closest("details");
+        expect(advanced?.querySelector("summary")?.textContent).toBe("Advanced: connect manually");
+        expect(advanced?.contains(document.getElementById("workspaceUrl"))).toBe(true);
+        expect(advanced?.open).toBe(false);
+    });
+
+    it("shows a waiting capture as sending once connected", async () => {
+        withSettings({ workspaceUrl: "", syncToken: "" });
+        background.CMF_GET_V1_STATE.savedLead = { name: "Jane", status: "pending_sync" };
+        await openPopup("https://www.linkedin.com/in/jane-doe/");
+
+        expect(document.getElementById("saveBadge")?.textContent).toBe("Sends when connected");
     });
 });

@@ -71,11 +71,6 @@ export async function loadFeatureContext(teamId: string) {
         providerConfig["openai"]?.apiKey ||
         providerConfig["anthropic"]?.apiKey
     );
-    const hasLinkedInRuntime = Boolean(
-        process.env["EXTENSION_API_KEY"] ||
-        process.env["BROWSER_NODE_URL"] ||
-        process.env["BROWSER_WS_ENDPOINT"]
-    );
     const hasHunter = Boolean(process.env["HUNTER_API_KEY"] || process.env["HUNTER_IO_API_KEY"]);
     const hasScraperSecret = Boolean(process.env["SCRAPER_SECRET"]);
     const strictSovereignty = process.env["STRICT_SOVEREIGNTY"]?.trim().toLowerCase() === "true";
@@ -86,7 +81,6 @@ export async function loadFeatureContext(teamId: string) {
         edgeAvailability,
         hasAiProvider,
         hasHunter,
-        hasLinkedInRuntime,
         hasScraperSecret,
         marketplaceTemplateCount,
         platformDisabled,
@@ -193,17 +187,13 @@ export function resolveReadiness(featureKey: HiddenFeatureKey, context: Awaited<
                     action: "Upload or create at least one knowledge base first.",
                 };
         case "linkedin-runner":
-            return context.hasLinkedInRuntime
-                ? {
-                    ready: true,
-                    reason: "A LinkedIn execution path is configured through the extension or browser node.",
-                    action: "Turn this on when LinkedIn automation should be exposed.",
-                }
-                : {
-                    ready: false,
-                    reason: "No LinkedIn execution runtime is configured.",
-                    action: "Set EXTENSION_API_KEY or BROWSER_NODE_URL/BROWSER_WS_ENDPOINT first.",
-                };
+            // The Chrome extension signs in with per-user sync tokens and needs no server setting,
+            // so a LinkedIn execution path is always available.
+            return {
+                ready: true,
+                reason: "A LinkedIn execution path is configured through the extension or browser node.",
+                action: "Turn this on when LinkedIn automation should be exposed.",
+            };
         case "marketplace":
             return context.marketplaceTemplateCount > 0
                 ? {
