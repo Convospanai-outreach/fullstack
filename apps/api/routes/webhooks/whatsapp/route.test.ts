@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 import crypto from "crypto";
+import { logger } from "@/lib/logger";
 
 const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent } = vi.hoisted(() => ({
     mockPrisma: {
@@ -114,6 +115,10 @@ describe("/webhooks/whatsapp", () => {
 
             expect(res.status).toBe(400);
             expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
+            expect(logger.warn).toHaveBeenCalledWith(
+                "webhook.signature_invalid",
+                expect.objectContaining({ provider: "whatsapp", reason: "invalid_signature", path: "/webhooks/whatsapp" })
+            );
         });
 
         it("fails closed with 503 when WHATSAPP_APP_SECRET isn't configured, instead of accepting unsigned payloads", async () => {

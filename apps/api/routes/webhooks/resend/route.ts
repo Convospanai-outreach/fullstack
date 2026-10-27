@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import { verifySvixSignature } from "@/lib/webhooks/verifySvixSignature";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import {
@@ -159,10 +160,12 @@ export async function POST(req: NextRequest) {
   const svixTimestamp = req.headers.get("svix-timestamp");
   const svixSignature = req.headers.get("svix-signature");
   if (!svixId || !svixTimestamp || !svixSignature) {
+    logWebhookRejected(req, "resend", "missing_signature", rawBody.length);
     return NextResponse.json({ error: "Missing Svix signature headers." }, { status: 400 });
   }
   const valid = verifySvixSignature({ secret: webhookSecret, svixId, svixTimestamp, svixSignature, rawBody });
   if (!valid) {
+    logWebhookRejected(req, "resend", "invalid_signature", rawBody.length);
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
 

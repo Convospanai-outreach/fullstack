@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import type { TransactionClient } from "@/lib/db";
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
 
         // Verify signature
         if (!signature || !secret) {
+            if (!secret) console.error("[Razorpay Webhook] RAZORPAY_WEBHOOK_SECRET is not configured.");
+            else logWebhookRejected(req, "razorpay", "missing_signature");
             return new NextResponse("Missing Signature or Secret", { status: 400 });
         }
 
@@ -91,6 +94,7 @@ export async function POST(req: Request) {
         // timingSafeEqual throws on mismatched buffer length instead of returning false.
         if (signatureBuffer.length !== expectedBuffer.length ||
             !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+            logWebhookRejected(req, "razorpay", "invalid_signature", rawBody.length);
             return new NextResponse("Invalid Signature", { status: 400 });
         }
 
