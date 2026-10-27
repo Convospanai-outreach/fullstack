@@ -183,7 +183,7 @@ async function appProxy(req: NextRequest) {
     ];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const underPrefix = (candidate: string, prefix: string) => candidate === prefix || candidate.startsWith(prefix + "/");
-    // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
+    // Extension routes enforce their own Bearer sync-token check (validateExtensionAuth), not a Clerk cookie.
     const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
@@ -389,7 +389,8 @@ async function appProxy(req: NextRequest) {
             }
             const url = req.nextUrl.clone();
             url.pathname = path.startsWith("/client") ? "/client-login" : "/login";
-            url.searchParams.set("callbackUrl", path);
+            // Keep the query so pages like /extension/connect?ext=... come back intact after sign-in.
+            url.searchParams.set("callbackUrl", path + req.nextUrl.search);
             return NextResponse.redirect(url);
         }
 

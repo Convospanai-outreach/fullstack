@@ -46,6 +46,9 @@ const DEFAULT_STATE = {
     workspaceUrl: "",
     extensionKey: "",
     syncToken: "",
+    syncTokenExpiresAt: "",
+    team: null,
+    needsReconnect: false,
     defaultTone: "Friendly",
     defaultOutreachAngle: "Sales introduction"
   },
@@ -53,6 +56,13 @@ const DEFAULT_STATE = {
   captureCount: 0,
   activityLog: []
 };
+
+// The CraftMyFunnel site may hand over a sync token from its connect page. Only these pages are
+// listed in externally_connectable, and the sender is checked again here.
+const CMF_SITE_ORIGINS = ["https://craftmyfunnel.live", "https://www.craftmyfunnel.live"];
+const CMF_CONNECT_PATH = "/extension/connect";
+// Replies from the workspace that mean the saved sync token no longer works.
+const CMF_AUTH_ERROR_CODES = ["INVALID_TOKEN", "TOKEN_TEAM_REVOKED", "MISSING_TOKEN", "LEGACY_IDENTITY_DISABLED", "ACCOUNT_SUSPENDED"];
 
 chrome.runtime.onInstalled.addListener(async () => {
   const state = await getState();
@@ -133,6 +143,102 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return false;
 });
 
+chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  const origin = siteOrigin(sender);
+  if (!origin) {
+    sendResponse({ ok: false, error: "This page can't connect the extension." });
+    return false;
+  }
+
+  if (msg?.type === "CMF_PING") {
+    getState().then((state) => sendResponse({
+      ok: true,
+      version: chrome.runtime.getManifest().version,
+      connected: Boolean(state.settings.workspaceUrl && state.settings.syncToken)
+    }));
+    return true;
+  }
+
+  if (msg?.type === "CMF_CONNECT") {
+    connectFromSite(msg, origin)
+      .then((result) => {
+        sendResponse(result);
+        if (result.ok) return retryPendingLead();
+      })
+      .catch((error) => sendResponse({ ok: false, error: error?.message || "The extension couldn't save the connection." }));
+    return true;
+  }
+
+  sendResponse({ ok: false, error: "Unknown request." });
+  return false;
+});
+
+// The sender's origin when it is the CraftMyFunnel connect page, otherwise "".
+function siteOrigin(sender) {
+  const origin = String(sender?.origin || "");
+  if (!CMF_SITE_ORIGINS.includes(origin)) return "";
+  const url = String(sender?.url || "");
+  if (!url.startsWith(`${origin}/`)) return "";
+  // Only the connect page may talk to the extension.
+  try {
+    if (new URL(url).pathname !== CMF_CONNECT_PATH) return "";
+  } catch {
+    return "";
+  }
+  return origin;
+}
+
+// Saves the sync token the connect page handed over. The workspace is always the site the
+// page is on, saved as the bare domain.
+async function connectFromSite(msg, origin) {
+  if (msg.version !== 1) return { ok: false, error: "Update the CraftMyFunnel extension and try again." };
+  const workspaceUrl = workspaceBase({ workspaceUrl: origin });
+  if (typeof msg.workspaceUrl !== "string" || workspaceBase({ workspaceUrl: msg.workspaceUrl }) !== workspaceUrl) {
+    return { ok: false, error: "The workspace address doesn't match this site." };
+  }
+  const syncToken = typeof msg.syncToken === "string" ? msg.syncToken.trim() : "";
+  if (!syncToken || syncToken.length > 512) return { ok: false, error: "No sync token was received." };
+  const expiresAt = typeof msg.expiresAt === "string" ? Date.parse(msg.expiresAt) : NaN;
+  if (Number.isNaN(expiresAt)) return { ok: false, error: "The sync token has no expiry date." };
+  const team = msg.team && typeof msg.team === "object"
+    ? { id: String(msg.team.id || "").slice(0, 120), name: String(msg.team.name || "").slice(0, 200) }
+    : null;
+
+  const state = await getState();
+  const settings = {
+    ...state.settings,
+    workspaceUrl,
+    syncToken,
+    syncTokenExpiresAt: new Date(expiresAt).toISOString(),
+    team,
+    extensionKey: "",
+    needsReconnect: false
+  };
+  const activityLog = addActivity(state.activityLog, team?.name ? `Connected to ${team.name}` : "Connected to CraftMyFunnel");
+  await chrome.storage.local.set({ settings, activityLog });
+  return { ok: true, version: chrome.runtime.getManifest().version };
+}
+
+// Sends the lead that was saved while the extension was not connected.
+async function retryPendingLead() {
+  const state = await getState();
+  const lead = state.savedLead;
+  if (lead?.status !== "pending_sync") return;
+  const { status: _status, leadId: _leadId, syncError: _syncError, ...payload } = lead;
+  const syncResult = await trySyncLead(payload, state.settings);
+  const latest = await getState();
+  // A profile saved while this was sending replaces the one sent here; keep the newer one.
+  if (latest.savedLead?.savedAt !== lead.savedAt || latest.savedLead?.profileUrl !== lead.profileUrl) return;
+  if (!syncResult.ok) {
+    await chrome.storage.local.set({ savedLead: { ...lead, syncError: syncResult.error || "" } });
+    return;
+  }
+  await chrome.storage.local.set({
+    savedLead: { ...lead, status: "synced", leadId: syncResult.leadId || lead.leadId || "", syncError: "" },
+    activityLog: addActivity(latest.activityLog, "Lead synced to workspace")
+  });
+}
+
 async function getState() {
   const stored = await chrome.storage.local.get(Object.keys(DEFAULT_STATE));
   return {
@@ -188,11 +294,20 @@ async function updateAssistantState(patch) {
     customAngle: patch.customAngle ?? state.customAngle,
     draft: { ...state.draft, ...(patch.draft || {}) },
     qualification: { ...state.qualification, ...(patch.qualification || {}) },
-    settings: { ...state.settings, ...(patch.settings || {}) },
+    settings: withConnectionDetails(state.settings, patch.settings),
     activityLog: patch.activityLog ? patch.activityLog.slice(0, 5) : state.activityLog
   };
   await chrome.storage.local.set(next);
   return { ok: true, ...next };
+}
+
+// A sync token typed in by hand replaces the one the site handed over, along with its details.
+function withConnectionDetails(current, patch = {}) {
+  const next = { ...current, ...patch };
+  if (patch.syncToken !== undefined && patch.syncToken !== current.syncToken) {
+    return { ...next, syncTokenExpiresAt: "", team: null, needsReconnect: false };
+  }
+  return next;
 }
 
 async function savePreparedLead(payload) {
@@ -224,7 +339,11 @@ async function savePreparedLead(payload) {
     status,
     message: syncResult.ok
       ? "Synced to CraftMyFunnel workspace."
-      : "Pending Sync. Saved locally until CraftMyFunnel is reachable.",
+      : syncResult.notConnected
+        ? "Saved here. It will send to CraftMyFunnel when you connect the extension."
+        : syncResult.authFailed
+          ? "Saved here. Your connection to CraftMyFunnel has ended; click Reconnect in Settings to send it."
+          : "Pending Sync. Saved locally until CraftMyFunnel is reachable.",
     error: syncResult.error || "",
     activityLog
   };
@@ -241,17 +360,13 @@ function workspaceBase(settings) {
 }
 
 async function trySyncLead(lead, settings) {
-  const workspaceUrl = workspaceBase(settings);
-  if (!workspaceUrl) return { ok: false, error: "Workspace URL not configured." };
+  const request = workspaceRequest(settings);
+  if (!request) return { ok: false, notConnected: true, error: "Not connected to CraftMyFunnel yet." };
 
   try {
-    const response = await fetch(`${workspaceUrl}/api/extension/leads/capture`, {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/leads/capture`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(settings.syncToken ? { Authorization: `Bearer ${settings.syncToken}` } : {}),
-        ...(settings.extensionKey ? { "x-extension-key": settings.extensionKey } : {})
-      },
+      headers: request.headers,
       body: JSON.stringify({
         ...lead,
         source: "chrome_extension",
@@ -259,8 +374,10 @@ async function trySyncLead(lead, settings) {
         linkedinUrl: lead.profileUrl || lead.linkedinUrl
       })
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    const data = await readWorkspaceReply(response);
+    if (!response.ok || data.success === false) {
+      return { ok: false, authFailed: isAuthFailure(response, data), error: data.error || `Workspace returned ${response.status}.` };
+    }
     return { ok: true, leadId: data.leadId || "", matchedExisting: Boolean(data.matchedExisting) };
   } catch (error) {
     return { ok: false, error: error?.message || "Workspace unavailable." };
@@ -269,23 +386,19 @@ async function trySyncLead(lead, settings) {
 
 async function markLinkedInOutreachDone(leadId, notes) {
   const state = await getState();
-  const workspaceUrl = workspaceBase(state.settings);
+  const request = workspaceRequest(state.settings);
   const resolvedLeadId = leadId || state.savedLead?.leadId;
-  if (!workspaceUrl || !state.settings?.syncToken || !state.settings?.extensionKey || !resolvedLeadId) {
+  if (!request || !resolvedLeadId) {
     return { ok: false, error: "Sync the lead before marking LinkedIn outreach done." };
   }
 
   try {
-    const response = await fetch(`${workspaceUrl}/api/extension/leads/${resolvedLeadId}/linkedin-contacted`, {
+    const response = await fetch(`${request.workspaceUrl}/api/extension/leads/${resolvedLeadId}/linkedin-contacted`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${state.settings.syncToken}`,
-        "x-extension-key": state.settings.extensionKey
-      },
+      headers: request.headers,
       body: JSON.stringify({ notes })
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.success === false) {
       return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
     }
@@ -302,25 +415,43 @@ async function markLinkedInOutreachDone(leadId, notes) {
 
 function workspaceRequest(settings) {
   const workspaceUrl = workspaceBase(settings);
-  if (!workspaceUrl || !settings?.syncToken || !settings?.extensionKey) return null;
+  if (!workspaceUrl || !settings?.syncToken) return null;
   return {
     workspaceUrl,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${settings.syncToken}`,
-      "x-extension-key": settings.extensionKey
+      Authorization: `Bearer ${settings.syncToken}`
     }
   };
+}
+
+// Reads the workspace's reply. When it says the sync token no longer works, the popup offers
+// Reconnect.
+async function readWorkspaceReply(response) {
+  const data = await response.json().catch(() => ({}));
+  if (isAuthFailure(response, data)) await setNeedsReconnect(true);
+  return data;
+}
+
+function isAuthFailure(response, data) {
+  return (response.status === 401 || response.status === 403) && CMF_AUTH_ERROR_CODES.includes(data?.code);
+}
+
+async function setNeedsReconnect(needsReconnect) {
+  const state = await getState();
+  if (Boolean(state.settings.needsReconnect) === needsReconnect) return;
+  await chrome.storage.local.set({ settings: { ...state.settings, needsReconnect } });
 }
 
 async function checkConnection() {
   const state = await getState();
   const request = workspaceRequest(state.settings);
-  if (!request) return { ok: false, error: "Not connected. Add the workspace URL, extension key and sync token." };
+  if (!request) return { ok: false, error: "Not connected. Click Connect to CraftMyFunnel in Settings." };
   try {
     const response = await fetch(`${request.workspaceUrl}/api/extension/auth/validate`, { headers: request.headers });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.valid === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    await setNeedsReconnect(false);
     return { ok: true, user: data.user || null, team: data.team || null };
   } catch (error) {
     return { ok: false, error: error?.message || "Workspace unavailable." };
@@ -333,7 +464,7 @@ async function listSequences() {
   if (!request) return { ok: false, error: "Connect CraftMyFunnel in Settings first." };
   try {
     const response = await fetch(`${request.workspaceUrl}/api/extension/sequences`, { headers: request.headers });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
     return { ok: true, sequences: Array.isArray(data.sequences) ? data.sequences : [] };
   } catch (error) {
@@ -353,7 +484,7 @@ async function addLeadToSequence(leadId, sequenceId) {
       headers: request.headers,
       body: JSON.stringify({ sequenceId })
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
     const activityLog = addActivity(
       state.activityLog,
@@ -373,7 +504,7 @@ async function listDueSteps() {
   if (!request) return { ok: false, error: "Connect CraftMyFunnel in Settings to see your due steps." };
   try {
     const response = await fetch(`${request.workspaceUrl}/api/extension/steps`, { headers: request.headers });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
     return { ok: true, steps: Array.isArray(data.steps) ? data.steps : [] };
   } catch (error) {
@@ -391,7 +522,7 @@ async function markStepDone(runId) {
       method: "POST",
       headers: request.headers
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readWorkspaceReply(response);
     if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
     const activityLog = addActivity(state.activityLog, `LinkedIn step done: ${data.action || ""}`);
     await chrome.storage.local.set({ activityLog });

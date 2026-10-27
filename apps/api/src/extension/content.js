@@ -702,8 +702,10 @@ function cleanText(value = "") {
   return String(value).replace(/\s+/g, " ").trim();
 }
 
+// Also drops the unread count LinkedIn puts in front of the page title, as in "(3) Jane Doe".
 function stripLinkedInBadges(value = "") {
   return cleanText(value)
+    .replace(/^\(\d+\+?\)\s*/, "")
     .replace(/\s*(?:\u00b7|\|)\s*(1st|2nd|3rd).*$/i, "")
     .replace(/\b(1st|2nd|3rd)\b.*$/i, "")
     .replace(/\s*\|\s*LinkedIn\s*$/i, "")

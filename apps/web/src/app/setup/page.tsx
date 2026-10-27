@@ -38,6 +38,7 @@ import { nextStepId, previousStepId, readOutreachMode, visibleStepIds, type Outr
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
+import { STORE_URL } from "@/lib/extensionIds";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -47,7 +48,6 @@ type SetupStatus = {
   canSendEmail: boolean;
   hasCustomSender: boolean;
   hasLinkedInSession: boolean;
-  hasExtensionApiKey: boolean;
   extensionApiBase: string;
   emailVoiceComplete: boolean;
   hasGeminiKey: boolean;
@@ -140,7 +140,7 @@ export default function SetupWizardPage() {
       if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig);
       if (stepId === 2) return status.brandingComplete;
       if (stepId === 3) return status.canSendEmail || connectedMailboxes > 0;
-      if (stepId === 4) return PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
+      if (stepId === 4) return true;
       if (stepId === 5) return status.emailVoiceComplete;
       if (stepId === 6) return status.hasGeminiKey;
       if (stepId === 7) return status.leadCount > 0;
@@ -1078,36 +1078,49 @@ function ExtensionSyncToken() {
 
   return (
     <section className={panelClass}>
-      <h3 className="text-lg font-semibold text-white">Chrome extension sync token</h3>
+      <h3 className="text-lg font-semibold text-white">Connect the Chrome extension</h3>
       <p className="mt-2 text-sm text-slate-400">
-        The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account. A token is tied to the team you&apos;re in when you generate it: the extension saves every lead to that team.
+        Open the extension popup and click &quot;Connect to CraftMyFunnel&quot;. A tab opens here and links the extension to your account, with nothing to copy or paste. The extension saves every lead to the team you&apos;re in when you connect.
       </p>
-      <button
-        type="button"
-        onClick={generate}
-        disabled={generating}
-        className="mt-4 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+      <a
+        href={STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-300 hover:text-cyan-200"
       >
-        {generating ? "Generating..." : "Generate sync token"}
-      </button>
-      {syncToken && (
-        <div className="mt-4 space-y-2">
-          <div className="flex gap-2">
-            <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
-              {syncToken.token}
-            </code>
-            <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
-              <Copy className="h-4 w-4" />
-            </button>
+        Install the extension from the Chrome Web Store <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+      <div className="mt-4 border-t border-white/10 pt-4">
+        <p className="text-sm text-slate-400">
+          No Connect button in your extension (version 1.1.0 or older), or using a self-hosted workspace? Generate a sync token and paste it into the popup&apos;s &quot;Sync token&quot; field (in 1.2.0, under &quot;Advanced: connect manually&quot;). Version 1.1.0 also asks for an extension key: any text works there.
+        </p>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={generating}
+          className="mt-3 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+        >
+          {generating ? "Generating..." : "Generate sync token"}
+        </button>
+        {syncToken && (
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-2">
+              <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
+                {syncToken.token}
+              </code>
+              <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
+            {syncToken.team && (
+              <p className="text-xs text-slate-300">
+                This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
+              </p>
+            )}
           </div>
-          <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
-          {syncToken.team && (
-            <p className="text-xs text-slate-300">
-              This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

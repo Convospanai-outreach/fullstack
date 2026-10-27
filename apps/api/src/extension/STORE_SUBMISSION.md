@@ -1,9 +1,20 @@
-# Chrome Web Store submission notes (1.1.0)
+# Chrome Web Store submission notes (1.2.0)
 
 Text for the store form when uploading `dist/CraftMyFunnel-extension.zip`. Check each answer against
 the build before submitting.
 
 ## What is new in this version
+
+- Settings has a "Connect to CraftMyFunnel" button. It opens the CraftMyFunnel connect page, where
+  the user signs in and approves; the extension then receives its sync token. Pasting a shared
+  extension key is no longer needed.
+- `externally_connectable` now lists `https://craftmyfunnel.live/*` and
+  `https://www.craftmyfunnel.live/*` so that page can message the extension. No permission or host
+  permission was added. It is not expected to add an install warning; verify in the store
+  dashboard.
+- Profile capture drops LinkedIn's unread-count prefix from the page title, as in "(3) Jane Doe".
+
+Earlier, in 1.1.0:
 
 - A "Due" tab lists the LinkedIn steps that the user's CraftMyFunnel sequences are waiting on them for.
 - From that list the user can open the person's profile, copy the suggested message, have it placed
@@ -58,9 +69,11 @@ A CraftMyFunnel account is needed for sync and due steps. Capture and drafting w
   LinkedIn profile the user chooses to capture, plus the notes they type. This is website content
   and personally identifiable information about the profile's owner.
 - **Where it goes**: it stays on the device until the user clicks Sync, which sends it to the
-  CraftMyFunnel workspace address the user entered.
-- **Sign-in data**: the workspace address, extension key and sync token the user pastes in are
-  stored on the device and sent only to that workspace. No LinkedIn password, cookie or session
+  CraftMyFunnel workspace the extension is connected to. A profile the user chose to sync before
+  connecting is sent when they connect.
+- **Sign-in data**: the sync token the CraftMyFunnel connect page hands over (or that the user
+  pastes in under "Advanced: connect manually"), the workspace address, the team name and the
+  token's expiry date are stored on the device. The token is sent only to that workspace. No LinkedIn password, cookie or session
   data is read or stored.
 - Not sold, not used for advertising, not used for creditworthiness or lending.
 - Privacy policy: https://craftmyfunnel.live/privacy
@@ -70,5 +83,5 @@ A CraftMyFunnel account is needed for sync and due steps. Capture and drafting w
 1. Open any LinkedIn profile (`https://www.linkedin.com/in/...`) and click the extension icon.
 2. Prep tab: click "Capture Profile". The visible name and profile address appear.
 3. Draft tab: click "Generate Draft". A message is drafted locally; nothing is sent.
-4. Sync and the Due tab need a CraftMyFunnel account: paste the workspace address, extension key
-   and sync token in Settings, then click "Check Connection".
+4. Sync and the Due tab need a CraftMyFunnel account: in Settings click "Connect to CraftMyFunnel",
+   sign in on the page that opens and approve. Settings then shows the connected team.

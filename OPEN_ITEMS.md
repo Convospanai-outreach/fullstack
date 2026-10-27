@@ -7144,6 +7144,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Checked:** with both apps on 7.10.1, npm keeps one shared `@prisma/client` at the root. Both apps'
     `prisma generate` still works and the root scripts can import the client, so the OPEN-18 failure does not
     come back locally. No schema change and no migration.
+- **OPEN-352 (Resolved (pending merge) — Chrome extension connects from the web app in one click; shared extension key no longer required):** 2026-10-27.
+  - **Why:** connecting the extension meant copying a shared extension key and a sync token into the popup by
+    hand. The owner asked for a one-click connect and for the shared key to be dropped.
+  - **Web:** new page `/extension/connect?ext=<extension id>` (sign-in required). It accepts the Chrome Web Store
+    build's ID plus any IDs in the optional `EXTENSION_IDS` env and pings the extension (`CMF_PING`). When the
+    user clicks Connect, it mints a sync token through `POST /api/extension/token` and hands it over with
+    `CMF_CONNECT` (version 1, workspace URL, token, expiry, team). Signed-out redirects now keep the query in
+    `callbackUrl`. The setup page explains the Connect button and keeps the token generator visible for 1.1.0 and
+    older builds (their Extension key field accepts any text) and for self-hosted workspaces. LinkedIn runtime
+    readiness no longer depends on `EXTENSION_API_KEY`; `setup/status` no longer returns `hasExtensionApiKey`
+    and the setup page's LinkedIn step counts as done.
+  - **API:** `validateExtensionAuth` authenticates with the per-user Bearer sync token alone (expiry, suspended
+    user and team binding unchanged). `x-extension-key` is no longer checked; requests from older builds that
+    still send it keep working, and the web proxy keeps it in the CORS allowed headers. The unused
+    `extension/auth/token` route and its test are removed. `setup/status` and `admin/runtime-overview` no longer
+    read `EXTENSION_API_KEY`.
+  - **Extension 1.2.0:** Settings has a "Connect to CraftMyFunnel" button that opens the connect page.
+    `externally_connectable` lists the two craftmyfunnel.live origins, and the background worker answers only the
+    `/extension/connect` page there, saving the bare domain as the workspace. Requests send only the Bearer token.
+    The button reads "Reconnect" when the workspace refuses the token or it expires within three days. The shared
+    key field is gone; workspace URL and sync token stay under "Advanced: connect manually". A profile saved while
+    not connected is sent once the extension connects. A save refused because the token no longer works asks the
+    user to reconnect. Also in 1.2.0: the profile name capture drops LinkedIn's unread-count prefix in the page
+    title, as in "(3) Jane Doe" (`content.js`, `content-title.test.ts`).
+  - **Deploy order:** (1) merge, so the API (Oracle VMs) and web (Render) deploy; builds 1.0.0/1.1.0 keep working.
+    (2) Upload extension 1.2.0 to the Chrome Web Store; until it is approved, users on 1.1.0 connect with the
+    setup page's token generator. (3) Once rolling the API back past this release is no longer on the table, remove
+    `EXTENSION_API_KEY` from the VM `.env` files. Set `EXTENSION_IDS` on web only if unpacked/dev builds need
+    one-click connect.
+  - **Rollback:** an API image from before this release needs `EXTENSION_API_KEY` set and checks
+    `x-extension-key`, which 1.2.0 never sends. Once 1.2.0 is live, rolling the API back past this release stops
+    extension requests from 1.2.0 (and from every build if the key was already removed) until it is rolled
+    forward again.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
