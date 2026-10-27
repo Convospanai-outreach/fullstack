@@ -146,7 +146,7 @@ NEXTAUTH_SECRET=<from Render>
 ENCRYPTION_KEY=<from Render — required, mailbox OAuth tokens are encrypted at rest with this>
 ```
 
-**`api-main`-only additions** (the worker doesn't serve HTTP or need these — copy the rest of the values your current Render `fullstack` web service actually has set, using `apps/api/.env.example` in this repo as the full checklist: Google OAuth, Razorpay, Resend, SMTP, OpenAI/Anthropic/Google/Groq keys, `CRON_SECRET`, `SOCKET_SHARED_SECRET`, `EXTENSION_API_KEY`, `ALLOWED_ORIGINS`, `HUNTER_API_KEY`, WhatsApp vars, etc.).
+**`api-main`-only additions** (the worker doesn't serve HTTP or need these — copy the rest of the values your current Render `fullstack` web service actually has set, using `apps/api/.env.example` in this repo as the full checklist: Google OAuth, Razorpay, Resend, SMTP, OpenAI/Anthropic/Google/Groq keys, `CRON_SECRET`, `SOCKET_SHARED_SECRET`, `ALLOWED_ORIGINS`, `HUNTER_API_KEY`, WhatsApp vars, etc.).
 
 **`api-worker`-only addition** (from `render.yaml`):
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, timingSafeEqualSpy } = vi.hoisted(() => ({
+const { mockPrisma } = vi.hoisted(() => ({
   mockPrisma: {
     user: {
       findUnique: vi.fn(),
@@ -9,24 +9,13 @@ const { mockPrisma, timingSafeEqualSpy } = vi.hoisted(() => ({
       findUnique: vi.fn(),
     },
   },
-  timingSafeEqualSpy: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: mockPrisma,
 }));
 
-// Wrap (not replace) timingSafeEqual so the real constant-time compare still runs,
-// but the test can prove the extension key goes through it rather than `!==`.
-vi.mock("crypto", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("crypto")>();
-  timingSafeEqualSpy.mockImplementation(actual.timingSafeEqual);
-  return { ...actual, default: { ...actual, timingSafeEqual: timingSafeEqualSpy }, timingSafeEqual: timingSafeEqualSpy };
-});
-
 import { validateExtensionAuth } from "./auth";
-
-const ENV_KEY = "test-extension-key";
 
 function request(opts: { key?: string; bearer?: string } = {}) {
   const headers: Record<string, string> = {};
@@ -41,7 +30,7 @@ describe("validateExtensionAuth", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env["EXTENSION_API_KEY"] = ENV_KEY;
+    delete process.env["EXTENSION_API_KEY"];
     delete process.env["EXTENSION_ALLOW_LEGACY_IDENTITY_FALLBACKS"];
   });
 
@@ -52,54 +41,45 @@ describe("validateExtensionAuth", () => {
     else process.env["EXTENSION_ALLOW_LEGACY_IDENTITY_FALLBACKS"] = originalFallback;
   });
 
-  it("rejects a missing or wrong extension key before ever checking the token", async () => {
-    const result = await validateExtensionAuth(request({ key: "wrong", bearer: "anything" }));
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
-    expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
+  const validSession = () => ({ userId: "user-1", expires: new Date(Date.now() + 60_000) });
+  const activeUser = () => ({ id: "user-1", email: "u@example.com", name: "User", memberships: [{ teamId: "team-a" }] });
+
+  it("accepts a valid sync token with no extension key header and no EXTENSION_API_KEY set", async () => {
+    mockPrisma.session.findUnique.mockResolvedValue(validSession());
+    mockPrisma.user.findUnique.mockResolvedValue(activeUser());
+
+    const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
+
+    expect(result).toMatchObject({ ok: true, teamIds: ["team-a"] });
+    expect(mockPrisma.session.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { sessionToken: "valid-token" } }));
   });
 
-  it("compares the extension key in constant time on equal-length buffers (S-11)", async () => {
-    // "wrong" is shorter than ENV_KEY: a raw timingSafeEqual would throw on the
-    // length mismatch, and `!==` would leak timing - the helper avoids both.
-    const result = await validateExtensionAuth(request({ key: "wrong", bearer: "anything" }));
+  it("still accepts older extension builds that send an x-extension-key header", async () => {
+    process.env["EXTENSION_API_KEY"] = "some-other-value";
+    mockPrisma.session.findUnique.mockResolvedValue(validSession());
+    mockPrisma.user.findUnique.mockResolvedValue(activeUser());
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
-    expect(timingSafeEqualSpy).toHaveBeenCalledTimes(1);
-    const [provided, required] = timingSafeEqualSpy.mock.calls[0] as [Buffer, Buffer];
-    expect(provided.length).toBe(required.length);
+    const result = await validateExtensionAuth(request({ key: "old-build-key", bearer: "valid-token" }));
+
+    expect(result).toMatchObject({ ok: true, teamIds: ["team-a"] });
   });
 
-  it("rejects a same-length wrong key and a key that only extends the real one", async () => {
-    const sameLength = "x".repeat(ENV_KEY.length);
-    for (const key of [sameLength, `${ENV_KEY}x`]) {
-      const result = await validateExtensionAuth(request({ key, bearer: "anything" }));
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.code).toBe("INVALID_EXTENSION_KEY");
-    }
-    expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
-  });
+  it("does not let an extension key header stand in for a sync token", async () => {
+    const result = await validateExtensionAuth(request({ key: "old-build-key" }));
 
-  it("still rejects when EXTENSION_API_KEY is empty, even if an empty key header is sent", async () => {
-    // An empty header equals an empty key, so the empty-key guard must run before the compare.
-    process.env["EXTENSION_API_KEY"] = "";
-    const result = await validateExtensionAuth(request({ key: "", bearer: "anything" }));
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.code).toBe("MISSING_EXTENSION_KEY");
+    expect(result).toMatchObject({ ok: false, status: 401, code: "MISSING_TOKEN" });
     expect(mockPrisma.session.findUnique).not.toHaveBeenCalled();
   });
 
   it("rejects a request with no bearer token", async () => {
-    const result = await validateExtensionAuth(request({ key: ENV_KEY }));
+    const result = await validateExtensionAuth(request());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("MISSING_TOKEN");
   });
 
   it("rejects a token with no matching Session row", async () => {
     mockPrisma.session.findUnique.mockResolvedValue(null);
-    const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "does-not-exist" }));
+    const result = await validateExtensionAuth(request({ bearer: "does-not-exist" }));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe("INVALID_TOKEN");
   });
@@ -109,7 +89,7 @@ describe("validateExtensionAuth", () => {
       userId: "user-1",
       expires: new Date(Date.now() - 1000),
     });
-    const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "expired-token" }));
+    const result = await validateExtensionAuth(request({ bearer: "expired-token" }));
     expect(result.ok).toBe(false);
     expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
   });
@@ -126,7 +106,7 @@ describe("validateExtensionAuth", () => {
       memberships: [{ teamId: "team-a" }],
     });
 
-    const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+    const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -157,7 +137,7 @@ describe("validateExtensionAuth", () => {
       mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: "team-b" });
       mockPrisma.user.findUnique.mockResolvedValue(member(["team-a", "team-b"]));
 
-      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+      const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
 
       expect(result).toMatchObject({ ok: true, teamIds: ["team-b"] });
     });
@@ -166,7 +146,7 @@ describe("validateExtensionAuth", () => {
       mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: "team-b" });
       mockPrisma.user.findUnique.mockResolvedValue(member(["team-a"]));
 
-      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+      const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
 
       expect(result).toMatchObject({ ok: false, status: 403, code: "TOKEN_TEAM_REVOKED" });
     });
@@ -175,7 +155,7 @@ describe("validateExtensionAuth", () => {
       mockPrisma.session.findUnique.mockResolvedValue({ userId: "user-1", expires: new Date(Date.now() + 60_000), teamId: null });
       mockPrisma.user.findUnique.mockResolvedValue(member(["team-a", "team-b"]));
 
-      const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+      const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
 
       expect(result).toMatchObject({ ok: true, teamIds: ["team-a", "team-b"] });
     });
@@ -194,7 +174,7 @@ describe("validateExtensionAuth", () => {
       memberships: [{ teamId: "team-a" }],
     });
 
-    const result = await validateExtensionAuth(request({ key: ENV_KEY, bearer: "valid-token" }));
+    const result = await validateExtensionAuth(request({ bearer: "valid-token" }));
 
     expect(result).toMatchObject({ ok: false, status: 403, code: "ACCOUNT_SUSPENDED" });
   });

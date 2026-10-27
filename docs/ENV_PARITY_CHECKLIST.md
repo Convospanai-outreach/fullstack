@@ -99,7 +99,8 @@ AI calls should continue through the API service boundary so guardrails, billing
 | Variable | Class | Notes |
 | --- | --- | --- |
 | `EXTENSION_GATEWAY_ENABLED` | D | Keep `false` until Chrome extension sync is verified. |
-| `EXTENSION_API_KEY` | D | Required only if extension gateway auth uses an API key. |
+| `EXTENSION_API_KEY` | D | No longer used: the Chrome extension connects from the web app (`/extension/connect`) and authenticates with a per-user sync token. Can be removed. |
+| `EXTENSION_IDS` | D | Web only, optional. Comma-separated unpacked/dev extension IDs allowed on `/extension/connect`; the Chrome Web Store build is built in. |
 | `CRM_ENRICHMENT_ENABLED` | D | Keep `false` until provider credentials and tests exist. |
 | `HUBSPOT_ACCESS_TOKEN` | D | Required only for HubSpot sync. |
 | `SALESFORCE_CLIENT_ID` | D | Required only for Salesforce sync. |

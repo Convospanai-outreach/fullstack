@@ -17,7 +17,7 @@
 
 1. Added shared extension auth helper:
 - `apps/api/routes/extension/_lib/auth.ts`
-- Validates `x-extension-key`
+- Validates `x-extension-key` (no longer checked: since OPEN-352 the per-user sync token is the only credential, and the extension connects from the web app)
 - Supports either:
   - `Authorization: Bearer <token>` where token can be user id or session token
   - `x-user-id`

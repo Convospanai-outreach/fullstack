@@ -217,13 +217,18 @@
             <p>No passwords, LinkedIn session data, or cookies are stored.</p>
           </div>
         </div>
-        <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://craftmyfunnel.live" autocomplete="off" /></label>
-        <label>Extension key<input id="extensionKey" type="password" placeholder="Shared extension key" autocomplete="off" /></label>
-        <label>Sync token<input id="syncToken" type="password" placeholder="Generate from Settings in the workspace" autocomplete="off" /></label>
-        <p id="connectionStatus" class="hint">Not connected yet.</p>
+        <p id="connectionDetail" class="hint">Not connected yet.</p>
         <div class="actions">
+          <button id="connectWorkspace" class="primary" type="button">Connect to CraftMyFunnel</button>
           <button id="checkConnection" class="secondary" type="button">Check Connection</button>
         </div>
+        <p id="connectionStatus" class="hint"></p>
+        <details class="debug-details">
+          <summary>Advanced: connect manually</summary>
+          <p class="hint">For a self-hosted or development workspace.</p>
+          <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://craftmyfunnel.live" autocomplete="off" /></label>
+          <label>Sync token<input id="syncToken" type="password" placeholder="Generate from Settings in the workspace" autocomplete="off" /></label>
+        </details>
         <div class="form-grid">
           <label>Default tone
             <select id="defaultTone">

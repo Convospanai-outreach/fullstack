@@ -7,7 +7,7 @@ function readWorkspaceFile(...parts: string[]) {
     return fs.readFileSync(path.resolve(process.cwd(), ...parts), "utf8");
 }
 
-// A context where every env/count-driven backend is UNconfigured, except the two
+// A context where every env/count-driven backend is UNconfigured, except the
 // features that are always ready regardless of runtime data. Overridable per-case.
 function makeContext(overrides: Record<string, any> = {}) {
     const base = {
@@ -16,7 +16,6 @@ function makeContext(overrides: Record<string, any> = {}) {
         edgeAvailability: { configured: false, message: "" },
         hasAiProvider: false,
         hasHunter: false,
-        hasLinkedInRuntime: false,
         hasScraperSecret: false,
         marketplaceTemplateCount: 0,
         platformDisabled: new Set<string>(),
@@ -41,11 +40,12 @@ function makeContext(overrides: Record<string, any> = {}) {
 
 describe("roadmap U-05 — beta options rework (readiness-gated defaults + per-team DB)", () => {
     it("null enabledFeatures resolves to the readiness-gated set, not a hardcoded list", () => {
-        // hunter unconfigured -> excluded; csv-ingestion is always ready -> included.
+        // hunter unconfigured -> excluded; csv-ingestion and linkedin-runner (the Chrome
+        // extension needs no server setting) are always ready -> included.
         const keys = resolveEnabledFeatureKeysFromContext(makeContext());
         expect(keys.has("csv-ingestion")).toBe(true);
         expect(keys.has("hunter-email-finder")).toBe(false);
-        expect(keys.has("linkedin-runner")).toBe(false);
+        expect(keys.has("linkedin-runner")).toBe(true);
     });
 
     it("readiness flips a feature on when its backend becomes configured", () => {
