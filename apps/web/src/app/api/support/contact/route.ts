@@ -162,6 +162,8 @@ export async function POST(req: Request) {
     });
 
     if (!result.success) {
+        // The ticket id and the transport's error only; nothing the visitor typed.
+        console.error("Support contact delivery failed", { ticketId, error: result.error });
         return NextResponse.json({ error: "Failed to deliver message", ticketId, status: "failed" }, { status: 502 });
     }
 
