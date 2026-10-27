@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockSendInviteEmail } = vi.hoisted(() => ({
     mockGetServerSession: vi.fn(),
@@ -9,7 +9,7 @@ const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockS
         user: { findUnique: vi.fn() },
         inviteRequest: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
         team: { create: vi.fn() },
-        userInvitation: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+        userInvitation: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(0) },
         teamMember: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
         $transaction: vi.fn(),
     },
@@ -361,5 +361,125 @@ describe("/api/admin/invites - the actor's role in the target team", () => {
             where: { id: "m-1" },
             data: { role: "viewer", status: "invited" },
         });
+    });
+});
+
+describe("POST /api/admin/invites - invitation email quotas", () => {
+    // Invitations already sent in the last 24 hours, by team and by address.
+    let sentByTeam = 0;
+    let sentToAddress = 0;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        sentByTeam = 0;
+        sentToAddress = 0;
+        mockIsSuperAdminRole.mockReturnValue(false);
+        mockSendInviteEmail.mockResolvedValue(true);
+        mockGetServerSession.mockResolvedValue({ user: { id: "owner-1" } });
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "owner-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [{ teamId: "team-1", status: "active", role: "owner" }],
+        });
+        mockPrisma.userInvitation.count.mockImplementation(({ where }: any) =>
+            Promise.resolve(where.teamId ? sentByTeam : sentToAddress)
+        );
+        mockPrisma.userInvitation.create.mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: `invite-${data.email}`, ...data })
+        );
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+        mockPrisma.teamMember.create.mockResolvedValue({});
+        mockAudit.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        mockPrisma.userInvitation.count.mockReset();
+        mockPrisma.userInvitation.count.mockResolvedValue(0);
+    });
+
+    it("sends an invite while the team and the address are under their limits", async () => {
+        sentByTeam = 99;
+        sentToAddress = 2;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(201);
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a single invite once the team has used its daily budget", async () => {
+        sentByTeam = 100;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(429);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("counts every invitation the team created in the last day, whatever its status", async () => {
+        const { POST } = await import("./route");
+
+        await POST(postRequest({ email: "new@example.com" }));
+
+        const teamQuery = mockPrisma.userInvitation.count.mock.calls.find(([arg]: any) => arg.where.teamId)?.[0];
+        expect(teamQuery.where).toEqual({ teamId: "team-1", createdAt: { gte: expect.any(Date) } });
+        // A revoked invitation still sent an email, so revoking must not hand the budget back.
+        expect(teamQuery.where.status).toBeUndefined();
+    });
+
+    it("refuses the whole bulk batch when it would exceed what is left of the budget", async () => {
+        sentByTeam = 98;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["a@example.com", "b@example.com", "c@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(429);
+        expect(body.error).toContain("2");
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("lets a new team's first bulk batch of 50 through", async () => {
+        const { POST } = await import("./route");
+
+        const emails = Array.from({ length: 50 }, (_, i) => `teammate${i}@example.com`);
+        const response = await POST(postRequest({ emails }));
+
+        expect(response.status).toBe(201);
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(50);
+    });
+
+    it("refuses a single invite to an address that already got its daily limit, from any team", async () => {
+        sentToAddress = 3;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "Victim@Example.com" }));
+
+        expect(response.status).toBe(429);
+        expect(mockPrisma.userInvitation.count).toHaveBeenCalledWith({
+            where: { email: "victim@example.com", createdAt: { gte: expect.any(Date) } },
+        });
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("reports an address at its daily limit as a per-email failure in a bulk invite", async () => {
+        mockPrisma.userInvitation.count.mockImplementation(({ where }: any) =>
+            Promise.resolve(where.teamId ? 0 : where.email === "victim@example.com" ? 3 : 0)
+        );
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["victim@example.com", "fresh@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.results.find((r: any) => r.email === "victim@example.com")).toMatchObject({ ok: false });
+        expect(body.results.find((r: any) => r.email === "fresh@example.com")).toMatchObject({ ok: true });
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(1);
+        expect(mockSendInviteEmail).toHaveBeenCalledWith("fresh@example.com", expect.any(String));
     });
 });
