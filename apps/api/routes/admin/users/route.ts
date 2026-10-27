@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { UserRole } from "@prisma/client";
 import { getAdminUser } from "@/lib/admin";
-import { audit } from "@/lib/governance/audit";
+import { dispatchAuditWebhook, writeAuditLog } from "@/lib/governance/audit";
 
 async function getAuditTeamId(actorId: string, targetId?: string) {
     const membership = await prisma.teamMember.findFirst({
@@ -73,26 +73,31 @@ export async function POST(req: Request) {
             (role === "admin" ? UserRole.SYSTEM_ADMIN : UserRole.SALES_USER);
         assertCanAssignRole(admin.enterpriseRole, role, derivedEnterpriseRole);
 
-        const newUser = await prisma.user.create({
-            data: {
-                email,
-                name,
-                role: role || "user",
-                enterpriseRole: derivedEnterpriseRole,
-            }
-        });
-
-        const auditTeamId = await getAuditTeamId(admin.id, newUser.id);
-        if (auditTeamId) {
-            await audit({
+        // A new user has no seat yet, so the audit team can only be the admin's own; resolve it
+        // first, since the transaction below may touch only its own client.
+        const auditTeamId = await getAuditTeamId(admin.id);
+        // The user and the audit row of who created them commit together.
+        const { newUser, log, auditParams } = await prisma.$transaction(async (tx) => {
+            const created = await tx.user.create({
+                data: {
+                    email,
+                    name,
+                    role: role || "user",
+                    enterpriseRole: derivedEnterpriseRole,
+                }
+            });
+            if (!auditTeamId) return { newUser: created, log: null, auditParams: null };
+            const params = {
                 actorId: admin.id,
                 orgId: auditTeamId,
                 action: "ADMIN_USER_CREATED",
                 entity: "User",
-                entityId: newUser.id,
-                metadata: { role: newUser.role, enterpriseRole: newUser.enterpriseRole }
-            });
-        }
+                entityId: created.id,
+                metadata: { role: created.role, enterpriseRole: created.enterpriseRole }
+            };
+            return { newUser: created, log: await writeAuditLog(tx, params), auditParams: params };
+        });
+        if (log && auditParams) await dispatchAuditWebhook(log, auditParams);
 
         return NextResponse.json(newUser);
     } catch (error: any) {
@@ -136,22 +141,25 @@ export async function PATCH(req: Request) {
             throw new APIError("No valid fields to update", 400, "BAD_REQUEST");
         }
 
-        const updated = await prisma.user.update({
-            where: { id },
-            data
-        });
-
-        const auditTeamId = await getAuditTeamId(admin.id, updated.id);
-        if (auditTeamId) {
-            await audit({
+        const auditTeamId = await getAuditTeamId(admin.id, id);
+        // The role change and its audit row commit together.
+        const { updated, log, auditParams } = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.update({
+                where: { id },
+                data
+            });
+            if (!auditTeamId) return { updated: user, log: null, auditParams: null };
+            const params = {
                 actorId: admin.id,
                 orgId: auditTeamId,
                 action: "ADMIN_USER_ROLE_UPDATED",
                 entity: "User",
-                entityId: updated.id,
+                entityId: user.id,
                 metadata: { role: data.role, enterpriseRole: data.enterpriseRole }
-            });
-        }
+            };
+            return { updated: user, log: await writeAuditLog(tx, params), auditParams: params };
+        });
+        if (log && auditParams) await dispatchAuditWebhook(log, auditParams);
 
         return NextResponse.json(updated);
     } catch (error: any) {

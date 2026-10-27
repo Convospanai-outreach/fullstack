@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { audit } from "@/lib/governance/audit";
+import { dispatchAuditWebhook, writeAuditLog } from "@/lib/governance/audit";
 import { Permission, authorizePermission } from "@/lib/permissions";
 import { encryptClientSecret } from "@/modules/settings/ssoSecrets";
 import { internalErrorMessage } from "@/lib/internalError";
@@ -64,43 +64,48 @@ export async function PUT(req: Request) {
             typeof clientSecret === "string" && clientSecret.length > 0 && clientSecret !== REDACTED_CLIENT_SECRET;
         const secretFields = isRealNewSecret ? { clientSecret: encryptClientSecret(clientSecret) } : {};
 
-        const ssoConfig = await prisma.ssoConfiguration.upsert({
-            where: { teamId },
-            update: {
-                providerType,
-                metadataUrl,
-                issuer,
-                entryPoint,
-                certificate,
-                clientId,
-                wellKnownUrl,
-                enforced,
-                allowedDomains,
-                ...secretFields
-            },
-            create: {
-                teamId,
-                providerType,
-                metadataUrl,
-                issuer,
-                entryPoint,
-                certificate,
-                clientId,
-                wellKnownUrl,
-                enforced,
-                allowedDomains,
-                ...secretFields
-            }
-        });
+        // The configuration change and its audit row commit together.
+        const { ssoConfig, log, auditParams } = await prisma.$transaction(async (tx) => {
+            const ssoConfig = await tx.ssoConfiguration.upsert({
+                where: { teamId },
+                update: {
+                    providerType,
+                    metadataUrl,
+                    issuer,
+                    entryPoint,
+                    certificate,
+                    clientId,
+                    wellKnownUrl,
+                    enforced,
+                    allowedDomains,
+                    ...secretFields
+                },
+                create: {
+                    teamId,
+                    providerType,
+                    metadataUrl,
+                    issuer,
+                    entryPoint,
+                    certificate,
+                    clientId,
+                    wellKnownUrl,
+                    enforced,
+                    allowedDomains,
+                    ...secretFields
+                }
+            });
 
-        await audit({
-            actorId: userId,
-            orgId: teamId,
-            action: "UPDATE_SSO_CONFIG",
-            entity: "SsoConfiguration",
-            entityId: ssoConfig.id,
-            metadata: { providerType, enforced, allowedDomains }
+            const auditParams = {
+                actorId: userId,
+                orgId: teamId,
+                action: "UPDATE_SSO_CONFIG",
+                entity: "SsoConfiguration",
+                entityId: ssoConfig.id,
+                metadata: { providerType, enforced, allowedDomains }
+            };
+            return { ssoConfig, log: await writeAuditLog(tx, auditParams), auditParams };
         });
+        await dispatchAuditWebhook(log, auditParams);
 
         return NextResponse.json({
             ...ssoConfig,
@@ -121,17 +126,21 @@ export async function DELETE() {
     try {
         await authorizePermission(userId, teamId, Permission.MANAGE_SSO);
 
-        await prisma.ssoConfiguration.delete({
-            where: { teamId }
-        });
-
-        await audit({
+        const auditParams = {
             actorId: userId,
             orgId: teamId,
             action: "DELETE_SSO_CONFIG",
             entity: "SsoConfiguration",
             entityId: teamId
+        };
+        // The deletion and its audit row commit together.
+        const log = await prisma.$transaction(async (tx) => {
+            await tx.ssoConfiguration.delete({
+                where: { teamId }
+            });
+            return writeAuditLog(tx, auditParams);
         });
+        await dispatchAuditWebhook(log, auditParams);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {
