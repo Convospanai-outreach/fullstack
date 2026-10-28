@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getCurrentContext } from "@/lib/auth";
+import { AuditService } from "@/modules/audit/auditService";
 
 // background.js has no re-mint/refresh flow, so this is a standing credential, not a copy-paste window.
 const TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -26,8 +27,15 @@ export async function POST() {
     // "database", this token would also become a valid NextAuth web session.
     // The token is for the team the user is in right now: the extension saves every lead there,
     // so someone in several teams needs no team picker (apps/api routes/extension/_lib/auth.ts).
-    await prisma.session.create({
-        data: { sessionToken: token, userId, expires, teamId: teamId ?? null }
+    // The credential and the record of its minting commit together (the token itself is never logged).
+    // A user with no team has no workspace to record it under.
+    await prisma.$transaction(async (tx) => {
+        await tx.session.create({
+            data: { sessionToken: token, userId, expires, teamId: teamId ?? null }
+        });
+        if (teamId) {
+            await AuditService.log(teamId, userId, "extension_token_minted", "Session", null, {}, null, null, true, tx);
+        }
     });
     const team = teamId ? await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true } }) : null;
 
@@ -39,13 +47,19 @@ export async function POST() {
 // credentials (see the NextAuth note above), so this never signs anyone out of
 // the web app, and the where clause keeps it scoped to the caller's own rows.
 export async function DELETE() {
-    const { userId } = await getCurrentContext();
+    const { userId, teamId } = await getCurrentContext();
     if (!userId) {
         return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const { prisma } = await import("@/lib/db");
-    const { count } = await prisma.session.deleteMany({ where: { userId } });
+    const count = await prisma.$transaction(async (tx) => {
+        const { count } = await tx.session.deleteMany({ where: { userId } });
+        if (teamId) {
+            await AuditService.log(teamId, userId, "extension_tokens_revoked", "Session", null, { revoked: count }, null, null, true, tx);
+        }
+        return count;
+    });
 
     return NextResponse.json({ ok: true, revoked: count });
 }
