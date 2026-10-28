@@ -18,7 +18,7 @@ function corsHeaders(req: NextRequest): HeadersInit {
     return {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key, x-team-id, idempotency-key, x-cmf-version",
         "Access-Control-Max-Age": "600"
     };
 }

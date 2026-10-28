@@ -1964,6 +1964,9 @@ model User {
   memberships         TeamMember[]
   accounts            Account[]
   sessions            Session[]
+  extensionStateItems ExtensionStateItem[]
+  extensionEvents     ExtensionEvent[]
+  extensionBrainCalls ExtensionBrainCall[]
   campaigns           Campaign[]         @relation("owner_campaigns")
   landingCampaigns    LandingCampaign[]  @relation("LandingCampaignOwner")
   connectedMailboxes  ConnectedMailbox[]
@@ -2078,6 +2081,57 @@ model Session {
   // Extension sync tokens only: the team the token was generated in. Null on tokens made before this column.
   teamId       String?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- LinkedIn copilot extension (store edition) ---
+// The extension's storage mirror: one row per synced key, or per item of a map/list key
+// (item "" = the whole value). Restored on another browser after sign-in.
+model ExtensionStateItem {
+  userId    String
+  key       String
+  item      String   @default("")
+  value     Json?
+  deleted   Boolean  @default(false)
+  changedAt DateTime
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key, item])
+}
+
+// Business events the extension records (invite sent, comment posted, ...), stored once per event_id.
+model ExtensionEvent {
+  id         String   @id @default(uuid())
+  userId     String
+  eventId    String
+  type       String
+  feature    String
+  detail     String?
+  data       Json
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId, occurredAt])
+}
+
+// One AI call from the extension, keyed by its Idempotency-Key so a retry is answered from here
+// and never charged twice. status: pending | done | failed.
+model ExtensionBrainCall {
+  id             String   @id @default(uuid())
+  userId         String
+  op             String
+  idempotencyKey String
+  status         String
+  result         Json?
+  billed         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, op, idempotencyKey])
+  @@index([userId, createdAt])
 }
 
 model VerificationToken {
