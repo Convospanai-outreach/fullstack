@@ -28,3 +28,26 @@ describe("SovereignFirewall.mask when the Edge Node is unavailable", () => {
         expect(SovereignFirewall.unmask(safeContext, tokenMap)).toBe(TEXT);
     });
 });
+
+describe("SovereignFirewall.maskKnownNames", () => {
+    it("replaces the person, each word of their name and the company, and unmask restores them", () => {
+        const text = "Thanks - Jane Doe, Acme Robotics. jane here; Janet from IT said hi. Doe's team";
+        const { safeContext, tokenMap } = SovereignFirewall.maskKnownNames(text, { person: "Jane Doe", company: "Acme Robotics" });
+
+        expect(safeContext).not.toMatch(/Jane Doe|Acme|Robotics/);
+        expect(safeContext).not.toMatch(/\bjane\b/i);
+        expect(safeContext).toContain("Janet");
+        expect(SovereignFirewall.unmask(safeContext, tokenMap)).toBe(text);
+    });
+
+    it("leaves text alone when there are no names, and ignores 1-2 letter name parts", () => {
+        expect(SovereignFirewall.maskKnownNames("Hello Al", {}).safeContext).toBe("Hello Al");
+        expect(SovereignFirewall.maskKnownNames("Hello Al Smith", { person: "Al Smith" }).safeContext).not.toContain("Smith");
+        expect(SovereignFirewall.maskKnownNames("I am at home", { person: "Al Smith", company: "at" }).safeContext).toBe("I am at home");
+    });
+
+    it("treats regex characters in a company name literally", () => {
+        const { safeContext } = SovereignFirewall.maskKnownNames("Ping C++ (Labs) now", { company: "C++ (Labs)" });
+        expect(safeContext).toMatch(/^Ping \[COMPANY_[a-f0-9]{12}\] now$/);
+    });
+});

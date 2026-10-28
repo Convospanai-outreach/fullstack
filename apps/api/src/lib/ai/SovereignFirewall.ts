@@ -169,6 +169,46 @@ export class SovereignFirewall {
     }
 
     /**
+     * Replaces names the caller already knows (a lead's name and company) with tokens, so text that
+     * mentions them - a sign-off, a signature - does not carry them out. Pattern masking cannot
+     * recognise names. Each name and each word of it (3+ letters) is matched as a whole word,
+     * ignoring case. The tokens are added to `tokenMap` so `unmask` restores the original text.
+     */
+    static maskKnownNames(
+        text: string,
+        names: { person?: string | null; company?: string | null },
+        tokenMap: Map<string, string> = new Map()
+    ): SanitizedPayload {
+        const terms: Array<{ term: string; kind: 'NAME' | 'COMPANY' }> = [];
+        const person = names.person?.trim();
+        if (person) {
+            terms.push({ term: person, kind: 'NAME' });
+            for (const word of person.split(/\s+/)) {
+                if (word.replace(/[^\p{L}]/gu, '').length >= 3) terms.push({ term: word, kind: 'NAME' });
+            }
+        }
+        const company = names.company?.trim();
+        if (company && company.length >= 3) terms.push({ term: company, kind: 'COMPANY' });
+
+        // Longest first, so "Jane Doe" is replaced whole before "Jane" and "Doe" are looked at.
+        terms.sort((a, b) => b.term.length - a.term.length);
+
+        let safeContext = text;
+        for (const { term, kind } of terms) {
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu');
+            safeContext = safeContext.replace(pattern, (match) => {
+                const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+                const token = `[${kind}_${hash}]`;
+                tokenMap.set(token, match);
+                return token;
+            });
+        }
+
+        return { safeContext, tokenMap };
+    }
+
+    /**
      * Detokenizes content coming back from the cloud LLM using the local map.
      */
     static unmask(content: string, tokenMap: Map<string, string>): string {

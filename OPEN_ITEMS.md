@@ -7211,8 +7211,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Change:** `mask` takes `{ alwaysMask: true }`, which keeps the local pattern masking (emails, phone numbers) in
     that fallback. `ReplyAnalyzerAgent` passes it for the subject and body. `maskLocal` also recognises ten-digit numbers
     written as two groups of five (+91 98765 43210). Other callers keep their current behaviour.
-  - **Limit:** pattern masking does not recognise names or company names; the Edge Node does. The Edge Node itself
-    (presidio + spaCy) is not deployed on the VMs.
+  - **Names:** `SovereignFirewall.maskKnownNames` replaces the lead’s own name (and each word of it, 3+ letters)
+    and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
+    recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
   - **Deploy:** api only. No migration, no env change.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
