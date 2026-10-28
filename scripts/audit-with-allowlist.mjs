@@ -64,6 +64,16 @@ const ALLOWLIST = new Map([
         "OPEN_ITEMS.md OPEN-125.",
     ],
     [
+        "GHSA-gcqx-w48m-w2h4",
+        "deepmerge (<=4.3.1, via puppeteer-extra and its plugins): prototype " +
+        "poisoning in mergeObject() when merging attacker-supplied source " +
+        "objects. No patched release exists. apps/api only uses puppeteer-extra " +
+        "in scraper-bridge/browserManager.ts, where the objects merged are the " +
+        "stealth plugin's own option and default objects defined in code; no " +
+        "request or scraped data is passed to it. Drop this entry once deepmerge " +
+        "ships a fix.",
+    ],
+    [
         "GHSA-mrhx-c7xc-m3w5",
         "zod (<4.6.6): memory exhaustion validating oversized constrained " +
         "collections. The app's own zod is 4.6.7. The remaining copy is " +
