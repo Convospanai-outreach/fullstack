@@ -95,3 +95,59 @@ describe("POST /api/support/contact - SMTP send fails", () => {
         expect(logged).not.toContain("Pricing question");
     });
 });
+
+describe("POST /api/support/contact - Turnstile", () => {
+    const saved: Record<string, string | undefined> = {};
+    const env = { SMTP_HOST: "smtp.test", SMTP_USER: "user", SMTP_PASSWORD: "pw", TURNSTILE_SECRET_KEY: "secret" };
+
+    beforeEach(() => {
+        for (const [key, value] of Object.entries(env)) {
+            saved[key] = process.env[key];
+            process.env[key] = value;
+        }
+        mockSendViaSMTP.mockResolvedValue({ success: true, messageId: "m1" });
+    });
+
+    afterEach(() => {
+        for (const key of Object.keys(env)) {
+            if (saved[key] === undefined) delete process.env[key];
+            else process.env[key] = saved[key];
+        }
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        mockSendViaSMTP.mockReset();
+    });
+
+    function stubSiteverify(success: boolean) {
+        const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ success }) });
+        vi.stubGlobal("fetch", fetchMock);
+        return fetchMock;
+    }
+
+    it("refuses a submission with no token and sends nothing", async () => {
+        const fetchMock = stubSiteverify(true);
+        const res = await POST(postRequest(validBody));
+
+        expect(res.status).toBe(403);
+        expect((await res.json()).status).toBe("verification_failed");
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockSendViaSMTP).not.toHaveBeenCalled();
+    });
+
+    it("refuses a token Cloudflare rejects and sends nothing", async () => {
+        stubSiteverify(false);
+        const res = await POST(postRequest({ ...validBody, turnstileToken: "bad-token" }));
+
+        expect(res.status).toBe(403);
+        expect(mockSendViaSMTP).not.toHaveBeenCalled();
+    });
+
+    it("delivers the message when Cloudflare accepts the token", async () => {
+        const fetchMock = stubSiteverify(true);
+        const res = await POST(postRequest({ ...validBody, turnstileToken: "good-token" }));
+
+        expect(res.status).toBe(200);
+        expect(fetchMock).toHaveBeenCalledOnce();
+        expect(mockSendViaSMTP).toHaveBeenCalledOnce();
+    });
+});
