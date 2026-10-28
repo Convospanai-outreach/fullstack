@@ -57,8 +57,8 @@ export class ReplyAnalyzerAgent {
 
         // 1. Mask PII in incoming content (Sovereign Firewall)
         logger.info(`[ReplyAnalyzer] Masking ingress PII for Lead ${leadId}...`);
-        const { safeContext: safeSubject, tokenMap: subjectMap } = await SovereignFirewall.mask(subject);
-        const { safeContext: safeBody, tokenMap: bodyMap } = await SovereignFirewall.mask(body);
+        const { safeContext: safeSubject, tokenMap: subjectMap } = await SovereignFirewall.mask(subject, 'GLOBAL', undefined, { alwaysMask: true });
+        const { safeContext: safeBody, tokenMap: bodyMap } = await SovereignFirewall.mask(body, 'GLOBAL', undefined, { alwaysMask: true });
         
         // Merge maps for later detokenization
         const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);

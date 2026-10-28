@@ -27,6 +27,7 @@ vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
 }));
 
 import { ReplyAnalyzerAgent } from "../ReplyAnalyzerAgent";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 const classified = (classification: string, confidence = 0.8) => ({ classification, confidence, reasoning: "r" });
 
@@ -76,6 +77,15 @@ describe("ReplyAnalyzerAgent classification and draft", () => {
 
         expect(mockClassifyReply).toHaveBeenCalledWith({ subject: "Re: hi", body: "No thanks" }, "team-1");
         expect(result).toMatchObject({ classification: "NOT_INTERESTED", confidence: 0.9, suggestedAction: "PAUSE_CAMPAIGN" });
+    });
+
+    it("asks for local masking to be applied when the Edge Node is down", async () => {
+        mockClassifyReply.mockResolvedValue(classified("NOT_INTERESTED", 0.9));
+        await ReplyAnalyzerAgent.analyzeAndTrack("Re: hi", "mail me at a@b.com", "lead-1", "a@b.com", "msg-1", "team-1");
+
+        const calls = vi.mocked(SovereignFirewall.mask).mock.calls;
+        expect(calls).toHaveLength(2);
+        for (const call of calls) expect(call[3]).toEqual({ alwaysMask: true });
     });
 
     it.each([

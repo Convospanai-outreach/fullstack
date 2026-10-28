@@ -52,7 +52,10 @@ export class SovereignFirewall {
     static async mask(
         data: string | Record<string, unknown> | unknown[], 
         region: 'UAE' | 'GLOBAL' = 'GLOBAL',
-        overrideEndpoint?: string
+        overrideEndpoint?: string,
+        // alwaysMask: when the Edge Node is unavailable, still apply the local pattern masking (emails, phone
+        // numbers) instead of passing the text through unchanged. For text that leaves for a third-party model.
+        options: { alwaysMask?: boolean } = {}
     ): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
         const endpoint = overrideEndpoint || this.PI_ENDPOINT;
@@ -68,7 +71,7 @@ export class SovereignFirewall {
                 throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
             }
             console.warn("[SovereignFirewall] Circuit Breaker OPEN. Using Local Masking.");
-            return this.maskLocal(data, region);
+            return this.maskLocal(data, region, options.alwaysMask);
         }
 
         try {
@@ -95,21 +98,21 @@ export class SovereignFirewall {
             }
 
             console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
-            return this.maskLocal(data, region);
+            return this.maskLocal(data, region, options.alwaysMask);
         }
     }
 
     /**
      * Fallback/Local Masking Logic (Sync)
      */
-    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
+    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL', alwaysMask = false): SanitizedPayload {
         const tokenMap = new Map<string, string>();
 
         // If not in a high-privacy region and sovereignty is not strict, we don't necessarily need to mask ALL data
         // but for security-first, we should still mask unstructured text if it looks like PII.
         const isStrict = process.env['STRICT_SOVEREIGNTY'] === 'true';
         
-        if (region !== 'UAE' && !isStrict) {
+        if (region !== 'UAE' && !isStrict && !alwaysMask) {
             // Even if not strict, we should still perform Audit
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
@@ -147,6 +150,15 @@ export class SovereignFirewall {
         // Add phone masking if needed
         const phoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
         safeContext = safeContext.replace(phoneRegex, (match) => {
+            const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+            const token = `[PHONE_${hash}]`;
+            tokenMap.set(token, match);
+            return token;
+        });
+
+        // Ten-digit numbers written in two groups of five (+91 98765 43210), which the pattern above misses.
+        const groupedPhoneRegex = /(?:\+\d{1,3}[\s.-]?)?\b\d{5}[\s.-]?\d{5}\b/g;
+        safeContext = safeContext.replace(groupedPhoneRegex, (match) => {
             const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
             const token = `[PHONE_${hash}]`;
             tokenMap.set(token, match);
