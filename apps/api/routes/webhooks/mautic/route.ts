@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import { logger } from "@/lib/logger";
 import { ingestMauticWebhook, verifyMauticSignature } from "@/modules/creator-funnel/mauticSubmission";
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
 
     const rawBody = Buffer.from(await req.arrayBuffer());
     if (!verifyMauticSignature(rawBody, req.headers.get("webhook-signature"), secret)) {
+        logWebhookRejected(req, "mautic", req.headers.get("webhook-signature") ? "invalid_signature" : "missing_signature", rawBody.length);
         return new NextResponse("Invalid signature", { status: 401 });
     }
 

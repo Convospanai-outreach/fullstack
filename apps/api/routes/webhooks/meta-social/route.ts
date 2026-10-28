@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
 
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
     const signedBy = (secret: string) => sameSecret(signature ?? "", `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`);
     if (!signature || !appSecrets.some(signedBy)) {
+        logWebhookRejected(req, "meta-social", signature ? "invalid_signature" : "missing_signature", rawBody.length);
         return new NextResponse("Invalid signature", { status: 401 });
     }
 
