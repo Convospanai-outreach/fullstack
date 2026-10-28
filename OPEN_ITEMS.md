@@ -7197,6 +7197,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   - **Deploy:** api only. No migration, no env change. Leads whose `linkedIn` is not a profile URL are skipped by
     enrichment instead of being opened.
 
+- **OPEN-355 (Resolved (pending merge) — jobs that name their team only in the payload count toward the per-team running cap):** 2026-10-28.
+  - **Why:** `JobQueue.dequeue` caps running jobs per team using the `teamId` column. `enqueue` filled that column only
+    from its `teamId` option, so jobs that carried the team in their payload were stored with a null column and were
+    never capped.
+  - **Change:** `enqueue` (`apps/api/src/lib/queue.ts`) falls back to `payload.teamId` for the column when the option
+    is absent. The option still wins. Tests cover option, payload fallback and neither.
+  - **Deploy:** api only. No migration, no env change. Applies to jobs enqueued after deploy.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

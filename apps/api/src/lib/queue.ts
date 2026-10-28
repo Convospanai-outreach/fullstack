@@ -129,13 +129,16 @@ export class JobQueue {
             if (existingJob) return existingJob;
         }
 
+        // Jobs that only carry the team in their payload still count against that team's running cap.
+        const teamId = options.teamId ?? (typeof payload.teamId === "string" && payload.teamId ? payload.teamId : null);
+
         const data: any = {
             type,
             payload: { ...payload }, // Clone to avoid mutation
             priority: options.priority ?? 0,
             processAt: options.processAt ?? new Date(),
-            teamId: options.teamId ?? null,
-            tenantId: options.teamId ?? null,
+            teamId,
+            tenantId: teamId,
             status: JOB_STATUS.QUEUED,
             version: options.version ?? 1,
             taskType: type,
