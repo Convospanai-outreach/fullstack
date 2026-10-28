@@ -162,6 +162,15 @@ export function isWebOwnedPath(pathParts: string[]): boolean {
     return false;
 }
 
+// apps/api routes that only the web server itself may call (see apps/api/src/lib/internalOnlyRoutes.ts).
+// This proxy signs forwarded requests with the browser's session, so it must not relay them at all.
+const INTERNAL_ONLY_PROXY_PATHS = ["email/send-verification", "email/verification-token", "email/verify-token"];
+
+export function isInternalOnlyProxyPath(pathParts: string[]): boolean {
+    const joined = pathParts.join("/");
+    return INTERNAL_ONLY_PROXY_PATHS.some((p) => joined === p || joined.startsWith(`${p}/`));
+}
+
 function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
     if (!pathParts || pathParts.length === 0) return null;
     const root = pathParts[0] || "";
@@ -213,6 +222,10 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
     try {
         if (!pathParts || pathParts.length === 0) {
             throw new Error("Proxy path is required");
+        }
+
+        if (isInternalOnlyProxyPath(pathParts)) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const webOwnedTarget = getWebOwnedApiUrl(req, pathParts);
