@@ -5,11 +5,15 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Mail, Clock, Send, Headphones, Building2 } from "lucide-react";
 import { trackCustomEvent } from "@/components/analytics/GoogleAnalytics";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 
 export default function ContactPage() {
     const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website_url: "" });
     const [loading, setLoading] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState("");
+    // A Turnstile token is single-use; remounting the widget after each attempt gets a fresh one.
+    const [widgetKey, setWidgetKey] = useState(0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +37,7 @@ export default function ContactPage() {
                 body: JSON.stringify({
                     ...form,
                     ga_client_id: gaClientId,
+                    turnstileToken,
                 }),
             });
             const data = await response.json().catch(() => ({}));
@@ -57,6 +62,8 @@ export default function ContactPage() {
             const message = error instanceof Error ? error.message : "Failed to send message. Please try again.";
             toast.error(message);
         } finally {
+            setTurnstileToken("");
+            setWidgetKey((key) => key + 1);
             setLoading(false);
         }
     };
@@ -210,6 +217,8 @@ export default function ContactPage() {
                                         placeholder="Where were you, and what did you expect?"
                                     />
                                 </div>
+
+                                <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
 
                                 <button
                                     type="submit"
