@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     try {
         const signature = req.headers.get("stripe-signature");
         if (!signature) {
+            logWebhookRejected(req, "stripe-billing", "missing_signature");
             return new NextResponse("Missing Signature", { status: 400 });
         }
 
@@ -26,6 +28,7 @@ export async function POST(req: Request) {
         try {
             event = verifyStripeBillingWebhook(rawBody, signature);
         } catch {
+            logWebhookRejected(req, "stripe-billing", "invalid_signature", rawBody.length);
             return new NextResponse("Invalid Signature", { status: 400 });
         }
 

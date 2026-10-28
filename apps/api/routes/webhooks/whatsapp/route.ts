@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
     if (mode === "subscribe" && token === verifyToken && challenge) {
         return new NextResponse(challenge, { status: 200 });
     }
+    logWebhookRejected(req, "whatsapp", "invalid_verify_token");
     return new NextResponse("Forbidden", { status: 403 });
 }
 
@@ -67,12 +69,14 @@ export async function POST(req: NextRequest) {
 
     const signatureHeader = req.headers.get("x-hub-signature-256");
     if (!signatureHeader) {
+        logWebhookRejected(req, "whatsapp", "missing_signature", rawBody.length);
         return new NextResponse("Missing signature", { status: 400 });
     }
     const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
     const expectedBuffer = Buffer.from(expected);
     const providedBuffer = Buffer.from(signatureHeader);
     if (expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
+        logWebhookRejected(req, "whatsapp", "invalid_signature", rawBody.length);
         return new NextResponse("Invalid signature", { status: 400 });
     }
 
