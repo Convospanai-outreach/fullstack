@@ -19,6 +19,8 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const { mockWarn } = vi.hoisted(() => ({ mockWarn: vi.fn() }));
+vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: mockWarn, error: vi.fn() } }));
 
 const { mockVerifyWebhook, mockGetSubscriptionMetadata } = vi.hoisted(() => ({
     mockVerifyWebhook: vi.fn(),
@@ -71,6 +73,7 @@ describe("/webhooks/stripe-billing", () => {
         const { POST } = await import("./route");
         const response = await POST(new Request("http://localhost/webhooks/stripe-billing", { method: "POST", body: "{}" }));
         expect(response.status).toBe(400);
+        expect(mockWarn).toHaveBeenCalledWith("webhook.signature_invalid", expect.objectContaining({ provider: "stripe-billing", reason: "missing_signature" }));
     });
 
     it("rejects a request whose signature fails verification", async () => {
@@ -78,6 +81,10 @@ describe("/webhooks/stripe-billing", () => {
         const { POST } = await import("./route");
         const response = await POST(webhookRequest("{}"));
         expect(response.status).toBe(400);
+        expect(mockWarn).toHaveBeenCalledWith(
+            "webhook.signature_invalid",
+            expect.objectContaining({ provider: "stripe-billing", reason: "invalid_signature", path: "/webhooks/stripe-billing", bodyLength: 2 })
+        );
     });
 
     it("grants credits, creates an invoice, and publishes PAYMENT_CAPTURED on invoice.payment_succeeded", async () => {
