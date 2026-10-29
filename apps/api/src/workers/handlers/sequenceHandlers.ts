@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
 import { emailService } from "@/modules/email-campaigner";
+import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
 function toRecord(value: unknown): Record<string, unknown> {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
@@ -45,6 +46,12 @@ export async function handleSequenceAction(payload: JobPayload) {
     // checkable at every hop, instead of only the directly-enqueued action.
     let resolvedTeamId = payloadTeamId;
 
+    // Set once a person's approval of this exact message has been claimed for sending, so the
+    // outcome can be written back to it.
+    const approvedMessageId = typeof payload["approvedMessageId"] === "string" ? payload["approvedMessageId"] : undefined;
+    let approvedClaim: { id: string; teamId: string } | undefined;
+
+    try {
     switch (action as SequenceStep) {
         case "VISIT": {
             const visitLead = leadId ? await prisma.lead.findUnique({
@@ -73,7 +80,7 @@ export async function handleSequenceAction(payload: JobPayload) {
             // Generate smart message based on lead context
             const connectLead = leadId ? await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true } } }
+                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true, ownerId: true } } }
             }) : null;
             // payload.teamId is caller-supplied (from the enqueuing route), not
             // derived from the lead itself - re-verify it matches the lead's own
@@ -87,7 +94,24 @@ export async function handleSequenceAction(payload: JobPayload) {
             const connectTeamId = payloadTeamId || connectLeadTeamId;
             resolvedTeamId = connectTeamId;
             const connectContext = connectLead?.enrichedData ? JSON.stringify(connectLead.enrichedData) : `Connect with lead at ${url}`;
-            const message = await aiService.generateConnectionMessage(connectContext, connectTeamId);
+            let message: string | null;
+            if (approvedMessageId) {
+                const approved = await resolveApprovedMessage(approvedMessageId, connectTeamId || "");
+                if (approved.state !== "ready") return { ok: false, skipped: approved.state };
+                approvedClaim = { id: approvedMessageId, teamId: connectTeamId || "" };
+                message = approved.body;
+            } else {
+                message = await generateWithRetry(() => aiService.generateConnectionMessage(connectContext, connectTeamId));
+                if (!message) {
+                    await flagNeedsAttention({ teamId: connectTeamId, leadId, channel: "CONNECT", reason: "The connection message could not be written after 3 attempts.", requesterHint: connectLead?.campaign?.ownerId });
+                    return { ok: false, held: "needs_attention" };
+                }
+                const gate = await gateAiMessage({
+                    teamId: connectTeamId, leadId, channel: "CONNECT", jobType: "SEQUENCE_ACTION", jobPayload: payload,
+                    body: message, requesterHint: connectLead?.campaign?.ownerId,
+                });
+                if (!gate.send) return { ok: false, held: gate.held };
+            }
 
             // Connect with note
             result = await runLinkedInAction({
@@ -101,7 +125,7 @@ export async function handleSequenceAction(payload: JobPayload) {
             // Follow up message - Personalized via lead context
             const followUpLead = leadId ? await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true } } }
+                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true, ownerId: true } } }
             }) : null;
             const followUpLeadTeamId = followUpLead?.teamId ?? followUpLead?.campaign?.teamId;
             if (payloadTeamId && followUpLeadTeamId && followUpLeadTeamId !== payloadTeamId) {
@@ -110,16 +134,33 @@ export async function handleSequenceAction(payload: JobPayload) {
             const followUpTeamId = payloadTeamId || followUpLeadTeamId;
             resolvedTeamId = followUpTeamId;
             const followUpContext = followUpLead?.enrichedData ? JSON.stringify(followUpLead.enrichedData) : `Follow up with lead at ${url}`;
-            const followUpMessage = await aiService.askAI(
-                `Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`,
-                followUpTeamId,
-                { surface: "HELPER", taskType: "LINKEDIN_FOLLOW_UP" }
-            );
+            let followUpMessage: string | null;
+            if (approvedMessageId) {
+                const approved = await resolveApprovedMessage(approvedMessageId, followUpTeamId || "");
+                if (approved.state !== "ready") return { ok: false, skipped: approved.state };
+                approvedClaim = { id: approvedMessageId, teamId: followUpTeamId || "" };
+                followUpMessage = approved.body;
+            } else {
+                followUpMessage = await generateWithRetry(() => aiService.askAI(
+                    `Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`,
+                    followUpTeamId,
+                    { surface: "HELPER", taskType: "LINKEDIN_FOLLOW_UP" }
+                ));
+                if (!followUpMessage) {
+                    await flagNeedsAttention({ teamId: followUpTeamId, leadId, channel: "MESSAGE", reason: "The follow-up message could not be written after 3 attempts.", requesterHint: followUpLead?.campaign?.ownerId });
+                    return { ok: false, held: "needs_attention" };
+                }
+                const gate = await gateAiMessage({
+                    teamId: followUpTeamId, leadId, channel: "MESSAGE", jobType: "SEQUENCE_ACTION", jobPayload: payload,
+                    body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId,
+                });
+                if (!gate.send) return { ok: false, held: gate.held };
+            }
 
             result = await runLinkedInAction({
                 action: "INMAIL",
                 profileUrl: url,
-                message: followUpMessage || "Just checking in to see if you had a chance to look at my previous message."
+                message: followUpMessage
             });
             break;
 
@@ -150,9 +191,10 @@ export async function handleSequenceAction(payload: JobPayload) {
                     ? trustedNetjanaIntel
                     : null;
 
-                let emailSubject = "Checking in";
-                let emailBody = "Hi, I'm following up on our LinkedIn connection request. Would love to chat about your sales motion.";
+                let emailSubject = "";
+                let emailBody = "";
                 let sentVariantId: string | undefined;
+                const emailApprovalTeamId = emailLeadTeamId || campaign.teamId || undefined;
 
                 const variant = variantId
                     ? await prisma.campaignVariant.findFirst({ where: { id: variantId, campaignId: campaign.id } })
@@ -164,7 +206,14 @@ export async function handleSequenceAction(payload: JobPayload) {
                     emailSubject = variant.subject;
                     emailBody = variant.body;
                     sentVariantId = variant.id;
-                } else { try {
+                } else if (approvedMessageId) {
+                    // A person approved this exact text; send it as approved, once.
+                    const approved = await resolveApprovedMessage(approvedMessageId, emailApprovalTeamId || "");
+                    if (approved.state !== "ready" || !approved.subject) return { ok: false, skipped: approved.state };
+                    approvedClaim = { id: approvedMessageId, teamId: emailApprovalTeamId || "" };
+                    emailSubject = approved.subject;
+                    emailBody = approved.body;
+                } else {
                     const style = resolveEmailStyle(campaign);
                     // 1. Prepare Node A Input
                     const nodeAInput = {
@@ -189,25 +238,34 @@ export async function handleSequenceAction(payload: JobPayload) {
                     };
 
                     // 2. Compose via Autonomous Knowledge Engine
-                    const draft = await composeNodeA(
-                        nodeAInput, 
-                        campaign.teamId || "", 
-                        campaign.id, 
+                    const draft = await generateWithRetry(() => composeNodeA(
+                        nodeAInput,
+                        campaign.teamId || "",
+                        campaign.id,
                         lead.id
-                    );
+                    ));
+                    if (!draft) {
+                        // No stand-in copy: a generic "Checking in" email says nothing and was never reviewed.
+                        await flagNeedsAttention({ teamId: emailApprovalTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId });
+                        return { ok: false, held: "needs_attention" };
+                    }
+
+                    const gate = await gateAiMessage({
+                        teamId: emailApprovalTeamId, leadId, channel: "EMAIL", jobType: "SEQUENCE_ACTION", jobPayload: payload,
+                        subject: draft.subject, body: draft.body, requesterHint: campaign.ownerId,
+                    });
+                    if (!gate.send) return { ok: false, held: gate.held };
 
                     emailSubject = draft.subject;
                     emailBody = draft.body;
-
-                } catch (error) {
-                    console.warn("[Sequence] Autonomous generation failed, using fallback.", error);
-                } }
+                }
 
                 result = await emailService.sendEmail(lead.email, emailSubject, emailBody, {
                     teamId: lead.campaign.teamId || undefined,
                     campaignId: lead.campaignId || undefined,
                     leadId: lead.id,
-                    variantId: sentVariantId || undefined
+                    variantId: sentVariantId || undefined,
+                    ...(approvedMessageId ? { idempotencyKey: `approved_message_${approvedMessageId}` } : {}),
                 });
 
                 const emailSendSucceeded = result && ((result as any).ok || (result as any).success);
@@ -223,8 +281,16 @@ export async function handleSequenceAction(payload: JobPayload) {
             }
             break;
     }
+    } catch (error) {
+        // The approval was claimed for this send, so a retry would skip it; flag it for a person instead.
+        if (approvedClaim) await settleMessageApproval(approvedClaim.id, approvedClaim.teamId, "NEEDS_ATTENTION", "Sending the approved message failed.").catch(() => {});
+        throw error;
+    }
 
     const success = result && ((result as any).ok || (result as any).success);
+    if (approvedClaim) {
+        await settleMessageApproval(approvedClaim.id, approvedClaim.teamId, success ? "SENT" : "NEEDS_ATTENTION", success ? undefined : "The approved message was not sent.");
+    }
 
     if (success) {
         // Update DB status - scoped by resolvedTeamId too, not just id, so
