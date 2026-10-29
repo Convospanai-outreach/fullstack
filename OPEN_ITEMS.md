@@ -7205,6 +7205,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     is absent. The option still wins. Tests cover option, payload fallback and neither.
   - **Deploy:** api only. No migration, no env change. Applies to jobs enqueued after deploy.
 
+- **OPEN-356 (Resolved (pending merge) — reply text is pattern-masked before classification even when the Edge Node is down):** 2026-10-28.
+  - **Why:** reply text is masked before it goes to Jev. When the Edge Node (`PHI3_LOCAL_ENDPOINT`) is unreachable and
+    `STRICT_SOVEREIGNTY` is off, `SovereignFirewall.mask` fell back to a local mode that returned the text unchanged.
+  - **Change:** `mask` takes `{ alwaysMask: true }`, which keeps the local pattern masking (emails, phone numbers) in
+    that fallback. `ReplyAnalyzerAgent` passes it for the subject and body. `maskLocal` also recognises ten-digit numbers
+    written as two groups of five (+91 98765 43210). Other callers keep their current behaviour.
+  - **Names:** `SovereignFirewall.maskKnownNames` replaces the lead’s own name (and each word of it, 3+ letters)
+    and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
+    recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
+  - **Deploy:** api only. No migration, no env change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

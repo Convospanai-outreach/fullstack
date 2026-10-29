@@ -12,6 +12,7 @@ import { aiService } from "@/lib/aiService";
 import { LearningService } from "@/modules/learning/learningService";
 import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrchestrator";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
+import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
 
@@ -43,6 +44,8 @@ export interface NodeAOutput {
     subject: string;
     body: string;
     internal_notes: string;
+    // True when the critic's verdict could not be used, so nothing checked this draft.
+    unreviewed?: boolean;
 }
 
 // ─── Node B Types ─────────────────────────────────────────────────────────────
@@ -69,6 +72,8 @@ export interface NodeBOutput {
     subject: string;
     body: string;
     reasoning: string;
+    // True when the critic's verdict could not be used, so nothing checked this draft.
+    unreviewed?: boolean;
 }
 
 // ─── Node C Types ─────────────────────────────────────────────────────────────
@@ -308,6 +313,49 @@ function parseJsonResponse<T>(raw: string): T {
     return JSON.parse(cleaned) as T;
 }
 
+type CritiqueVerdict = { status?: string; critique?: string; correction?: { subject?: string; body?: string } };
+
+const UNREVIEWED_NOTE = "[UNREVIEWED]: the critic's answer could not be used, so this draft was not checked.";
+
+// The critic's verdict, or null when its answer is not valid JSON. A null is logged (with the
+// parse error, never the draft) so a broken critic shows up instead of passing drafts silently.
+function readCritique(raw: string, label: string): CritiqueVerdict | null {
+    try {
+        return parseJsonResponse<CritiqueVerdict>(raw);
+    } catch (error) {
+        console.warn(`[Critique] ${label}: the critic's answer could not be read; the draft is marked unreviewed`, {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+}
+
+// A usable correction needs both fields; anything else leaves the original draft unchecked.
+function usableCorrection(verdict: CritiqueVerdict | null): { subject: string; body: string } | null {
+    const correction = verdict?.status === "FAIL" ? verdict.correction : undefined;
+    return correction?.subject && correction?.body ? { subject: correction.subject, body: correction.body } : null;
+}
+
+// The critic's rewrite is model output that no guardrail has seen (JSON answers skip them), and
+// a rewrite is where an invented statistic or a guarantee can slip in. Numbers must already
+// appear in the input or the original draft; certainty words are softened. Null when nothing
+// usable is left, so the caller keeps the original draft and marks it unreviewed.
+function guardCorrection(
+    correction: { subject: string; body: string } | null,
+    input: unknown,
+    draft: { subject: string; body: string },
+    label: string,
+): { subject: string; body: string } | null {
+    if (!correction) return null;
+    const options = { sourceContext: [JSON.stringify(input), draft.subject, draft.body].join("\n"), strictGrounding: true };
+    const subject = enforceMultilineGuardrails(correction.subject, options);
+    const body = enforceMultilineGuardrails(correction.body, options);
+    const codes = [...new Set([...subject.issues, ...body.issues].map((issue) => issue.code))];
+    if (codes.length > 0) console.warn(`[Guardrails] ${label}: the critic's rewrite was adjusted`, { issues: codes });
+    if (!body.text) return null;
+    return { subject: subject.text || draft.subject, body: body.text };
+}
+
 function enforceInputBudget(label: string, input: unknown, maxChars: number) {
     const serialized = JSON.stringify(input || {});
     if (serialized.length > maxChars) {
@@ -372,22 +420,22 @@ export async function composeNodeA(
     const critiquePrompt = buildCritiquePrompt(input, draft);
     const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     
-    try {
-        const critiqueResult = parseJsonResponse<any>(critiqueRaw);
-        if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
-            console.log(`[Self-Correction] Pivot applied: ${critiqueResult.critique}`);
-            return normalizeNodeAOutput({
-                ...draft,
-                subject: critiqueResult.correction.subject,
-                body: critiqueResult.correction.body,
-                internal_notes: `${draft.internal_notes}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            });
-        }
-    } catch (e) {
-        // Fallback to original if critique parsing fails
+    const verdict = readCritique(critiqueRaw, "Node A");
+    const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node A");
+    if (correction) {
+        console.log(`[Self-Correction] Pivot applied: ${verdict?.critique}`);
+        return normalizeNodeAOutput({
+            ...draft,
+            subject: correction.subject,
+            body: correction.body,
+            internal_notes: `${draft.internal_notes}\n\n[SELF-CORRECTION]: ${verdict?.critique}`
+        });
     }
 
-    return normalizeNodeAOutput(draft);
+    const normalized = normalizeNodeAOutput(draft);
+    if (verdict?.status === "PASS") return normalized;
+    if (verdict) console.warn("[Critique] Node A: the critic gave no usable verdict or correction; the draft is marked unreviewed", { status: verdict.status });
+    return { ...normalized, internal_notes: `${normalized.internal_notes}\n\n${UNREVIEWED_NOTE}`, unreviewed: true };
 }
 
 export async function composeNodeB(
@@ -410,20 +458,22 @@ export async function composeNodeB(
     const critiquePrompt = buildCritiquePrompt(input, draft);
     const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
 
-    try {
-        const critiqueResult = parseJsonResponse<any>(critiqueRaw);
-        if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
-            console.log(`[Self-Correction: Node B] Resulted in pivot: ${critiqueResult.critique}`);
-            return normalizeNodeBOutput({
-                ...draft,
-                subject: critiqueResult.correction.subject,
-                body: critiqueResult.correction.body,
-                reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            });
-        }
-    } catch (e) {}
+    const verdict = readCritique(critiqueRaw, "Node B");
+    const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node B");
+    if (correction) {
+        console.log(`[Self-Correction: Node B] Resulted in pivot: ${verdict?.critique}`);
+        return normalizeNodeBOutput({
+            ...draft,
+            subject: correction.subject,
+            body: correction.body,
+            reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${verdict?.critique}`
+        });
+    }
 
-    return normalizeNodeBOutput(draft);
+    const normalized = normalizeNodeBOutput(draft);
+    if (verdict?.status === "PASS") return normalized;
+    if (verdict) console.warn("[Critique] Node B: the critic gave no usable verdict or correction; the draft is marked unreviewed", { status: verdict.status });
+    return { ...normalized, reasoning: `${normalized.reasoning}\n\n${UNREVIEWED_NOTE}`, unreviewed: true };
 }
 
 export async function composeNodeC(
