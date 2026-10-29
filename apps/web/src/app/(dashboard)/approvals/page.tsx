@@ -136,23 +136,29 @@ export default function ApprovalsPage() {
         }
     };
 
+    const [edits, setEdits] = useState<Record<string, { subject?: string | undefined; body: string }>>({});
+
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
         try {
+            const edit = action === "APPROVE" ? edits[id] : undefined;
             const res = await fetch(`/api/approvals/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined })
+                body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined, ...edit })
             });
 
-            if (!res.ok) throw new Error("Action failed");
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || "Action failed");
+            }
 
             toast.success(action === "APPROVE" ? "Request Approved" : "Request Rejected");
 
             // Remove from list or refresh
             setRequests(current => current.filter(r => r.id !== id));
         } catch (err) {
-            toast.error("Failed to process request");
+            toast.error(err instanceof Error && err.message !== "Action failed" ? err.message : "Failed to process request");
         } finally {
             setProcessing(null);
         }
@@ -196,7 +202,55 @@ export default function ApprovalsPage() {
                                     <p className="text-muted-foreground text-sm mb-2">
                                         Requested by <span className="text-foreground">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}
                                     </p>
-                                    {req.payload?.subject && (
+                                    {req.actionType === "MESSAGE_SEND" && req.payload?.body && (
+                                        <div className="bg-muted p-3.5 rounded-lg border border-border text-sm space-y-2 mt-2">
+                                            {edits[req.id] ? (
+                                                <>
+                                                    {req.payload.subject !== undefined && (
+                                                        <input
+                                                            aria-label="Subject"
+                                                            value={edits[req.id].subject ?? ""}
+                                                            onChange={(e) => setEdits((cur) => ({ ...cur, [req.id]: { ...cur[req.id], subject: e.target.value } }))}
+                                                            className="w-full bg-background border border-border rounded px-2.5 py-1.5 text-xs text-foreground"
+                                                        />
+                                                    )}
+                                                    <textarea
+                                                        aria-label="Message"
+                                                        rows={8}
+                                                        value={edits[req.id].body}
+                                                        onChange={(e) => setEdits((cur) => ({ ...cur, [req.id]: { ...cur[req.id], body: e.target.value } }))}
+                                                        className="w-full bg-background border border-border rounded px-2.5 py-2 text-xs text-foreground font-mono"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEdits((cur) => { const { [req.id]: _removed, ...rest } = cur; return rest; })}
+                                                        className="text-xs text-muted-foreground underline"
+                                                    >
+                                                        Discard changes
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {req.payload.subject && (
+                                                        <div className="text-xs font-bold uppercase tracking-wider text-primary">
+                                                            Subject: <span className="text-foreground font-semibold normal-case">{req.payload.subject}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="text-foreground text-xs leading-relaxed bg-background p-2.5 rounded border border-border font-mono whitespace-pre-wrap">
+                                                        {req.payload.body}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEdits((cur) => ({ ...cur, [req.id]: { subject: req.payload?.subject, body: req.payload?.body ?? "" } }))}
+                                                        className="text-xs text-primary underline"
+                                                    >
+                                                        Edit before approving
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                    {req.actionType !== "MESSAGE_SEND" && req.payload?.subject && (
                                         <div className="bg-muted p-3.5 rounded-lg border border-border text-sm space-y-1.5 mt-2">
                                             <div className="text-xs font-bold uppercase tracking-wider text-primary">
                                                 Subject: <span className="text-foreground font-semibold normal-case">{req.payload.subject}</span>
