@@ -54,6 +54,7 @@ export async function PUT(req: Request) {
             allowScraping,
             allowUploads,
             requiresApprovalForCampaign,
+            requiresMessageApproval,
             blockedKeywords,
             detectPII,
             restrictedTone
@@ -67,6 +68,7 @@ export async function PUT(req: Request) {
         if (typeof allowScraping === 'boolean') updateData.allowScraping = allowScraping;
         if (typeof allowUploads === 'boolean') updateData.allowUploads = allowUploads;
         if (typeof requiresApprovalForCampaign === 'boolean') updateData.requiresApprovalForCampaign = requiresApprovalForCampaign;
+        if (typeof requiresMessageApproval === 'boolean') updateData.requiresMessageApproval = requiresMessageApproval;
         if (Array.isArray(blockedKeywords)) updateData.blockedKeywords = blockedKeywords;
         if (typeof detectPII === 'boolean') updateData.detectPII = detectPII;
         if (typeof restrictedTone === 'string') updateData.restrictedTone = restrictedTone;

@@ -52,7 +52,10 @@ export class SovereignFirewall {
     static async mask(
         data: string | Record<string, unknown> | unknown[], 
         region: 'UAE' | 'GLOBAL' = 'GLOBAL',
-        overrideEndpoint?: string
+        overrideEndpoint?: string,
+        // alwaysMask: when the Edge Node is unavailable, still apply the local pattern masking (emails, phone
+        // numbers) instead of passing the text through unchanged. For text that leaves for a third-party model.
+        options: { alwaysMask?: boolean } = {}
     ): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
         const endpoint = overrideEndpoint || this.PI_ENDPOINT;
@@ -68,7 +71,7 @@ export class SovereignFirewall {
                 throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
             }
             console.warn("[SovereignFirewall] Circuit Breaker OPEN. Using Local Masking.");
-            return this.maskLocal(data, region);
+            return this.maskLocal(data, region, options.alwaysMask);
         }
 
         try {
@@ -95,21 +98,21 @@ export class SovereignFirewall {
             }
 
             console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
-            return this.maskLocal(data, region);
+            return this.maskLocal(data, region, options.alwaysMask);
         }
     }
 
     /**
      * Fallback/Local Masking Logic (Sync)
      */
-    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
+    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL', alwaysMask = false): SanitizedPayload {
         const tokenMap = new Map<string, string>();
 
         // If not in a high-privacy region and sovereignty is not strict, we don't necessarily need to mask ALL data
         // but for security-first, we should still mask unstructured text if it looks like PII.
         const isStrict = process.env['STRICT_SOVEREIGNTY'] === 'true';
         
-        if (region !== 'UAE' && !isStrict) {
+        if (region !== 'UAE' && !isStrict && !alwaysMask) {
             // Even if not strict, we should still perform Audit
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
@@ -152,6 +155,55 @@ export class SovereignFirewall {
             tokenMap.set(token, match);
             return token;
         });
+
+        // Ten-digit numbers written in two groups of five (+91 98765 43210), which the pattern above misses.
+        const groupedPhoneRegex = /(?:\+\d{1,3}[\s.-]?)?\b\d{5}[\s.-]?\d{5}\b/g;
+        safeContext = safeContext.replace(groupedPhoneRegex, (match) => {
+            const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+            const token = `[PHONE_${hash}]`;
+            tokenMap.set(token, match);
+            return token;
+        });
+
+        return { safeContext, tokenMap };
+    }
+
+    /**
+     * Replaces names the caller already knows (a lead's name and company) with tokens, so text that
+     * mentions them - a sign-off, a signature - does not carry them out. Pattern masking cannot
+     * recognise names. Each name and each word of it (3+ letters) is matched as a whole word,
+     * ignoring case. The tokens are added to `tokenMap` so `unmask` restores the original text.
+     */
+    static maskKnownNames(
+        text: string,
+        names: { person?: string | null; company?: string | null },
+        tokenMap: Map<string, string> = new Map()
+    ): SanitizedPayload {
+        const terms: Array<{ term: string; kind: 'NAME' | 'COMPANY' }> = [];
+        const person = names.person?.trim();
+        if (person) {
+            terms.push({ term: person, kind: 'NAME' });
+            for (const word of person.split(/\s+/)) {
+                if (word.replace(/[^\p{L}]/gu, '').length >= 3) terms.push({ term: word, kind: 'NAME' });
+            }
+        }
+        const company = names.company?.trim();
+        if (company && company.length >= 3) terms.push({ term: company, kind: 'COMPANY' });
+
+        // Longest first, so "Jane Doe" is replaced whole before "Jane" and "Doe" are looked at.
+        terms.sort((a, b) => b.term.length - a.term.length);
+
+        let safeContext = text;
+        for (const { term, kind } of terms) {
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu');
+            safeContext = safeContext.replace(pattern, (match) => {
+                const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+                const token = `[${kind}_${hash}]`;
+                tokenMap.set(token, match);
+                return token;
+            });
+        }
 
         return { safeContext, tokenMap };
     }
