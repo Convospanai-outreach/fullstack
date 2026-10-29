@@ -188,7 +188,7 @@ async function appProxy(req: NextRequest) {
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
-        "/api/health", "/api/cms", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/health", "/api/cms", "/api/careers", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
@@ -322,6 +322,7 @@ async function appProxy(req: NextRequest) {
         "/",
         // Decap CMS admin: signing in with GitHub (and GitHub repo write access) is its access control.
         "/cms",
+        "/careers",
         "/login",
         "/agent-login",
         "/client-login",

@@ -3323,3 +3323,32 @@ model Enquiry {
   @@index([createdAt])
   @@index([status])
 }
+
+enum JobApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+// An application sent through a careers page. The resume is kept with it and only a superadmin can download it.
+model JobApplication {
+  id         String               @id @default(uuid())
+  jobSlug    String
+  jobTitle   String
+  name       String
+  email      String
+  phone      String?
+  coverNote  String?              @db.Text
+  resumeName String
+  resumeType String
+  resumeSize Int
+  resumeData Bytes
+  status     JobApplicationStatus @default(NEW)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
