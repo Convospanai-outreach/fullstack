@@ -141,3 +141,37 @@ describe("forwardRequest upstream failures", () => {
         expect(JSON.stringify(body)).not.toContain("10.0.0.12");
     });
 });
+
+describe("forwardRequest internal-only routes", () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => { global.fetch = originalFetch; });
+
+    it.each([
+        ["email", "send-verification"],
+        ["email", "verification-token"],
+        ["email", "verify-token"],
+        ["email", "verification-token", "extra"],
+    ])("does not relay /%s/%s to apps/api", async (...path) => {
+        const url = `http://localhost:3000/api/proxy/${path.join("/")}`;
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        global.fetch = vi.fn() as any;
+
+        const res = await POST(req, { params: Promise.resolve({ path }) });
+
+        expect(res.status).toBe(404);
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("still relays other email routes", async () => {
+        const url = "http://localhost:3000/api/proxy/email/send";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        global.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 })) as any;
+
+        const res = await POST(req, { params: Promise.resolve({ path: ["email", "send"] }) });
+
+        expect(res.status).toBe(200);
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+});
