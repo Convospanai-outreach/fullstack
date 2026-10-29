@@ -28,6 +28,8 @@ export type ProviderKeySet = {
 };
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+// What batch drafts have always used when the team has not chosen an Anthropic model.
+const BATCH_MODEL = "claude-3-5-sonnet";
 
 const DEFAULT_MODELS = {
     gemini: {
@@ -673,6 +675,123 @@ export class AIService {
         };
         const guarded = enforceAgentOutputGuardrails(result.text, guardrailOptions);
         return clampGeneratedText(guarded.text, OUTPUT_MAX_CHARS[surface]);
+    }
+
+    /**
+     * Anthropic Message Batches: one request per prompt, run asynchronously by the provider at
+     * a lower price. Same rules as askAI: the prompts pass the input policy, credits are
+     * reserved up front (and returned if the batch is not accepted), and usage is logged when
+     * the results are read. The reservation is the charge; results are not re-priced.
+     */
+    public async submitMessageBatch(
+        requests: { customId: string; prompt: string }[],
+        teamId: string,
+        options: { taskType: string; surface?: AISurface; maxTokens?: number }
+    ): Promise<{ providerBatchId: string; model: string }> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error("Batch generation requires a configured Anthropic API key for this team.");
+        }
+        const surface = options.surface || "EMAIL";
+        const model = providers.anthropic.model || BATCH_MODEL;
+        const prompts = requests.map((request) => ({
+            customId: request.customId,
+            prompt: enforceAIPromptPolicy(request.prompt, { surface, label: "AI batch prompt" }),
+        }));
+
+        const billedTeamId = isChargeableTeamId(teamId) ? teamId : undefined;
+        const estimatedCredits = prompts.reduce((sum, request) => sum + estimateCreditsForPrompt(request.prompt), 0);
+        const description = `AI batch ${options.taskType}`;
+        const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, description, {
+            provider: LLMProvider.ANTHROPIC,
+            model,
+            taskType: options.taskType,
+            estimatedCredits,
+            requestCount: prompts.length,
+        });
+
+        try {
+            const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+            const batch = await client.messages.batches.create({
+                requests: prompts.map((request) => ({
+                    custom_id: request.customId,
+                    params: {
+                        model,
+                        max_tokens: options.maxTokens ?? 800,
+                        messages: [{ role: "user" as const, content: request.prompt }],
+                    },
+                })),
+            });
+            return { providerBatchId: batch.id, model };
+        } catch (error) {
+            if (billedTeamId && reservedCredits > 0) {
+                await refundCredits(billedTeamId, reservedCredits, `${description} (failure rollback)`, {
+                    provider: LLMProvider.ANTHROPIC,
+                    model,
+                    taskType: options.taskType,
+                    billingStage: "rollback",
+                    reservedCredits,
+                }).catch((refundError) => logger.error("[AI Usage] Batch rollback refund failed", { error: (refundError as Error).message }));
+            }
+            throw error;
+        }
+    }
+
+    public async isMessageBatchDone(providerBatchId: string, teamId: string): Promise<boolean> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error(`Batch polling requires a configured Anthropic API key for team ${teamId}.`);
+        }
+        const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+        const remote = await client.messages.batches.retrieve(providerBatchId);
+        return remote.processing_status === "ended";
+    }
+
+    /** The text of every request in an ended batch (null when it did not succeed); logs usage for each. */
+    public async readMessageBatchResults(
+        providerBatchId: string,
+        teamId: string,
+        options: { taskType: string }
+    ): Promise<{ customId: string; text: string | null; resultType: string }[]> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error(`Batch results require a configured Anthropic API key for team ${teamId}.`);
+        }
+        const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+        const actorId = RequestContext.get()?.userId;
+        const out: { customId: string; text: string | null; resultType: string }[] = [];
+        for await (const line of await client.messages.batches.results(providerBatchId)) {
+            if (line.result.type === "succeeded") {
+                const message = line.result.message;
+                await logUsage({
+                    teamId,
+                    actorId,
+                    provider: LLMProvider.ANTHROPIC,
+                    model: message.model || providers.anthropic.model || BATCH_MODEL,
+                    taskType: options.taskType,
+                    tokensIn: message.usage?.input_tokens ?? 0,
+                    tokensOut: message.usage?.output_tokens ?? 0,
+                    latencyMs: 0,
+                    success: true,
+                });
+                out.push({ customId: line.custom_id, text: message.content?.[0]?.type === "text" ? message.content[0].text : "", resultType: "succeeded" });
+            } else {
+                await logUsage({
+                    teamId,
+                    actorId,
+                    provider: LLMProvider.ANTHROPIC,
+                    model: providers.anthropic.model || BATCH_MODEL,
+                    taskType: options.taskType,
+                    tokensIn: 0,
+                    tokensOut: 0,
+                    latencyMs: 0,
+                    success: false,
+                    error: line.result.type,
+                });
+                out.push({ customId: line.custom_id, text: null, resultType: line.result.type });
+            }
+        }
+        return out;
     }
 
     async getEmbeddings(text: string, teamId?: string, actorId?: string): Promise<number[]> {
