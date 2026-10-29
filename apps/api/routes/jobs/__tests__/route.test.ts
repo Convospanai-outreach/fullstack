@@ -102,6 +102,24 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             );
         });
 
+        it("namespaces a caller-supplied idempotency key by the session team", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({ type: "lead_scoring", payload: { leadId: "l1" }, idempotencyKey: "shared-key" }),
+            });
+            await POST(req);
+
+            expect(mockQueue.JobQueue.enqueue).toHaveBeenCalledWith(
+                "lead_scoring",
+                expect.anything(),
+                expect.objectContaining({ idempotencyKey: "team-alpha:shared-key" })
+            );
+        });
+
         it.each([
             "campaign_execution",
             "email_sending",
