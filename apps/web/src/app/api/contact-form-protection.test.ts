@@ -22,6 +22,9 @@ function post(url: string, payload: unknown) {
     return new Request(url, { method: "POST", body: JSON.stringify(payload) });
 }
 
+// A failed human check is a 403 on the support route and a 400 on the plain contact route.
+const BLOCKED = { "/api/support/contact": 403, "/api/contact": 400 } as const;
+
 const ROUTES = [
     ["/api/support/contact", supportPost],
     ["/api/contact", contactPost],
@@ -78,7 +81,7 @@ describe.each(ROUTES)("%s protection", (path, handler) => {
 
         const res = await handler(post(`http://localhost${path}`, body));
 
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(BLOCKED[path]);
         expect(fetchMock).not.toHaveBeenCalled();
         expect(mockSendViaSMTP).not.toHaveBeenCalled();
     });
@@ -89,7 +92,7 @@ describe.each(ROUTES)("%s protection", (path, handler) => {
 
         const res = await handler(post(`http://localhost${path}`, { ...body, turnstileToken: "bad" }));
 
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(BLOCKED[path]);
         expect(mockSendViaSMTP).not.toHaveBeenCalled();
     });
 
