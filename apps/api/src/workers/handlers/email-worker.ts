@@ -4,6 +4,7 @@ import { aiService } from "@/lib/aiService";
 import { logger, logWorker } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
+import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
 /**
  * Email sending worker
@@ -64,26 +65,59 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     // Batches API (apps/api/src/lib/ai/batchDraftService.ts) and attach the
     // result here instead of paying for a second live generation call.
     const precomputedDraft = (payload as any).precomputedDraft as { subject?: string; body?: string } | undefined;
+    const resolvedTeamId = campaign.teamId || teamId;
+    const approvedMessageId = typeof payload["approvedMessageId"] === "string" ? payload["approvedMessageId"] : undefined;
     let emailContent: { subject: string; body: string };
-    if (precomputedDraft?.subject && precomputedDraft?.body) {
-        logWorker(leadId, "USING_PRECOMPUTED_AI_EMAIL", { campaignId, teamId });
-        emailContent = { subject: precomputedDraft.subject, body: precomputedDraft.body };
+    if (approvedMessageId) {
+        // A person approved this exact text; send it as approved, once.
+        const approved = await resolveApprovedMessage(approvedMessageId, resolvedTeamId || "");
+        if (approved.state !== "ready" || !approved.subject) {
+            logger.warn(`[Worker] Not sending approved message ${approvedMessageId}: ${approved.state}`, { leadId, campaignId });
+            return { leadId, campaignId, sent: false, skipped: approved.state };
+        }
+        emailContent = { subject: approved.subject, body: approved.body };
     } else {
-        logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
-        emailContent = await aiService.generateEmailDraft(
-            lead,
-            campaign.icp?.criteria ?? null,
-            campaign.teamId || undefined
-        );
+        let draft: { subject: string; body: string } | null;
+        if (precomputedDraft?.subject && precomputedDraft?.body) {
+            logWorker(leadId, "USING_PRECOMPUTED_AI_EMAIL", { campaignId, teamId });
+            draft = { subject: precomputedDraft.subject, body: precomputedDraft.body };
+        } else {
+            logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
+            draft = await generateWithRetry(() => aiService.generateEmailDraft(
+                lead,
+                campaign.icp?.criteria ?? null,
+                campaign.teamId || undefined
+            ));
+        }
+        if (!draft) {
+            await flagNeedsAttention({ teamId: resolvedTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId });
+            return { leadId, campaignId, sent: false, held: "needs_attention" };
+        }
+        emailContent = draft;
+
+        const gate = await gateAiMessage({
+            teamId: resolvedTeamId,
+            leadId,
+            channel: "EMAIL",
+            jobType: "email_sending",
+            jobPayload: payload,
+            subject: emailContent.subject,
+            body: emailContent.body,
+            requesterHint: campaign.ownerId,
+        });
+        if (!gate.send) {
+            logger.info(`[Worker] Email to lead ${leadId} held: ${gate.held}`, { leadId, campaignId });
+            return { leadId, campaignId, sent: false, held: gate.held };
+        }
     }
 
     // Send email via Email Service
     try {
     const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; idempotencyKey?: string } = { leadId, campaignId };
-    const resolvedTeamId = campaign.teamId || teamId;
     if (resolvedTeamId) metadata.teamId = resolvedTeamId;
     if (campaign.ownerId) metadata.userId = campaign.ownerId;
-    if (jobId) metadata.idempotencyKey = jobId;
+    if (approvedMessageId) metadata.idempotencyKey = `approved_message_${approvedMessageId}`;
+    else if (jobId) metadata.idempotencyKey = jobId;
 
     const result = await emailService.sendEmail(
         lead.email,
@@ -91,6 +125,10 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
         emailContent.body,
         metadata
     );
+    if (approvedMessageId && resolvedTeamId) {
+        const delivered = (result as { success?: boolean } | undefined)?.success !== false;
+        await settleMessageApproval(approvedMessageId, resolvedTeamId, delivered ? "SENT" : "NEEDS_ATTENTION", delivered ? undefined : "The provider did not accept the email.");
+    }
 
         // The send itself has already happened at this point - a failure in
         // any of the following bookkeeping writes must not throw (which would
@@ -143,6 +181,10 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error(`[Worker] Failed to send email to ${lead.email}`, { leadId, campaignId, error: errorMessage });
+        if (approvedMessageId && resolvedTeamId) {
+            // The approval was claimed for this send, so a retry would skip it; flag it for a person instead.
+            await settleMessageApproval(approvedMessageId, resolvedTeamId, "NEEDS_ATTENTION", "Sending the approved email failed.").catch(() => {});
+        }
         throw error;
     }
 }
