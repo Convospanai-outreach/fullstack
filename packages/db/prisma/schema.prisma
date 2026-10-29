@@ -3298,3 +3298,28 @@ model BlindIndex {
   @@unique([teamId, entityType, entityId, fieldName])
   @@index([teamId, entityType, fieldName, indexHash])
 }
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  NOT_INTERESTED
+}
+
+// A message sent through a website form, kept so the team can see and follow it up.
+model Enquiry {
+  id        String         @id @default(uuid())
+  ticketId  String         @unique
+  name      String
+  email     String
+  subject   String
+  message   String         @db.Text
+  source    String
+  status    EnquiryStatus  @default(NEW)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
