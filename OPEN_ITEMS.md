@@ -7178,6 +7178,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     extension requests from 1.2.0 (and from every build if the key was already removed) until it is rolled
     forward again.
 
+- **OPEN-353 (Resolved (pending merge) — browser proxy no longer relays the internal-only email routes):** 2026-10-28.
+  - **Why:** apps/api limits `/email/send-verification`, `/email/verification-token` and `/email/verify-token` to
+    calls from the web server. The browser proxy (`/api/proxy/*`) signs forwarded requests with the signed-in
+    user’s session, so those calls could still reach the routes through it. None of the product code calls them
+    that way.
+  - **Change:** `apps/web/src/app/api/proxy/[...path]/route.ts` answers 404 for those three paths (and sub-paths)
+    without forwarding. Other `/email/*` routes are unchanged. Tests cover each path and an unaffected one.
+  - **Deploy:** web only (Render). No migration, no env change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
