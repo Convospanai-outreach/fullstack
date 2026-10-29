@@ -27,5 +27,6 @@ describe("content script: LinkedIn page title", () => {
         expect(stripLinkedInBadges("Jane Doe | LinkedIn")).toBe("Jane Doe");
         expect(parseLinkedInTitle("Jane Doe | LinkedIn")).toEqual({ name: "Jane Doe", headline: "" });
         expect(stripLinkedInBadges("Jane (JD) Doe")).toBe("Jane (JD) Doe");
+        expect(stripLinkedInBadges("(3) Founder at Acme")).toBe("(3) Founder at Acme");
     });
 });

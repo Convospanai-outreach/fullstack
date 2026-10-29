@@ -227,6 +227,8 @@ async function retryPendingLead() {
   const { status: _status, leadId: _leadId, syncError: _syncError, ...payload } = lead;
   const syncResult = await trySyncLead(payload, state.settings);
   const latest = await getState();
+  // Connecting to another team while this was sending means the lead went to the old team; leave it pending.
+  if (latest.settings.syncToken !== state.settings.syncToken || latest.settings.workspaceUrl !== state.settings.workspaceUrl) return;
   // A profile saved while this was sending replaces the one sent here; keep the newer one.
   if (latest.savedLead?.savedAt !== lead.savedAt || latest.savedLead?.profileUrl !== lead.profileUrl) return;
   if (!syncResult.ok) {
