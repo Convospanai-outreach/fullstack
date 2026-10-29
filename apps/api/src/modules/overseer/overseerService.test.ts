@@ -197,6 +197,17 @@ describe("runOverseerTick", () => {
             expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: false, replyClassification: null })]);
         });
 
+        it("ignores a reply classified after the enrollment started when its message arrived before", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(30) }],
+                replies: [{ receivedAt: replyAt(2), aiClassification: "DNC", humanCorrection: null }]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: false, replyClassification: null })]);
+        });
+
         it("marks a reply with no classification yet as replied", async () => {
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(1) }], replies: [] })]);
 

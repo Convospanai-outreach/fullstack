@@ -97,8 +97,10 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
         const totalSteps = enrollment.sequence._count.steps;
         // Only a reply since this enrollment started says anything about it.
         const latestReply = enrollment.lead?.replies?.[0];
-        const replyInEnrollment = latestReply && latestReply.receivedAt >= enrollment.startedAt ? latestReply : null;
         const lastInbound = enrollment.lead?.messages?.[0]?.createdAt;
+        // receivedAt is stamped when the classifier saves the row, so it can postdate an older reply;
+        // the inbound message time is what places the reply inside this enrollment.
+        const replyInEnrollment = latestReply && latestReply.receivedAt >= enrollment.startedAt && !!lastInbound && lastInbound >= enrollment.startedAt ? latestReply : null;
         return {
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,

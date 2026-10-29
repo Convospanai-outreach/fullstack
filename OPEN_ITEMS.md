@@ -7178,6 +7178,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     extension requests from 1.2.0 (and from every build if the key was already removed) until it is rolled
     forward again.
 
+- **OPEN-358 (Resolved (pending merge) — data scoping and logic fixes across jobs, overseer, invites, approvals, policy and INR pricing):** 2026-10-29.
+  - **Why:** follow-ups from review of the PRs listed below. Each was confirmed against the code on main; all are
+    low impact in practice.
+  - **Change:** (#719) `POST /jobs` namespaces a caller-supplied idempotency key with the session team, so a key
+    used by another team neither returns nor blocks this team's job. (#722) the Overseer counts a reply as inside
+    an enrollment only when the inbound message also arrived after the enrollment started, since the reply row's
+    timestamp is set when classification finishes. (#718) `admin/invites` defaults to the workspace the user has
+    selected when they may invite into it, and finds an existing seat regardless of email case. (#678) the
+    scheduler's approval check lets the latest CAMPAIGN_START request decide, as the web start routes do. (#673)
+    `enforcePolicy` accepts only a CAMPAIGN_START approval for a campaign run, and the web start gate uses the
+    extended auto-deny window while the team's breaker is not closed. (#686) the default policy row is created
+    with an upsert, so two first requests for one team no longer collide. (#704) the INR plan prices are written
+    in one transaction.
+  - **Deploy:** none beyond the normal merge; no schema change and no new env.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

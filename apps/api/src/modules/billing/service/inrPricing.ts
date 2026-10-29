@@ -45,7 +45,10 @@ export async function refreshInrPlanPrices(): Promise<{ rate: number; prices: Re
     const prices: Record<string, number> = {};
     for (const [name, usdCents] of Object.entries(PLAN_USD_MONTHLY_CENTS)) {
         prices[name] = inrMonthlyPaise(usdCents, rate);
-        await prisma.plan.updateMany({ where: { name }, data: { monthlyPrice: prices[name] } });
     }
+    // One transaction, so a failed write cannot leave some plans on today's rate and others on the old one.
+    await prisma.$transaction(
+        Object.entries(prices).map(([name, monthlyPrice]) => prisma.plan.updateMany({ where: { name }, data: { monthlyPrice } }))
+    );
     return { rate, prices };
 }
