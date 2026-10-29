@@ -8,6 +8,7 @@ import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
+import { displayPrice, type LivePrice } from "./displayPrice";
 import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
@@ -82,10 +83,6 @@ const proofPoints = [
     "Human-approved campaign operations",
     "Lead and meeting workflow tracking",
 ];
-
-type LivePrice = { currency: string; amount: number | null; available: boolean };
-
-const CURRENCY_SYMBOL: Record<string, string> = { USD: "$", EUR: "€", INR: "₹" };
 
 export default function PricingPage() {
     const router = useRouter();
@@ -263,12 +260,14 @@ export default function PricingPage() {
                         // annual column stays on the static marketing estimate either way.
                         // Only trust the live price when the currency is actually available
                         // (INR today; USD only once Plan.stripePrices is seeded). Otherwise
-                        // fall back to the USD list price.
-                        const liveAmount = !isAnnual && live?.available === true && live.amount != null ? live.amount : null;
-                        const price = isAnnual
-                            ? plan.annualPrice
-                            : liveAmount != null ? Math.round(liveAmount / 100) : plan.monthlyPrice;
-                        const currencySymbol = liveAmount != null ? (CURRENCY_SYMBOL[live!.currency] || live!.currency + " ") : "$";
+                        // fall back to the USD list price, except for India where no amount is shown.
+                        const { symbol: currencySymbol, amount: price } = displayPrice({
+                            isAnnual,
+                            country: billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry,
+                            live,
+                            usdMonthly: plan.monthlyPrice,
+                            annualPrice: plan.annualPrice,
+                        });
                         const isEnterprise = plan.name === "Enterprise";
                         let ctaText = isEnterprise ? "Talk to Sales" : "Start Pilot";
                         
@@ -308,7 +307,7 @@ export default function PricingPage() {
 
                                     <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-4xl font-black text-white">{currencySymbol}{price}</span>
+                                            <span className="text-4xl font-black text-white">{price != null ? <>{currencySymbol}{price}</> : <span title="Price unavailable">&mdash;</span>}</span>
                                             <span className="text-sm font-medium text-slate-400">/month</span>
                                         </div>
                                         <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
