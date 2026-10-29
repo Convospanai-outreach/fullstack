@@ -8,6 +8,15 @@ import { Check, AlertCircle, Clock } from "lucide-react";
 import { getExpiryState, formatTimeLeft } from "@/lib/approvalExpiry";
 import { StalledNudgeList } from "@/components/overseer/StalledNudgeList";
 
+interface NeedsAttentionItem {
+    id: string;
+    channel: string | null;
+    leadName: string | null;
+    leadEmail: string | null;
+    reason: string;
+    createdAt: string;
+}
+
 interface ApprovalRequest {
     id: string;
     actionType: string;
@@ -97,6 +106,7 @@ function ExpiryBadge({ autoDenyAt }: { autoDenyAt?: string | null }) {
 
 export default function ApprovalsPage() {
     const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+    const [needsAttention, setNeedsAttention] = useState<NeedsAttentionItem[]>([]);
     const [breakerState, setBreakerState] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -128,6 +138,7 @@ export default function ApprovalsPage() {
             if (data.requests) {
                 setRequests(data.requests);
             }
+            setNeedsAttention(data.needsAttention ?? []);
         } catch (err) {
             console.error("Failed to load approvals", err);
             toast.error("Failed to load requests");
@@ -251,6 +262,30 @@ export default function ApprovalsPage() {
                             </div>
                         </GlassCard>
                     ))}
+                </div>
+            )}
+
+            {needsAttention.length > 0 && (
+                <div className="space-y-3">
+                    <SectionHeader
+                        title="Needs attention"
+                        subtitle="These messages were not sent. The AI could not write them or an approval ran out. Nothing went out; re-run the step once the cause is fixed."
+                    />
+                    <div className="grid gap-3">
+                        {needsAttention.map((item) => (
+                            <GlassCard key={item.id} className="p-4 flex items-start gap-3 border-destructive/20">
+                                <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-1" />
+                                <div className="text-sm">
+                                    <div className="text-foreground font-medium">
+                                        {item.leadName || item.leadEmail || "A lead"}
+                                        {item.channel && <span className="ml-2 text-xs uppercase tracking-wide text-muted-foreground">{item.channel}</span>}
+                                    </div>
+                                    <p className="text-muted-foreground">{item.reason}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                                </div>
+                            </GlassCard>
+                        ))}
+                    </div>
                 </div>
             )}
 
