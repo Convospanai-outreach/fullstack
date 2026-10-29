@@ -40,7 +40,21 @@ collections:
       - { label: Title, name: title, widget: string }
       - { label: Description, name: description, widget: text }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ss.SSS[Z]" }
+      - { label: Category, name: category, widget: string, required: false }
       - { label: Body, name: body, widget: markdown }
+  - name: testimonials
+    label: Testimonials
+    folder: apps/web/content/testimonials
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Name, name: name, widget: string }
+      - { label: Role, name: role, widget: string, required: false }
+      - { label: Company, name: company, widget: string, required: false }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Quote, name: body, widget: text }
   - name: faq
     label: FAQ
     files:

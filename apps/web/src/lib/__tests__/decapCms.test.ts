@@ -24,6 +24,12 @@ describe("buildDecapConfig", () => {
         for (const field of ["title", "description", "date", "body"]) expect(config).toContain(`name: ${field}`);
     });
 
+    it("lets editors set a blog category and manage testimonials", () => {
+        expect(config).toContain("name: category");
+        expect(config).toContain("folder: apps/web/content/testimonials");
+        for (const field of ["role", "company", "order"]) expect(config).toContain(`name: ${field}`);
+    });
+
     it("contains no secret", () => {
         expect(config).not.toMatch(/client_secret|CLIENT_SECRET|token/i);
     });
