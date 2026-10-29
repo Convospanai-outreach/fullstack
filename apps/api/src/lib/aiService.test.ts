@@ -155,14 +155,14 @@ describe("AIService.askAI - TRIVIAL complexity tier (AI cost optimization)", () 
         });
 
         expect(mockAnthropicCreate).toHaveBeenCalled();
-        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-3-5-haiku");
+        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-haiku-5-5");
     });
 
     it("defaults to the strategic Sonnet model when no complexity is given", async () => {
         await aiService.askAI("Write a creative pitch", "team-1", { taskType: "GENERATION" });
 
         expect(mockAnthropicCreate).toHaveBeenCalled();
-        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-3-5-sonnet");
+        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-sonnet-5-5");
     });
 });
 
