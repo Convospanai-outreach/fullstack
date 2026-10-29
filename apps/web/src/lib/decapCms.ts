@@ -92,6 +92,25 @@ collections:
       - { label: Open for applications, name: open, widget: boolean, default: true }
       - { label: Order, name: order, widget: number, value_type: int, default: 0 }
       - { label: Description, name: body, widget: markdown }
+  - name: settings
+    label: Site settings
+    files:
+      - label: Redirects
+        name: redirects
+        file: apps/web/content/settings/redirects.json
+        fields:
+          - label: Redirects
+            name: redirects
+            widget: list
+            fields:
+              - { label: From, name: from, widget: string, hint: "A path on this site, for example /old-page. Not /, /api, /cms or /superadmin." }
+              - { label: To, name: to, widget: string, hint: "A path (/new-page) or an https address" }
+              - { label: Permanent, name: permanent, widget: boolean, default: false }
+      - label: Analytics
+        name: analytics
+        file: apps/web/content/settings/analytics.json
+        fields:
+          - { label: Google Analytics 4 measurement ID, name: ga4MeasurementId, widget: string, required: false, hint: "Looks like G-XXXXXXXXXX. Leave empty to use the default." }
   - name: faq
     label: FAQ
     files:

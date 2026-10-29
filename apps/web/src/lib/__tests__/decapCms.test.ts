@@ -41,6 +41,12 @@ describe("buildDecapConfig", () => {
         for (const field of ["department", "location", "open"]) expect(config).toContain(`name: ${field}`);
     });
 
+    it("manages redirects and the analytics ID as settings files", () => {
+        expect(config).toContain("file: apps/web/content/settings/redirects.json");
+        expect(config).toContain("file: apps/web/content/settings/analytics.json");
+        for (const field of ["from", "to", "permanent", "ga4MeasurementId"]) expect(config).toContain(`name: ${field}`);
+    });
+
     it("contains no secret", () => {
         expect(config).not.toMatch(/client_secret|CLIENT_SECRET|token/i);
     });
