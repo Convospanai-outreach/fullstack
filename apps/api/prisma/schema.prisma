@@ -2472,6 +2472,7 @@ model OrganizationPolicy {
   allowUploads  Boolean @default(true)
 
   requiresApprovalForCampaign Boolean @default(false)
+  requiresMessageApproval     Boolean @default(true) // AI-written outreach is held for approval before it is sent; teams may opt out
 
   // Compliance Settings
   blockedKeywords String[] @default([])
