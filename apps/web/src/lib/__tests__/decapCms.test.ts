@@ -30,6 +30,12 @@ describe("buildDecapConfig", () => {
         for (const field of ["role", "company", "order"]) expect(config).toContain(`name: ${field}`);
     });
 
+    it("manages the locations as JSON files the site reads", () => {
+        expect(config).toContain("folder: apps/web/content/locations");
+        expect(config).toContain("format: json");
+        for (const field of ["stateCode", "corridors", "industryFocus", "summary"]) expect(config).toContain(`name: ${field}`);
+    });
+
     it("contains no secret", () => {
         expect(config).not.toMatch(/client_secret|CLIENT_SECRET|token/i);
     });

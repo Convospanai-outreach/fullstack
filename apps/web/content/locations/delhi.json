@@ -1,0 +1,26 @@
+{
+  "slug": "delhi",
+  "name": "New Delhi",
+  "state": "Delhi",
+  "stateCode": "IN-DL",
+  "placename": "New Delhi, Delhi, India",
+  "position": "28.6139;77.2090",
+  "icbm": "28.6139, 77.2090",
+  "latitude": "28.6139",
+  "longitude": "77.2090",
+  "corridors": [
+    "Connaught Place",
+    "Okhla Industrial Area",
+    "Nehru Place",
+    "Aerocity",
+    "Bhikaji Cama Place"
+  ],
+  "industryFocus": [
+    "Government & Public Sector Advisory",
+    "Corporate Law & Professional Services",
+    "Logistics & Supply Chain",
+    "Hospitality & Commercial Services"
+  ],
+  "summary": "Governed outbound sales workflows for enterprise service providers, corporate advisory, and trade operations in the National Capital.",
+  "order": 2
+}

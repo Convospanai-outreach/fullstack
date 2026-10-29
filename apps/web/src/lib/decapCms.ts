@@ -55,6 +55,28 @@ collections:
       - { label: Company, name: company, widget: string, required: false }
       - { label: Order, name: order, widget: number, value_type: int, default: 0 }
       - { label: Quote, name: body, widget: text }
+  - name: locations
+    label: Locations
+    folder: apps/web/content/locations
+    extension: json
+    format: json
+    create: true
+    slug: "{{slug}}"
+    identifier_field: name
+    fields:
+      - { label: Order, name: order, widget: number, value_type: int }
+      - { label: URL slug, name: slug, widget: string, hint: "Used in /locations/<slug>. Must match the file name." }
+      - { label: City, name: name, widget: string }
+      - { label: State, name: state, widget: string }
+      - { label: State code, name: stateCode, widget: string, hint: "For example IN-HR" }
+      - { label: Place name, name: placename, widget: string }
+      - { label: Position, name: position, widget: string }
+      - { label: ICBM, name: icbm, widget: string }
+      - { label: Latitude, name: latitude, widget: string }
+      - { label: Longitude, name: longitude, widget: string }
+      - { label: Corridors, name: corridors, widget: list, field: { label: Corridor, name: corridor, widget: string } }
+      - { label: Industry focus, name: industryFocus, widget: list, field: { label: Industry, name: industry, widget: string } }
+      - { label: Summary, name: summary, widget: text }
   - name: faq
     label: FAQ
     files:
