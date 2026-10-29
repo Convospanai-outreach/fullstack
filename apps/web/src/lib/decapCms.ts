@@ -77,6 +77,21 @@ collections:
       - { label: Corridors, name: corridors, widget: list, field: { label: Corridor, name: corridor, widget: string } }
       - { label: Industry focus, name: industryFocus, widget: list, field: { label: Industry, name: industry, widget: string } }
       - { label: Summary, name: summary, widget: text }
+  - name: jobs
+    label: Job openings
+    folder: apps/web/content/jobs
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Department, name: department, widget: string, required: false }
+      - { label: Location, name: location, widget: string, required: false }
+      - { label: Type, name: type, widget: string, required: false, hint: "For example Full time" }
+      - { label: Open for applications, name: open, widget: boolean, default: true }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Description, name: body, widget: markdown }
   - name: faq
     label: FAQ
     files:

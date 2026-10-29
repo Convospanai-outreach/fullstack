@@ -36,6 +36,11 @@ describe("buildDecapConfig", () => {
         for (const field of ["stateCode", "corridors", "industryFocus", "summary"]) expect(config).toContain(`name: ${field}`);
     });
 
+    it("manages job openings with an open switch", () => {
+        expect(config).toContain("folder: apps/web/content/jobs");
+        for (const field of ["department", "location", "open"]) expect(config).toContain(`name: ${field}`);
+    });
+
     it("contains no secret", () => {
         expect(config).not.toMatch(/client_secret|CLIENT_SECRET|token/i);
     });
