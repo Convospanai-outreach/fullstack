@@ -15,10 +15,23 @@ const workflowsDir = path.resolve(import.meta.dirname, "../../.github/workflows"
 const PRODUCTION_SECRETS = ["DATABASE_URL", "DIRECT_URL", "ORACLE_SSH_KEY", "ORACLE_SSH_USER"];
 
 function secretsUsedBy(job) {
+  // Indexed access (secrets[matrix.x], secrets['NAME']), toJSON(secrets) and `secrets: inherit` can reach
+  // any secret, so count them as using every production one.
+  if (job.secrets === "inherit" || /secrets\s*\[|toJSON\(\s*secrets\s*\)/.test(JSON.stringify(job))) {
+    return [...PRODUCTION_SECRETS];
+  }
   const used = new Set();
   for (const match of JSON.stringify(job).matchAll(/secrets\.([A-Z0-9_]+)/g)) used.add(match[1]);
   return [...used].filter((name) => PRODUCTION_SECRETS.includes(name));
 }
+
+test("dynamic secret access counts as using the production secrets", () => {
+  assert.deepEqual(secretsUsedBy({ steps: [{ run: "echo ${{ secrets[matrix.secret] }}" }] }), PRODUCTION_SECRETS);
+  assert.deepEqual(secretsUsedBy({ steps: [{ run: "echo ${{ secrets['DATABASE_URL'] }}" }] }), PRODUCTION_SECRETS);
+  assert.deepEqual(secretsUsedBy({ steps: [{ env: { ALL: "${{ toJSON(secrets) }}" } }] }), PRODUCTION_SECRETS);
+  assert.deepEqual(secretsUsedBy({ uses: "./.github/workflows/x.yml", secrets: "inherit" }), PRODUCTION_SECRETS);
+  assert.deepEqual(secretsUsedBy({ steps: [{ run: "echo ${{ secrets.OTHER }}" }] }), []);
+});
 
 test("every job that uses a production secret declares a GitHub environment", () => {
   const unprotected = [];

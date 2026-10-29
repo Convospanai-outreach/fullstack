@@ -7,7 +7,9 @@ export class GenericAdapter {
         logger.info(`[GenericAdapter] Scraping URL: ${url}`);
         const page = await browserManager.getPage();
         try {
-            await gotoPublicUrl(page, url, { waitUntil: 'networkidle2' });
+            await gotoPublicUrl(page, url, { waitUntil: 'load' });
+            // Short, bounded settle for late requests; busy pages never go idle, so don't fail on it.
+            await page.waitForNetworkIdle({ idleTime: 500, timeout: 5000 }).catch(() => undefined);
             const content = await page.content();
             return { content };
         } finally {
