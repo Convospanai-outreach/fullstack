@@ -29,7 +29,7 @@ export type ProviderKeySet = {
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 // What batch drafts have always used when the team has not chosen an Anthropic model.
-const BATCH_MODEL = "claude-3-5-sonnet";
+const BATCH_MODEL = "claude-sonnet-5-5";
 
 const DEFAULT_MODELS = {
     gemini: {
@@ -43,9 +43,9 @@ const DEFAULT_MODELS = {
         strategic: "gpt-4o"
     },
     anthropic: {
-        trivial: "claude-3-5-haiku",
-        routine: "claude-3-5-sonnet",
-        strategic: "claude-3-5-sonnet"
+        trivial: "claude-haiku-5-5",
+        routine: "claude-sonnet-5-5",
+        strategic: "claude-sonnet-5-5"
     },
     // Every tier uses deepseek-chat: DeepSeek serves it with DeepSeek-V4.1-Flash in non-thinking
     // mode, while deepseek-reasoner is the same model with thinking (slower, billed reasoning
@@ -67,7 +67,8 @@ function resolveModelTier(complexity: TaskComplexity): "trivial" | "routine" | "
 const COST_PER_1K_TOKENS: Record<string, number> = {
     "gpt-4o": 0.015,
     "gpt-4o-mini": 0.003,
-    "claude-3-5-sonnet": 0.015,
+    "claude-sonnet-5-5": 0.015,
+    "claude-haiku-5-5": 0.003,
     "claude-3-opus": 0.03,
     "gemini-1.5-pro": 0.007,
     "gemini-1.5-flash": 0.0007,
