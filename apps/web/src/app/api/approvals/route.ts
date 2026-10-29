@@ -5,6 +5,8 @@ import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
+const NEEDS_ATTENTION_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
 export async function GET() {
     try {
         const { prisma } = await import("@/lib/db");
@@ -73,7 +75,37 @@ export async function GET() {
             orderBy: { createdAt: "desc" },
         });
 
-        return NextResponse.json({ requests });
+        // Held AI messages that could not be written or sent: shown so they are not lost silently.
+        const attention = await prisma.approvalRequest.findMany({
+            where: {
+                teamId: ctx.teamId,
+                actionType: "MESSAGE_SEND",
+                status: "NEEDS_ATTENTION",
+                createdAt: { gt: new Date(Date.now() - NEEDS_ATTENTION_WINDOW_MS) },
+            },
+            select: { id: true, entityId: true, reason: true, reviewNote: true, createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 100,
+        });
+        const leadIds = [...new Set(attention.map((a) => a.entityId.split(":")[0]).filter(Boolean))];
+        const leads = leadIds.length
+            ? await prisma.lead.findMany({ where: { id: { in: leadIds }, teamId: ctx.teamId }, select: { id: true, fullName: true, email: true } })
+            : [];
+        const leadById = new Map(leads.map((l) => [l.id, l]));
+        const needsAttention = attention.map((a) => {
+            const [leadId, channel] = a.entityId.split(":");
+            const lead = leadById.get(leadId ?? "");
+            return {
+                id: a.id,
+                channel: channel ?? null,
+                leadName: lead?.fullName ?? null,
+                leadEmail: lead?.email ?? null,
+                reason: a.reviewNote || a.reason || "This message needs your attention.",
+                createdAt: a.createdAt,
+            };
+        });
+
+        return NextResponse.json({ requests, needsAttention });
     } catch (error: any) {
         console.error("Failed to fetch approvals:", error);
         return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
