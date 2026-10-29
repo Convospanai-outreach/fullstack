@@ -113,3 +113,64 @@ describe("composeNodeB critique", () => {
         expect(out.unreviewed).toBeUndefined();
     });
 });
+
+describe("critique rewrite guardrails", () => {
+    it("drops an invented statistic from the rewrite but keeps the rest and the paragraph breaks", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        critic(JSON.stringify({
+            status: "FAIL",
+            critique: "generic",
+            correction: {
+                subject: "Quick idea",
+                body: "Congrats on the Series B.\n\nTeams like yours cut qualification time by 63% in a month.\n\nWorth a short call?",
+            },
+        }), draftA);
+
+        const out = await composeNodeA(inputA, "team-1");
+
+        expect(out.body).toBe("Congrats on the Series B.\n\nWorth a short call?");
+        expect(out.body).not.toContain("63%");
+        expect(out.unreviewed).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("[Guardrails] Node A"), { issues: ["UNGROUNDED_NUMERIC"] });
+        warn.mockRestore();
+    });
+
+    it("keeps a number that is already in the input", async () => {
+        critic(JSON.stringify({
+            status: "FAIL",
+            critique: "generic",
+            correction: { subject: "Your $20M round", body: "Saw the $20M Series B announcement.\n\nWorth a short call?" },
+        }), draftA);
+
+        const out = await composeNodeA(inputA, "team-1");
+
+        expect(out.body).toContain("$20M");
+    });
+
+    it("softens a guarantee in the rewrite", async () => {
+        critic(JSON.stringify({
+            status: "FAIL",
+            critique: "weak",
+            correction: { subject: "Idea", body: "We guarantee more meetings.\n\nWorth a short call?" },
+        }), draftB);
+
+        const out = await composeNodeB(inputB, "team-1");
+
+        expect(out.body).not.toContain("guarantee");
+        expect(out.body).toContain("likely");
+    });
+
+    it("keeps the original draft, marked unreviewed, when the whole rewrite is ungrounded", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        critic(JSON.stringify({
+            status: "FAIL",
+            critique: "weak",
+            correction: { subject: "Idea", body: "Research confirms 80% of teams switch." },
+        }), draftA);
+
+        const out = await composeNodeA(inputA, "team-1");
+
+        expect(out).toMatchObject({ subject: "Draft subject", body: "Draft body", unreviewed: true });
+        warn.mockRestore();
+    });
+});
