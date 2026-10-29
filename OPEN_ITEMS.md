@@ -7215,6 +7215,15 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
     recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
   - **Deploy:** api only. No migration, no env change.
+- **OPEN-359 (Resolved (pending merge) — review follow-ups: failed-login log id, sign-out audit, India pricing display, CRM token storage, Resend reply status):** 2026-10-29.
+  - **Why:** five low-severity review comments on merged PRs (#693, #691, #704, #671, #727) were still present on main.
+  - **Change:**
+    - #693: the failed-login log id is now a keyed HMAC of the email (`NEXTAUTH_SECRET`) instead of a plain hash; it is left out when the secret is not set.
+    - #691: if ending a user's extension sessions fails during suspend or sign-out, the audit entry is still written (with `sessionRevokeFailed`) and the request answers 500 so the admin retries.
+    - #704: the pricing page shows no amount for India while the INR price is loading or unavailable, instead of the USD list price. Other countries and the annual figure are unchanged.
+    - #671: the HubSpot token refresh stores the refresh token encrypted even when HubSpot returns no new one (an older plaintext value is re-saved encrypted). The apps/api copy of `crmService.ts` has the same line and is not changed here.
+    - #727: the Resend reply handler sets `Email.status` to `replied`, as the Gmail and IMAP paths do. Reports that count `sent` and `delivered` emails now treat Resend replies the same way as the other two; no count queries were changed.
+  - **Deploy:** none beyond the normal merge deploy. Web needs `NEXTAUTH_SECRET` (already set) for the log id. No migration.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
         try {
           inboundMessage = await prisma.$transaction(async (tx) => {
             const emailEvent = await tx.emailEvent.create({ data: emailEventData("REPLY_RECEIVED") });
-            await tx.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
+            await tx.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date(), status: "replied" } });
             await advanceLeadAfterReply(tx, advanceParams);
             return tx.message.create({
               data: {
