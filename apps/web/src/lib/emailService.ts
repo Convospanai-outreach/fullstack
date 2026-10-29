@@ -88,15 +88,27 @@ export class EmailService {
             const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
             const html = `
                 <p>Hi ${(name || "there").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)},</p>
-                <p>Please verify your email:</p>
+                <p>Please verify your email to finish creating your ${fromName} account:</p>
                 <p><a href="${verifyUrl}">Verify Email</a></p>
+                <p>If the button doesn't work, copy this link into your browser:<br>${verifyUrl}</p>
+                <p>The link expires in 24 hours. If you didn't sign up, you can ignore this email.</p>
             `;
+            // A plain-text part alongside the HTML: HTML-only mail scores worse with spam filters.
+            const text = [
+                `Hi ${name || "there"},`,
+                "",
+                `Please verify your email to finish creating your ${fromName} account:`,
+                verifyUrl,
+                "",
+                "The link expires in 24 hours. If you didn't sign up, you can ignore this email.",
+            ].join("\n");
             // sendViaSMTP reports failure in its result instead of throwing; surface it so the
             // callers can tell the user and the server log shows why.
             const result = await sendViaSMTP({ host, port, secure, user, password, fromName, fromEmail }, {
                 to: email,
                 subject: "Verify your email",
-                html
+                html,
+                text
             });
             if (!result.success) {
                 throw new Error(`Verification email was not sent via ${host}:${port}: ${result.error ?? "unknown error"}`);
