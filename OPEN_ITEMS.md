@@ -7216,6 +7216,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
   - **Deploy:** api only. No migration, no env change.
 
+- **OPEN-357 (Resolved (pending merge) — the public contact forms share a lower rate limit):** 2026-10-28.
+  - **Why:** `/api/contact` and `/api/support/contact` are public and each accepted message sends an email to the team
+    inbox. The only limit was the shared public bucket (100 requests a minute per IP, per process).
+  - **Change:** both routes share a `contact-form` limit of 5 messages per IP per 10 minutes
+    (`RATE_LIMITS.CONTACT_FORM`), checked before the body is read. The Turnstile check on both forms already landed
+    separately. Tests cover the limit on both routes and the Turnstile paths.
+  - **Deploy:** web only (Render). No migration, no env change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
