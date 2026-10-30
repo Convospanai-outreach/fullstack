@@ -42,6 +42,26 @@ describe("job openings", () => {
         expect(getJobBySlug("nothing", dir)).toBeUndefined();
     });
 
+    it("ignores a file whose name is not a plain slug, so it can never become part of a link", () => {
+        write("ok-job.md", "---
+title: Fine
+open: true
+---
+x");
+        write("bad name.md", "---
+title: Space
+open: true
+---
+x");
+        write("a\"onclick=\"x.md", "---
+title: Quote
+open: true
+---
+x");
+
+        expect(getJobs(dir).map((j) => j.slug)).toEqual(["ok-job"]);
+    });
+
     it("is empty when the folder is missing", () => {
         expect(getJobs(path.join(dir, "missing"))).toEqual([]);
     });
