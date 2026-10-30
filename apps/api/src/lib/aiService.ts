@@ -113,7 +113,37 @@ function calculateCreditsFromUsage(tokensIn: number, tokensOut: number): number 
     return Math.max(1, Math.ceil((Math.max(0, tokensIn) + Math.max(0, tokensOut)) / 1000));
 }
 
+// Models Anthropic has retired, mapped to the current model of the same tier. A team or an env var
+// that still names one would otherwise fail every call with a 404 until someone edits the setting.
+// Current IDs (including claude-sonnet-4-5 / 4-6) pass through unchanged.
+const RETIRED_ANTHROPIC_MODELS: Array<[RegExp, string]> = [
+    [/^claude-(?:3-5-|3-7-|3-)?sonnet(?:-\d{8})?(?:-latest)?$/, "claude-sonnet-5-5"],
+    [/^claude-sonnet-4(?:-\d{8})?$/, "claude-sonnet-5-5"],
+    [/^claude-(?:3-5-|3-)?haiku(?:-\d{8})?(?:-latest)?$/, "claude-haiku-5-5"],
+    [/^claude-(?:3-)?opus(?:-\d{8})?(?:-latest)?$/, "claude-opus-5-5"],
+    [/^claude-opus-4(?:-1)?(?:-\d{8})?$/, "claude-opus-5-5"],
+    [/^claude-(?:2\.[01]|instant-1\.2)$/, "claude-sonnet-5-5"],
+];
+
+export function currentAnthropicModel(model: string | undefined): string | undefined {
+    if (!model) return model;
+    const id = model.trim().toLowerCase();
+    const hit = RETIRED_ANTHROPIC_MODELS.find(([pattern]) => pattern.test(id));
+    if (!hit) return model;
+    logger.warn("[AI Config] Saved Anthropic model is retired; using its replacement", { saved: model, using: hit[1] });
+    return hit[1];
+}
+
+function withCurrentAnthropicModel(providers: ProviderKeySet): ProviderKeySet {
+    if (!providers.anthropic?.model) return providers;
+    return { ...providers, anthropic: { ...providers.anthropic, model: currentAnthropicModel(providers.anthropic.model) } };
+}
+
 export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
+    return withCurrentAnthropicModel(await readTeamProviders(teamId));
+}
+
+async function readTeamProviders(teamId?: string): Promise<ProviderKeySet> {
     const fromEnv: ProviderKeySet = {
         gemini: process.env["GEMINI_API_KEY"]
             ? { apiKey: process.env["GEMINI_API_KEY"], model: process.env["GEMINI_MODEL"] }
