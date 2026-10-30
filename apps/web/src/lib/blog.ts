@@ -9,6 +9,7 @@ export type BlogPost = {
   title: string;
   description: string;
   date: string;
+  category: string;
   content: string;
 };
 
@@ -32,6 +33,7 @@ export function getBlogPosts(): BlogPost[] {
         title: data['title'] || 'Untitled',
         description: data['description'] || '',
         date: data['date'] || new Date().toISOString(),
+        category: data['category'] || '',
         content,
       };
     });
@@ -58,6 +60,7 @@ export function getBlogPostBySlug(slug: string): BlogPost | undefined {
     title: data['title'] || 'Untitled',
     description: data['description'] || '',
     date: data['date'] || new Date().toISOString(),
+    category: data['category'] || '',
     content,
   };
 }

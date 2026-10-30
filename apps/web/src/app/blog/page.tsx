@@ -52,6 +52,7 @@ export default function BlogIndex() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {posts.map((post) => (
           <Link href={`/blog/${post.slug}`} key={post.slug} className="group flex flex-col space-y-3 block border rounded-xl p-6 transition-all hover:shadow-lg hover:border-primary/50 bg-card">
+            {post.category && <p className="text-xs font-semibold uppercase tracking-wide text-primary">{post.category}</p>}
             <p className="text-sm text-muted-foreground">
               {new Date(post.date).toLocaleDateString('en-US', {
                 year: 'numeric',

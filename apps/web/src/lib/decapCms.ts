@@ -40,7 +40,77 @@ collections:
       - { label: Title, name: title, widget: string }
       - { label: Description, name: description, widget: text }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ss.SSS[Z]" }
+      - { label: Category, name: category, widget: string, required: false }
       - { label: Body, name: body, widget: markdown }
+  - name: testimonials
+    label: Testimonials
+    folder: apps/web/content/testimonials
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Name, name: name, widget: string }
+      - { label: Role, name: role, widget: string, required: false }
+      - { label: Company, name: company, widget: string, required: false }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Quote, name: body, widget: text }
+  - name: locations
+    label: Locations
+    folder: apps/web/content/locations
+    extension: json
+    format: json
+    create: true
+    slug: "{{slug}}"
+    identifier_field: name
+    fields:
+      - { label: Order, name: order, widget: number, value_type: int }
+      - { label: URL slug, name: slug, widget: string, hint: "Used in /locations/<slug>. Must match the file name." }
+      - { label: City, name: name, widget: string }
+      - { label: State, name: state, widget: string }
+      - { label: State code, name: stateCode, widget: string, hint: "For example IN-HR" }
+      - { label: Place name, name: placename, widget: string }
+      - { label: Position, name: position, widget: string }
+      - { label: ICBM, name: icbm, widget: string }
+      - { label: Latitude, name: latitude, widget: string }
+      - { label: Longitude, name: longitude, widget: string }
+      - { label: Corridors, name: corridors, widget: list, field: { label: Corridor, name: corridor, widget: string } }
+      - { label: Industry focus, name: industryFocus, widget: list, field: { label: Industry, name: industry, widget: string } }
+      - { label: Summary, name: summary, widget: text }
+  - name: jobs
+    label: Job openings
+    folder: apps/web/content/jobs
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Department, name: department, widget: string, required: false }
+      - { label: Location, name: location, widget: string, required: false }
+      - { label: Type, name: type, widget: string, required: false, hint: "For example Full time" }
+      - { label: Open for applications, name: open, widget: boolean, default: true }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Description, name: body, widget: markdown }
+  - name: settings
+    label: Site settings
+    files:
+      - label: Redirects
+        name: redirects
+        file: apps/web/content/settings/redirects.json
+        fields:
+          - label: Redirects
+            name: redirects
+            widget: list
+            fields:
+              - { label: From, name: from, widget: string, hint: "A path on this site, for example /old-page. Not /, /api, /cms or /superadmin." }
+              - { label: To, name: to, widget: string, hint: "A path (/new-page) or an https address" }
+              - { label: Permanent, name: permanent, widget: boolean, default: false }
+      - label: Analytics
+        name: analytics
+        file: apps/web/content/settings/analytics.json
+        fields:
+          - { label: Google Analytics 4 measurement ID, name: ga4MeasurementId, widget: string, required: false, hint: "Looks like G-XXXXXXXXXX. Leave empty to use the default." }
   - name: faq
     label: FAQ
     files:
