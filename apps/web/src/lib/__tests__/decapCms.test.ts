@@ -24,6 +24,29 @@ describe("buildDecapConfig", () => {
         for (const field of ["title", "description", "date", "body"]) expect(config).toContain(`name: ${field}`);
     });
 
+    it("lets editors set a blog category and manage testimonials", () => {
+        expect(config).toContain("name: category");
+        expect(config).toContain("folder: apps/web/content/testimonials");
+        for (const field of ["role", "company", "order"]) expect(config).toContain(`name: ${field}`);
+    });
+
+    it("manages the locations as JSON files the site reads", () => {
+        expect(config).toContain("folder: apps/web/content/locations");
+        expect(config).toContain("format: json");
+        for (const field of ["stateCode", "corridors", "industryFocus", "summary"]) expect(config).toContain(`name: ${field}`);
+    });
+
+    it("manages job openings with an open switch", () => {
+        expect(config).toContain("folder: apps/web/content/jobs");
+        for (const field of ["department", "location", "open"]) expect(config).toContain(`name: ${field}`);
+    });
+
+    it("manages redirects and the analytics ID as settings files", () => {
+        expect(config).toContain("file: apps/web/content/settings/redirects.json");
+        expect(config).toContain("file: apps/web/content/settings/analytics.json");
+        for (const field of ["from", "to", "permanent", "ga4MeasurementId"]) expect(config).toContain(`name: ${field}`);
+    });
+
     it("contains no secret", () => {
         expect(config).not.toMatch(/client_secret|CLIENT_SECRET|token/i);
     });
