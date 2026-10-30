@@ -155,14 +155,14 @@ describe("AIService.askAI - TRIVIAL complexity tier (AI cost optimization)", () 
         });
 
         expect(mockAnthropicCreate).toHaveBeenCalled();
-        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-3-5-haiku");
+        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-haiku-5-5");
     });
 
     it("defaults to the strategic Sonnet model when no complexity is given", async () => {
         await aiService.askAI("Write a creative pitch", "team-1", { taskType: "GENERATION" });
 
         expect(mockAnthropicCreate).toHaveBeenCalled();
-        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-3-5-sonnet");
+        expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-sonnet-5-5");
     });
 });
 
@@ -296,5 +296,60 @@ describe("AIService - credit settlement failure after a successful generation", 
 
         await expect(aiService.getRagEmbedding("some text", BILLED_TEAM)).resolves.toEqual([0.1, 0.2]);
         expect(mockRefundCredits).not.toHaveBeenCalled();
+    });
+});
+
+describe("AIService.askAI - Anthropic drafts that are cut off or empty", () => {
+    const longDraft = { subject: "Hi", body: "Hello there, I noticed your team is hiring" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { anthropic: { apiKey: "test-key" } } },
+        });
+    });
+
+    it("leaves room for adaptive thinking: the cap is well above the old 800 tokens", async () => {
+        mockAnthropicCreate.mockResolvedValue({
+            content: [{ type: "text", text: JSON.stringify(longDraft) }],
+            stop_reason: "end_turn",
+            usage: { input_tokens: 20, output_tokens: 60 },
+        });
+
+        await aiService.askAI("Write a cold email", "team-1", { taskType: "GENERATION" });
+
+        expect(mockAnthropicCreate.mock.calls[0][0].max_tokens).toBeGreaterThanOrEqual(4096);
+    });
+
+    it("reads the text block even when a thinking block comes first", async () => {
+        mockAnthropicCreate.mockResolvedValue({
+            content: [{ type: "thinking", thinking: "" }, { type: "text", text: JSON.stringify(longDraft) }],
+            stop_reason: "end_turn",
+            usage: { input_tokens: 20, output_tokens: 60 },
+        });
+
+        const out = await aiService.askAI("Write a cold email", "team-1", { taskType: "GENERATION", expectsJson: true });
+
+        expect(JSON.parse(out as string)).toEqual(longDraft);
+    });
+
+    it("never returns a draft that stopped at max_tokens", async () => {
+        mockAnthropicCreate.mockResolvedValue({
+            content: [{ type: "text", text: '{"subject":"Hi","body":"Hello there, I noti' }],
+            stop_reason: "max_tokens",
+            usage: { input_tokens: 20, output_tokens: 4096 },
+        });
+
+        await expect(aiService.askAI("Write a cold email", "team-1", { taskType: "GENERATION" })).rejects.toThrow(/cut off/);
+    });
+
+    it("never returns an empty draft (thinking used the whole budget, or a refusal)", async () => {
+        mockAnthropicCreate.mockResolvedValue({
+            content: [{ type: "thinking", thinking: "" }],
+            stop_reason: "end_turn",
+            usage: { input_tokens: 20, output_tokens: 200 },
+        });
+
+        await expect(aiService.askAI("Write a cold email", "team-1", { taskType: "GENERATION" })).rejects.toThrow(/no text/);
     });
 });

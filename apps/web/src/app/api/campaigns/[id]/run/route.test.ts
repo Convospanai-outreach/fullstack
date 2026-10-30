@@ -11,6 +11,10 @@ const { mockGetCurrentContext, mockPrisma, mockCheckTeamPermission, mockHandleCa
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
+vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
+    hasSendingChannel: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/permissions", () => ({
     checkTeamPermission: mockCheckTeamPermission,

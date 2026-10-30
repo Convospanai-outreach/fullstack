@@ -188,7 +188,7 @@ async function appProxy(req: NextRequest) {
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
-        "/api/health", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/health", "/api/cms", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
@@ -320,6 +320,8 @@ async function appProxy(req: NextRequest) {
     // 2. Authentication Check
     const publicPaths = [
         "/",
+        // Decap CMS admin: signing in with GitHub (and GitHub repo write access) is its access control.
+        "/cms",
         "/login",
         "/agent-login",
         "/client-login",
@@ -530,6 +532,13 @@ async function appProxy(req: NextRequest) {
         "form-action 'self'",
         "frame-ancestors 'none'",
     ];
+
+    // The CMS admin page loads Decap from unpkg (pinned, with an integrity hash) and talks to GitHub.
+    if (cleanPath === "/cms" || cleanPath.startsWith("/cms/")) {
+        cspValues[1] += " https://unpkg.com";
+        cspValues[3] += " https://*.githubusercontent.com";
+        cspValues[5] += " https://api.github.com";
+    }
 
     if (process.env['NODE_ENV'] === 'production') {
         cspValues.push("upgrade-insecure-requests");

@@ -1,5 +1,6 @@
 "use client";
 
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -133,6 +134,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             });
             const data = await res.json();
             if (!res.ok) {
+                if (handleNoSendingChannel(data)) return;
                 toast.error(data.error || "Failed to enroll leads");
                 return;
             }
