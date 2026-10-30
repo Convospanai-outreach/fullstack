@@ -3298,3 +3298,57 @@ model BlindIndex {
   @@unique([teamId, entityType, entityId, fieldName])
   @@index([teamId, entityType, fieldName, indexHash])
 }
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  NOT_INTERESTED
+}
+
+// A message sent through a website form, kept so the team can see and follow it up.
+model Enquiry {
+  id        String         @id @default(uuid())
+  ticketId  String         @unique
+  name      String
+  email     String
+  subject   String
+  message   String         @db.Text
+  source    String
+  status    EnquiryStatus  @default(NEW)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+enum JobApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+// An application sent through a careers page. The resume is kept with it and only a superadmin can download it.
+model JobApplication {
+  id         String               @id @default(uuid())
+  jobSlug    String
+  jobTitle   String
+  name       String
+  email      String
+  phone      String?
+  coverNote  String?              @db.Text
+  resumeName String
+  resumeType String
+  resumeSize Int
+  resumeData Bytes
+  status     JobApplicationStatus @default(NEW)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}

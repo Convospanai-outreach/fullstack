@@ -1,0 +1,26 @@
+{
+  "slug": "kolkata",
+  "name": "Kolkata",
+  "state": "West Bengal",
+  "stateCode": "IN-WB",
+  "placename": "Kolkata, West Bengal, India",
+  "position": "22.5726;88.3639",
+  "icbm": "22.5726, 88.3639",
+  "latitude": "22.5726",
+  "longitude": "88.3639",
+  "corridors": [
+    "Salt Lake Sector V",
+    "New Town Rajarhat",
+    "Park Street Corporate Hub",
+    "Bantala IT SEZ",
+    "Howrah Industrial Belt"
+  ],
+  "industryFocus": [
+    "IT & BPO Exports",
+    "Heavy Engineering & Mining Services",
+    "Tea & FMCG Trading",
+    "Commercial Security & Staffing"
+  ],
+  "summary": "Connecting Eastern India’s tech hubs and industrial service firms with enterprise buyers through governed outreach.",
+  "order": 9
+}
