@@ -28,6 +28,7 @@ export type ProviderKeySet = {
 };
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const ANTHROPIC_MAX_TOKENS = 4096;
 // What batch drafts have always used when the team has not chosen an Anthropic model.
 const BATCH_MODEL = "claude-sonnet-5-5";
 
@@ -468,7 +469,9 @@ async function callProvider(
     const client = instrumentAnthropic(new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
     const message = await client.messages.create({
         model: candidate.model,
-        max_tokens: 800,
+        // Sonnet/Haiku 5.5 think adaptively, and thinking tokens count against this cap, so 800 could
+        // be spent before the first word of a draft. This is a ceiling, not a target.
+        max_tokens: ANTHROPIC_MAX_TOKENS,
         // Anthropic prompt caching: marking a stable system block ephemeral
         // lets a repeated prefix (e.g. the same style/persona instructions
         // sent on every campaign email) be served from cache instead of
@@ -478,8 +481,17 @@ async function callProvider(
             : {}),
         messages: [{ role: "user", content: prompt }]
     });
+    // A draft cut off at the cap, or one with no text at all, must not be handed back as if it were
+    // finished: the caller would send or store it. Failing here moves on to the next provider.
+    const text = message.content?.find((block) => block.type === "text")?.text ?? "";
+    if (message.stop_reason === "max_tokens") {
+        throw new Error(`Anthropic response was cut off at ${ANTHROPIC_MAX_TOKENS} tokens (${candidate.model}).`);
+    }
+    if (!text.trim()) {
+        throw new Error(`Anthropic returned no text (${candidate.model}, stop_reason ${message.stop_reason ?? "unknown"}).`);
+    }
     return {
-        text: message.content?.[0]?.type === "text" ? message.content[0].text : "",
+        text,
         tokensIn: (message.usage as any)?.input_tokens || 0,
         tokensOut: (message.usage as any)?.output_tokens || 0
     };
@@ -718,7 +730,7 @@ export class AIService {
                     custom_id: request.customId,
                     params: {
                         model,
-                        max_tokens: options.maxTokens ?? 800,
+                        max_tokens: options.maxTokens ?? ANTHROPIC_MAX_TOKENS,
                         messages: [{ role: "user" as const, content: request.prompt }],
                     },
                 })),
@@ -775,7 +787,15 @@ export class AIService {
                     latencyMs: 0,
                     success: true,
                 });
-                out.push({ customId: line.custom_id, text: message.content?.[0]?.type === "text" ? message.content[0].text : "", resultType: "succeeded" });
+                // Same rule as a live call: a draft cut off at the cap, or with no text, is a failed item.
+                const text = message.content?.find((block) => block.type === "text")?.text ?? "";
+                if (message.stop_reason === "max_tokens") {
+                    out.push({ customId: line.custom_id, text: null, resultType: "truncated" });
+                } else if (!text.trim()) {
+                    out.push({ customId: line.custom_id, text: null, resultType: "empty" });
+                } else {
+                    out.push({ customId: line.custom_id, text, resultType: "succeeded" });
+                }
             } else {
                 await logUsage({
                     teamId,
