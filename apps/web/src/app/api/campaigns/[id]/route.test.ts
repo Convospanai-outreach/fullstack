@@ -18,6 +18,10 @@ vi.mock("@/lib/permissions", () => ({
     authorizeRole: mockAuthorizeRole,
     TeamRole: { VIEWER: "VIEWER", MEMBER: "MEMBER", ADMIN: "ADMIN" },
 }));
+vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
+    hasSendingChannel: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/campaignService", () => ({ CampaignService: { getCampaignStats: vi.fn().mockResolvedValue({}), startCampaign: mockStartCampaign, pauseCampaign: mockPauseCampaign, addLeadsToCampaign: mockAddLeads } }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));

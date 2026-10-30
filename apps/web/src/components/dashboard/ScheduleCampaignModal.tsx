@@ -1,5 +1,6 @@
 "use client";
 
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { ActionButton } from '../auth/ActionButton';
@@ -35,8 +36,12 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
                 }),
             });
 
-            if (!res.ok) throw new Error("Failed to schedule campaign");
             const data = await res.json().catch(() => ({}));
+            if (handleNoSendingChannel(data)) {
+                onClose();
+                return;
+            }
+            if (!res.ok) throw new Error("Failed to schedule campaign");
             if (data.status === "pending_approval") {
                 toast.info(data.message || "Approval requested - start this campaign again once it is approved");
                 onClose();

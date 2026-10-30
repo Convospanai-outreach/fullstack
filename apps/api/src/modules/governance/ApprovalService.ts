@@ -273,6 +273,12 @@ export class ApprovalService {
         const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
 
+        if (request.actionType === "MESSAGE_SEND") {
+            const { approveMessageSend } = await import("./messageApproval");
+            await approveMessageSend(request, teamId, reviewerFk(reviewerId));
+            return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        }
+
         if (request.actionType === "CONTENT_POST_PUBLISH") {
             const { decideContentPost } = await import("@/modules/creator-funnel/contentPostService");
             await decideContentPost(teamId, requestId, reviewerId, "APPROVED");
@@ -314,6 +320,12 @@ export class ApprovalService {
     static async reject(requestId: string, reviewerId: string, teamId: string, reason?: string) {
         const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
+
+        if (request.actionType === "MESSAGE_SEND") {
+            const { rejectMessageSend } = await import("./messageApproval");
+            await rejectMessageSend(requestId, teamId, reviewerFk(reviewerId), reason);
+            return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        }
 
         if (request.actionType === "CONTENT_POST_PUBLISH") {
             const { decideContentPost } = await import("@/modules/creator-funnel/contentPostService");
