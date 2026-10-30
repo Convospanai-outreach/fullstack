@@ -59,7 +59,7 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
     const messageBatch = await aiService.submitMessageBatch(
         leads.map((lead, i) => ({ customId: lead.id, prompt: buildDraftPrompt(lead, icp, guidance[i]) })),
         teamId,
-        { taskType: BATCH_TASK_TYPE, surface: "EMAIL", maxTokens: 800 }
+        { taskType: BATCH_TASK_TYPE, surface: "EMAIL" }
     );
 
     const batch = await prisma.aiDraftBatch.create({
