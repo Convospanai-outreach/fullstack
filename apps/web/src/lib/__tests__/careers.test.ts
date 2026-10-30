@@ -43,21 +43,9 @@ describe("job openings", () => {
     });
 
     it("ignores a file whose name is not a plain slug, so it can never become part of a link", () => {
-        write("ok-job.md", "---
-title: Fine
-open: true
----
-x");
-        write("bad name.md", "---
-title: Space
-open: true
----
-x");
-        write("a\"onclick=\"x.md", "---
-title: Quote
-open: true
----
-x");
+        write("ok-job.md", "---\ntitle: Fine\nopen: true\n---\nx");
+        write("bad name.md", "---\ntitle: Space\nopen: true\n---\nx");
+        write("a'onclick=x.md", "---\ntitle: Quote\nopen: true\n---\nx");
 
         expect(getJobs(dir).map((j) => j.slug)).toEqual(["ok-job"]);
     });

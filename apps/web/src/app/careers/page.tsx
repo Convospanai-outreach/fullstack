@@ -21,7 +21,7 @@ export default function CareersPage() {
                 <ul className="space-y-4">
                     {jobs.map((job) => (
                         <li key={job.slug}>
-                            <Link href={`/careers/${job.slug}`} className="block rounded-xl border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
+                            <Link href={`/careers/${encodeURIComponent(job.slug)}`} className="block rounded-xl border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-lg">
                                 <h2 className="text-xl font-bold">{job.title}</h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     {[job.department, job.location, job.type].filter(Boolean).join(" · ")}

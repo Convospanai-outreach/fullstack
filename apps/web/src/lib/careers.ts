@@ -13,6 +13,8 @@ export interface Job {
     description: string;
 }
 
+const SLUG = /^[a-z0-9_-]+$/i;
+
 const jobsDirectory = path.join(process.cwd(), "content/jobs");
 
 // Openings are written in the CMS: the description is the body. Without `open: true` a position is not
@@ -22,7 +24,7 @@ export function getJobs(directory: string = jobsDirectory, options: { includeClo
 
     return fs
         .readdirSync(directory)
-        .filter((file) => file.endsWith(".md"))
+        .filter((file) => file.endsWith(".md") && SLUG.test(file.slice(0, -3)))
         .map((file) => {
             const { data, content } = parseFrontmatter(fs.readFileSync(path.join(directory, file), "utf8"));
             const order = Number(data["order"]);
@@ -43,6 +45,6 @@ export function getJobs(directory: string = jobsDirectory, options: { includeClo
 
 // Only an open position can be found, and only by a plain slug.
 export function getJobBySlug(slug: string, directory: string = jobsDirectory): Job | undefined {
-    if (!/^[a-z0-9_-]+$/i.test(slug)) return undefined;
+    if (!SLUG.test(slug)) return undefined;
     return getJobs(directory).find((job) => job.slug === slug);
 }
