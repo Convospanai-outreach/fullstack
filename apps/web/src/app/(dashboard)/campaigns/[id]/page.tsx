@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import StatusBadge from "@/components/campaigns/StatusBadge";
 import ActivityFeed from "@/components/shared/ActivityFeed";
 import {
@@ -202,6 +203,7 @@ export default function CampaignDetailPage({
             const res = await fetch(`/api/campaigns/${campaignId}/start`, { method: "POST" });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
+                if (handleNoSendingChannel(data)) return;
                 toast.error(data.error || "Failed to start campaign");
                 return;
             }

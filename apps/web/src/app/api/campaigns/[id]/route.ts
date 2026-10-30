@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         // Starting the campaign, or setting it active, needs the approval the team's policy may require.
         if (body.action === "start" || (body.status === "active" && campaign.status !== "active")) {
+            if (!(await hasSendingChannel(teamId))) {
+                return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
+            }
             const gate = await checkCampaignStartApproval({ teamId, userId, campaignId: id });
             if (!gate.allowed) {
                 return NextResponse.json(gate.body, { status: gate.status });
