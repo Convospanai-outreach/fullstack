@@ -34,6 +34,13 @@ export const landingAgentApi = {
         });
     },
 
+    createCampaignFromTemplate(input: { templateId: string; name: string }) {
+        return request<{ campaignId: string; pageId: string }>("/landing-agent/campaigns/from-template", {
+            method: "POST",
+            body: JSON.stringify(input),
+        });
+    },
+
     addAsset(campaignId: string, input: { text?: string; pdfKnowledgeItemId?: string; sourceName?: string }) {
         return request(`/landing-agent/campaigns/${campaignId}/assets`, {
             method: "POST",
@@ -101,6 +108,13 @@ export const landingAgentApi = {
             `/landing-agent/campaigns/${campaignId}/pages/${pageId}/tracking`,
             { method: "PUT", body: JSON.stringify(tracking) }
         );
+    },
+
+    discardDraft(campaignId: string, pageId: string) {
+        return request(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/discard-draft`, {
+            method: "POST",
+            body: "{}",
+        });
     },
 
     publish(campaignId: string, requireApproval = false) {

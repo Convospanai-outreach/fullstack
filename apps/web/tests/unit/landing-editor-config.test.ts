@@ -140,11 +140,10 @@ describe("autosave", () => {
         expect(AUTOSAVE_INTERVAL_MS).toBe(10_000);
     });
 
-    it("saves draft pages with changes, not published ones", () => {
-        expect(shouldAutosave({ status: "draft", dirty: true, saving: false })).toBe(true);
-        expect(shouldAutosave({ status: "published", dirty: true, saving: false })).toBe(false);
-        expect(shouldAutosave({ status: "draft", dirty: false, saving: false })).toBe(false);
-        expect(shouldAutosave({ status: "draft", dirty: true, saving: true })).toBe(false);
+    it("saves changes on draft and published pages alike (published saves go to the draft columns)", () => {
+        expect(shouldAutosave({ dirty: true, saving: false })).toBe(true);
+        expect(shouldAutosave({ dirty: false, saving: false })).toBe(false);
+        expect(shouldAutosave({ dirty: true, saving: true })).toBe(false);
     });
 });
 

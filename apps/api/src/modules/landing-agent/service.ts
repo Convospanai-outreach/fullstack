@@ -8,6 +8,7 @@ import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
 import { LANDING_PAGE_TEMPLATES } from "./templates";
+import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
 import { landingEventNameEnum } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
@@ -192,6 +193,35 @@ async function updateOwnedPage(id: string, teamId: string, data: Prisma.LandingP
     return prisma.landingPage.findUniqueOrThrow({ where: { id } });
 }
 
+// Publishing copies an unpublished draft (see saveEditorState) to the live columns. A page without
+// a draft publishes exactly as before: no copy and no version bump.
+function draftPublishData(page: { draftRenderedJson?: unknown; draftEditorState?: unknown }): Prisma.LandingPageUpdateInput {
+    if (page.draftRenderedJson == null) return {};
+    return {
+        renderedJson: page.draftRenderedJson as Prisma.InputJsonValue,
+        ...(page.draftEditorState != null ? { editorState: page.draftEditorState as Prisma.InputJsonValue } : {}),
+        version: { increment: 1 },
+        draftRenderedJson: Prisma.DbNull,
+        draftEditorState: Prisma.DbNull,
+    };
+}
+
+// The editor reads the unpublished draft when there is one; the live columns stay in the database for the public page.
+function withDraftForEditor<T extends { renderedJson: unknown; editorState: unknown; draftRenderedJson: unknown; draftEditorState: unknown }>(
+    page: T
+) {
+    const { draftRenderedJson, draftEditorState, ...live } = page;
+    if (draftRenderedJson == null) {
+        return { ...live, hasUnpublishedChanges: false };
+    }
+    return {
+        ...live,
+        renderedJson: draftRenderedJson,
+        editorState: draftEditorState ?? live.editorState,
+        hasUnpublishedChanges: true,
+    };
+}
+
 async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
     const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
     if (result.count === 0) {
@@ -199,6 +229,7 @@ async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.Land
     }
     return prisma.landingCampaign.findUniqueOrThrow({ where: { id } });
 }
+
 
 export const landingAgentService = {
     async createCampaign(input: {
@@ -232,8 +263,72 @@ export const landingAgentService = {
         return campaign;
     },
 
+    // Starts a page from an editor-ready template: no brief, no wireframes and no AI call. The page
+    // goes through the same save-time checks as the editor (sanitizer and the lead form marker).
+    async createCampaignFromTemplate(input: {
+        teamId: string;
+        userId: string;
+        templateId: string;
+        name: string;
+        env?: Record<string, string | undefined>;
+    }) {
+        const template = getLandingTemplate(input.templateId);
+        if (!template) {
+            throw new APIError("Template not found", 400, "VALIDATION_ERROR");
+        }
+        const { html, css } = materializeLandingTemplate(template, landingAppOrigin(input.env ?? process.env));
+        const renderedJson = sanitizeJson({ html, css }) as Prisma.InputJsonValue;
+        const markerError = leadFormMarkerError(renderedJson);
+        if (markerError) {
+            throw new APIError(markerError, 400, "VALIDATION_ERROR");
+        }
+
+        const name = input.name.trim();
+        const slug = await generateUniqueSlug(name);
+        return prisma.$transaction(async (tx) => {
+            // The team's default audience, created on first use. The team can rename or edit it in the
+            // ICP Builder. A landing campaign needs an ICP; this keeps the template path free of one.
+            const defaultIcp = { name: "Default audience", description: "Created for pages started from a template. Describe your real audience in the ICP Builder." };
+            const icp =
+                (await tx.iCP.findFirst({ where: { teamId: input.teamId, name: defaultIcp.name, status: "active" }, select: { id: true } })) ??
+                (await tx.iCP.create({
+                    data: {
+                        teamId: input.teamId,
+                        name: defaultIcp.name,
+                        description: defaultIcp.description,
+                        criteria: { description: defaultIcp.description, source: "landing-template-default" },
+                        status: "active",
+                    },
+                    select: { id: true },
+                }));
+            const campaign = await tx.landingCampaign.create({
+                data: {
+                    teamId: input.teamId,
+                    ownerId: input.userId,
+                    icpId: icp.id,
+                    name,
+                    prompt: template.description,
+                    status: "draft",
+                },
+            });
+            const page = await tx.landingPage.create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: input.teamId,
+                    slug,
+                    title: name,
+                    status: "draft",
+                    version: 1,
+                    renderedJson,
+                },
+            });
+            return { campaignId: campaign.id, pageId: page.id };
+        });
+    },
+
     async getCampaign(teamId: string, campaignId: string) {
-        return getCampaignOrThrow(campaignId, teamId);
+        const campaign = await getCampaignOrThrow(campaignId, teamId);
+        return { ...campaign, pages: campaign.pages.map(withDraftForEditor) };
     },
 
     // The team's connected domain that published pages are live on (oldest active one), if any.
@@ -248,7 +343,7 @@ export const landingAgentService = {
 
     // Dashboard list: the team's landing campaigns, latest edit first, with only what the list shows.
     async listCampaigns(teamId: string) {
-        return prisma.landingCampaign.findMany({
+        const campaigns = await prisma.landingCampaign.findMany({
             where: { teamId },
             orderBy: { updatedAt: "desc" },
             take: 200,
@@ -259,11 +354,18 @@ export const landingAgentService = {
                 pages: {
                     orderBy: { createdAt: "desc" },
                     take: 1,
-                    select: { slug: true, title: true, status: true, updatedAt: true },
+                    select: { slug: true, title: true, status: true, updatedAt: true, draftRenderedJson: true },
                 },
                 _count: { select: { wireframeOptions: true, leads: true } },
             },
         });
+        return campaigns.map((campaign) => ({
+            ...campaign,
+            pages: campaign.pages.map(({ draftRenderedJson, ...page }) => ({
+                ...page,
+                hasUnpublishedChanges: draftRenderedJson != null,
+            })),
+        }));
     },
 
     async addAsset(input: {
@@ -452,11 +554,18 @@ export const landingAgentService = {
 
         const existingPage = campaign.pages[0];
         if (existingPage) {
-            const updatedPage = await updateOwnedPage(existingPage.id, input.teamId, {
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: existingPage.status === "published" ? "draft" : existingPage.status,
-            });
+            // A live page keeps serving; the new wireframe waits in the draft columns until publish.
+            const updatedPage = await updateOwnedPage(
+                existingPage.id,
+                input.teamId,
+                existingPage.status === "published"
+                    ? { draftRenderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue }
+                    : {
+                          renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                          version: { increment: 1 },
+                          status: existingPage.status,
+                      }
+            );
             await updateOwnedCampaign(campaign.id, input.teamId, {
                 selectedWireframeId: wireframe.id,
                 status: "draft",
@@ -496,7 +605,8 @@ export const landingAgentService = {
             throw new Error("Landing page not found");
         }
 
-        const renderedJson = page.renderedJson;
+        // Generate from the unpublished draft when there is one, so the latest edits keep their content.
+        const renderedJson = page.draftRenderedJson ?? page.renderedJson;
         const isPlainArray = Array.isArray(renderedJson);
         const data = !isPlainArray && renderedJson && typeof renderedJson === "object" ? (renderedJson as Record<string, unknown>) : null;
         const sections: LandingPageSection[] | null = isPlainArray
@@ -522,15 +632,19 @@ export const landingAgentService = {
         }
 
         if (!changed) {
-            return page;
+            return page.status === "published" ? withDraftForEditor(page) : page;
         }
 
-        const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
+        const updatedRenderedJson = sanitizeJson(isPlainArray ? sections : { ...(data as Record<string, unknown>), sections }) as Prisma.InputJsonValue;
 
+        // The editor replaces its canvas with the returned content, so return the draft it is editing.
+        if (page.status === "published") {
+            return withDraftForEditor(await updateOwnedPage(page.id, input.teamId, { draftRenderedJson: updatedRenderedJson }));
+        }
         return updateOwnedPage(page.id, input.teamId, {
-            renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+            renderedJson: updatedRenderedJson,
             version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            status: page.status,
         });
     },
 
@@ -552,12 +666,35 @@ export const landingAgentService = {
         const markerError = leadFormMarkerError(input.renderedJson);
         if (markerError) throw new APIError(markerError, 400, "VALIDATION_ERROR");
 
+        // A live page keeps serving its last publish; edits go to the draft columns until publish.
+        if (page.status === "published") {
+            // The title is page metadata, not content, so it goes live at once (the public title
+            // only changes on the next publish that copies the draft).
+            return updateOwnedPage(page.id, input.teamId, {
+                title: input.title ?? page.title,
+                draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+            });
+        }
         return updateOwnedPage(page.id, input.teamId, {
             title: input.title ?? page.title,
             editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
             renderedJson: sanitizedRendered as Prisma.InputJsonValue,
             version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            status: page.status,
+        });
+    },
+
+    // Throws away unpublished edits; the live page is unchanged and not pushed again.
+    async discardPageDraft(input: { teamId: string; campaignId: string; pageId: string }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        return updateOwnedPage(page.id, input.teamId, {
+            draftRenderedJson: Prisma.DbNull,
+            draftEditorState: Prisma.DbNull,
         });
     },
 
@@ -631,15 +768,26 @@ export const landingAgentService = {
 
         const updates = await prisma.$transaction(async (tx) => {
             const activeSlug = page.slug || (await generateUniqueSlug(campaign.name));
+            // Read the draft inside the transaction so the copy below is the latest saved draft.
+            const current = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
             const pageResult = await tx.landingPage.updateMany({
-                where: { id: page.id, teamId: input.teamId },
+                where: {
+                    id: page.id,
+                    teamId: input.teamId,
+                    // A copy is only valid against the draft it read; a save since then makes it stale.
+                    ...(current.draftRenderedJson == null ? {} : { updatedAt: current.updatedAt }),
+                },
                 data: {
                     slug: activeSlug,
                     status: "published",
                     publishedAt: new Date(),
+                    ...draftPublishData(current),
                 },
             });
             if (pageResult.count === 0) {
+                if (current.draftRenderedJson != null) {
+                    throw new APIError("The page was edited while publishing. Check your changes and publish again.", 409, "CONFLICT");
+                }
                 throw new Error("Landing page not found");
             }
             const campaignResult = await tx.landingCampaign.updateMany({
