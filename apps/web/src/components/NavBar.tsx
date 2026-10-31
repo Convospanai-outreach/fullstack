@@ -20,18 +20,18 @@ const NAV_GROUPS = [
     label: "Use Cases",
     items: [
       { label: "All Use Cases", href: "/use-cases" },
-      { label: "Facility Management", href: "/use-cases/facility-management" },
-      { label: "Security Services", href: "/use-cases/security-services" },
-      { label: "Staffing & Recruiting", href: "/use-cases/staffing" },
-      { label: "L&D / Training", href: "/use-cases/training" },
-      { label: "Consulting & Advisory", href: "/use-cases/consulting" },
-      { label: "Managed IT Services", href: "/use-cases/managed-services" },
+      { label: "Cybersecurity", href: "/use-cases/cybersecurity" },
+      { label: "Managed IT & Cloud", href: "/use-cases/managed-it-cloud" },
+      { label: "AI, Data & ERP", href: "/use-cases/ai-data-erp" },
+      { label: "Europe", href: "/use-cases/regions/europe" },
+      { label: "UAE", href: "/use-cases/regions/uae" },
+      { label: "Canada", href: "/use-cases/regions/canada" },
     ],
   },
   {
     label: "Platform",
     items: [
-      { label: "How it works", href: "/#dashboard-preview" },
+      { label: "How it works", href: "/#workflow" },
       { label: "Pilot programme", href: "/#pilot" },
       { label: "Pricing", href: "/pricing", badge: "Popular" },
       { label: "About", href: "/about" },
@@ -77,7 +77,7 @@ function DropdownMenu({
     >
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(event) => setOpen((value) => event.detail === 0 ? !value : true)}
         className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
         aria-expanded={open}
       >
