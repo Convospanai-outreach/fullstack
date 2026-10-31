@@ -1,5 +1,5 @@
 import { z } from "zod";
-import rawTemplates from "./landingTemplates.json";
+import { readFileSync } from "node:fs";
 import { encodeLeadFormMarkerId, leadFormConfigSchema, LEAD_FORM_MARKER_CLASS } from "./leadFormConfig";
 
 // Editor-ready page templates for the "Start from a template" gallery. The JSON file is the
@@ -31,6 +31,9 @@ const templateSchema = z
   .strict();
 
 export type LandingTemplate = z.infer<typeof templateSchema>;
+
+// Read at load time (not an import) so the file is served by the same path in tsx and in tests.
+const rawTemplates: unknown = JSON.parse(readFileSync(new URL("./landingTemplates.json", import.meta.url), "utf8"));
 
 export const LANDING_TEMPLATES: readonly LandingTemplate[] = z.array(templateSchema).parse(rawTemplates);
 

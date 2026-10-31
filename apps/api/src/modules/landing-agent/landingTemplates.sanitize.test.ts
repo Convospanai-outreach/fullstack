@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LANDING_TEMPLATES, materializeLandingTemplate } from "./landingTemplates";
-import { findLeadFormMarkers } from "./leadFormHtml";
-import { sanitizeRenderedJsonHtml } from "./rendering";
+import { findLeadFormMarkers, replaceLeadFormMarkers } from "./leadFormHtml";
+import { getLandingRenderPayload, sanitizeRenderedJsonHtml } from "./rendering";
 
 // Every template is checked the way a saved page is: materialized, then through the real
 // sanitizer. The output must be unchanged, so nothing a template uses is silently dropped.
@@ -26,6 +26,7 @@ const FORBIDDEN_COPY = [
     /\bguarantee/i,
     /\bcountdown\b/i,
     /\bjust\s+\d+\b/i,
+    /\bin\s+\d+\s+(minutes|days|hours)\b/i,
     /\bresults?\s+in\s+\d/i,
 ];
 
@@ -95,6 +96,21 @@ describe.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("template %s", (
         for (const field of template.leadForm.fields) {
             expect(field.label.trim().length).toBeGreaterThan(0);
         }
+    });
+});
+
+// The server render path (the one the Cloudflare page service uses) turns the marker into one form.
+describe.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("template %s on the server render path", (_id, template) => {
+    const { html } = materializeLandingTemplate(template, ORIGIN);
+    const rendered = replaceLeadFormMarkers(getLandingRenderPayload(sanitizeRenderedJsonHtml({ html, css: "" })).html, { slug: "test-page" });
+
+    it("renders exactly one form", () => {
+        expect(rendered.match(/<form\b/g) ?? []).toHaveLength(1);
+    });
+
+    it("never falls back to the unavailable page and leaves no raw marker", () => {
+        expect(rendered).not.toContain("Landing page unavailable");
+        expect(rendered).not.toMatch(/<div class="cmf-form" id="cmf-form-/);
     });
 });
 
