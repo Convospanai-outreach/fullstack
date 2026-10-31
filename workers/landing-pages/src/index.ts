@@ -13,6 +13,8 @@ interface StoredPage {
 	// Set when the page loads its team's GA4/GTM/Hotjar (see tracking.ts in
 	// apps/api); those loaders run inside the hashed script.
 	tracking?: boolean;
+	// The lead form's success message, when the page has a form (written by cloudflarePagesService.ts).
+	successMessage?: string;
 }
 
 // Clickjacking protection is enforced (nothing legitimately frames these pages).
@@ -40,12 +42,20 @@ function securityHeaders(scriptHash?: string, tracking = false): Record<string, 
 	};
 }
 
-const THANK_YOU_HTML = `<!doctype html>
+function escapeText(value: string): string {
+	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// successMessage is the page's form success message, validated when the page was published.
+function thankYouHtml(successMessage: string | undefined): string {
+	const message = successMessage ? escapeText(successMessage) : "Your submission has been received.";
+	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Thank you</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:640px;margin:80px auto;text-align:center;color:#0f172a">
 <h1>Thanks — we'll be in touch.</h1>
-<p>Your submission has been received.</p>
+<p>${message}</p>
 </body></html>`;
+}
 
 // Isolation rule: our own shared fallback host may serve any team's slug (that's
 // the default, unbranded hosting path). A verified custom hostname may only serve
@@ -94,7 +104,9 @@ export default {
 			return proxyToApi(env, request, `/landing-agent/public/${slug}/event`);
 		}
 		if (segments[1] === "thank-you" && request.method === "GET") {
-			return new Response(THANK_YOU_HTML, {
+			const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");
+			const owned = stored ? await assertHostnameOwnsPage(env, host, stored) : false;
+			return new Response(thankYouHtml(owned ? stored?.successMessage : undefined), {
 				headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
 			});
 		}

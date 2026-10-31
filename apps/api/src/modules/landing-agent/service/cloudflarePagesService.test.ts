@@ -10,7 +10,8 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
-import { cloudflarePagesService } from "./cloudflarePagesService";
+import { buildFullDocument, cloudflarePagesService } from "./cloudflarePagesService";
+import { encodeLeadFormMarkerId } from "../leadFormConfig";
 
 describe("cloudflarePagesService.publishPageToCloudflare", () => {
     const originalEnv = { ...process.env };
@@ -99,7 +100,7 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         await cloudflarePagesService.publishPageToCloudflare("page-1");
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
         expect(body.html).toContain('<input type="checkbox" name="whatsappConsent" style="margin-top:3px" />Yes, Asha &lt;b&gt;&amp; Co&lt;/b&gt; can message me on WhatsApp at the phone number above.');
-        expect(body.html).not.toContain("checked");
+        expect(body.html).not.toMatch(/<input[^>]*schecked[s/>]/);
         const script = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
         expect(script).toContain('whatsappConsent: data.get("whatsappConsent") === "on" || undefined');
         expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
@@ -146,5 +147,27 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         const result = await cloudflarePagesService.publishPageToCloudflare("page-1");
 
         expect(result.status).toBe("error");
+    });
+});
+
+describe("buildFullDocument lead form", () => {
+    const config = { fields: [{ key: "email", label: "Work email", type: "email" as const, required: true }], buttonLabel: "Send it to me", successMessage: "Thanks!" };
+    const doc = (html: string) => buildFullDocument({ title: "T", css: "", html, script: "", whatsappOptIn: null, slug: "guide" });
+
+    it("a page without a marker keeps the fixed box at the bottom", () => {
+        const out = doc("<p>Hi</p>");
+        expect(out).toContain("Request a follow-up");
+        expect(out).toContain('id="la-lead-form"');
+        expect(out).not.toContain("data-cmf-form");
+    });
+
+    it("a page with a marker gets its form in place of the fixed box", () => {
+        const marker = `<div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div>`;
+        const out = doc(`<p>Hi</p>${marker}<p>After</p>`);
+        expect(out).toContain('data-cmf-form="1"');
+        expect(out).not.toContain("Request a follow-up");
+        expect(out).not.toContain("cmf-form-");
+        expect(out.indexOf("<p>Hi</p>")).toBeLessThan(out.indexOf("data-cmf-form"));
+        expect(out.indexOf("data-cmf-form")).toBeLessThan(out.indexOf("<p>After</p>"));
     });
 });

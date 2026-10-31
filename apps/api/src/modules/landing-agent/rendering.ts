@@ -276,7 +276,7 @@ function sanitizeClassTokens(value: string): string {
         .slice(0, 240);
 }
 
-function isSafeLink(value: string): boolean {
+export function isSafeLink(value: string): boolean {
     if (!value) return false;
     if (value.startsWith("#") || value.startsWith("/")) return true;
     if (/^https?:\/\//i.test(value)) return true;
