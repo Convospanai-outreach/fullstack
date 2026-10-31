@@ -59,6 +59,8 @@ export default function LandingAgentEditorPage() {
 
             <GrapesEditor
                 title={page.title || campaign.name}
+                pageStatus={page.status}
+                pageSlug={page.slug}
                 initialRenderedJson={page.renderedJson}
                 onSave={async (payload) => {
                     await landingAgentApi.saveEditorState(campaignId, payload);
