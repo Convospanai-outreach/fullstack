@@ -14,6 +14,9 @@ import {
 } from "../schemas";
 import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
+import { isLandingImageStorageConfigured, putLandingImage } from "../service/imageGenerationService";
+import { MAX_LANDING_IMAGE_BYTES, checkLandingImageUpload } from "../imageUpload";
+import { checkApiRateLimit, rateLimitResponse } from "@/lib/apiRateLimit";
 import { sanitizeRenderedJsonHtml } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 
@@ -213,6 +216,51 @@ export async function postGenerateImages(req: Request, ctx?: ParamContext) {
             pageId,
         });
         return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// Uploads one image from the editor (multipart field "file") to the public landing-images
+// bucket under <teamId>/<uuid>.<ext>. The type comes from the file's bytes; the name and
+// Content-Type sent by the browser are ignored. The server never fetches a URL.
+export async function postLandingImage(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+
+        const limit = await checkApiRateLimit(`landing-image-upload:${teamId}`);
+        if (!limit.success) {
+            return rateLimitResponse(limit.resetIn ?? 60);
+        }
+
+        // Reject oversize bodies before parsing them; the multipart envelope adds a little overhead.
+        const declaredBytes = Number(req.headers.get("content-length") ?? 0);
+        if (declaredBytes > MAX_LANDING_IMAGE_BYTES + 64 * 1024) {
+            throw new APIError("The image must be 2MB or smaller", 413, "PAYLOAD_TOO_LARGE");
+        }
+
+        if (!isLandingImageStorageConfigured()) {
+            throw new APIError("Image storage is not configured", 503, "SERVICE_UNAVAILABLE");
+        }
+
+        const form = await req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File)) {
+            throw new APIError("An image file is required", 400, "VALIDATION_ERROR");
+        }
+        if (file.size > MAX_LANDING_IMAGE_BYTES) {
+            throw new APIError("The image must be 2MB or smaller", 413, "PAYLOAD_TOO_LARGE");
+        }
+
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const check = checkLandingImageUpload(bytes);
+        if (!check.ok) {
+            throw new APIError(check.error, check.status, "INVALID_IMAGE");
+        }
+
+        const objectPath = `${teamId}/${crypto.randomUUID()}.${check.format.extension}`;
+        const url = await putLandingImage(objectPath, bytes, check.format.contentType);
+        return successResponse({ url }, 201);
     } catch (error) {
         return handleAPIError(error);
     }

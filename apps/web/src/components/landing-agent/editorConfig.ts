@@ -172,6 +172,51 @@ export const EDITOR_BLOCKS: readonly { id: string; label: string; content: strin
 </section>`,
     },
     {
+        id: "hero_image_background",
+        label: "Hero with background image",
+        content: `
+<section class="la-section la-hero la-hero-bg">
+    <img class="la-hero-bg-img la-focus-center" src="/landing-assets/gradient-1.svg" alt="Abstract header background" loading="lazy" />
+    <div class="la-overlay la-overlay-40"></div>
+    <div class="la-hero-bg-content">
+        <p class="la-eyebrow">Your offer</p>
+        <h1>Primary headline</h1>
+        <p>Core value proposition for your audience.</p>
+        <a class="la-cta" href="#lead-form">Book a demo</a>
+    </div>
+</section>`,
+    },
+    {
+        id: "hero_image_split",
+        label: "Hero with side image",
+        content: `
+<section class="la-section la-hero la-hero-with-image">
+    <div class="la-hero-copy">
+        <p class="la-eyebrow">Your offer</p>
+        <h1>Primary headline</h1>
+        <p>Core value proposition for your audience.</p>
+        <a class="la-cta" href="#lead-form">Book a demo</a>
+    </div>
+    <div class="la-hero-media">
+        <img src="/landing-assets/gradient-2.svg" alt="Abstract header image" loading="lazy" />
+    </div>
+</section>`,
+    },
+    {
+        id: "hero_image_top",
+        label: "Hero with image above headline",
+        content: `
+<section class="la-section la-hero la-hero-top">
+    <div class="la-hero-media">
+        <img src="/landing-assets/gradient-3.svg" alt="Abstract header image" loading="lazy" />
+    </div>
+    <p class="la-eyebrow">Your offer</p>
+    <h1>Primary headline</h1>
+    <p>Core value proposition for your audience.</p>
+    <a class="la-cta" href="#lead-form">Book a demo</a>
+</section>`,
+    },
+    {
         id: "cta_form",
         label: "CTA Form",
         content: `

@@ -119,6 +119,60 @@ export const LANDING_PAGE_BASE_CSS = `
 .la-footer p {
     color: #f8fafc;
 }
+.la-hero-bg {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    min-height: 360px;
+    background: #0f172a;
+}
+.la-hero-bg-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+.la-overlay {
+    position: absolute;
+    inset: 0;
+    background: #0f172a;
+    z-index: 1;
+}
+.la-overlay-20 {
+    opacity: 0.2;
+}
+.la-overlay-40 {
+    opacity: 0.4;
+}
+.la-overlay-60 {
+    opacity: 0.6;
+}
+.la-hero-bg-content {
+    position: relative;
+    z-index: 2;
+    max-width: 640px;
+    padding: 48px 32px;
+}
+.la-hero-bg h1,
+.la-hero-bg p {
+    color: #ffffff;
+}
+.la-focus-top {
+    object-position: center top;
+}
+.la-focus-center {
+    object-position: center center;
+}
+.la-focus-bottom {
+    object-position: center bottom;
+}
+.la-hero-top .la-hero-media img {
+    max-height: 360px;
+    object-fit: cover;
+}
 `;
 
 const FALLBACK_HTML = `
