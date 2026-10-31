@@ -110,6 +110,13 @@ export const landingAgentApi = {
         );
     },
 
+    discardDraft(campaignId: string, pageId: string) {
+        return request(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/discard-draft`, {
+            method: "POST",
+            body: "{}",
+        });
+    },
+
     publish(campaignId: string, requireApproval = false) {
         return request(`/landing-agent/campaigns/${campaignId}/publish`, {
             method: "POST",

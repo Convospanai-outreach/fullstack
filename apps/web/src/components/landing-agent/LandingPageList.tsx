@@ -12,7 +12,8 @@ export function nextStep(campaign: LandingCampaignSummary): { href: string; labe
     const base = `/landing-agent/${encodeURIComponent(campaign.id)}`;
     const page = campaign.pages[0];
     if (page) {
-        return { href: `${base}/editor`, label: "Edit", status: page.status === "published" ? "Published" : "Draft" };
+        const status = page.status === "published" ? (page.hasUnpublishedChanges ? "Published · Unpublished changes" : "Published") : "Draft";
+        return { href: `${base}/editor`, label: "Edit", status };
     }
     if (campaign._count.wireframeOptions > 0) {
         return { href: `${base}/wireframes`, label: "Pick a layout", status: "Not built yet" };

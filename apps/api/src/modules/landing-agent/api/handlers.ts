@@ -318,6 +318,21 @@ export async function putPageTracking(req: Request, ctx?: ParamContext) {
     }
 }
 
+export async function postDiscardDraft(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.discardPageDraft({ teamId, campaignId, pageId });
+        return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
 export async function postPublish(req: Request, ctx?: ParamContext) {
     try {
         const { teamId, userId } = await requireTeamContext(req, TeamRole.MEMBER);
