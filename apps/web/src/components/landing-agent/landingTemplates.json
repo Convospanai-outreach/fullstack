@@ -1,0 +1,16 @@
+[
+  {
+    "id": "free-guide",
+    "name": "Free guide",
+    "audience": "Creators and small business owners who want to grow an email list with a free guide.",
+    "description": "Cover image, three things the guide covers, and one email form. Built for Instagram traffic.",
+    "accent": "#0e7490",
+    "imageVariants": ["/landing-assets/gradient-1.svg", "/landing-assets/gradient-5.svg"],
+    "html": "<section class=\"la-section la-hero la-hero-top\">\n    <div class=\"la-hero-media\">\n        <img src=\"/landing-assets/gradient-1.svg\" alt=\"Blue gradient wave header\" loading=\"lazy\" />\n    </div>\n    <p class=\"la-eyebrow\">Free guide</p>\n    <h1>Get the free guide: three steps you can start this week</h1>\n    <p>A short, practical guide for busy people. Enter your email and the guide is sent to your inbox.</p>\n    <a class=\"la-cta\" href=\"#lead-form\">Send me the free guide</a>\n</section>\n<section class=\"la-section\">\n    <h2>Inside the guide</h2>\n    <ul>\n        <li>The first step most people skip, and how to do it in 20 minutes</li>\n        <li>A simple checklist you can reuse every week</li>\n        <li>Common mistakes to avoid before you spend money</li>\n    </ul>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n    <h2>Get your copy</h2>\n    <p>No spam. Unsubscribe any time.</p>\n    {{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [{ "key": "email", "label": "Email address", "type": "email", "required": true }],
+      "buttonLabel": "Send me the guide",
+      "successMessage": "Thanks! Check your inbox for the guide."
+    }
+  }
+]
