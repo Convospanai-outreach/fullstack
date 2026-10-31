@@ -10,6 +10,9 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { normalizeTracking } from "./tracking";
 import { landingEventNameEnum } from "./schemas";
+import { getLandingRenderPayload } from "./rendering";
+import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
+import { leadFormMarkerError, mapLeadFormSubmission, type LeadFormColumns } from "./leadFormSubmit";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
@@ -546,6 +549,8 @@ export const landingAgentService = {
 
         const sanitizedEditorState = sanitizeJson(input.editorState);
         const sanitizedRendered = sanitizeJson(input.renderedJson);
+        const markerError = leadFormMarkerError(input.renderedJson);
+        if (markerError) throw new APIError(markerError, 400, "VALIDATION_ERROR");
 
         return updateOwnedPage(page.id, input.teamId, {
             title: input.title ?? page.title,
@@ -714,6 +719,7 @@ export const landingAgentService = {
             referrer?: string;
             socialToken?: string;
             whatsappConsent?: boolean;
+            formFields?: Record<string, unknown>;
         };
         ipAddress?: string;
         userAgent?: string;
@@ -721,6 +727,25 @@ export const landingAgentService = {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
             throw new APIError("Published landing page not found", 404, "NOT_FOUND");
+        }
+
+        // Pages with a lead form marker take their fields from the page's saved form config.
+        // Other pages keep the fixed follow-up box fields.
+        let columns: LeadFormColumns = {
+            name: input.payload.name,
+            email: input.payload.email,
+            phone: input.payload.phone,
+            company: input.payload.company,
+            title: input.payload.title,
+        };
+        let rawPayload: unknown = input.payload.rawPayload;
+        const pageHtml = getLandingRenderPayload(page.renderedJson).html;
+        if (hasLeadFormMarker(pageHtml)) {
+            const config = readLeadFormConfig(pageHtml);
+            const mapped = config ? mapLeadFormSubmission(config, input.payload.formFields) : { ok: false as const, message: "This form is not available" };
+            if (!mapped.ok) throw new APIError(mapped.message, 400, "VALIDATION_ERROR");
+            columns = mapped.columns;
+            rawPayload = mapped.rawPayload;
         }
 
         const lead = await prisma.$transaction(async (tx) => {
@@ -731,12 +756,12 @@ export const landingAgentService = {
                     teamId: page.teamId,
                     sessionId: input.payload.sessionId,
                     pageVersion: input.payload.pageVersion ?? page.version,
-                    name: input.payload.name,
-                    email: input.payload.email,
-                    phone: input.payload.phone,
-                    company: input.payload.company,
-                    title: input.payload.title,
-                    rawPayload: sanitizeJson(input.payload.rawPayload) as Prisma.InputJsonValue | undefined,
+                    name: columns.name,
+                    email: columns.email,
+                    phone: columns.phone,
+                    company: columns.company,
+                    title: columns.title,
+                    rawPayload: sanitizeJson(rawPayload) as Prisma.InputJsonValue | undefined,
                     utmSource: input.payload.utmSource,
                     utmMedium: input.payload.utmMedium,
                     utmCampaign: input.payload.utmCampaign,
@@ -745,33 +770,33 @@ export const landingAgentService = {
                     referrer: input.payload.referrer,
                     socialToken: input.payload.socialToken,
                     // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
-                    ...(input.payload.whatsappConsent === true && page.funnelStage && input.payload.phone?.trim() ? { whatsappConsent: true } : {}),
+                    ...(input.payload.whatsappConsent === true && page.funnelStage && columns.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
             });
 
-            if (input.payload.email) {
+            if (columns.email) {
                 await BlindIndexService.createBlindIndex(
                     {
                         teamId: page.teamId,
                         entityType: "LandingLead",
                         entityId: createdLead.id,
                         fieldName: "email",
-                        plaintext: input.payload.email,
+                        plaintext: columns.email,
                     },
                     tx
                 );
             }
 
-            if (input.payload.phone) {
+            if (columns.phone) {
                 await BlindIndexService.createBlindIndex(
                     {
                         teamId: page.teamId,
                         entityType: "LandingLead",
                         entityId: createdLead.id,
                         fieldName: "phone",
-                        plaintext: input.payload.phone,
+                        plaintext: columns.phone,
                     },
                     tx
                 );
@@ -787,8 +812,8 @@ export const landingAgentService = {
                         slug: page.slug,
                         landingPageId: page.id,
                         campaignId: page.campaignId,
-                        email: input.payload.email,
-                        name: input.payload.name,
+                        email: columns.email,
+                        name: columns.name,
                     },
                     idempotencyKey: `landing_lead_${createdLead.id}`,
                 },

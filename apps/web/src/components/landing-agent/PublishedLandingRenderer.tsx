@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
+import { hasLeadFormMarker, leadFormSuccessUrl, readLeadFormConfig, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
 
 interface Props {
     slug: string;
@@ -30,12 +31,67 @@ async function trackEvent(slug: string, payload: { eventName: string; eventData?
     }).catch(() => null);
 }
 
+// Pages with a lead form marker render a form built from the saved config (see leadFormHtml.ts).
+// Its events are handled here on the wrapper div; anything that is not a marker form is ignored.
+function customFormOf(target: EventTarget | null): HTMLFormElement | null {
+    const form = target instanceof Element ? target.closest("form") : null;
+    return form instanceof HTMLFormElement && form.hasAttribute("data-cmf-form") ? form : null;
+}
+
 export default function PublishedLandingRenderer({ slug, title, version, renderedJson, whatsappOptIn }: Props) {
     const [submitting, setSubmitting] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [formStarted, setFormStarted] = useState(false);
     const sessionId = useMemo(createSessionId, []);
     const payload = useMemo(() => getLandingRenderPayload(renderedJson), [renderedJson]);
+    const leadHtml = useMemo(
+        () => (hasLeadFormMarker(payload.html) ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null }) : null),
+        [payload.html, slug, whatsappOptIn]
+    );
+
+    // The redirect comes from the validated config, not from the rendered page.
+    const leadRedirect = useMemo(() => readLeadFormConfig(payload.html)?.redirectUrl ?? null, [payload.html]);
+
+    async function submitCustomLeadForm(form: HTMLFormElement) {
+        const status = form.ownerDocument.getElementById("la-lead-form-status");
+        const button = form.querySelector("button[type=submit]") as HTMLButtonElement | null;
+        if (button) button.disabled = true;
+        if (status) status.textContent = "";
+        const data = new FormData(form);
+        const formFields: Record<string, string | boolean> = {};
+        for (const el of Array.from(form.querySelectorAll("input, select, textarea"))) {
+            const field = el as HTMLInputElement;
+            if (!field.name || field.name === "website" || field.name === "whatsappConsent") continue;
+            formFields[field.name] = field.type === "checkbox" ? field.checked : field.value;
+        }
+        const url = new URL(window.location.href);
+        try {
+            const res = await fetch(`${API_BASE}/landing-agent/public/${slug}/lead`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sessionId,
+                    pageVersion: version,
+                    formFields,
+                    website: data.get("website") || undefined,
+                    utmSource: url.searchParams.get("utm_source") || undefined,
+                    utmMedium: url.searchParams.get("utm_medium") || undefined,
+                    utmCampaign: url.searchParams.get("utm_campaign") || undefined,
+                    utmTerm: url.searchParams.get("utm_term") || undefined,
+                    utmContent: url.searchParams.get("utm_content") || undefined,
+                    referrer: document.referrer || undefined,
+                    socialToken: url.searchParams.get("t") || undefined,
+                    whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
+                }),
+            });
+            if (!res.ok) throw new Error("Submission failed");
+            await trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "form_submit" } });
+            window.location.href = leadFormSuccessUrl(leadRedirect, slug);
+        } catch {
+            if (status) status.textContent = "Submission failed. Please try again.";
+            if (button) button.disabled = false;
+        }
+    }
 
     useEffect(() => {
         trackEvent(slug, {
@@ -51,8 +107,22 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
             <div className="mx-auto max-w-6xl px-4 py-8">
                 {title ? <h1 className="mb-4 text-2xl font-semibold">{title}</h1> : null}
                 <style>{payload.css}</style>
-                <div dangerouslySetInnerHTML={{ __html: payload.html }} />
+                <div
+                    onFocus={(e) => {
+                        if (!customFormOf(e.target) || formStarted) return;
+                        setFormStarted(true);
+                        trackEvent(slug, { eventName: "form_start", sessionId, pageVersion: version });
+                    }}
+                    onSubmit={(e) => {
+                        const form = customFormOf(e.target);
+                        if (!form) return;
+                        e.preventDefault();
+                        void submitCustomLeadForm(form);
+                    }}
+                    dangerouslySetInnerHTML={{ __html: leadHtml ?? payload.html }}
+                />
 
+                {leadHtml === null ? (
                 <section className="mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm">
                     <span id="lead-form" className="block -translate-y-6" aria-hidden="true" />
                     <h2 className="text-xl font-semibold">Request a follow-up</h2>
@@ -144,6 +214,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
 
                     {status ? <p className="mt-3 text-sm text-rose-600">{status}</p> : null}
                 </section>
+                ) : null}
             </div>
         </div>
     );
