@@ -1,4 +1,5 @@
 import { LANDING_PAGE_BASE_CSS } from "@/modules/landing-agent/rendering";
+import { leadFormBlockContent } from "./leadFormEditor";
 
 // Pure editor settings shared by GrapesEditor and its tests. Nothing here imports
 // GrapesJS, so the rules can be checked without a DOM.
@@ -133,8 +134,6 @@ export const EDITOR_DEVICES = [
 
 // Starter blocks. Classes and elements match the published CSS and survive the
 // sanitizer: sections are la-section, calls to action are anchors with la-cta.
-// cta_form is still the old block (it contains a form the sanitizer removes); it is
-// replaced by the lead form block in phase 1.
 export const EDITOR_BLOCKS: readonly { id: string; label: string; content: string }[] = [
     {
         id: "hero",
@@ -217,17 +216,8 @@ export const EDITOR_BLOCKS: readonly { id: string; label: string; content: strin
 </section>`,
     },
     {
-        id: "cta_form",
-        label: "CTA Form",
-        content: `
-<section class="landing-section cta">
-    <h2>Talk to our team</h2>
-    <p>We will reach out within one business day.</p>
-    <form>
-        <input type="text" placeholder="Name" />
-        <input type="email" placeholder="Work Email" />
-        <button type="submit">Submit</button>
-    </form>
-</section>`,
+        id: "lead_form",
+        label: "Lead form",
+        content: leadFormBlockContent(),
     },
 ];

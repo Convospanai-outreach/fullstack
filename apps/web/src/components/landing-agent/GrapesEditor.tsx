@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Editor } from "grapesjs";
+import type { Component, Editor } from "grapesjs";
 import { Button } from "@/components/ui/button";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import { LANDING_ASSET_LIBRARY, type LandingAsset } from "@/components/landing-agent/landingAssetLibrary";
@@ -16,6 +16,9 @@ import {
 } from "@/components/landing-agent/heroImageBlock";
 import { imageAltWarnings, imageSourceMessage, type ImageAltWarning } from "@/components/landing-agent/imageSources";
 import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
+import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
+import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
+import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPanel";
 import {
     AUTOSAVE_INTERVAL_MS,
     EDITOR_BLOCKS,
@@ -128,6 +131,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [imageDarken, setImageDarken] = useState<OverlayStrength>(40);
     const [imageNote, setImageNote] = useState<string | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [leadForm, setLeadForm] = useState<{ key: number; config: LeadFormConfig | null } | null>(null);
+    const leadFormComponentRef = useRef<Component | null>(null);
+
+    function applyLeadForm(config: LeadFormConfig) {
+        const component = leadFormComponentRef.current;
+        if (!component) return;
+        component.addAttributes({ id: encodeLeadFormMarkerId(config) });
+        refreshRef.current?.();
+    }
     const [uploadingImage, setUploadingImage] = useState(false);
 
     const isPublished = pageStatus === "published";
@@ -150,7 +162,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             if (!editor || !active) return;
             const rendered = readRendered(editor);
             const payload = getLandingRenderPayload(rendered);
-            setPreviewDoc(buildPreviewDoc(payload.html, payload.css));
+            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css));
             const nowDirty = JSON.stringify(rendered) !== savedSnapshotRef.current;
             dirtyRef.current = nowDirty;
             setDirty(nowDirty);
@@ -245,6 +257,17 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 created.BlockManager.add(block.id, { label: block.label, category: "Landing", content: block.content });
             }
 
+            created.on("component:selected", (component: Component) => {
+                const classes = component.getClasses().map((c) => String(c));
+                const selection = leadFormOfSelection({ id: String(component.getAttributes()["id"] ?? ""), classes });
+                leadFormComponentRef.current = selection ? component : null;
+                setLeadForm(selection ? { key: Date.now(), config: selection.config } : null);
+            });
+            created.on("component:deselected", () => {
+                leadFormComponentRef.current = null;
+                setLeadForm(null);
+            });
+
             created.onReady(() => {
                 if (!active) return;
                 created.getWrapper()?.addAttributes({ class: "la-page" });
@@ -254,6 +277,9 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                     base.setAttribute("data-landing-base", "");
                     base.textContent = canvasBaseCss();
                     frameDoc.head.appendChild(base);
+                    const leadFormStyle = frameDoc.createElement("style");
+                    leadFormStyle.textContent = LEAD_FORM_CANVAS_CSS;
+                    frameDoc.head.appendChild(leadFormStyle);
                 }
                 const initial = getLandingRenderPayload(initialRef.current);
                 created.setComponents(initial.html);
@@ -596,6 +622,12 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Link settings</p>
                         <div ref={traitsRef} />
                     </div>
+                    {leadForm ? (
+                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lead form</p>
+                            <LeadFormSettingsPanel key={leadForm.key} config={leadForm.config} onApply={applyLeadForm} />
+                        </div>
+                    ) : null}
                     <div className="hidden" ref={selectorsRef} />
                 </div>
             </div>
