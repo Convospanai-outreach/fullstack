@@ -8,6 +8,7 @@ import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
 import { LANDING_PAGE_TEMPLATES } from "./templates";
+import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
 import { landingEventNameEnum } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
@@ -229,6 +230,7 @@ async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.Land
     return prisma.landingCampaign.findUniqueOrThrow({ where: { id } });
 }
 
+
 export const landingAgentService = {
     async createCampaign(input: {
         teamId: string;
@@ -259,6 +261,69 @@ export const landingAgentService = {
         });
 
         return campaign;
+    },
+
+    // Starts a page from an editor-ready template: no brief, no wireframes and no AI call. The page
+    // goes through the same save-time checks as the editor (sanitizer and the lead form marker).
+    async createCampaignFromTemplate(input: {
+        teamId: string;
+        userId: string;
+        templateId: string;
+        name: string;
+        env?: Record<string, string | undefined>;
+    }) {
+        const template = getLandingTemplate(input.templateId);
+        if (!template) {
+            throw new APIError("Template not found", 400, "VALIDATION_ERROR");
+        }
+        const { html, css } = materializeLandingTemplate(template, landingAppOrigin(input.env ?? process.env));
+        const renderedJson = sanitizeJson({ html, css }) as Prisma.InputJsonValue;
+        const markerError = leadFormMarkerError(renderedJson);
+        if (markerError) {
+            throw new APIError(markerError, 400, "VALIDATION_ERROR");
+        }
+
+        const name = input.name.trim();
+        const slug = await generateUniqueSlug(name);
+        return prisma.$transaction(async (tx) => {
+            // The team's default audience, created on first use. The team can rename or edit it in the
+            // ICP Builder. A landing campaign needs an ICP; this keeps the template path free of one.
+            const defaultIcp = { name: "Default audience", description: "Created for pages started from a template. Describe your real audience in the ICP Builder." };
+            const icp =
+                (await tx.iCP.findFirst({ where: { teamId: input.teamId, name: defaultIcp.name, status: "active" }, select: { id: true } })) ??
+                (await tx.iCP.create({
+                    data: {
+                        teamId: input.teamId,
+                        name: defaultIcp.name,
+                        description: defaultIcp.description,
+                        criteria: { description: defaultIcp.description, source: "landing-template-default" },
+                        status: "active",
+                    },
+                    select: { id: true },
+                }));
+            const campaign = await tx.landingCampaign.create({
+                data: {
+                    teamId: input.teamId,
+                    ownerId: input.userId,
+                    icpId: icp.id,
+                    name,
+                    prompt: template.description,
+                    status: "draft",
+                },
+            });
+            const page = await tx.landingPage.create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: input.teamId,
+                    slug,
+                    title: name,
+                    status: "draft",
+                    version: 1,
+                    renderedJson,
+                },
+            });
+            return { campaignId: campaign.id, pageId: page.id };
+        });
     },
 
     async getCampaign(teamId: string, campaignId: string) {

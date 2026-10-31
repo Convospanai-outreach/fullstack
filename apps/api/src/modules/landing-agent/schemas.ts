@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getLandingTemplate } from "./landingTemplates";
 
 const PROMPT_GUARD_PATTERN = /\b(ignore|disregard|bypass)\s+(all\s+)?(previous|prior)\s+(instructions?|rules?)\b|<script[\s\S]*?>|javascript:/i;
 
@@ -45,6 +46,11 @@ export const addLandingAssetSchema = z.object({
 
 export const generateBriefSchema = z.object({
     framework: landingFrameworkEnum.optional(),
+});
+
+export const createLandingFromTemplateSchema = z.object({
+    templateId: z.string().max(60).refine((id) => getLandingTemplate(id) !== undefined, "Unknown template"),
+    name: z.string().trim().min(1).max(200),
 });
 
 export const selectWireframeSchema = z.object({
