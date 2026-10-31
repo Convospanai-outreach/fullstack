@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Component, Editor } from "grapesjs";
 import { Button } from "@/components/ui/button";
+import "grapesjs/dist/css/grapes.min.css";
+import "./grapesEditor.css";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import { LANDING_ASSET_LIBRARY, type LandingAsset } from "@/components/landing-agent/landingAssetLibrary";
 import {
@@ -226,6 +228,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 width: "auto",
                 height: "70vh",
                 storageManager: false,
+                cssIcons: "",
                 protectedCss: "",
                 avoidInlineStyle: true,
                 panels: { defaults: [] },
@@ -252,6 +255,8 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             }
 
             created.on("component:selected", (component: Component) => {
+                // The id carries a lead form's configuration and anchors like #lead-form, so it is not editable here.
+                component.removeTrait("id");
                 const classes = component.getClasses().map((c) => String(c));
                 const selection = leadFormOfSelection({ id: String(component.getAttributes()["id"] ?? ""), classes });
                 leadFormComponentRef.current = selection ? component : null;
