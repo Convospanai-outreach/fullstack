@@ -170,6 +170,30 @@ describe("landingAgentService.publishCampaign - live draft (Phase 2)", () => {
         expect(data).not.toHaveProperty("editorState");
     });
 
+    it("guards the copy with the draft's updatedAt, only when a draft is being copied", async () => {
+        const updatedAt = new Date("2026-10-30T10:00:00.000Z");
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: DRAFT, draftEditorState: null, updatedAt });
+
+        await landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false });
+
+        expect(mockTx.landingPage.updateMany.mock.calls[0][0].where).toEqual({ id: "page-1", teamId: "team-1", updatedAt });
+    });
+
+    it("refuses with a 409 when the draft changed during the publish, and does not push to KV", async () => {
+        const updatedAt = new Date("2026-10-30T10:00:00.000Z");
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: DRAFT, draftEditorState: null, updatedAt });
+        mockTx.landingPage.updateMany.mockResolvedValueOnce({ count: 0 });
+
+        await expect(
+            landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false })
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: "CONFLICT",
+            message: "The page was edited while publishing. Check your changes and publish again.",
+        });
+        expect(publishPageToCloudflare).not.toHaveBeenCalled();
+    });
+
     it("a page with no draft publishes exactly as before: no copy, no version bump", async () => {
         givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: null, draftEditorState: null });
 
@@ -180,6 +204,7 @@ describe("landingAgentService.publishCampaign - live draft (Phase 2)", () => {
         expect(data).not.toHaveProperty("renderedJson");
         expect(data).not.toHaveProperty("version");
         expect(data).not.toHaveProperty("draftRenderedJson");
+        expect(mockTx.landingPage.updateMany.mock.calls[0][0].where).toEqual({ id: "page-1", teamId: "team-1" });
         expect(publishPageToCloudflare).toHaveBeenCalledWith("page-1");
     });
 });

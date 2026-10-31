@@ -706,7 +706,12 @@ export const landingAgentService = {
             // Read the draft inside the transaction so the copy below is the latest saved draft.
             const current = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
             const pageResult = await tx.landingPage.updateMany({
-                where: { id: page.id, teamId: input.teamId },
+                where: {
+                    id: page.id,
+                    teamId: input.teamId,
+                    // A copy is only valid against the draft it read; a save since then makes it stale.
+                    ...(current.draftRenderedJson == null ? {} : { updatedAt: current.updatedAt }),
+                },
                 data: {
                     slug: activeSlug,
                     status: "published",
@@ -715,6 +720,9 @@ export const landingAgentService = {
                 },
             });
             if (pageResult.count === 0) {
+                if (current.draftRenderedJson != null) {
+                    throw new APIError("The page was edited while publishing. Check your changes and publish again.", 409, "CONFLICT");
+                }
                 throw new Error("Landing page not found");
             }
             const campaignResult = await tx.landingCampaign.updateMany({
