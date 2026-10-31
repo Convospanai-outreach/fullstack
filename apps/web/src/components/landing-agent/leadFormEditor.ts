@@ -67,13 +67,17 @@ export function moveLeadFormField(config: LeadFormConfig, index: number, delta: 
     return { ...config, fields };
 }
 
-// Changing type keeps options only for select; a select gets one default option.
+// Changing type keeps options only for select; a select gets one default option. A Phone or Email
+// field takes the key phone or email (when no other field has it), so it fills the lead's column.
 export function updateLeadFormField(config: LeadFormConfig, index: number, patch: Partial<LeadFormField>): LeadFormConfig {
     const fields = config.fields.map((field, i) => {
         if (i !== index) return field;
         const next: LeadFormField = { ...field, ...patch };
         if (patch.type !== undefined && patch.type !== "select") delete next.options;
         if (patch.type === "select" && !next.options) next.options = ["Option 1"];
+        const columnKey = patch.type === "tel" ? "phone" : patch.type === "email" ? "email" : null;
+        const taken = columnKey !== null && config.fields.some((other, j) => j !== i && other.key === columnKey);
+        if (columnKey !== null && !taken) next.key = columnKey;
         return next;
     });
     return { ...config, fields };

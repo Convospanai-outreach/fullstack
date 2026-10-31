@@ -57,4 +57,10 @@ describe("cloudflarePagesService.publishPageToCloudflare success message", () =>
         const body = await publish("<p>Hi</p>");
         expect(body).not.toHaveProperty("successMessage");
     });
+
+    it("the form script goes to the form's redirect link, else to the thank-you page", async () => {
+        const body = await publish(`<section><div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div></section>`);
+        expect(body.html).toContain('form.getAttribute("data-redirect")');
+        expect(body.html).toContain('"/" + slug + "/thank-you"');
+    });
 });

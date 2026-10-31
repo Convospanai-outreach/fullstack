@@ -27,8 +27,9 @@ describe("leadFormMarkerError (save-time check)", () => {
         expect(leadFormMarkerError(page(`<div class="cmf-form" id="cmf-form-${withHttp}"></div>`))).toMatch(/invalid configuration/);
     });
 
-    it("checks every marker, not only the first", () => {
+    it("checks only the first marker, since later markers are not rendered", () => {
         const good = `<div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div>`;
-        expect(leadFormMarkerError(page(`${good}<div class="cmf-form" id="cmf-form-bad"></div>`))).not.toBeNull();
+        expect(leadFormMarkerError(page(`${good}<div class="cmf-form" id="cmf-form-bad-2"></div>`))).toBeNull();
+        expect(leadFormMarkerError(page(`<div class="cmf-form" id="cmf-form-bad"></div>${good}`))).not.toBeNull();
     });
 });

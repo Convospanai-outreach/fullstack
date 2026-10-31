@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
-import { hasLeadFormMarker, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
+import { hasLeadFormMarker, leadFormSuccessUrl, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
 
 interface Props {
     slug: string;
@@ -83,7 +83,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
             });
             if (!res.ok) throw new Error("Submission failed");
             await trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "form_submit" } });
-            window.location.href = form.getAttribute("data-redirect") || `/p/${slug}/thank-you`;
+            window.location.href = leadFormSuccessUrl(form.getAttribute("data-redirect"), slug);
         } catch {
             if (status) status.textContent = "Submission failed. Please try again.";
             if (button) button.disabled = false;

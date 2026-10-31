@@ -76,6 +76,22 @@ describe("field operations", () => {
         expect(updateLeadFormField(select, 1, { type: "text" }).fields[1].options).toBeUndefined();
     });
 
+    it("choosing Phone or Email names the field so it fills the lead's column", () => {
+        const phone = updateLeadFormField(addLeadFormField(base), 1, { type: "tel" });
+        expect(phone.fields[1].key).toBe("phone");
+        expect(leadFormProblem(phone)).toBeNull();
+        const noEmail = { ...base, fields: [{ key: "phone", label: "Phone", type: "tel", required: false }] } as LeadFormConfig;
+        const email = updateLeadFormField(addLeadFormField(noEmail), 1, { type: "email" });
+        expect(email.fields[1].key).toBe("email");
+        expect(leadFormProblem(email)).toBeNull();
+    });
+
+    it("keeps the key when another field already has the column key, and says why", () => {
+        const second = updateLeadFormField(addLeadFormField(base), 1, { type: "email" });
+        expect(second.fields[1].key).toBe("field_1");
+        expect(leadFormProblem(second)).toMatch(/email/);
+    });
+
     it("parses option lines, dropping blanks", () => {
         expect(parseOptionLines(" Small \n\nLarge\n  ")).toEqual(["Small", "Large"]);
     });

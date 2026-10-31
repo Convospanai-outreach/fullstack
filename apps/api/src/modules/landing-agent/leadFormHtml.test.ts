@@ -5,6 +5,7 @@ import {
   buildLeadFormHtml,
   findLeadFormMarkers,
   hasLeadFormMarker,
+  leadFormSuccessUrl,
   readLeadFormConfig,
   replaceLeadFormMarkers,
 } from "./leadFormHtml";
@@ -79,6 +80,18 @@ describe("lead form HTML parity with the shared fixture", () => {
     expect(plain).not.toContain("whatsappConsent");
     expect(plain).toContain(`data-redirect="https://example.com/thanks"`);
     expect(buildLeadFormHtml(sample, { slug: "s", whatsappOptIn: "Text me" })).toContain(`name="whatsappConsent"`);
+  });
+
+  it("shows the WhatsApp consent only when the form has a phone field", () => {
+    const noPhone = { fields: [{ key: "email", label: "Email", type: "email", required: true }], buttonLabel: "Go", successMessage: "Thanks" } as LeadFormConfig;
+    expect(buildLeadFormHtml(noPhone, { slug: "s", whatsappOptIn: "Text me" })).not.toContain("whatsappConsent");
+    expect(buildLeadFormHtml(sample, { slug: "s", whatsappOptIn: "Text me" })).toContain("whatsappConsent");
+  });
+
+  it("sends a submitted form to its redirect link, else to the page's thank-you page", () => {
+    expect(leadFormSuccessUrl("https://example.com/thanks", "guide")).toBe("https://example.com/thanks");
+    expect(leadFormSuccessUrl(null, "guide")).toBe("/p/guide/thank-you");
+    expect(leadFormSuccessUrl("", "guide")).toBe("/p/guide/thank-you");
   });
 
   it("returns nothing for an invalid config", () => {

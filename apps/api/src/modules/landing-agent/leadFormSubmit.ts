@@ -86,10 +86,11 @@ export function mapLeadFormSubmission(config: LeadFormConfig, formFields: Record
 // config, and its redirect must pass the server link check. Returns an error message, or null.
 export function leadFormMarkerError(renderedJson: unknown): string | null {
   const html = getLandingRenderPayload(sanitizeRenderedJsonHtml(renderedJson)).html;
-  for (const marker of findLeadFormMarkers(html)) {
-    const config = decodeLeadFormMarkerId(marker.id);
-    if (!config || !parseLeadFormConfig(config)) return "A form block has an invalid configuration. Check its fields, button and success message.";
-    if (config.redirectUrl && !isSafeLink(config.redirectUrl)) return "A form block redirect must be an https link.";
-  }
+  // Only the first marker renders; a later one (for example a copy GrapesJS renamed) is ignored.
+  const first = findLeadFormMarkers(html)[0];
+  if (!first) return null;
+  const config = decodeLeadFormMarkerId(first.id);
+  if (!config || !parseLeadFormConfig(config)) return "A form block has an invalid configuration. Check its fields, button and success message.";
+  if (config.redirectUrl && !isSafeLink(config.redirectUrl)) return "A form block redirect must be an https link.";
   return null;
 }

@@ -85,7 +85,9 @@ export function buildLeadFormHtml(config: LeadFormConfig, options: LeadFormHtmlO
   const valid = parseLeadFormConfig(config);
   if (!valid) return "";
   const redirect = valid.redirectUrl ? ` data-redirect="${escapeLeadFormHtml(valid.redirectUrl)}"` : "";
-  const whatsapp = options.whatsappOptIn
+  // The consent is stored with the phone number, so it only shows when the form has a phone field.
+  const hasPhone = valid.fields.some((field) => field.key === "phone");
+  const whatsapp = options.whatsappOptIn && hasPhone
     ? `<label style="display:flex;gap:8px;align-items:flex-start;font-size:14px"><input type="checkbox" name="whatsappConsent" aria-label="${escapeLeadFormHtml(options.whatsappOptIn)}" style="margin-top:3px" />${escapeLeadFormHtml(options.whatsappOptIn)}</label>`
     : "";
   return `
@@ -98,6 +100,11 @@ export function buildLeadFormHtml(config: LeadFormConfig, options: LeadFormHtmlO
     </form>
     <p id="la-lead-form-status" style="color:#e11d48;font-size:14px"></p>
 </section>`;
+}
+
+// Where a submitted form goes next: its redirect link when set, else the page's thank-you page.
+export function leadFormSuccessUrl(redirect: string | null | undefined, slug: string): string {
+  return redirect || `/p/${slug}/thank-you`;
 }
 
 // Replaces the first marker with its form and removes any other markers.

@@ -82,7 +82,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                         <input className={inputClass} value={field.label} onChange={(e) => change(updateLeadFormField(draft, index, { label: e.target.value }))} />
                     </label>
                     <label className="block space-y-1">
-                        <span className="text-xs text-slate-400">Name in the data (letters, numbers, underscore)</span>
+                        <span className="text-xs text-slate-400">Data key: name, email, phone, company or title fill the lead&apos;s own fields; other names are stored as answers</span>
                         <input className={inputClass} value={field.key} onChange={(e) => change(updateLeadFormField(draft, index, { key: e.target.value }))} />
                     </label>
                     <div className="flex items-center gap-3">
