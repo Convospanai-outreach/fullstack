@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { allPromptRefs } from "../lib/promptRegistry";
 import { loadEvalData, type EvalCase } from "../evals/copy/evalData";
 import { buildJudgePrompt, parseJudgeReply, runCopyEval, type DraftCopy } from "../evals/copy/runCopyEval";
 
@@ -64,7 +65,7 @@ async function main() {
     const runsDir = path.join(process.env["EVAL_DATA_DIR"]!, "runs");
     fs.mkdirSync(runsDir, { recursive: true });
     const file = path.join(runsDir, `copy-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-    fs.writeFileSync(file, JSON.stringify({ gitSha, ranAt: new Date().toISOString(), ...report }, null, 2));
+    fs.writeFileSync(file, JSON.stringify({ gitSha, ranAt: new Date().toISOString(), prompts: allPromptRefs(), ...report }, null, 2));
 
     console.log(JSON.stringify(report.summary, null, 2));
     console.log(`Full report: ${file}`);

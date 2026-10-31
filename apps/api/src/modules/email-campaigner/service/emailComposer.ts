@@ -134,7 +134,7 @@ function buildStyleGuidance(input: {
 // sent as a cacheable system prompt rather than baked into the per-lead
 // prompt: Anthropic serves repeat calls from its ephemeral prompt cache
 // instead of rebilling these ~20 lines as fresh input tokens every time.
-function buildNodeASystemPrompt(input: NodeAInput): string {
+export function buildNodeASystemPrompt(input: NodeAInput): string {
     return `You write B2B cold emails that feel like they came from a brilliant peer, not a vendor.
 
 ## THE ONE RULE THAT OVERRIDES EVERYTHING
@@ -160,7 +160,7 @@ Peer-to-peer. No: "I hope this finds you well", "I came across your profile", "I
 ${buildStyleGuidance(input)}`;
 }
 
-function buildNodeAPrompt(input: NodeAInput): string {
+export function buildNodeAPrompt(input: NodeAInput): string {
     return `## AVOID TOPICS
 Do not reference or imply: ${input.avoid_topics.join(", ") || "none specified"}
 
@@ -191,7 +191,7 @@ Respond ONLY with valid JSON in this exact structure:
 ${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
 }
 
-function buildCritiquePrompt(input: any, draft: any): string {
+export function buildCritiquePrompt(input: any, draft: any): string {
     return `You are a Senior Copy Editor reviewing a cold email.
     
     ## DRAFT
@@ -221,7 +221,7 @@ function buildCritiquePrompt(input: any, draft: any): string {
     }`;
 }
 
-function buildNodeBPrompt(input: NodeBInput): string {
+export function buildNodeBPrompt(input: NodeBInput): string {
     return `You write Node B follow-ups — sent when a prospect opened the initial email but didn't reply after 3 days.
 
 ## RULES
@@ -265,7 +265,7 @@ Respond ONLY with valid JSON:
 ${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
 }
 
-function buildNodeCPrompt(input: NodeCInput): string {
+export function buildNodeCPrompt(input: NodeCInput): string {
     return `You write Node C follow-ups — sent when a prospect never opened the initial email after 5 days. This is the last touchpoint. After this, silence.
 
 ## STRATEGY
