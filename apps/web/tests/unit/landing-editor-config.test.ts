@@ -164,7 +164,10 @@ describe("editor blocks", () => {
         }
     });
 
-    it.each(publishedBlocks.map((b) => [b.id, b] as const))(
+    // The sticky bar and the end-of-offer line are page furniture, not sections. Their round-trip is
+    // checked on the real sanitizer in apps/api ctaMarkup.test.ts, through tests/fixtures/cta-markup.json.
+    const NOT_SECTIONS = ["cta_sticky_bar", "offer_end_date"];
+    it.each(publishedBlocks.filter((b) => !NOT_SECTIONS.includes(b.id)).map((b) => [b.id, b] as const))(
         "%s survives the sanitizer round-trip with its structure",
         (_id, block) => {
             const rendered = getLandingRenderPayload({ html: block.content, css: "" }).html;
