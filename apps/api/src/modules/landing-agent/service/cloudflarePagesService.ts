@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 import { buildTrackingScript } from "../tracking";
+import { hasLeadFormMarker, replaceLeadFormMarkers } from "../leadFormHtml";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -38,6 +39,17 @@ function buildLeadFormScript(slug: string): string {
   var sessionId = (crypto.randomUUID ? crypto.randomUUID() : "sess-" + Date.now() + "-" + Math.random().toString(36).slice(2));
   var version = ${Date.now()};
   var formStarted = false;
+  // Lead form marker pages (data-cmf-form): every named control goes in formFields, validated server-side.
+  function collectFormFields(form) {
+    var out = {};
+    var els = form.querySelectorAll("input, select, textarea");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.name || el.name === "website" || el.name === "whatsappConsent") continue;
+      out[el.name] = el.type === "checkbox" ? el.checked : el.value;
+    }
+    return out;
+  }
   var pageParams = new URL(location.href).searchParams;
   function utm(key) { return pageParams.get(key) || undefined; }
 
@@ -93,12 +105,13 @@ function buildLeadFormScript(slug: string): string {
         referrer: document.referrer || undefined,
         socialToken: url.searchParams.get("t") || undefined,
         whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
+        formFields: form.hasAttribute("data-cmf-form") ? collectFormFields(form) : undefined,
       }),
     })
       .then(function (res) {
         if (!res.ok) throw new Error("Submission failed");
         trackEvent("cta_click", { cta: "form_submit" });
-        location.href = "/" + slug + "/thank-you";
+        location.href = (form.hasAttribute("data-cmf-form") && form.getAttribute("data-redirect")) || "/" + slug + "/thank-you";
       })
       .catch(function () {
         if (statusEl) statusEl.textContent = "Submission failed. Please try again.";
@@ -134,7 +147,8 @@ function buildLeadFormMarkup(whatsappOptIn: string | null): string {
 </section>`;
 }
 
-function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string; whatsappOptIn: string | null }): string {
+// A page with a lead form marker gets its form where the marker is, and no fixed box.
+export function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string; whatsappOptIn: string | null; slug: string }): string {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -144,8 +158,10 @@ function buildFullDocument(input: { title?: string | null; css: string; html: st
 <style>${input.css}</style>
 </head>
 <body class="la-page">
-${input.html}
-${buildLeadFormMarkup(input.whatsappOptIn)}
+${hasLeadFormMarker(input.html)
+? replaceLeadFormMarkers(input.html, { slug: input.slug, whatsappOptIn: input.whatsappOptIn })
+: `${input.html}
+${buildLeadFormMarkup(input.whatsappOptIn)}`}
 <script>${input.script}</script>
 </body>
 </html>`;
@@ -172,7 +188,7 @@ class CloudflarePagesService {
             const trackingScript = buildTrackingScript(page.tracking);
             const script = trackingScript + buildLeadFormScript(page.slug);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn });
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug });
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
