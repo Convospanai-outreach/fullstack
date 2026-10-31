@@ -92,10 +92,35 @@ describe("saving a published page keeps the live copy untouched (live draft)", (
         expect(mockPrisma.landingPage.updateMany).toHaveBeenCalledWith({
             where: { id: "page-1", teamId: "team-a" },
             data: {
+                title: "Campaign Landing Page",
                 draftRenderedJson: DRAFT_HTML,
                 draftEditorState: { components: "new" },
             },
         });
+    });
+
+    it("saveEditorState on a published page saves the new title to the live column, and nothing else live", async () => {
+        givenPage(publishedPage);
+
+        await landingAgentService.saveEditorState({
+            teamId: "team-a",
+            campaignId: "campaign-1",
+            title: "Renamed page",
+            editorState: { components: "new" },
+            renderedJson: DRAFT_HTML,
+        });
+
+        const data = mockPrisma.landingPage.updateMany.mock.calls[0][0].data;
+        expect(data).toEqual({
+            title: "Renamed page",
+            draftRenderedJson: DRAFT_HTML,
+            draftEditorState: { components: "new" },
+        });
+        expect(data).not.toHaveProperty("status");
+        expect(data).not.toHaveProperty("renderedJson");
+        expect(data).not.toHaveProperty("editorState");
+        expect(data).not.toHaveProperty("version");
+        expect(mockCloudflare.publishPageToCloudflare).not.toHaveBeenCalled();
     });
 
     it("saveEditorState on a published page never writes KV", async () => {

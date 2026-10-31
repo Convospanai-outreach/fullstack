@@ -603,7 +603,10 @@ export const landingAgentService = {
 
         // A live page keeps serving its last publish; edits go to the draft columns until publish.
         if (page.status === "published") {
+            // The title is page metadata, not content, so it goes live at once (the public title
+            // only changes on the next publish that copies the draft).
             return updateOwnedPage(page.id, input.teamId, {
+                title: input.title ?? page.title,
                 draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
                 draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
             });
