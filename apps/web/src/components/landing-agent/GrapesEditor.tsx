@@ -369,7 +369,8 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     }
 
     function handleLibraryImage(asset: LandingAsset) {
-        setImageSrc(asset.path);
+        // Absolute, so the image also loads on pages served from a customer's own domain.
+        setImageSrc(window.location.protocol === "https:" ? new URL(asset.path, window.location.origin).toString() : asset.path);
         setImageAlt((current) => (current.trim() ? current : asset.alt));
         setImageError(null);
         setImageNote("Built-in image.");
