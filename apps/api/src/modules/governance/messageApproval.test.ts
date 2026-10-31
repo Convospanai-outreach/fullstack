@@ -15,6 +15,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 import {
     MESSAGE_APPROVAL_TTL_MS,
     approveMessageSend,
+    flagNeedsAttention,
     gateAiMessage,
     generateWithRetry,
     messageApprovalRequired,
@@ -210,5 +211,30 @@ describe("resolveApprovedMessage", () => {
         prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "PENDING", autoDenyAt: new Date(Date.now() + 1000), payload: heldPayload });
 
         expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "not_approved" });
+    });
+});
+
+describe("flagNeedsAttention", () => {
+    it("keeps the job that failed to write the message so the approvals page can retry it", async () => {
+        prismaMock.approvalRequest.findFirst.mockResolvedValue(null);
+        prismaMock.user.findFirst.mockResolvedValue({ id: "owner-1" });
+
+        await flagNeedsAttention({
+            teamId: "team-1",
+            leadId: "lead-1",
+            channel: "EMAIL",
+            reason: "The email could not be written after 3 attempts.",
+            requesterHint: "owner-1",
+            job: { jobType: "email_sending", jobPayload: { leadId: "lead-1", campaignId: "campaign-1" } },
+        });
+
+        expect(prismaMock.approvalRequest.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    status: "NEEDS_ATTENTION",
+                    payload: { channel: "EMAIL", leadId: "lead-1", jobType: "email_sending", jobPayload: { leadId: "lead-1", campaignId: "campaign-1" } },
+                }),
+            }),
+        );
     });
 });

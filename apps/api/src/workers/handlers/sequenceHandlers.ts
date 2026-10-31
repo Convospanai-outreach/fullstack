@@ -103,7 +103,7 @@ export async function handleSequenceAction(payload: JobPayload) {
             } else {
                 message = await generateWithRetry(() => aiService.generateConnectionMessage(connectContext, connectTeamId));
                 if (!message) {
-                    await flagNeedsAttention({ teamId: connectTeamId, leadId, channel: "CONNECT", reason: "The connection message could not be written after 3 attempts.", requesterHint: connectLead?.campaign?.ownerId });
+                    await flagNeedsAttention({ teamId: connectTeamId, leadId, channel: "CONNECT", reason: "The connection message could not be written after 3 attempts.", requesterHint: connectLead?.campaign?.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
                     return { ok: false, held: "needs_attention" };
                 }
                 const gate = await gateAiMessage({
@@ -147,7 +147,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     { surface: "HELPER", taskType: "LINKEDIN_FOLLOW_UP" }
                 ));
                 if (!followUpMessage) {
-                    await flagNeedsAttention({ teamId: followUpTeamId, leadId, channel: "MESSAGE", reason: "The follow-up message could not be written after 3 attempts.", requesterHint: followUpLead?.campaign?.ownerId });
+                    await flagNeedsAttention({ teamId: followUpTeamId, leadId, channel: "MESSAGE", reason: "The follow-up message could not be written after 3 attempts.", requesterHint: followUpLead?.campaign?.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
                     return { ok: false, held: "needs_attention" };
                 }
                 const gate = await gateAiMessage({
@@ -246,7 +246,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     ));
                     if (!draft) {
                         // No stand-in copy: a generic "Checking in" email says nothing and was never reviewed.
-                        await flagNeedsAttention({ teamId: emailApprovalTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId });
+                        await flagNeedsAttention({ teamId: emailApprovalTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
                         return { ok: false, held: "needs_attention" };
                     }
 
