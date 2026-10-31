@@ -7,6 +7,7 @@ const { mockPrisma, mockCloudflare } = vi.hoisted(() => ({
     mockPrisma: {
         landingCampaign: {
             findFirst: vi.fn(),
+            findMany: vi.fn(),
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
             findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "campaign-1" }),
         },
@@ -208,5 +209,64 @@ describe("discarding unpublished changes (live draft)", () => {
             landingAgentService.discardPageDraft({ teamId: "team-a", campaignId: "campaign-1", pageId: "other-page" })
         ).rejects.toThrow("Landing page not found");
         expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("editor reads return the unpublished draft (live draft)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("getCampaign shows the draft content and flags unpublished changes on a published page", async () => {
+        givenPage({ ...publishedPage, draftRenderedJson: DRAFT_HTML, draftEditorState: { components: "draft" } });
+
+        const campaign = await landingAgentService.getCampaign("team-a", "campaign-1");
+
+        const page = campaign.pages[0] as any;
+        expect(page.renderedJson).toEqual(DRAFT_HTML);
+        expect(page.editorState).toEqual({ components: "draft" });
+        expect(page.hasUnpublishedChanges).toBe(true);
+        expect(page.status).toBe("published");
+        expect(page).not.toHaveProperty("draftRenderedJson");
+        expect(page).not.toHaveProperty("draftEditorState");
+    });
+
+    it("getCampaign keeps the live content, with the flag off, when there is no draft", async () => {
+        givenPage(publishedPage);
+
+        const campaign = await landingAgentService.getCampaign("team-a", "campaign-1");
+
+        const page = campaign.pages[0] as any;
+        expect(page.renderedJson).toEqual(LIVE_HTML);
+        expect(page.hasUnpublishedChanges).toBe(false);
+    });
+
+    it("getCampaign falls back to the live editor state when the draft has none", async () => {
+        givenPage({ ...publishedPage, draftRenderedJson: DRAFT_HTML, draftEditorState: null });
+
+        const campaign = await landingAgentService.getCampaign("team-a", "campaign-1");
+
+        expect((campaign.pages[0] as any).editorState).toEqual({ components: "live" });
+    });
+
+    it("getCampaign denies a campaign that belongs to another team", async () => {
+        mockPrisma.landingCampaign.findFirst.mockResolvedValue(null);
+
+        await expect(landingAgentService.getCampaign("team-b", "campaign-1")).rejects.toThrow("Landing campaign not found");
+        expect(mockPrisma.landingCampaign.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "campaign-1", teamId: "team-b" } }));
+    });
+
+    it("listCampaigns flags pages with unpublished changes and never returns the draft body", async () => {
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([
+            { id: "c1", name: "A", updatedAt: new Date(), pages: [{ slug: "a", title: "A", status: "published", updatedAt: new Date(), draftRenderedJson: DRAFT_HTML }], _count: { wireframeOptions: 0, leads: 0 } },
+            { id: "c2", name: "B", updatedAt: new Date(), pages: [{ slug: "b", title: "B", status: "published", updatedAt: new Date(), draftRenderedJson: null }], _count: { wireframeOptions: 0, leads: 0 } },
+        ]);
+
+        const campaigns = await landingAgentService.listCampaigns("team-a");
+
+        expect(campaigns[0].pages[0]).toMatchObject({ slug: "a", status: "published", hasUnpublishedChanges: true });
+        expect(campaigns[0].pages[0]).not.toHaveProperty("draftRenderedJson");
+        expect(campaigns[1].pages[0]).toMatchObject({ slug: "b", hasUnpublishedChanges: false });
+        expect(mockPrisma.landingCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a" } }));
     });
 });

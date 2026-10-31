@@ -205,6 +205,22 @@ function draftPublishData(page: { draftRenderedJson?: unknown; draftEditorState?
     };
 }
 
+// The editor reads the unpublished draft when there is one; the live columns stay in the database for the public page.
+function withDraftForEditor<T extends { renderedJson: unknown; editorState: unknown; draftRenderedJson: unknown; draftEditorState: unknown }>(
+    page: T
+) {
+    const { draftRenderedJson, draftEditorState, ...live } = page;
+    if (draftRenderedJson == null) {
+        return { ...live, hasUnpublishedChanges: false };
+    }
+    return {
+        ...live,
+        renderedJson: draftRenderedJson,
+        editorState: draftEditorState ?? live.editorState,
+        hasUnpublishedChanges: true,
+    };
+}
+
 async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
     const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
     if (result.count === 0) {
@@ -246,7 +262,8 @@ export const landingAgentService = {
     },
 
     async getCampaign(teamId: string, campaignId: string) {
-        return getCampaignOrThrow(campaignId, teamId);
+        const campaign = await getCampaignOrThrow(campaignId, teamId);
+        return { ...campaign, pages: campaign.pages.map(withDraftForEditor) };
     },
 
     // The team's connected domain that published pages are live on (oldest active one), if any.
@@ -261,7 +278,7 @@ export const landingAgentService = {
 
     // Dashboard list: the team's landing campaigns, latest edit first, with only what the list shows.
     async listCampaigns(teamId: string) {
-        return prisma.landingCampaign.findMany({
+        const campaigns = await prisma.landingCampaign.findMany({
             where: { teamId },
             orderBy: { updatedAt: "desc" },
             take: 200,
@@ -272,11 +289,18 @@ export const landingAgentService = {
                 pages: {
                     orderBy: { createdAt: "desc" },
                     take: 1,
-                    select: { slug: true, title: true, status: true, updatedAt: true },
+                    select: { slug: true, title: true, status: true, updatedAt: true, draftRenderedJson: true },
                 },
                 _count: { select: { wireframeOptions: true, leads: true } },
             },
         });
+        return campaigns.map((campaign) => ({
+            ...campaign,
+            pages: campaign.pages.map(({ draftRenderedJson, ...page }) => ({
+                ...page,
+                hasUnpublishedChanges: draftRenderedJson != null,
+            })),
+        }));
     },
 
     async addAsset(input: {
