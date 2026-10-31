@@ -109,11 +109,11 @@ export default function PricingPage() {
         const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
 
         fetch(`${base}/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
-            .then((res) => res.json())
+            .then((res) => { if (!res.ok) throw new Error("Price quote is unavailable"); return res.json(); })
             .then((data) => {
                 const byName: Record<string, LivePrice> = {};
                 for (const p of data.plans || []) {
-                    byName[p.name] = { currency: data.currency, amount: p.amount, available: p.available ?? true };
+                    byName[p.name] = { currency: data.currency, amount: p.amount, available: p.available === true };
                 }
                 setLivePrices(byName);
             })
@@ -220,7 +220,7 @@ export default function PricingPage() {
     // conflicting hardcoded USD list - removed to leave a single source (F-02).
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
+        <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
             <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
             <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 
