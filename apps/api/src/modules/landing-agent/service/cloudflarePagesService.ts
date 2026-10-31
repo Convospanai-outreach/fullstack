@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 import { buildTrackingScript } from "../tracking";
-import { hasLeadFormMarker, replaceLeadFormMarkers } from "../leadFormHtml";
+import { hasLeadFormMarker, readLeadFormConfig, replaceLeadFormMarkers } from "../leadFormHtml";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -189,6 +189,7 @@ class CloudflarePagesService {
             const script = trackingScript + buildLeadFormScript(page.slug);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
             const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug });
+            const successMessage = readLeadFormConfig(payload.html)?.successMessage;
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
@@ -198,7 +199,13 @@ class CloudflarePagesService {
                 {
                     method: "PUT",
                     headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ html, teamId: page.campaign.teamId, scriptHash, ...(trackingScript ? { tracking: true } : {}) }),
+                    body: JSON.stringify({
+                        html,
+                        teamId: page.campaign.teamId,
+                        scriptHash,
+                        ...(trackingScript ? { tracking: true } : {}),
+                        ...(successMessage ? { successMessage } : {}),
+                    }),
                 }
             );
 
