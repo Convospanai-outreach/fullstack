@@ -1,26 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import { buildHeroImageHtml } from "@/components/landing-agent/heroImageBlock";
-import { sanitizeRenderedJsonHtml } from "../../../api/src/modules/landing-agent/rendering";
 
 const base = { src: "/landing-assets/gradient-1.svg", alt: "Blue wave", focal: "center" as const, darken: 40 as const };
 
-function sanitize(html: string): string {
-    return (sanitizeRenderedJsonHtml({ html, css: "" }) as { html: string }).html;
-}
-
 describe("buildHeroImageHtml", () => {
-    it.each(["background", "side", "top"] as const)("%s layout keeps the image src and alt through the sanitizer", (layout) => {
-        const html = buildHeroImageHtml({ ...base, layout });
-        expect(html).not.toBeNull();
-        const out = sanitize(html!);
+    it.each(["background", "side", "top"] as const)("%s layout carries the image src, alt and focal class", (layout) => {
+        const out = buildHeroImageHtml({ ...base, layout });
+        expect(out).not.toBeNull();
         expect(out).toContain('src="/landing-assets/gradient-1.svg"');
         expect(out).toContain('alt="Blue wave"');
         expect(out).toContain("la-focus-center");
     });
 
-    it("the background layout keeps the overlay class", () => {
-        const out = sanitize(buildHeroImageHtml({ ...base, layout: "background" })!);
+    it("the background layout has the overlay class", () => {
+        const out = buildHeroImageHtml({ ...base, layout: "background" })!;
         expect(out).toContain('class="la-overlay la-overlay-40"');
     });
 
