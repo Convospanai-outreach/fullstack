@@ -1,0 +1,26 @@
+{
+  "slug": "bengaluru",
+  "name": "Bengaluru",
+  "state": "Karnataka",
+  "stateCode": "IN-KA",
+  "placename": "Bengaluru, Karnataka, India",
+  "position": "12.9716;77.5946",
+  "icbm": "12.9716, 77.5946",
+  "latitude": "12.9716",
+  "longitude": "77.5946",
+  "corridors": [
+    "Outer Ring Road (ORR)",
+    "Whitefield",
+    "Electronic City",
+    "Koramangala",
+    "Indiranagar"
+  ],
+  "industryFocus": [
+    "DeepTech & AI Startups",
+    "Global Capability Centers (GCCs)",
+    "IT Consulting & Cloud Infrastructure",
+    "Recruitment & Technical Staffing"
+  ],
+  "summary": "AI-driven outbound automation and deliverability guardrails tailored for Bangalore’s vibrant tech ecosystem and GCCs.",
+  "order": 5
+}

@@ -1,13 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { instrumentAnthropic } from "@/lib/sentry";
-import { loadTeamProviders, extractJsonBlock } from "@/lib/aiService";
+import { aiService, extractJsonBlock } from "@/lib/aiService";
 import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
-const BATCH_MODEL = "claude-3-5-sonnet";
 const GUIDANCE_CONCURRENCY = 10;
+const BATCH_TASK_TYPE = "EMAIL_DRAFT_BATCH";
 
 function buildDraftPrompt(lead: unknown, icp: unknown, personalityGuidance: string): string {
     // Mirrors aiService.generateEmailDraft's prompt shape exactly, so a
@@ -45,14 +43,6 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
 
     const icp = campaign?.icp?.criteria ?? null;
 
-    const providers = await loadTeamProviders(teamId);
-    if (!providers.anthropic?.apiKey) {
-        throw new Error("BATCH draft generation requires a configured Anthropic API key for this team.");
-    }
-
-    const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
-    const model = providers.anthropic.model || BATCH_MODEL;
-
     // Stored guidance is read straight off the lead; only legacy leads hit Crystal (free). Chunked so a big
     // campaign of legacy leads doesn't fire hundreds of simultaneous requests and trip Crystal's rate limit.
     const guidance: string[] = [];
@@ -65,23 +55,19 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
         );
     }
 
-    const messageBatch = await client.messages.batches.create({
-        requests: leads.map((lead, i) => ({
-            custom_id: lead.id,
-            params: {
-                model,
-                max_tokens: 800,
-                messages: [{ role: "user" as const, content: buildDraftPrompt(lead, icp, guidance[i]) }],
-            },
-        })),
-    });
+    // aiService owns the provider call: the input policy, credit reservation and usage logging.
+    const messageBatch = await aiService.submitMessageBatch(
+        leads.map((lead, i) => ({ customId: lead.id, prompt: buildDraftPrompt(lead, icp, guidance[i]) })),
+        teamId,
+        { taskType: BATCH_TASK_TYPE, surface: "EMAIL" }
+    );
 
     const batch = await prisma.aiDraftBatch.create({
         data: {
             campaignId,
             teamId,
             provider: "anthropic",
-            providerBatchId: messageBatch.id,
+            providerBatchId: messageBatch.providerBatchId,
             status: "submitted",
             itemCount: leads.length,
         },
@@ -96,7 +82,7 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
         })),
     });
 
-    logger.info(`[BatchDraft] Submitted batch ${messageBatch.id} for campaign ${campaignId} (${leads.length} leads)`);
+    logger.info(`[BatchDraft] Submitted batch ${messageBatch.providerBatchId} for campaign ${campaignId} (${leads.length} leads)`);
 
     return { batchId: batch.id, itemCount: leads.length };
 }
@@ -105,15 +91,7 @@ export async function pollBatch(batchId: string): Promise<{ ready: boolean }> {
     const batch = await prisma.aiDraftBatch.findUnique({ where: { id: batchId } });
     if (!batch) throw new Error(`AiDraftBatch ${batchId} not found`);
 
-    const providers = await loadTeamProviders(batch.teamId);
-    if (!providers.anthropic?.apiKey) {
-        throw new Error(`BATCH draft polling requires a configured Anthropic API key for team ${batch.teamId}.`);
-    }
-
-    const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
-    const remote = await client.messages.batches.retrieve(batch.providerBatchId);
-
-    if (remote.processing_status !== "ended") {
+    if (!(await aiService.isMessageBatchDone(batch.providerBatchId, batch.teamId))) {
         await prisma.aiDraftBatch.update({
             where: { id: batchId },
             data: { status: "polling", pollAttempts: { increment: 1 } },
@@ -121,14 +99,14 @@ export async function pollBatch(batchId: string): Promise<{ ready: boolean }> {
         return { ready: false };
     }
 
-    const results = await client.messages.batches.results(batch.providerBatchId);
-    for await (const line of results) {
-        if (line.result.type === "succeeded") {
-            const text = line.result.message.content?.[0]?.type === "text" ? line.result.message.content[0].text : "";
+    const results = await aiService.readMessageBatchResults(batch.providerBatchId, batch.teamId, { taskType: BATCH_TASK_TYPE });
+    for (const line of results) {
+        if (line.text !== null) {
+            const text = line.text;
             try {
                 const json = JSON.parse(extractJsonBlock(text));
                 await prisma.aiDraftBatchItem.update({
-                    where: { customId: line.custom_id },
+                    where: { customId: line.customId },
                     data: {
                         status: "succeeded",
                         subject: clampGeneratedText(String(json.subject || ""), 160),
@@ -137,14 +115,14 @@ export async function pollBatch(batchId: string): Promise<{ ready: boolean }> {
                 });
             } catch (parseErr: any) {
                 await prisma.aiDraftBatchItem.update({
-                    where: { customId: line.custom_id },
+                    where: { customId: line.customId },
                     data: { status: "failed", error: `Failed to parse draft: ${parseErr?.message ?? "unknown error"}` },
                 });
             }
         } else {
             await prisma.aiDraftBatchItem.update({
-                where: { customId: line.custom_id },
-                data: { status: "failed", error: line.result.type },
+                where: { customId: line.customId },
+                data: { status: "failed", error: line.resultType },
             });
         }
     }

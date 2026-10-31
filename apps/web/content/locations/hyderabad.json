@@ -1,0 +1,26 @@
+{
+  "slug": "hyderabad",
+  "name": "Hyderabad",
+  "state": "Telangana",
+  "stateCode": "IN-TG",
+  "placename": "Hyderabad, Telangana, India",
+  "position": "17.3850;78.4867",
+  "icbm": "17.3850, 78.4867",
+  "latitude": "17.3850",
+  "longitude": "78.4867",
+  "corridors": [
+    "HITEC City",
+    "Gachibowli",
+    "Madhapur",
+    "Financial District",
+    "Genome Valley"
+  ],
+  "industryFocus": [
+    "Pharma & Life Sciences",
+    "Enterprise Cloud & SaaS",
+    "IT Managed Services",
+    "Commercial Facility Management"
+  ],
+  "summary": "Enterprise pipeline acceleration for HITEC City software leaders and Genome Valley life science pioneers.",
+  "order": 6
+}

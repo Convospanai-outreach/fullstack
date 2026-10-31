@@ -8,6 +8,16 @@ import { Check, AlertCircle, Clock } from "lucide-react";
 import { getExpiryState, formatTimeLeft } from "@/lib/approvalExpiry";
 import { StalledNudgeList } from "@/components/overseer/StalledNudgeList";
 
+interface NeedsAttentionItem {
+    id: string;
+    channel: string | null;
+    leadName: string | null;
+    leadEmail: string | null;
+    reason: string;
+    createdAt: string;
+    canRetry: boolean;
+}
+
 interface ApprovalRequest {
     id: string;
     actionType: string;
@@ -97,6 +107,7 @@ function ExpiryBadge({ autoDenyAt }: { autoDenyAt?: string | null }) {
 
 export default function ApprovalsPage() {
     const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+    const [needsAttention, setNeedsAttention] = useState<NeedsAttentionItem[]>([]);
     const [breakerState, setBreakerState] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -128,6 +139,7 @@ export default function ApprovalsPage() {
             if (data.requests) {
                 setRequests(data.requests);
             }
+            setNeedsAttention(data.needsAttention ?? []);
         } catch (err) {
             console.error("Failed to load approvals", err);
             toast.error("Failed to load requests");
@@ -136,23 +148,56 @@ export default function ApprovalsPage() {
         }
     };
 
+    const [edits, setEdits] = useState<Record<string, { subject?: string | undefined; body: string }>>({});
+
+    // Retry / Write manually / Skip on a message that could not be written or sent.
+    const [writing, setWriting] = useState<string | null>(null);
+    const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string }>>({});
+
+    const handleAttention = async (item: NeedsAttentionItem, action: "RETRY" | "WRITE" | "SKIP") => {
+        setProcessing(item.id);
+        try {
+            const draft = action === "WRITE" ? drafts[item.id] : undefined;
+            const res = await fetch(`/api/approvals/${item.id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, ...(draft ? { body: draft.body, ...(draft.subject.trim() ? { subject: draft.subject } : {}) } : {}) }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || "Action failed");
+            }
+            toast.success(action === "RETRY" ? "Retrying: a new draft will be written" : action === "WRITE" ? "Your message is on its way" : "Step skipped");
+            setNeedsAttention(current => current.filter(n => n.id !== item.id));
+            setWriting(null);
+        } catch (err) {
+            toast.error(err instanceof Error && err.message !== "Action failed" ? err.message : "Failed to process request");
+        } finally {
+            setProcessing(null);
+        }
+    };
+
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
         try {
+            const edit = action === "APPROVE" ? edits[id] : undefined;
             const res = await fetch(`/api/approvals/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined })
+                body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined, ...edit })
             });
 
-            if (!res.ok) throw new Error("Action failed");
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || "Action failed");
+            }
 
             toast.success(action === "APPROVE" ? "Request Approved" : "Request Rejected");
 
             // Remove from list or refresh
             setRequests(current => current.filter(r => r.id !== id));
         } catch (err) {
-            toast.error("Failed to process request");
+            toast.error(err instanceof Error && err.message !== "Action failed" ? err.message : "Failed to process request");
         } finally {
             setProcessing(null);
         }
@@ -196,7 +241,55 @@ export default function ApprovalsPage() {
                                     <p className="text-muted-foreground text-sm mb-2">
                                         Requested by <span className="text-foreground">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}
                                     </p>
-                                    {req.payload?.subject && (
+                                    {req.actionType === "MESSAGE_SEND" && req.payload?.body && (
+                                        <div className="bg-muted p-3.5 rounded-lg border border-border text-sm space-y-2 mt-2">
+                                            {edits[req.id] ? (
+                                                <>
+                                                    {req.payload.subject !== undefined && (
+                                                        <input
+                                                            aria-label="Subject"
+                                                            value={edits[req.id].subject ?? ""}
+                                                            onChange={(e) => setEdits((cur) => ({ ...cur, [req.id]: { ...cur[req.id], subject: e.target.value } }))}
+                                                            className="w-full bg-background border border-border rounded px-2.5 py-1.5 text-xs text-foreground"
+                                                        />
+                                                    )}
+                                                    <textarea
+                                                        aria-label="Message"
+                                                        rows={8}
+                                                        value={edits[req.id].body}
+                                                        onChange={(e) => setEdits((cur) => ({ ...cur, [req.id]: { ...cur[req.id], body: e.target.value } }))}
+                                                        className="w-full bg-background border border-border rounded px-2.5 py-2 text-xs text-foreground font-mono"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEdits((cur) => { const { [req.id]: _removed, ...rest } = cur; return rest; })}
+                                                        className="text-xs text-muted-foreground underline"
+                                                    >
+                                                        Discard changes
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {req.payload.subject && (
+                                                        <div className="text-xs font-bold uppercase tracking-wider text-primary">
+                                                            Subject: <span className="text-foreground font-semibold normal-case">{req.payload.subject}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="text-foreground text-xs leading-relaxed bg-background p-2.5 rounded border border-border font-mono whitespace-pre-wrap">
+                                                        {req.payload.body}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEdits((cur) => ({ ...cur, [req.id]: { subject: req.payload?.subject, body: req.payload?.body ?? "" } }))}
+                                                        className="text-xs text-primary underline"
+                                                    >
+                                                        Edit before approving
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                    {req.actionType !== "MESSAGE_SEND" && req.payload?.subject && (
                                         <div className="bg-muted p-3.5 rounded-lg border border-border text-sm space-y-1.5 mt-2">
                                             <div className="text-xs font-bold uppercase tracking-wider text-primary">
                                                 Subject: <span className="text-foreground font-semibold normal-case">{req.payload.subject}</span>
@@ -251,6 +344,83 @@ export default function ApprovalsPage() {
                             </div>
                         </GlassCard>
                     ))}
+                </div>
+            )}
+
+            {needsAttention.length > 0 && (
+                <div className="space-y-3">
+                    <SectionHeader
+                        title="Needs attention"
+                        subtitle="These messages were not sent. The AI could not write them or an approval ran out. Nothing went out. Retry the draft, write it yourself, or skip the step."
+                    />
+                    <div className="grid gap-3">
+                        {needsAttention.map((item) => (
+                            <GlassCard key={item.id} className="p-4 flex items-start gap-3 border-destructive/20">
+                                <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-1" />
+                                <div className="text-sm">
+                                    <div className="text-foreground font-medium">
+                                        {item.leadName || item.leadEmail || "A lead"}
+                                        {item.channel && <span className="ml-2 text-xs uppercase tracking-wide text-muted-foreground">{item.channel}</span>}
+                                    </div>
+                                    <p className="text-muted-foreground">{item.reason}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                                    {writing === item.id && (
+                                        <div className="mt-3 space-y-2">
+                                            {item.channel === "EMAIL" && (
+                                                <input
+                                                    value={drafts[item.id]?.subject ?? ""}
+                                                    onChange={(e) => setDrafts(d => ({ ...d, [item.id]: { subject: e.target.value, body: d[item.id]?.body ?? "" } }))}
+                                                    placeholder="Subject"
+                                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                                />
+                                            )}
+                                            <textarea
+                                                value={drafts[item.id]?.body ?? ""}
+                                                onChange={(e) => setDrafts(d => ({ ...d, [item.id]: { subject: d[item.id]?.subject ?? "", body: e.target.value } }))}
+                                                placeholder="Write the message"
+                                                rows={6}
+                                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                            />
+                                            <button
+                                                disabled={!!processing || !drafts[item.id]?.body?.trim()}
+                                                onClick={() => handleAttention(item, "WRITE")}
+                                                className="px-4 py-2 rounded-lg bg-success text-white hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+                                            >
+                                                Send this message
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {item.canRetry && (
+                                            <>
+                                                <button
+                                                    disabled={!!processing}
+                                                    onClick={() => handleAttention(item, "RETRY")}
+                                                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 text-xs font-medium"
+                                                >
+                                                    Retry generation
+                                                </button>
+                                                <button
+                                                    disabled={!!processing}
+                                                    onClick={() => setWriting(writing === item.id ? null : item.id)}
+                                                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 text-xs font-medium"
+                                                >
+                                                    Write manually
+                                                </button>
+                                            </>
+                                        )}
+                                        <button
+                                            disabled={!!processing}
+                                            onClick={() => handleAttention(item, "SKIP")}
+                                            className="px-3 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 text-xs font-medium"
+                                        >
+                                            Skip step
+                                        </button>
+                                    </div>
+                                </div>
+                            </GlassCard>
+                        ))}
+                    </div>
                 </div>
             )}
 
