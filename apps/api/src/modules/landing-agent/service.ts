@@ -192,6 +192,19 @@ async function updateOwnedPage(id: string, teamId: string, data: Prisma.LandingP
     return prisma.landingPage.findUniqueOrThrow({ where: { id } });
 }
 
+// Publishing copies an unpublished draft (see saveEditorState) to the live columns. A page without
+// a draft publishes exactly as before: no copy and no version bump.
+function draftPublishData(page: { draftRenderedJson?: unknown; draftEditorState?: unknown }): Prisma.LandingPageUpdateInput {
+    if (page.draftRenderedJson == null) return {};
+    return {
+        renderedJson: page.draftRenderedJson as Prisma.InputJsonValue,
+        ...(page.draftEditorState != null ? { editorState: page.draftEditorState as Prisma.InputJsonValue } : {}),
+        version: { increment: 1 },
+        draftRenderedJson: Prisma.DbNull,
+        draftEditorState: Prisma.DbNull,
+    };
+}
+
 async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
     const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
     if (result.count === 0) {
@@ -579,6 +592,19 @@ export const landingAgentService = {
         });
     },
 
+    // Throws away unpublished edits; the live page is unchanged and not pushed again.
+    async discardPageDraft(input: { teamId: string; campaignId: string; pageId: string }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        return updateOwnedPage(page.id, input.teamId, {
+            draftRenderedJson: Prisma.DbNull,
+            draftEditorState: Prisma.DbNull,
+        });
+    },
+
     // Saving tracking IDs leaves the page's status alone; a published page's
     // live copy is re-pushed so the change shows on the connected domain.
     async savePageTracking(input: {
@@ -649,12 +675,15 @@ export const landingAgentService = {
 
         const updates = await prisma.$transaction(async (tx) => {
             const activeSlug = page.slug || (await generateUniqueSlug(campaign.name));
+            // Read the draft inside the transaction so the copy below is the latest saved draft.
+            const current = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
             const pageResult = await tx.landingPage.updateMany({
                 where: { id: page.id, teamId: input.teamId },
                 data: {
                     slug: activeSlug,
                     status: "published",
                     publishedAt: new Date(),
+                    ...draftPublishData(current),
                 },
             });
             if (pageResult.count === 0) {

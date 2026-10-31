@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // Phase 2: editing a PUBLISHED page writes only the draft columns, so the live
 // copy (status, renderedJson, editorState, version) keeps serving until publish.
@@ -162,5 +163,50 @@ describe("saving a published page keeps the live copy untouched (live draft)", (
         expect(data).not.toHaveProperty("status");
         expect(data).not.toHaveProperty("version");
         expect(mockCloudflare.publishPageToCloudflare).not.toHaveBeenCalled();
+    });
+});
+
+describe("discarding unpublished changes (live draft)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("clears both draft columns, scoped by team, and leaves the live page and KV alone", async () => {
+        givenPage({ ...publishedPage, draftRenderedJson: DRAFT_HTML, draftEditorState: { components: "draft" } });
+
+        await landingAgentService.discardPageDraft({ teamId: "team-a", campaignId: "campaign-1", pageId: "page-1" });
+
+        expect(mockPrisma.landingPage.updateMany).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.landingPage.updateMany).toHaveBeenCalledWith({
+            where: { id: "page-1", teamId: "team-a" },
+            data: { draftRenderedJson: Prisma.DbNull, draftEditorState: Prisma.DbNull },
+        });
+        expect(mockCloudflare.publishPageToCloudflare).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op-safe call on a page that has no draft", async () => {
+        givenPage(publishedPage);
+
+        await expect(
+            landingAgentService.discardPageDraft({ teamId: "team-a", campaignId: "campaign-1", pageId: "page-1" })
+        ).resolves.toBeDefined();
+    });
+
+    it("denies a campaign that belongs to another team", async () => {
+        mockPrisma.landingCampaign.findFirst.mockResolvedValue(null);
+
+        await expect(
+            landingAgentService.discardPageDraft({ teamId: "team-b", campaignId: "campaign-1", pageId: "page-1" })
+        ).rejects.toThrow("Landing campaign not found");
+        expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a page that is not in the campaign", async () => {
+        givenPage(publishedPage);
+
+        await expect(
+            landingAgentService.discardPageDraft({ teamId: "team-a", campaignId: "campaign-1", pageId: "other-page" })
+        ).rejects.toThrow("Landing page not found");
+        expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
     });
 });
