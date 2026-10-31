@@ -21,6 +21,11 @@ export function nextStep(campaign: LandingCampaignSummary): { href: string; labe
     return { href: `${base}/brief`, label: "Continue", status: "Not built yet" };
 }
 
+// "Used by N auto-replies": how many Instagram keyword replies send people to this page.
+export function autoReplyLabel(count: number): string {
+    return `Used by ${count} auto-repl${count === 1 ? "y" : "ies"}`;
+}
+
 // A published page's public address: on the team's connected domain when there is one, else on the app.
 export function liveUrl(slug: string, liveDomain?: string | null): string {
     const path = `/${encodeURIComponent(slug)}`;
@@ -74,6 +79,7 @@ export default function LandingPageList() {
                                             {step.status} · {campaign._count.leads} sign-up{campaign._count.leads === 1 ? "" : "s"} · edited{" "}
                                             {new Date(page?.updatedAt || campaign.updatedAt).toLocaleDateString()}
                                         </p>
+                                        {page?.autoReplies ? <p className="mt-1 text-xs text-muted-foreground">{autoReplyLabel(page.autoReplies.total)}</p> : null}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {page?.status === "published" ? (

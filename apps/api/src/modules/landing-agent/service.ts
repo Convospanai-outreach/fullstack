@@ -354,16 +354,34 @@ export const landingAgentService = {
                 pages: {
                     orderBy: { createdAt: "desc" },
                     take: 1,
-                    select: { slug: true, title: true, status: true, updatedAt: true, draftRenderedJson: true },
+                    select: { id: true, slug: true, title: true, status: true, updatedAt: true, draftRenderedJson: true },
                 },
                 _count: { select: { wireframeOptions: true, leads: true } },
             },
         });
+        // One grouped count for every page on the list (not one query per page), scoped to the team.
+        const pageIds = campaigns.flatMap((campaign) => campaign.pages.map((page) => page.id));
+        const triggerRows = pageIds.length
+            ? await prisma.keywordTrigger.groupBy({
+                  by: ["landingPageId", "active"],
+                  where: { teamId, landingPageId: { in: pageIds } },
+                  _count: { _all: true },
+              })
+            : [];
+        const autoRepliesByPage = new Map<string, { total: number; active: number }>();
+        for (const row of triggerRows) {
+            if (!row.landingPageId) continue;
+            const entry = autoRepliesByPage.get(row.landingPageId) ?? { total: 0, active: 0 };
+            entry.total += row._count._all;
+            if (row.active) entry.active += row._count._all;
+            autoRepliesByPage.set(row.landingPageId, entry);
+        }
         return campaigns.map((campaign) => ({
             ...campaign,
             pages: campaign.pages.map(({ draftRenderedJson, ...page }) => ({
                 ...page,
                 hasUnpublishedChanges: draftRenderedJson != null,
+                autoReplies: autoRepliesByPage.get(page.id) ?? { total: 0, active: 0 },
             })),
         }));
     },

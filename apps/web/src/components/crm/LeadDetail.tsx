@@ -26,6 +26,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import InstagramSourceLine, { type InstagramLeadSource } from "@/components/crm/InstagramSourceLine";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
 
@@ -43,6 +44,7 @@ interface Lead {
     campaign?: { name: string };
     isEnriched?: boolean;
     enrichedData?: any;
+    instagramSource?: InstagramLeadSource | null;
 
     // CRM Intent Scoring
     icpFitScore?: number | null;
@@ -343,7 +345,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             });
             if (!res.ok) throw new Error("Failed to update consent");
             const freshLead = await res.json();
-            setLead(freshLead);
+            setLead({ ...freshLead, instagramSource: lead.instagramSource });
             alert("Consent updated successfully!");
         } catch (error) {
             console.error("Failed to toggle consent", error);
@@ -465,6 +467,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                 </div>
             </div>
 
+            <InstagramSourceLine source={lead.instagramSource} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Columns - Details & Scoring */}
                 <div className="lg:col-span-2 space-y-6">

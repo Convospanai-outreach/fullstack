@@ -12,6 +12,7 @@ const { mockPrisma, mockCloudflare } = vi.hoisted(() => ({
             findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "campaign-1" }),
         },
         landingPage: { updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+        keywordTrigger: { groupBy: vi.fn().mockResolvedValue([]) },
     },
     mockCloudflare: { publishPageToCloudflare: vi.fn() },
 }));
@@ -302,8 +303,8 @@ describe("editor reads return the unpublished draft (live draft)", () => {
 
     it("listCampaigns flags pages with unpublished changes and never returns the draft body", async () => {
         mockPrisma.landingCampaign.findMany.mockResolvedValue([
-            { id: "c1", name: "A", updatedAt: new Date(), pages: [{ slug: "a", title: "A", status: "published", updatedAt: new Date(), draftRenderedJson: DRAFT_HTML }], _count: { wireframeOptions: 0, leads: 0 } },
-            { id: "c2", name: "B", updatedAt: new Date(), pages: [{ slug: "b", title: "B", status: "published", updatedAt: new Date(), draftRenderedJson: null }], _count: { wireframeOptions: 0, leads: 0 } },
+            { id: "c1", name: "A", updatedAt: new Date(), pages: [{ id: "page-a", slug: "a", title: "A", status: "published", updatedAt: new Date(), draftRenderedJson: DRAFT_HTML }], _count: { wireframeOptions: 0, leads: 0 } },
+            { id: "c2", name: "B", updatedAt: new Date(), pages: [{ id: "page-b", slug: "b", title: "B", status: "published", updatedAt: new Date(), draftRenderedJson: null }], _count: { wireframeOptions: 0, leads: 0 } },
         ]);
 
         const campaigns = await landingAgentService.listCampaigns("team-a");
