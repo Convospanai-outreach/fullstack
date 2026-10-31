@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COPY_GOALS, COPY_KINDS, COPY_PATTERNS, ctaCopyWarnings, patternsFor } from "@/components/landing-agent/copyPatterns";
+import { applyCopyToComponent, COPY_GOALS, COPY_KINDS, COPY_PATTERNS, ctaCopyWarnings, patternsFor } from "@/components/landing-agent/copyPatterns";
 
 describe("copy patterns", () => {
   it("has ten patterns for every goal, two of each kind", () => {
@@ -80,5 +80,33 @@ describe("ctaCopyWarnings", () => {
     for (const warning of ctaCopyWarnings("Guaranteed! Act now")) {
       expect(warning.message.length).toBeGreaterThan(10);
     }
+  });
+});
+
+describe("applyCopyToComponent", () => {
+  function fakeComponent(type: string) {
+    const calls: string[] = [];
+    return {
+      calls,
+      is: (t: string) => t === type,
+      components: (value: string) => {
+        calls.push(value);
+        return [];
+      },
+    };
+  }
+
+  it("writes the pattern into a selected text component", () => {
+    const text = fakeComponent("text");
+    expect(applyCopyToComponent(text, "Get the checklist")).toBe(true);
+    expect(text.calls).toEqual(["Get the checklist"]);
+  });
+
+  it("does nothing for a non-text component or no selection", () => {
+    const box = fakeComponent("default");
+    expect(applyCopyToComponent(box, "Get the checklist")).toBe(false);
+    expect(box.calls).toEqual([]);
+    expect(applyCopyToComponent(undefined, "Get the checklist")).toBe(false);
+    expect(applyCopyToComponent(null, "Get the checklist")).toBe(false);
   });
 });

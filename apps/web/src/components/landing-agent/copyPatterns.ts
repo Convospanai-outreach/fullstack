@@ -104,3 +104,17 @@ const RISKY_PHRASES: readonly { id: CopyWarningId; pattern: RegExp; message: str
 export function ctaCopyWarnings(text: string): CopyWarning[] {
   return RISKY_PHRASES.filter((rule) => rule.pattern.test(text)).map((rule) => ({ id: rule.id, message: rule.message }));
 }
+
+// The editor's selection, as far as this module needs it (GrapesJS Component, without importing it).
+export interface TextLikeComponent {
+  is(type: string): boolean;
+  components(value: string): unknown;
+}
+
+// Puts a pattern into the selected text block. Returns false when the selection is not text,
+// so the panel can ask the user to select a text block instead.
+export function applyCopyToComponent(component: TextLikeComponent | null | undefined, text: string): boolean {
+  if (!component || !component.is("text")) return false;
+  component.components(text);
+  return true;
+}
