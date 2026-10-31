@@ -21,6 +21,8 @@ import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-a
 import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
 import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
 import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPanel";
+import CopyHelperPanel from "@/components/landing-agent/CopyHelperPanel";
+import { applyCopyToComponent } from "@/components/landing-agent/copyPatterns";
 import {
     AUTOSAVE_INTERVAL_MS,
     EDITOR_BLOCKS,
@@ -401,6 +403,13 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         setImageNote("Built-in image.");
     }
 
+    // Writes a helper pattern into the selected text block. False when no text block is selected.
+    function handleUseCopy(text: string): boolean {
+        const applied = applyCopyToComponent(editorRef.current?.getSelected(), text);
+        if (applied) refreshRef.current?.();
+        return applied;
+    }
+
     function handleAddImage() {
         const html = buildHeroImageHtml({ layout: imageLayout, src: imageSrc, alt: imageAlt, focal: imageFocal, darken: imageDarken });
         if (!html) {
@@ -487,6 +496,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Blocks</p>
                         <div ref={blocksRef} />
                     </div>
+                    <CopyHelperPanel onUse={handleUseCopy} />
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Images</p>
                         <label className="block text-xs text-slate-300">

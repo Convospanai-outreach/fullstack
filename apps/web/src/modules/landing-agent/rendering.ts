@@ -80,6 +80,25 @@ export const LANDING_PAGE_BASE_CSS = `
     padding: 11px 16px;
     text-decoration: none;
 }
+.la-cta-outline {
+    background: transparent;
+    color: #0e7490;
+    box-shadow: inset 0 0 0 2px #0891b2;
+}
+.la-cta-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.la-cta-micro {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.la-cta-sticky {
+    margin-top: 16px;
+}
 .la-hero-with-image {
     display: grid;
     grid-template-columns: 1.1fr 1fr;
@@ -93,6 +112,28 @@ export const LANDING_PAGE_BASE_CSS = `
     box-shadow: 0 20px 44px rgba(15, 23, 42, 0.14);
 }
 @media (max-width: 720px) {
+    .la-cta-mobile-full {
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: center;
+        font-size: 18px;
+        padding: 16px 20px;
+    }
+    .la-cta-sticky {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        margin: 0;
+        padding: 10px 16px;
+        background: #ffffff;
+        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.12);
+    }
+    .la-cta-sticky .la-cta {
+        margin-top: 0;
+    }
     .la-hero-with-image {
         grid-template-columns: 1fr;
     }
