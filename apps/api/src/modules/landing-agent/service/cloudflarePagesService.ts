@@ -57,6 +57,7 @@ function buildLeadFormScript(slug: string): string {
     fetch("/" + slug + "/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      keepalive: true,
       body: JSON.stringify({
         eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined,
         utmSource: utm("utm_source"), utmMedium: utm("utm_medium"), utmCampaign: utm("utm_campaign"),
@@ -66,6 +67,13 @@ function buildLeadFormScript(slug: string): string {
   }
 
   trackEvent("page_view", { path: location.pathname });
+
+  // Any a.la-cta anchor (solid or outline CTA) counts as a CTA click. The lead form's submit
+  // button is a button, not an anchor, so the submit path below keeps its single cta_click.
+  document.addEventListener("click", function (e) {
+    var target = e.target;
+    if (target && target.closest && target.closest("a.la-cta")) trackEvent("cta_click", { cta: "anchor" });
+  }, true);
 
   var form = document.getElementById("la-lead-form");
   if (!form) return;

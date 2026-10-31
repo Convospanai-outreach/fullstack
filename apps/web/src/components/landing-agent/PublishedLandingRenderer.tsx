@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
@@ -27,6 +28,7 @@ async function trackEvent(slug: string, payload: { eventName: string; eventData?
     await fetch(`${API_BASE}/landing-agent/public/${slug}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        keepalive: true,
         body: JSON.stringify({ ...payload, ...utm }),
     }).catch(() => null);
 }
@@ -102,8 +104,16 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
         });
     }, [sessionId, slug, version]);
 
+    // Any a.la-cta anchor (solid or outline CTA) is a CTA click; the form's submit button is not an anchor,
+    // so the submit path above keeps its single cta_click. Only the event is sent; navigation is not delayed.
+    const onCtaClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (event.target instanceof Element && event.target.closest("a.la-cta")) {
+            trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "anchor" } });
+        }
+    };
+
     return (
-        <div className="la-page min-h-screen bg-slate-100 text-slate-900">
+        <div className="la-page min-h-screen bg-slate-100 text-slate-900" onClickCapture={onCtaClick}>
             <div className="mx-auto max-w-6xl px-4 py-8">
                 {title ? <h1 className="mb-4 text-2xl font-semibold">{title}</h1> : null}
                 <style>{payload.css}</style>
