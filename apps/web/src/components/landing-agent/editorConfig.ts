@@ -107,9 +107,10 @@ export function applyEditorLinkHref(component: { addAttributes: (attrs: Record<s
 // class, id or code trait.
 export const EDITOR_TRAIT_NAMES = ["title", "href", "target"] as const;
 
-// The canvas loads the same stylesheet the published page starts from.
-export function canvasBaseStyleUrl(): string {
-    return `data:text/css;charset=utf-8,${encodeURIComponent(LANDING_PAGE_BASE_CSS)}`;
+// The canvas gets the same stylesheet the published page starts from. It is added as an inline
+// <style> in the canvas frame: the dashboard's CSP allows inline styles but not data: stylesheets.
+export function canvasBaseCss(): string {
+    return LANDING_PAGE_BASE_CSS;
 }
 
 // Saved CSS is withLandingBaseCss(userRules). This strips the base part again so

@@ -7,7 +7,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
-    canvasBaseStyleUrl,
+    canvasBaseCss,
     filterEditorStyle,
     isSafeEditorLink,
     shouldAutosave,
@@ -15,18 +15,14 @@ import {
 } from "@/components/landing-agent/editorConfig";
 import { LANDING_PAGE_BASE_CSS, getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
 
-function decodeCanvasStyle(url: string): string {
-    return decodeURIComponent(url.slice(url.indexOf(",") + 1));
-}
-
 describe("canvas CSS matches the published page CSS", () => {
     it("the canvas stylesheet is exactly the base CSS the published page uses", () => {
-        expect(decodeCanvasStyle(canvasBaseStyleUrl())).toBe(LANDING_PAGE_BASE_CSS);
+        expect(canvasBaseCss()).toBe(LANDING_PAGE_BASE_CSS);
     });
 
     it("published CSS with user rules starts with the canvas stylesheet", () => {
         const published = withLandingBaseCss("#i1{color:#0891b2;}");
-        expect(published.startsWith(decodeCanvasStyle(canvasBaseStyleUrl()))).toBe(true);
+        expect(published.startsWith(canvasBaseCss())).toBe(true);
     });
 
     it("a page saved by the editor renders the same CSS it was edited with", () => {

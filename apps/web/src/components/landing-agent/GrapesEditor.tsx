@@ -12,7 +12,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
-    canvasBaseStyleUrl,
+    canvasBaseCss,
     filterEditorStyle,
     shouldAutosave,
     userCssFromSaved,
@@ -201,7 +201,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 protectedCss: "",
                 avoidInlineStyle: true,
                 panels: { defaults: [] },
-                canvas: { styles: [canvasBaseStyleUrl()] },
                 deviceManager: { devices: EDITOR_DEVICES.map((d) => ({ ...d })) },
                 richTextEditor: { actions: ["bold", "italic", "link"] },
                 colorPicker: { palette: [[...EDITOR_BRAND_COLORS]], showPalette: true, showInput: true, preferredFormat: "hex" },
@@ -227,6 +226,13 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             created.onReady(() => {
                 if (!active) return;
                 created.getWrapper()?.addAttributes({ class: "la-page" });
+                const frameDoc = created.Canvas.getDocument();
+                if (frameDoc) {
+                    const base = frameDoc.createElement("style");
+                    base.setAttribute("data-landing-base", "");
+                    base.textContent = canvasBaseCss();
+                    frameDoc.head.appendChild(base);
+                }
                 const initial = getLandingRenderPayload(initialRef.current);
                 created.setComponents(initial.html);
                 created.setStyle(userCssFromSaved(initial.css));
