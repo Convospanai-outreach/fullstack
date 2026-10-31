@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import GrapesEditor from "@/components/landing-agent/GrapesEditor";
 import PageTrackingPanel from "@/components/landing-agent/PageTrackingPanel";
+import UnpublishedChangesBanner from "./UnpublishedChangesBanner";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaign } from "@/modules/landing-agent/types";
 
@@ -17,6 +18,8 @@ export default function LandingAgentEditorPage() {
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    // Bumped after a discard so the canvas remounts with the live content.
+    const [editorKey, setEditorKey] = useState(0);
 
     const loadCampaign = useCallback(async () => {
         if (!campaignId) return;
@@ -57,7 +60,19 @@ export default function LandingAgentEditorPage() {
                 {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
             </GlassCard>
 
+            {page.hasUnpublishedChanges ? (
+                <UnpublishedChangesBanner
+                    onDiscard={async () => {
+                        await landingAgentApi.discardDraft(campaignId, page.id);
+                        await loadCampaign();
+                        setStatus("Unpublished changes discarded.");
+                        setEditorKey((key) => key + 1);
+                    }}
+                />
+            ) : null}
+
             <GrapesEditor
+                key={editorKey}
                 title={page.title || campaign.name}
                 pageStatus={page.status}
                 pageSlug={page.slug}

@@ -74,6 +74,23 @@ describe("LandingPageList", () => {
         expect(container.querySelector('a[href="/landing-agent/lc-new/brief"]')?.textContent).toBe("Continue");
     });
 
+    it("says Unpublished changes for a live page with a newer draft, and keeps View live", async () => {
+        fetchMock.mockResolvedValue(
+            json(200, {
+                campaigns: [
+                    campaign({
+                        id: "lc-edited",
+                        pages: [{ slug: "spring", title: null, status: "published", updatedAt: "2026-10-11T10:00:00.000Z", hasUnpublishedChanges: true }],
+                    }),
+                ],
+            })
+        );
+        await render();
+
+        expect(container.textContent).toContain("Published · Unpublished changes");
+        expect(container.querySelector('a[href="/p/spring"]')?.textContent).toBe("View live");
+    });
+
     it("sends View live to the team's connected domain when there is one", async () => {
         fetchMock.mockResolvedValue(
             json(200, {

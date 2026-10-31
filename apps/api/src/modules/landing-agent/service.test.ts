@@ -140,11 +140,11 @@ describe("landingAgentService.listCampaigns", () => {
     });
 
     it("returns only the caller's team's campaigns", async () => {
-        mockPrisma.landingCampaign.findMany.mockResolvedValue([{ id: "campaign-1" }]);
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([{ id: "campaign-1", pages: [] }]);
 
         const result = await landingAgentService.listCampaigns("team-a");
 
-        expect(result).toEqual([{ id: "campaign-1" }]);
+        expect(result).toEqual([{ id: "campaign-1", pages: [] }]);
         expect(mockPrisma.landingCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a" } }));
     });
 });

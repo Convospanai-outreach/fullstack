@@ -40,7 +40,7 @@ export interface LandingCampaignSummary {
     id: string;
     name: string;
     updatedAt: string;
-    pages: Array<{ slug: string; title?: string | null; status: string; updatedAt: string }>;
+    pages: Array<{ slug: string; title?: string | null; status: string; updatedAt: string; hasUnpublishedChanges?: boolean }>;
     _count: { wireframeOptions: number; leads: number };
 }
 
@@ -69,5 +69,7 @@ export interface LandingCampaign {
         renderedJson: unknown;
         editorState?: unknown;
         tracking?: LandingPageTracking | null;
+        // True when renderedJson is the unpublished draft (the live page is still the last publish).
+        hasUnpublishedChanges?: boolean;
     }>;
 }

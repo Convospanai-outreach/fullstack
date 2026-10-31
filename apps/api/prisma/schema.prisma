@@ -453,6 +453,8 @@ model LandingPage {
   version      Int             @default(1)
   editorState  Json?
   renderedJson Json
+  draftRenderedJson Json? // phase 2: unpublished edits while the page is published; the live columns keep serving
+  draftEditorState  Json?
   tracking     Json? // { ga4Id, gtmId, hotjarId }; loaded only on a team's connected domain (tracking.ts)
   publishedAt  DateTime?
   createdAt    DateTime        @default(now())

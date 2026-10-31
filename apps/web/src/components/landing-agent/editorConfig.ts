@@ -122,8 +122,9 @@ export function userCssFromSaved(savedCss: string): string {
     return trimmed.startsWith(base) ? trimmed.slice(base.length).trim() : trimmed;
 }
 
-export function shouldAutosave(state: { status: string; dirty: boolean; saving: boolean }): boolean {
-    return state.status !== "published" && state.dirty && !state.saving;
+// Published pages autosave too: their edits go to the draft columns and the live page keeps serving.
+export function shouldAutosave(state: { dirty: boolean; saving: boolean }): boolean {
+    return state.dirty && !state.saving;
 }
 
 export const EDITOR_DEVICES = [
