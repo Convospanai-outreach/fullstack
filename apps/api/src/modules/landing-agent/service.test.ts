@@ -4,6 +4,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         landingCampaign: { findFirst: vi.fn(), findMany: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
         landingPage: { update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+        keywordTrigger: { groupBy: vi.fn() },
     },
 }));
 
@@ -146,5 +147,45 @@ describe("landingAgentService.listCampaigns", () => {
 
         expect(result).toEqual([{ id: "campaign-1", pages: [] }]);
         expect(mockPrisma.landingCampaign.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-a" } }));
+    });
+
+    it("counts keyword auto-replies per page with one grouped query for the whole list", async () => {
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([
+            { id: "campaign-1", pages: [{ id: "page-1", slug: "guide", draftRenderedJson: null }] },
+            { id: "campaign-2", pages: [{ id: "page-2", slug: "offer", draftRenderedJson: null }] },
+        ]);
+        mockPrisma.keywordTrigger.groupBy.mockResolvedValue([
+            { landingPageId: "page-1", active: true, _count: { _all: 1 } },
+            { landingPageId: "page-1", active: false, _count: { _all: 2 } },
+        ]);
+
+        const result = await landingAgentService.listCampaigns("team-a");
+
+        expect(mockPrisma.keywordTrigger.groupBy).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.keywordTrigger.groupBy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                by: ["landingPageId", "active"],
+                where: { teamId: "team-a", landingPageId: { in: ["page-1", "page-2"] } },
+            })
+        );
+        expect(result[0].pages[0].autoReplies).toEqual({ total: 3, active: 1 });
+        expect(result[1].pages[0].autoReplies).toEqual({ total: 0, active: 0 });
+    });
+
+    it("ignores trigger counts for pages that are not in this team's list", async () => {
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([{ id: "campaign-1", pages: [{ id: "page-1", slug: "guide", draftRenderedJson: null }] }]);
+        mockPrisma.keywordTrigger.groupBy.mockResolvedValue([{ landingPageId: "page-of-other-team", active: true, _count: { _all: 5 } }]);
+
+        const result = await landingAgentService.listCampaigns("team-a");
+
+        expect(result[0].pages[0].autoReplies).toEqual({ total: 0, active: 0 });
+    });
+
+    it("skips the trigger query when the list has no pages", async () => {
+        mockPrisma.landingCampaign.findMany.mockResolvedValue([{ id: "campaign-1", pages: [] }]);
+
+        await landingAgentService.listCampaigns("team-a");
+
+        expect(mockPrisma.keywordTrigger.groupBy).not.toHaveBeenCalled();
     });
 });
