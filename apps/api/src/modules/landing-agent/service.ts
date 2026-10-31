@@ -567,13 +567,14 @@ export const landingAgentService = {
         }
 
         if (!changed) {
-            return page;
+            return page.status === "published" ? withDraftForEditor(page) : page;
         }
 
         const updatedRenderedJson = sanitizeJson(isPlainArray ? sections : { ...(data as Record<string, unknown>), sections }) as Prisma.InputJsonValue;
 
+        // The editor replaces its canvas with the returned content, so return the draft it is editing.
         if (page.status === "published") {
-            return updateOwnedPage(page.id, input.teamId, { draftRenderedJson: updatedRenderedJson });
+            return withDraftForEditor(await updateOwnedPage(page.id, input.teamId, { draftRenderedJson: updatedRenderedJson }));
         }
         return updateOwnedPage(page.id, input.teamId, {
             renderedJson: updatedRenderedJson,

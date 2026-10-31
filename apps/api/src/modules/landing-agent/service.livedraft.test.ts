@@ -167,6 +167,25 @@ describe("saving a published page keeps the live copy untouched (live draft)", (
     });
 });
 
+describe("image generation on a published page returns what the editor should show", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns the new draft (with the image) rather than the live content, and flags unpublished changes", async () => {
+        const live = { sections: [{ id: "sec-1", imagePrompt: "live prompt" }] };
+        const newDraft = { sections: [{ id: "sec-1", imagePrompt: "draft prompt", imageUrl: "https://cdn.example.com/x.png" }] };
+        givenPage({ ...publishedPage, renderedJson: live, draftRenderedJson: { sections: [{ id: "sec-1", imagePrompt: "draft prompt" }] } });
+        mockPrisma.landingPage.findUniqueOrThrow.mockResolvedValue({ ...publishedPage, renderedJson: live, draftRenderedJson: newDraft });
+        (imageGenerationService.generateSectionImage as any).mockResolvedValue({ status: "generated", url: "https://cdn.example.com/x.png" });
+
+        const result = (await landingAgentService.generateImagesForPage({ teamId: "team-a", campaignId: "campaign-1", pageId: "page-1" })) as any;
+
+        expect(result.renderedJson).toEqual(newDraft);
+        expect(result.hasUnpublishedChanges).toBe(true);
+    });
+});
+
 describe("discarding unpublished changes (live draft)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
