@@ -40,7 +40,15 @@ export interface LandingCampaignSummary {
     id: string;
     name: string;
     updatedAt: string;
-    pages: Array<{ slug: string; title?: string | null; status: string; updatedAt: string; hasUnpublishedChanges?: boolean }>;
+    pages: Array<{
+        id: string;
+        slug: string;
+        title?: string | null;
+        status: string;
+        updatedAt: string;
+        hasUnpublishedChanges?: boolean;
+        autoReplies?: { total: number; active: number };
+    }>;
     _count: { wireframeOptions: number; leads: number };
 }
 
