@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
-import { hasLeadFormMarker, leadFormSuccessUrl, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
+import { hasLeadFormMarker, leadFormSuccessUrl, readLeadFormConfig, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
 
 interface Props {
     slug: string;
@@ -49,6 +49,9 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
         [payload.html, slug, whatsappOptIn]
     );
 
+    // The redirect comes from the validated config, not from the rendered page.
+    const leadRedirect = useMemo(() => readLeadFormConfig(payload.html)?.redirectUrl ?? null, [payload.html]);
+
     async function submitCustomLeadForm(form: HTMLFormElement) {
         const status = form.ownerDocument.getElementById("la-lead-form-status");
         const button = form.querySelector("button[type=submit]") as HTMLButtonElement | null;
@@ -83,7 +86,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
             });
             if (!res.ok) throw new Error("Submission failed");
             await trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "form_submit" } });
-            window.location.href = leadFormSuccessUrl(form.getAttribute("data-redirect"), slug);
+            window.location.href = leadFormSuccessUrl(leadRedirect, slug);
         } catch {
             if (status) status.textContent = "Submission failed. Please try again.";
             if (button) button.disabled = false;
