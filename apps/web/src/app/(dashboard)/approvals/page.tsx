@@ -177,6 +177,47 @@ export default function ApprovalsPage() {
         }
     };
 
+    // Bulk decisions cover held messages only; a message with an open edit is decided on its own.
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const selectable = requests.filter(r => r.actionType === "MESSAGE_SEND" && r.payload?.body && !edits[r.id]);
+    const picked = selectable.filter(r => selected.has(r.id));
+
+    const toggleSelected = (id: string) =>
+        setSelected(cur => {
+            const next = new Set(cur);
+            if (!next.delete(id)) next.add(id);
+            return next;
+        });
+
+    const handleBulk = async (action: "APPROVE" | "REJECT") => {
+        const ids = picked.map(r => r.id);
+        if (ids.length === 0) return;
+        if (action === "APPROVE" && !window.confirm(`Approve and send ${ids.length} message${ids.length === 1 ? "" : "s"}? They will be sent as written.`)) return;
+        setBulkBusy(true);
+        try {
+            const res = await fetch("/api/approvals/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, ids, reason: action === "REJECT" ? "Rejected by admin" : undefined }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || "Action failed");
+            const results: { id: string; ok: boolean; error?: string }[] = data.results ?? [];
+            const done = new Set(results.filter(r => r.ok).map(r => r.id));
+            const failed = results.filter(r => !r.ok);
+            setRequests(current => current.filter(r => !done.has(r.id)));
+            setSelected(new Set(failed.map(r => r.id)));
+            const verb = action === "APPROVE" ? "approved" : "rejected";
+            if (failed.length === 0) toast.success(`${done.size} message${done.size === 1 ? "" : "s"} ${verb}`);
+            else toast.error(`${done.size} ${verb}, ${failed.length} could not be updated: ${failed[0].error}`);
+        } catch (err) {
+            toast.error(err instanceof Error && err.message !== "Action failed" ? err.message : "Failed to process request");
+        } finally {
+            setBulkBusy(false);
+        }
+    };
+
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
         try {
@@ -223,9 +264,49 @@ export default function ApprovalsPage() {
                 </GlassCard>
             ) : (
                 <div className="grid gap-4">
+                    {selectable.length > 1 && (
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                            <label className="flex items-center gap-2 text-muted-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={picked.length === selectable.length}
+                                    onChange={(e) => setSelected(e.target.checked ? new Set(selectable.map(r => r.id)) : new Set())}
+                                />
+                                Select all messages ({selectable.length})
+                            </label>
+                            {picked.length > 0 && (
+                                <>
+                                    <button
+                                        disabled={bulkBusy || !!processing}
+                                        onClick={() => handleBulk("APPROVE")}
+                                        className="px-4 py-1.5 rounded-lg bg-success text-white hover:bg-success/90 disabled:opacity-50 font-medium"
+                                    >
+                                        {bulkBusy ? "Working..." : `Approve ${picked.length}`}
+                                    </button>
+                                    <button
+                                        disabled={bulkBusy || !!processing}
+                                        onClick={() => handleBulk("REJECT")}
+                                        className="px-4 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 disabled:opacity-50 font-medium"
+                                    >
+                                        Reject {picked.length}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                     {requests.map((req) => (
                         <GlassCard key={req.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group hover:border-primary/30 transition-all">
                             <div className="flex gap-4 items-start">
+                                {selectable.length > 1 && (
+                                    <input
+                                        type="checkbox"
+                                        aria-label="Select this message"
+                                        className="mt-3"
+                                        disabled={!selectable.some(r => r.id === req.id)}
+                                        checked={selected.has(req.id) && selectable.some(r => r.id === req.id)}
+                                        onChange={() => toggleSelected(req.id)}
+                                    />
+                                )}
                                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/30">
                                     {req.requester?.name?.charAt(0) || "U"}
                                 </div>
