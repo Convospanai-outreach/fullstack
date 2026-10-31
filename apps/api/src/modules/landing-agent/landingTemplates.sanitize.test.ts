@@ -114,6 +114,15 @@ describe.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("template %s on 
     });
 });
 
+// A template must not send visitors to an address we do not control. The only links are in-page form anchors.
+describe.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("template %s links", (_id, template) => {
+    it("has no external http or https href", () => {
+        const hrefs = [...template.html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]!);
+        const external = hrefs.filter((href) => /^https?:\/\//i.test(href));
+        expect(external).toEqual([]);
+    });
+});
+
 describe("specific template rules", () => {
     const byId = (id: string) => LANDING_TEMPLATES.find((t) => t.id === id)!;
 
@@ -127,9 +136,9 @@ describe("specific template rules", () => {
         expect(html).not.toMatch(/countdown/i);
     });
 
-    it("the book-a-call template links its calendar button to an https address", () => {
+    it("the book-a-call template points its button at the form on the page", () => {
         const html = byId("book-a-call").html;
-        expect(html).toMatch(/<a class="la-cta" href="https:\/\/[^"]+">/);
+        expect(html).toMatch(/<a class="la-cta" href="#lead-form">Book my free call<\/a>/);
         expect(byId("book-a-call").leadForm.fields.some((f) => f.type === "tel")).toBe(true);
     });
 
