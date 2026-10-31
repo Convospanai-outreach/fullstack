@@ -90,9 +90,10 @@ export function parseRubric(raw: unknown): Rubric {
     return r as Rubric;
 }
 
-export function loadEvalData(dir: string | undefined): EvalData {
+export function loadEvalData(dir: string | undefined, repoRoot?: string | null): EvalData {
     if (!dir) throw new Error("Set EVAL_DATA_DIR to the private folder holding cases.json and rubric.json.");
-    assertOutsideRepo(dir);
+    if (repoRoot === undefined) assertOutsideRepo(dir);
+    else assertOutsideRepo(dir, repoRoot);
     return {
         cases: parseCases(readJson(path.join(dir, "cases.json"))),
         rubric: parseRubric(readJson(path.join(dir, "rubric.json"))),

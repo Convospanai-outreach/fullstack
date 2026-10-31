@@ -42,7 +42,8 @@ describe("eval data", () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), "eval-data-"));
         fs.writeFileSync(path.join(dir, "cases.json"), JSON.stringify([{ id: "c1", node: "A", split: "heldout", input: {} }]));
         fs.writeFileSync(path.join(dir, "rubric.json"), JSON.stringify(rubric));
-        expect(loadEvalData(dir).cases[0].split).toBe("heldout");
+        // CI sets TEMP inside the checkout, so name a repo root that is not the temp folder's.
+        expect(loadEvalData(dir, path.join(os.tmpdir(), "no-such-repo")).cases[0].split).toBe("heldout");
         fs.rmSync(dir, { recursive: true });
     });
 });
