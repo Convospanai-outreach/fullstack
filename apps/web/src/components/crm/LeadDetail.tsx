@@ -345,7 +345,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             });
             if (!res.ok) throw new Error("Failed to update consent");
             const freshLead = await res.json();
-            setLead(freshLead);
+            setLead({ ...freshLead, instagramSource: lead.instagramSource });
             alert("Consent updated successfully!");
         } catch (error) {
             console.error("Failed to toggle consent", error);

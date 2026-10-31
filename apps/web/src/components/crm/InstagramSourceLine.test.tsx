@@ -34,6 +34,6 @@ describe("InstagramSourceLine", () => {
     it("renders nothing when the lead has no Instagram source", () => {
         act(() => root.render(<InstagramSourceLine source={null} />));
 
-        expect(container.innerHTML).toBe("");
+        expect(container.textContent).toBe("");
     });
 });
