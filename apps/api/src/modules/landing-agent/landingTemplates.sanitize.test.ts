@@ -66,7 +66,9 @@ describe.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("template %s", (
         const tags = html.match(/<img\b[^>]*>/gi) ?? [];
         expect(tags.length).toBeGreaterThan(0);
         for (const tag of tags) {
-            expect(tag).toMatch(new RegExp(`\\ssrc="${ORIGIN.replace(/\./g, "\\.")}/landing-assets/gradient-[1-8]\\.svg"`));
+            const src = /\ssrc="([^"]*)"/.exec(tag)?.[1] ?? "";
+            expect(src.startsWith(`${ORIGIN}/landing-assets/gradient-`)).toBe(true);
+            expect(src).toMatch(/\/landing-assets\/gradient-[1-8]\.svg$/);
             expect((/\salt="([^"]*)"/.exec(tag)?.[1] ?? "").trim().length).toBeGreaterThan(0);
         }
     });
