@@ -104,7 +104,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     // the prop, and remounting on each refresh would wipe undo history and selection.
     const initialRef = useRef(initialRenderedJson);
     const onSaveRef = useRef(onSave);
-    const pageStatusRef = useRef(pageStatus);
     const pageTitleRef = useRef(title || "Landing Page");
     const savedSnapshotRef = useRef("");
     const dirtyRef = useRef(false);
@@ -147,10 +146,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     useEffect(() => {
         onSaveRef.current = onSave;
     }, [onSave]);
-
-    useEffect(() => {
-        pageStatusRef.current = pageStatus;
-    }, [pageStatus]);
 
     useEffect(() => {
         let active = true;
@@ -208,7 +203,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
         autosaveTimer = setInterval(() => {
             const shouldSave = shouldAutosave({
-                status: pageStatusRef.current ?? "",
                 dirty: dirtyRef.current,
                 saving: savingRef.current,
             });
@@ -416,7 +410,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         ? "Saving..."
         : dirty
           ? isPublished
-              ? "Unsaved changes. Publish to update the live page."
+              ? "Unsaved changes. Saves a draft every 10 seconds. Publish to update the live page."
               : "Unsaved changes. Saves automatically every 10 seconds."
           : "All changes saved";
 
