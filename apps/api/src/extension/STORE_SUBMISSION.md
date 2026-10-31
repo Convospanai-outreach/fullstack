@@ -1,7 +1,8 @@
-# Chrome Web Store submission notes (1.2.0)
+# Chrome Web Store submission notes (1.2.1)
 
 Text for the store form when uploading `dist/CraftMyFunnel-extension.zip` (archive it as
-`CraftMyFunnel-extension-1.2.0.zip`). Check each answer against the build before submitting.
+`CraftMyFunnel-extension-1.2.1.zip`). The store only accepts a real zip file (a tar archive renamed
+.zip is rejected), and its version must be higher than the last one uploaded. Check each answer against the build before submitting.
 Do not put the reviewer's test account in this file; it goes in the dashboard's "Test instructions".
 
 ## What is new in this version
@@ -13,6 +14,10 @@ Do not put the reviewer's test account in this file; it goes in the dashboard's 
   `https://www.craftmyfunnel.live/*`. It is not a permission. The extension answers only a page on
   those two origins whose address is `/extension/connect`, and the connect request is checked again in
   the background script (the sender, the page, and that the workspace address matches the site).
+
+- A refreshed popup that matches craftmyfunnel.live, with the CraftMyFunnel funnel logo in the popup
+  and as the toolbar and store icon.
+- Profile capture drops LinkedIn's unread-count prefix from the page title, as in "(3) Jane Doe".
 
 No new permissions. The permissions, host permission and content script are the same as 1.1.0.
 
@@ -83,6 +88,10 @@ It is not needed to use the extension.
   CraftMyFunnel site the user connected from), the sync token and its expiry date, and the name and id
   of the team the user connected to. The token is sent only to that workspace. There is no extension
   key any more. No LinkedIn password, cookie or session data is read or stored.
+- On the store's data-use form, declare the captured profile as personally identifiable information
+  and website content. The sync token is issued by CraftMyFunnel (the same developer) and kept on the
+  device; if the form's wording makes you want to declare it as authentication information, that is
+  the conservative choice.
 - Not sold, not used for advertising, not used for creditworthiness or lending.
 - Privacy policy: https://craftmyfunnel.live/privacy
 
