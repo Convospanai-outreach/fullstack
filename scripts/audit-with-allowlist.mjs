@@ -83,6 +83,22 @@ const ALLOWLIST = new Map([
         "`protocol: \"webDriverBiDi\"` anywhere), so that code never runs. " +
         "Drop this entry once puppeteer ships a chromium-bidi on zod >=4.6.6.",
     ],
+    [
+        "GHSA-3g3m-2fjr-6pw4",
+        "glob 7.2.3 (via geoip-lite 1.4.10): AbortSignal cancellation bypass " +
+        "allows filesystem traversal after a timeout. geoip-lite's lookup code " +
+        "(lib/geoip.js, used by MarketRoutingMiddleware) never imports glob, and " +
+        "the app never passes it an AbortSignal or user-supplied patterns. The " +
+        "only fix is geoip-lite 2.x, a major rewrite with a different data " +
+        "pipeline. Drop this entry when geoip-lite is upgraded.",
+    ],
+    [
+        "GHSA-g3hv-75wg-m249",
+        "minimatch 3.x (via geoip-lite's glob 7 and eslint): denial of service " +
+        "through glob-part amplification when matching attacker-chosen patterns. " +
+        "The app passes no request data to minimatch; patterns come from tool " +
+        "config. Same geoip-lite upgrade note as GHSA-3g3m-2fjr-6pw4 above.",
+    ],
 ]);
 
 function runAudit() {
