@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { EDITOR_BLOCKS } from "@/components/landing-agent/editorConfig";
 import { CTA_BLOCKS, CTA_MICRO_COPY, CTA_PRESET_TEXTS } from "@/components/landing-agent/ctaBlocks";
 import { LANDING_PAGE_BASE_CSS } from "@/modules/landing-agent/rendering";
 
@@ -77,5 +78,18 @@ describe("CTA block library", () => {
   it("the markup fixture the sanitizer test reads matches the blocks (drift check)", () => {
     expect(existsSync(FIXTURE)).toBe(true);
     expect(JSON.parse(readFileSync(FIXTURE, "utf8"))).toEqual(JSON.parse(JSON.stringify(snapshot)));
+  });
+});
+
+describe("CTA blocks in the editor", () => {
+  it.each(CTA_BLOCKS.map((b) => b.id))("%s is an editor block with the same markup", (id) => {
+    const registered = EDITOR_BLOCKS.find((b) => b.id === id);
+    expect(registered).toBeDefined();
+    expect(registered!.content).toBe(CTA_BLOCKS.find((b) => b.id === id)!.content);
+  });
+
+  it("has no duplicate block ids in the editor", () => {
+    const ids = EDITOR_BLOCKS.map((b) => b.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

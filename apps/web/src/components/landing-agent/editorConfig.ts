@@ -1,3 +1,4 @@
+import { CTA_BLOCKS } from "./ctaBlocks";
 import { LANDING_PAGE_BASE_CSS } from "@/modules/landing-agent/rendering";
 import { leadFormBlockContent } from "./leadFormEditor";
 
@@ -221,4 +222,5 @@ export const EDITOR_BLOCKS: readonly { id: string; label: string; content: strin
         label: "Lead form",
         content: leadFormBlockContent(),
     },
+    ...CTA_BLOCKS,
 ];
