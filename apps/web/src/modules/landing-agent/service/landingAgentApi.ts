@@ -41,6 +41,18 @@ export const landingAgentApi = {
         });
     },
 
+    async uploadImage(file: File): Promise<{ url: string }> {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch(`${API_BASE}/landing-agent/images`, { method: "POST", body: form });
+        const text = await res.text();
+        const payload = text ? JSON.parse(text) : null;
+        if (!res.ok) {
+            throw new Error(payload?.error || `Image upload failed: ${res.status}`);
+        }
+        return payload as { url: string };
+    },
+
     listCampaigns() {
         return request<{ campaigns: LandingCampaignSummary[]; liveDomain: string | null }>("/landing-agent/campaigns");
     },

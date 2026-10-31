@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     classifyImageSource,
     imageAltWarnings,
+    imageSourceMessage,
     landingImagesPrefix,
 } from "@/components/landing-agent/imageSources";
 
@@ -93,5 +94,18 @@ describe("imageAltWarnings", () => {
 
     it("handles single quotes and attribute order", () => {
         expect(imageAltWarnings("<img alt='Hero' src='/landing-assets/a.svg'>")).toEqual([]);
+    });
+});
+
+describe("imageSourceMessage", () => {
+    it("shows an error for a rejected source and nothing for an empty field", () => {
+        expect(imageSourceMessage("http://images.example.com/a.jpg").error).not.toBeNull();
+        expect(imageSourceMessage("  ")).toEqual({ error: null, note: null });
+    });
+
+    it("shows a visible note for an external https image", () => {
+        const msg = imageSourceMessage("https://images.example.com/a.jpg");
+        expect(msg.error).toBeNull();
+        expect(msg.note).toContain("External image");
     });
 });

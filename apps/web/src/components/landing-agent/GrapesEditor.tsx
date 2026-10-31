@@ -3,6 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "grapesjs";
 import { Button } from "@/components/ui/button";
+import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
+import { LANDING_ASSET_LIBRARY, type LandingAsset } from "@/components/landing-agent/landingAssetLibrary";
+import {
+    FOCAL_POINTS,
+    HERO_IMAGE_LAYOUTS,
+    OVERLAY_STRENGTHS,
+    buildHeroImageHtml,
+    type FocalPoint,
+    type HeroImageLayout,
+    type OverlayStrength,
+} from "@/components/landing-agent/heroImageBlock";
+import { imageAltWarnings, imageSourceMessage, type ImageAltWarning } from "@/components/landing-agent/imageSources";
 import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
 import {
     AUTOSAVE_INTERVAL_MS,
@@ -108,6 +120,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
     const [isEmpty, setIsEmpty] = useState(false);
+    const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
+    const [imageSrc, setImageSrc] = useState("");
+    const [imageAlt, setImageAlt] = useState("");
+    const [imageLayout, setImageLayout] = useState<HeroImageLayout>("background");
+    const [imageFocal, setImageFocal] = useState<FocalPoint>("center");
+    const [imageDarken, setImageDarken] = useState<OverlayStrength>(40);
+    const [imageNote, setImageNote] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     const isPublished = pageStatus === "published";
 
@@ -136,6 +157,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             setCanUndo(editor.UndoManager.hasUndo());
             setCanRedo(editor.UndoManager.hasRedo());
             setIsEmpty(editor.getWrapper()?.components().length === 0);
+            setAltWarnings(imageAltWarnings(rendered.html));
         }
         refreshRef.current = refresh;
 
@@ -324,6 +346,45 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         }
     }
 
+    async function handleImageUpload(file: File | undefined) {
+        if (!file) return;
+        setUploadingImage(true);
+        setImageError(null);
+        try {
+            const { url } = await landingAgentApi.uploadImage(file);
+            setImageSrc(url);
+            setImageNote("Uploaded to your landing images.");
+        } catch (err: any) {
+            setImageError(err?.message || "Image upload failed");
+        } finally {
+            setUploadingImage(false);
+        }
+    }
+
+    function handlePastedImage(value: string) {
+        const message = imageSourceMessage(value);
+        setImageSrc(value);
+        setImageError(message.error);
+        setImageNote(message.note);
+    }
+
+    function handleLibraryImage(asset: LandingAsset) {
+        setImageSrc(asset.path);
+        setImageAlt((current) => (current.trim() ? current : asset.alt));
+        setImageError(null);
+        setImageNote("Built-in image.");
+    }
+
+    function handleAddImage() {
+        const html = buildHeroImageHtml({ layout: imageLayout, src: imageSrc, alt: imageAlt, focal: imageFocal, darken: imageDarken });
+        if (!html) {
+            setImageError("Add alt text and an https image address before adding the image.");
+            return;
+        }
+        editorRef.current?.addComponents(html);
+        refreshRef.current?.();
+    }
+
     const saveLabel = saving
         ? "Saving..."
         : dirty
@@ -378,12 +439,122 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             </div>
 
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+            {altWarnings.length > 0 ? (
+                <div className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 text-sm text-amber-200">
+                    <p>
+                        {altWarnings.length} image{altWarnings.length === 1 ? "" : "s"} without alt text. Screen readers cannot describe
+                        {altWarnings.length === 1 ? " it" : " them"}.
+                    </p>
+                    <ul className="list-disc pl-5 text-xs">
+                        {altWarnings.map((warning, index) => (
+                            <li key={index}>
+                                {warning.src ?? "Image"}: {warning.problem === "missing" ? "no alt attribute" : "alt text is empty"}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
 
             <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_280px]">
                 <div className="space-y-4">
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Blocks</p>
                         <div ref={blocksRef} />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Images</p>
+                        <label className="block text-xs text-slate-300">
+                            Upload (PNG, JPG or WebP, 2 MB max)
+                            <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                disabled={uploadingImage}
+                                onChange={(e) => {
+                                    void handleImageUpload(e.target.files?.[0]);
+                                    e.target.value = "";
+                                }}
+                                className="mt-1 block w-full text-xs text-slate-300"
+                            />
+                        </label>
+                        <label className="block text-xs text-slate-300">
+                            Or paste an https image address
+                            <input
+                                type="url"
+                                value={imageSrc}
+                                onChange={(e) => handlePastedImage(e.target.value)}
+                                placeholder="https://"
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            />
+                        </label>
+                        <div className="grid grid-cols-4 gap-1">
+                            {LANDING_ASSET_LIBRARY.map((asset) => (
+                                <button
+                                    key={asset.id}
+                                    type="button"
+                                    title={asset.label}
+                                    onClick={() => handleLibraryImage(asset)}
+                                    className="h-10 overflow-hidden rounded border border-white/10"
+                                >
+                                    <img src={asset.path} alt={asset.alt} className="h-full w-full object-cover" />
+                                </button>
+                            ))}
+                        </div>
+                        <label className="block text-xs text-slate-300">
+                            Alt text (required)
+                            <input
+                                type="text"
+                                value={imageAlt}
+                                onChange={(e) => setImageAlt(e.target.value)}
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            />
+                        </label>
+                        <label className="block text-xs text-slate-300">
+                            Layout
+                            <select
+                                value={imageLayout}
+                                onChange={(e) => setImageLayout(e.target.value as HeroImageLayout)}
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            >
+                                {HERO_IMAGE_LAYOUTS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="block text-xs text-slate-300">
+                                Focus
+                                <select
+                                    value={imageFocal}
+                                    onChange={(e) => setImageFocal(e.target.value as FocalPoint)}
+                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                >
+                                    {FOCAL_POINTS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block text-xs text-slate-300">
+                                Darken
+                                <select
+                                    value={imageDarken}
+                                    onChange={(e) => setImageDarken(Number(e.target.value) as OverlayStrength)}
+                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                >
+                                    {OVERLAY_STRENGTHS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        {imageNote ? <p className="text-xs text-slate-400">{imageNote}</p> : null}
+                        {imageError ? <p className="text-xs text-rose-300">{imageError}</p> : null}
+                        <Button
+                            onClick={handleAddImage}
+                            disabled={!imageAlt.trim() || !imageSrc.trim() || uploadingImage}
+                            className="w-full bg-white/10 text-slate-200 hover:bg-white/20"
+                        >
+                            Add image block
+                        </Button>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Layers</p>

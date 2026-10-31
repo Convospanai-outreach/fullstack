@@ -66,3 +66,16 @@ export function imageAltWarnings(html: string): ImageAltWarning[] {
     }
     return warnings;
 }
+
+// Message for the editor's paste-a-URL field: an error for rejected sources, a note for external ones.
+export function imageSourceMessage(url: string): { error: string | null; note: string | null } {
+    if (!url.trim()) return { error: null, note: null };
+    const kind = classifyImageSource(url);
+    if (kind === "rejected") {
+        return { error: "Use a direct https:// image address. This link cannot be used.", note: null };
+    }
+    if (kind === "external") {
+        return { error: null, note: "External image: it loads from its own server. We do not host or check it." };
+    }
+    return { error: null, note: "Built-in or landing image." };
+}
