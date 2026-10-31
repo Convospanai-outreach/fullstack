@@ -90,7 +90,7 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
             ));
         }
         if (!draft) {
-            await flagNeedsAttention({ teamId: resolvedTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId });
+            await flagNeedsAttention({ teamId: resolvedTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId, job: { jobType: "email_sending", jobPayload: payload } });
             return { leadId, campaignId, sent: false, held: "needs_attention" };
         }
         emailContent = draft;

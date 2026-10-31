@@ -28,8 +28,8 @@ describe("GET /api/approvals - needs attention", () => {
             .mockResolvedValueOnce([]) // existing approvals (backfill check)
             .mockResolvedValueOnce([]) // pending
             .mockResolvedValueOnce([
-                { id: "a1", entityId: "lead-1:EMAIL", reason: "Could not write", reviewNote: null, createdAt: created },
-                { id: "a2", entityId: "lead-9:CONNECT", reason: "x", reviewNote: "Approval expired", createdAt: created },
+                { id: "a1", entityId: "lead-1:EMAIL", reason: "Could not write", reviewNote: null, createdAt: created, payload: { channel: "EMAIL", jobType: "email_sending", jobPayload: { leadId: "lead-1" } } },
+                { id: "a2", entityId: "lead-9:CONNECT", reason: "x", reviewNote: "Approval expired", createdAt: created, payload: { channel: "CONNECT", body: "sent text" } },
             ]);
         mockPrisma.lead.findMany.mockResolvedValue([{ id: "lead-1", fullName: "Ada", email: "ada@x.com" }]);
 
@@ -44,8 +44,8 @@ describe("GET /api/approvals - needs attention", () => {
             expect.objectContaining({ teamId: "team-1", id: { in: ["lead-1", "lead-9"] } }),
         );
         expect(body.needsAttention).toEqual([
-            expect.objectContaining({ id: "a1", channel: "EMAIL", leadName: "Ada", reason: "Could not write" }),
-            expect.objectContaining({ id: "a2", channel: "CONNECT", leadName: null, reason: "Approval expired" }),
+            expect.objectContaining({ id: "a1", channel: "EMAIL", leadName: "Ada", reason: "Could not write", canRetry: true }),
+            expect.objectContaining({ id: "a2", channel: "CONNECT", leadName: null, reason: "Approval expired", canRetry: false }),
         ]);
     });
 
