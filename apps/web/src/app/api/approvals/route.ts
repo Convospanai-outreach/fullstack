@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { internalErrorMessage } from "@/lib/internalError";
+import { canRetryMessage } from "@/modules/governance/messageApproval";
 
 export const dynamic = "force-dynamic";
 
@@ -83,7 +84,7 @@ export async function GET() {
                 status: "NEEDS_ATTENTION",
                 createdAt: { gt: new Date(Date.now() - NEEDS_ATTENTION_WINDOW_MS) },
             },
-            select: { id: true, entityId: true, reason: true, reviewNote: true, createdAt: true },
+            select: { id: true, entityId: true, reason: true, reviewNote: true, createdAt: true, payload: true },
             orderBy: { createdAt: "desc" },
             take: 100,
         });
@@ -102,6 +103,8 @@ export async function GET() {
                 leadEmail: lead?.email ?? null,
                 reason: a.reviewNote || a.reason || "This message needs your attention.",
                 createdAt: a.createdAt,
+                // Only a failed draft keeps its job (and has no body); a failed send can only be skipped.
+                canRetry: canRetryMessage(a.payload),
             };
         });
 
