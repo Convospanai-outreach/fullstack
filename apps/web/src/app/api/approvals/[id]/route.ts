@@ -47,12 +47,18 @@ export async function POST(
 
         // AI-written messages held for review: approving queues the original send job, never a direct update.
         if (approval.actionType === "MESSAGE_SEND") {
-            if (action !== "APPROVE" && action !== "REJECT") {
-                return NextResponse.json({ error: "action must be APPROVE or REJECT" }, { status: 400 });
+            if (action !== "APPROVE" && action !== "REJECT" && action !== "RETRY" && action !== "WRITE" && action !== "SKIP") {
+                return NextResponse.json({ error: "action must be APPROVE, REJECT, RETRY, WRITE or SKIP" }, { status: 400 });
             }
-            const { approveMessageSend, rejectMessageSend } = await import("@/modules/governance/messageApproval");
+            const { approveMessageSend, rejectMessageSend, resolveNeedsAttention } = await import("@/modules/governance/messageApproval");
             try {
-                if (action === "REJECT") {
+                if (action === "RETRY" || action === "WRITE" || action === "SKIP") {
+                    const edit = {
+                        ...(typeof body.subject === "string" ? { subject: body.subject } : {}),
+                        ...(typeof body.body === "string" ? { body: body.body } : {}),
+                    };
+                    await resolveNeedsAttention(approval, ctx.teamId, ctx.userId, action, edit);
+                } else if (action === "REJECT") {
                     await rejectMessageSend(id, ctx.teamId, ctx.userId, reason);
                 } else {
                     const edit = {

@@ -83,6 +83,9 @@ export async function flagNeedsAttention(input: {
     channel: MessageChannel;
     reason: string;
     requesterHint?: string | null | undefined;
+    // The job that failed to write the message, kept so a person can retry it or write the message
+    // themselves from the approvals page.
+    job?: { jobType: JobType; jobPayload: JobPayload };
 }) {
     console.error("[MessageApproval] Message needs attention", { leadId: input.leadId, channel: input.channel, reason: input.reason });
     if (!input.teamId) return;
@@ -104,7 +107,7 @@ export async function flagNeedsAttention(input: {
                 entityId,
                 status: NEEDS_ATTENTION,
                 reason: input.reason,
-                payload: { channel: input.channel, leadId: input.leadId },
+                payload: { channel: input.channel, leadId: input.leadId, ...(input.job ?? {}) } as any,
             },
         });
     } catch (error) {

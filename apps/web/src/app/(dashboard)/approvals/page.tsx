@@ -15,6 +15,7 @@ interface NeedsAttentionItem {
     leadEmail: string | null;
     reason: string;
     createdAt: string;
+    canRetry: boolean;
 }
 
 interface ApprovalRequest {
@@ -148,6 +149,33 @@ export default function ApprovalsPage() {
     };
 
     const [edits, setEdits] = useState<Record<string, { subject?: string | undefined; body: string }>>({});
+
+    // Retry / Write manually / Skip on a message that could not be written or sent.
+    const [writing, setWriting] = useState<string | null>(null);
+    const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string }>>({});
+
+    const handleAttention = async (item: NeedsAttentionItem, action: "RETRY" | "WRITE" | "SKIP") => {
+        setProcessing(item.id);
+        try {
+            const draft = action === "WRITE" ? drafts[item.id] : undefined;
+            const res = await fetch(`/api/approvals/${item.id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, ...(draft ? { body: draft.body, ...(draft.subject.trim() ? { subject: draft.subject } : {}) } : {}) }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.error || "Action failed");
+            }
+            toast.success(action === "RETRY" ? "Retrying: a new draft will be written" : action === "WRITE" ? "Your message is on its way" : "Step skipped");
+            setNeedsAttention(current => current.filter(n => n.id !== item.id));
+            setWriting(null);
+        } catch (err) {
+            toast.error(err instanceof Error && err.message !== "Action failed" ? err.message : "Failed to process request");
+        } finally {
+            setProcessing(null);
+        }
+    };
 
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
@@ -323,7 +351,7 @@ export default function ApprovalsPage() {
                 <div className="space-y-3">
                     <SectionHeader
                         title="Needs attention"
-                        subtitle="These messages were not sent. The AI could not write them or an approval ran out. Nothing went out; re-run the step once the cause is fixed."
+                        subtitle="These messages were not sent. The AI could not write them or an approval ran out. Nothing went out. Retry the draft, write it yourself, or skip the step."
                     />
                     <div className="grid gap-3">
                         {needsAttention.map((item) => (
@@ -336,6 +364,59 @@ export default function ApprovalsPage() {
                                     </div>
                                     <p className="text-muted-foreground">{item.reason}</p>
                                     <p className="text-xs text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+                                    {writing === item.id && (
+                                        <div className="mt-3 space-y-2">
+                                            {item.channel === "EMAIL" && (
+                                                <input
+                                                    value={drafts[item.id]?.subject ?? ""}
+                                                    onChange={(e) => setDrafts(d => ({ ...d, [item.id]: { subject: e.target.value, body: d[item.id]?.body ?? "" } }))}
+                                                    placeholder="Subject"
+                                                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                                />
+                                            )}
+                                            <textarea
+                                                value={drafts[item.id]?.body ?? ""}
+                                                onChange={(e) => setDrafts(d => ({ ...d, [item.id]: { subject: d[item.id]?.subject ?? "", body: e.target.value } }))}
+                                                placeholder="Write the message"
+                                                rows={6}
+                                                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                            />
+                                            <button
+                                                disabled={!!processing || !drafts[item.id]?.body?.trim()}
+                                                onClick={() => handleAttention(item, "WRITE")}
+                                                className="px-4 py-2 rounded-lg bg-success text-white hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+                                            >
+                                                Send this message
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 mt-3">
+                                        {item.canRetry && (
+                                            <>
+                                                <button
+                                                    disabled={!!processing}
+                                                    onClick={() => handleAttention(item, "RETRY")}
+                                                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 text-xs font-medium"
+                                                >
+                                                    Retry generation
+                                                </button>
+                                                <button
+                                                    disabled={!!processing}
+                                                    onClick={() => setWriting(writing === item.id ? null : item.id)}
+                                                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50 text-xs font-medium"
+                                                >
+                                                    Write manually
+                                                </button>
+                                            </>
+                                        )}
+                                        <button
+                                            disabled={!!processing}
+                                            onClick={() => handleAttention(item, "SKIP")}
+                                            className="px-3 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 text-xs font-medium"
+                                        >
+                                            Skip step
+                                        </button>
+                                    </div>
                                 </div>
                             </GlassCard>
                         ))}
