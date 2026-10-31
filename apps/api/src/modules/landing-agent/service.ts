@@ -452,11 +452,18 @@ export const landingAgentService = {
 
         const existingPage = campaign.pages[0];
         if (existingPage) {
-            const updatedPage = await updateOwnedPage(existingPage.id, input.teamId, {
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: existingPage.status === "published" ? "draft" : existingPage.status,
-            });
+            // A live page keeps serving; the new wireframe waits in the draft columns until publish.
+            const updatedPage = await updateOwnedPage(
+                existingPage.id,
+                input.teamId,
+                existingPage.status === "published"
+                    ? { draftRenderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue }
+                    : {
+                          renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                          version: { increment: 1 },
+                          status: existingPage.status,
+                      }
+            );
             await updateOwnedCampaign(campaign.id, input.teamId, {
                 selectedWireframeId: wireframe.id,
                 status: "draft",
@@ -496,7 +503,8 @@ export const landingAgentService = {
             throw new Error("Landing page not found");
         }
 
-        const renderedJson = page.renderedJson;
+        // Generate from the unpublished draft when there is one, so the latest edits keep their content.
+        const renderedJson = page.draftRenderedJson ?? page.renderedJson;
         const isPlainArray = Array.isArray(renderedJson);
         const data = !isPlainArray && renderedJson && typeof renderedJson === "object" ? (renderedJson as Record<string, unknown>) : null;
         const sections: LandingPageSection[] | null = isPlainArray
@@ -525,12 +533,15 @@ export const landingAgentService = {
             return page;
         }
 
-        const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
+        const updatedRenderedJson = sanitizeJson(isPlainArray ? sections : { ...(data as Record<string, unknown>), sections }) as Prisma.InputJsonValue;
 
+        if (page.status === "published") {
+            return updateOwnedPage(page.id, input.teamId, { draftRenderedJson: updatedRenderedJson });
+        }
         return updateOwnedPage(page.id, input.teamId, {
-            renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+            renderedJson: updatedRenderedJson,
             version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            status: page.status,
         });
     },
 
@@ -552,12 +563,19 @@ export const landingAgentService = {
         const markerError = leadFormMarkerError(input.renderedJson);
         if (markerError) throw new APIError(markerError, 400, "VALIDATION_ERROR");
 
+        // A live page keeps serving its last publish; edits go to the draft columns until publish.
+        if (page.status === "published") {
+            return updateOwnedPage(page.id, input.teamId, {
+                draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+            });
+        }
         return updateOwnedPage(page.id, input.teamId, {
             title: input.title ?? page.title,
             editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
             renderedJson: sanitizedRendered as Prisma.InputJsonValue,
             version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            status: page.status,
         });
     },
 
