@@ -1,0 +1,26 @@
+{
+  "presets": [
+    "Get the free guide",
+    "Send it to my DMs",
+    "Yes, show me how",
+    "Reserve my seat",
+    "Claim the offer",
+    "Book my free call",
+    "Show me the checklist"
+  ],
+  "microCopy": "No spam. Unsubscribe any time.",
+  "blocks": {
+    "cta_preset_get_the_free_guide": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Get the free guide</a></section>",
+    "cta_preset_send_it_to_my_dms": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Send it to my DMs</a></section>",
+    "cta_preset_yes_show_me_how": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Yes, show me how</a></section>",
+    "cta_preset_reserve_my_seat": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Reserve my seat</a></section>",
+    "cta_preset_claim_the_offer": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Claim the offer</a></section>",
+    "cta_preset_book_my_free_call": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Book my free call</a></section>",
+    "cta_preset_show_me_the_checklist": "<section class=\"la-section\"><a class=\"la-cta\" href=\"#lead-form\">Show me the checklist</a></section>",
+    "cta_outline": "<section class=\"la-section\"><a class=\"la-cta la-cta-outline\" href=\"#lead-form\">Get the free guide</a></section>",
+    "cta_mobile_full": "<section class=\"la-section\"><a class=\"la-cta la-cta-mobile-full\" href=\"#lead-form\">Get the free guide</a></section>",
+    "cta_micro_copy": "<section class=\"la-section\"><div class=\"la-cta-wrap\"><a class=\"la-cta\" href=\"#lead-form\">Get the free guide</a><p class=\"la-cta-micro\">No spam. Unsubscribe any time.</p></div></section>",
+    "cta_sticky_bar": "<div class=\"la-cta-sticky\"><a class=\"la-cta la-cta-mobile-full\" href=\"#lead-form\">Get the free guide</a></div>",
+    "offer_end_date": "<p>Offer ends [date]</p>"
+  }
+}
