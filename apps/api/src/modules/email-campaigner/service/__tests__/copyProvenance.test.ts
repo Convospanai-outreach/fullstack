@@ -48,3 +48,10 @@ describe("legacyProvenance", () => {
         expect(readProvenance(JSON.parse(JSON.stringify(legacyProvenance(false))))).toEqual(legacyProvenance(false));
     });
 });
+
+describe("legacyProvenance with a critic", () => {
+    it("names the critic prompt and the outcome", () => {
+        const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
+        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v1" }, flags: { rubricCritic: true } });
+    });
+});

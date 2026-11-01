@@ -4,6 +4,7 @@ import { aiService } from "@/lib/aiService";
 import { logger, logWorker } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
+import { legacyCriticEnabled, reviewLegacyDraft } from "@/modules/email-campaigner/service/emailComposer";
 import { legacyProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
@@ -97,7 +98,15 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
             return { leadId, campaignId, sent: false, held: "needs_attention" };
         }
         emailContent = draft;
-        copyProvenance = legacyProvenance(Boolean(precomputedDraft?.subject && precomputedDraft?.body));
+        const batchDraft = Boolean(precomputedDraft?.subject && precomputedDraft?.body);
+        // Live drafts only: a batch draft was written ahead of time and is sent as it was written.
+        if (legacyCriticEnabled() && !batchDraft) {
+            const review = await reviewLegacyDraft(lead, campaign.icp?.criteria ?? null, draft, resolvedTeamId || "");
+            emailContent = review.draft;
+            copyProvenance = legacyProvenance(false, review);
+        } else {
+            copyProvenance = legacyProvenance(batchDraft);
+        }
 
         const gate = await gateAiMessage({
             teamId: resolvedTeamId,
