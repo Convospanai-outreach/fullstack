@@ -60,7 +60,8 @@ describe("new editor blocks", () => {
       for (const cls of list!.split(/\s+/)) classes.add(cls);
     }
     for (const cls of classes) {
-      expect(LANDING_PAGE_BASE_CSS).toContain(`.${cls}`);
+      // A class counts only as a whole name: .la-faq must not pass because .la-faq-item exists.
+      expect(LANDING_PAGE_BASE_CSS).toMatch(new RegExp("\\." + cls + "(?![\\w-])"));
     }
   });
 

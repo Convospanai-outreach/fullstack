@@ -30,7 +30,7 @@ describe("editor blocks through the sanitizer", () => {
 
   it("the new classes are defined in the API copy of the base CSS", () => {
     for (const cls of ["la-faq-item", "la-pricing", "la-plan", "la-image-text", "la-divider", "la-testimonial", "la-instagram"]) {
-      expect(LANDING_PAGE_BASE_CSS).toMatch(new RegExp(`\\.${cls}\\b`));
+      expect(LANDING_PAGE_BASE_CSS).toMatch(new RegExp("\\." + cls + "(?![\\w-])"));
     }
   });
 

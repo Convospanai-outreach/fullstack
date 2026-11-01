@@ -26,7 +26,7 @@ export const LANDING_BLOCKS: readonly LandingBlock[] = [
     id: "faq",
     label: "FAQ",
     content: `
-<section class="la-section la-faq">
+<section class="la-section">
     <h2>Frequently asked questions</h2>
     <div class="la-faq-item">
         <h3>Question one?</h3>
