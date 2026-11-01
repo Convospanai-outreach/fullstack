@@ -21,7 +21,7 @@ function checkName(name: unknown): string {
 
 async function checkSteps(teamId: string, input: unknown): Promise<FlowStep[]> {
     const result = validateFlowSteps(input);
-    if (!result.ok) fail(400, result.message);
+    if (!result.ok) return fail(400, result.message);
     const keys = [...new Set(result.steps.flatMap((step) => (step.type === "question" ? [step.property] : [])))];
     if (keys.length > 0) {
         const found = await prisma.leadProperty.findMany({
