@@ -68,9 +68,29 @@ describe("parseFunnelRange", () => {
         expect(parseFunnelRange({ from: "not-a-date" }, NOW)).toEqual({ ok: false, reason: "invalid_range" });
     });
 
-    it("rejects an end date in the future", () => {
+    it("rejects an end date far in the future (a browser clock that is badly wrong)", () => {
         const future = new Date(NOW.getTime() + DAY_MS).toISOString();
         expect(parseFunnelRange({ from: "2026-10-01T00:00:00.000Z", to: future }, NOW)).toEqual({ ok: false, reason: "invalid_range" });
+    });
+
+    it("moves a window that ends a few seconds ahead of the server back to now, keeping its 90-day span", () => {
+        const skewed = new Date(NOW.getTime() + 5_000);
+        const from = new Date(skewed.getTime() - FUNNEL_MAX_RANGE_DAYS * DAY_MS);
+        expect(parseFunnelRange({ from: from.toISOString(), to: skewed.toISOString() }, NOW)).toEqual({
+            ok: true,
+            from: new Date(NOW.getTime() - FUNNEL_MAX_RANGE_DAYS * DAY_MS),
+            to: NOW,
+        });
+    });
+
+    it("moves a default 30-day window that ends a few seconds ahead back to now", () => {
+        const skewed = new Date(NOW.getTime() + 5_000);
+        expect(parseFunnelRange({ to: skewed.toISOString() }, NOW)).toEqual({ ok: true, from: new Date(NOW.getTime() - 30 * DAY_MS), to: NOW });
+    });
+
+    it("rejects an end date more than five minutes ahead of the server", () => {
+        const ahead = new Date(NOW.getTime() + 10 * 60 * 1000).toISOString();
+        expect(parseFunnelRange({ from: "2026-10-01T00:00:00.000Z", to: ahead }, NOW)).toEqual({ ok: false, reason: "invalid_range" });
     });
 });
 

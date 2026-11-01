@@ -10,12 +10,22 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export type FunnelRangeResult = { ok: true; from: Date; to: Date } | { ok: false; reason: "invalid_range" | "range_too_long" };
 
 // `to` defaults to now and `from` to 30 days before `to`. Ranges are capped at 90 days so the
-// report's queries stay bounded, and an end date in the future is refused.
+// report's queries stay bounded. A browser clock a little ahead of the server would put `to` in the
+// future, so a window ending up to five minutes ahead is moved back by that amount (its span is kept).
+export const FUNNEL_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 export function parseFunnelRange(input: { from?: string; to?: string }, now: Date): FunnelRangeResult {
-    const to = input.to ? new Date(input.to) : now;
-    const from = input.from ? new Date(input.from) : new Date(to.getTime() - FUNNEL_DEFAULT_RANGE_DAYS * DAY_MS);
-    if (Number.isNaN(to.getTime()) || Number.isNaN(from.getTime())) return { ok: false, reason: "invalid_range" };
-    if (to.getTime() <= from.getTime() || to.getTime() > now.getTime()) return { ok: false, reason: "invalid_range" };
+    const requestedTo = input.to ? new Date(input.to) : now;
+    const requestedFrom = input.from ? new Date(input.from) : new Date(requestedTo.getTime() - FUNNEL_DEFAULT_RANGE_DAYS * DAY_MS);
+    if (Number.isNaN(requestedTo.getTime()) || Number.isNaN(requestedFrom.getTime())) return { ok: false, reason: "invalid_range" };
+
+    const skew = requestedTo.getTime() - now.getTime();
+    if (skew > FUNNEL_MAX_CLOCK_SKEW_MS) return { ok: false, reason: "invalid_range" };
+    const shift = Math.max(0, skew);
+    const to = new Date(requestedTo.getTime() - shift);
+    const from = new Date(requestedFrom.getTime() - shift);
+
+    if (to.getTime() <= from.getTime()) return { ok: false, reason: "invalid_range" };
     if (to.getTime() - from.getTime() > FUNNEL_MAX_RANGE_DAYS * DAY_MS) return { ok: false, reason: "range_too_long" };
     return { ok: true, from, to };
 }
