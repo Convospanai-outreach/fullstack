@@ -1,5 +1,25 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { pageLink, shownDomain, validatePagePath } from "./landingPageAddress";
+import { RESERVED_PATHS, pageLink, shownDomain, validatePagePath } from "./landingPageAddress";
+
+const reservedFixture = JSON.parse(readFileSync(resolve(__dirname, "../../../tests/fixtures/landing-reserved-paths.json"), "utf8")) as {
+    reservedPaths: string[];
+};
+
+describe("reserved page addresses", () => {
+    it("match the shared fixture the API copy is also tested against", () => {
+        expect([...RESERVED_PATHS].sort()).toEqual([...reservedFixture.reservedPaths].sort());
+    });
+
+    it.each(reservedFixture.reservedPaths)("refuses %s", (word) => {
+        expect(validatePagePath(word).ok).toBe(false);
+    });
+
+    it("says the address is reserved, not just malformed", () => {
+        expect(validatePagePath("thank-you")).toEqual({ ok: false, error: "That web address is reserved. Try another." });
+    });
+});
 
 describe("validatePagePath", () => {
     it.each([

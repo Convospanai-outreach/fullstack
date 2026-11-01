@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { verdictFor, type ExperimentVerdict } from "./landingExperimentStats";
 import { writeExperimentToKv } from "./landingExperimentKv";
+import { RESERVED_PATH_MESSAGE, isReservedPath } from "./reservedPaths";
 
 // Same rule as a page path (service.ts setPageSlug / schemas.ts), so an experiment path is also a valid address.
 export const EXPERIMENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
@@ -58,6 +59,9 @@ export async function createExperiment(input: {
     }
     if (!EXPERIMENT_SLUG_PATTERN.test(input.slug)) {
         throw new APIError("Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
+    }
+    if (isReservedPath(input.slug)) {
+        throw new APIError(RESERVED_PATH_MESSAGE, 400, "VALIDATION_ERROR");
     }
     const pages = await loadTeamPages(input.teamId, [input.pageAId, input.pageBId]);
     if (pages.length !== 2) {

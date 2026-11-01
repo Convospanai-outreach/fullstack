@@ -4,6 +4,12 @@
 
 export const PAGE_PATH_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
+// Keep in step with RESERVED_PATHS in apps/api/src/modules/landing-agent/reservedPaths.ts (both are checked
+// against apps/web/tests/fixtures/landing-reserved-paths.json).
+export const RESERVED_PATHS: readonly string[] = ["api", "assets", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"];
+
+export const RESERVED_PATH_MESSAGE = "That web address is reserved. Try another.";
+
 export type PagePathResult = { ok: true; path: string } | { ok: false; error: string };
 
 // A page's current address is accepted as it is, even a legacy one that breaks the rule (no-op save, as the API does).
@@ -13,6 +19,7 @@ export function validatePagePath(value: string, currentSlug?: string | null): Pa
     if (!PAGE_PATH_PATTERN.test(path)) {
         return { ok: false, error: "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number." };
     }
+    if (RESERVED_PATHS.includes(path)) return { ok: false, error: RESERVED_PATH_MESSAGE };
     return { ok: true, path };
 }
 

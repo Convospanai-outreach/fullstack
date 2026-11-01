@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getLandingTemplate } from "./landingTemplates";
+import { RESERVED_PATH_MESSAGE, isReservedPath } from "./reservedPaths";
 
 const PROMPT_GUARD_PATTERN = /\b(ignore|disregard|bypass)\s+(all\s+)?(previous|prior)\s+(instructions?|rules?)\b|<script[\s\S]*?>|javascript:/i;
 
@@ -54,7 +55,8 @@ export const landingPagePathSchema = z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.");
+    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.")
+    .refine((path) => !isReservedPath(path), RESERVED_PATH_MESSAGE);
 
 export const createLandingFromTemplateSchema = z.object({
     templateId: z.string().max(60).refine((id) => getLandingTemplate(id) !== undefined, "Unknown template"),

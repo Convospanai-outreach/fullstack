@@ -94,6 +94,11 @@ describe("createExperiment", () => {
         await expectApiError(createExperiment({ ...base, pageBId: "page-a", weightA: 50 }), 400);
     });
 
+    it("rejects a test path that a connected domain already serves for something else", async () => {
+        await expectApiError(createExperiment({ ...base, slug: "thank-you", weightA: 50 }), 400);
+        expect(mockPrisma.landingExperiment.create).not.toHaveBeenCalled();
+    });
+
     it("only accepts pages that belong to the team", async () => {
         mockPrisma.landingPage.findMany.mockResolvedValue([PAGE_A]);
         await expectApiError(createExperiment({ ...base, weightA: 50 }), 404);
