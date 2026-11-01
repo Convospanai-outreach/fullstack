@@ -8,9 +8,9 @@ import { createHash } from "node:crypto";
 
 export const PROMPT_REGISTRY = {
     "email.nodeA.system": { version: 1, fingerprint: "1be63dc5222f" },
-    "email.nodeA": { version: 1, fingerprint: "bedbe1bef4fa" },
-    "email.nodeB": { version: 1, fingerprint: "f9ca7bb0c55c" },
-    "email.nodeC": { version: 1, fingerprint: "c9c11f315b68" },
+    "email.nodeA": { version: 2, fingerprint: "8e7b78064564" },
+    "email.nodeB": { version: 2, fingerprint: "e8ba3a93fa99" },
+    "email.nodeC": { version: 2, fingerprint: "188534d7f14d" },
     "email.critique": { version: 1, fingerprint: "bb39618e430e" },
     "email.critique.rubric": { version: 1, fingerprint: "b3f1ea072e06" },
 } as const satisfies Record<string, { version: number; fingerprint: string }>;

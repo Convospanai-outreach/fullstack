@@ -14,6 +14,7 @@ import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrc
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import type { Rubric } from "@/evals/copy/evalData";
+import { loadCopyContext, renderCopyContext, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
@@ -164,7 +165,7 @@ Peer-to-peer. No: "I hope this finds you well", "I came across your profile", "I
 ${buildStyleGuidance(input)}`;
 }
 
-export function buildNodeAPrompt(input: NodeAInput): string {
+export function buildNodeAPrompt(input: NodeAInput, context?: CopyContext | null): string {
     return `## AVOID TOPICS
 Do not reference or imply: ${input.avoid_topics.join(", ") || "none specified"}
 
@@ -192,7 +193,7 @@ Respond ONLY with valid JSON in this exact structure:
 }
 
 ## LESSONS LEARNED (FEEDBACK LOOP)
-${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
+${input.memories?.join("\n") || "No specific team patterns recorded yet."}${renderCopyContext(context)}`;
 }
 
 export function buildCritiquePrompt(input: any, draft: any): string {
@@ -225,7 +226,7 @@ export function buildCritiquePrompt(input: any, draft: any): string {
     }`;
 }
 
-export function buildNodeBPrompt(input: NodeBInput): string {
+export function buildNodeBPrompt(input: NodeBInput, context?: CopyContext | null): string {
     return `You write Node B follow-ups — sent when a prospect opened the initial email but didn't reply after 3 days.
 
 ## RULES
@@ -266,10 +267,10 @@ Respond ONLY with valid JSON:
 }
 
 ## LESSONS LEARNED (FEEDBACK LOOP)
-${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
+${input.memories?.join("\n") || "No specific team patterns recorded yet."}${renderCopyContext(context)}`;
 }
 
-export function buildNodeCPrompt(input: NodeCInput): string {
+export function buildNodeCPrompt(input: NodeCInput, context?: CopyContext | null): string {
     return `You write Node C follow-ups — sent when a prospect never opened the initial email after 5 days. This is the last touchpoint. After this, silence.
 
 ## STRATEGY
@@ -306,7 +307,7 @@ Respond ONLY with valid JSON:
 }
 
 ## LESSONS LEARNED (FEEDBACK LOOP)
-${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
+${input.memories?.join("\n") || "No specific team patterns recorded yet."}${renderCopyContext(context)}`;
 }
 
 // ─── Parser ───────────────────────────────────────────────────────────────────
@@ -437,7 +438,7 @@ export async function composeNodeA(
     }
 
     // 2. INITIAL GENERATION
-    const prompt = buildNodeAPrompt(input);
+    const prompt = buildNodeAPrompt(input, await loadCopyContext("A", input as unknown as Record<string, unknown>));
     const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true, systemPrompt: buildNodeASystemPrompt(input) });
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
@@ -472,7 +473,7 @@ export async function composeNodeB(
     );
 
     // 2. INITIAL GENERATION
-    const prompt = buildNodeBPrompt(input);
+    const prompt = buildNodeBPrompt(input, await loadCopyContext("B", input as unknown as Record<string, unknown>));
     const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeBOutput>(raw);
 
@@ -507,7 +508,7 @@ export async function composeNodeC(
     );
 
     // 2. INITIAL GENERATION
-    const prompt = buildNodeCPrompt(input);
+    const prompt = buildNodeCPrompt(input, await loadCopyContext("C", input as unknown as Record<string, unknown>));
     const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeCOutput>(raw);
 
