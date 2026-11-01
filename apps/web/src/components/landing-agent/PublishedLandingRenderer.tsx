@@ -7,6 +7,7 @@ import { themeFromRenderedJson, themeWrapper } from "@/modules/landing-agent/the
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
 import { hasLeadFormMarker, leadFormSuccessUrl, readLeadFormConfig, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
+import { leadFormConsentRequired } from "@/modules/landing-agent/leadFormConfig";
 
 interface Props {
     slug: string;
@@ -53,23 +54,36 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
     // On themed pages the follow-up box uses the theme classes, as the Worker box does; un-themed pages keep Tailwind.
     const fieldClass = themed ? undefined : "rounded-md border border-slate-300 px-3 py-2";
     const leadHtml = useMemo(
-        () => (hasLeadFormMarker(payload.html) ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null }) : null),
+        () =>
+            hasLeadFormMarker(payload.html)
+                ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null, deletionHref: `/p/${slug}/data-deletion` })
+                : null,
         [payload.html, slug, whatsappOptIn]
     );
 
     // The redirect comes from the validated config, not from the rendered page.
     const leadRedirect = useMemo(() => readLeadFormConfig(payload.html)?.redirectUrl ?? null, [payload.html]);
+    // The consent box's rules come from the validated config, not from the rendered page.
+    const leadConsent = useMemo(() => readLeadFormConfig(payload.html)?.consent ?? null, [payload.html]);
 
     async function submitCustomLeadForm(form: HTMLFormElement) {
         const status = form.ownerDocument.getElementById("la-lead-form-status");
         const button = form.querySelector("button[type=submit]") as HTMLButtonElement | null;
+        // A required consent box must be ticked before anything is sent.
+        const consentError = form.ownerDocument.getElementById("la-consent-error");
+        const consentGiven = form.querySelector<HTMLInputElement>('input[name="cmfConsent"]')?.checked === true;
+        if (consentError) consentError.textContent = "";
+        if (leadConsent && leadFormConsentRequired(leadConsent) && !consentGiven) {
+            if (consentError) consentError.textContent = "Please tick the consent box to send your details.";
+            return;
+        }
         if (button) button.disabled = true;
         if (status) status.textContent = "";
         const data = new FormData(form);
         const formFields: Record<string, string | boolean> = {};
         for (const el of Array.from(form.querySelectorAll("input, select, textarea"))) {
             const field = el as HTMLInputElement;
-            if (!field.name || field.name === "website" || field.name === "whatsappConsent") continue;
+            if (!field.name || field.name === "website" || field.name === "whatsappConsent" || field.name === "cmfConsent") continue;
             formFields[field.name] = field.type === "checkbox" ? field.checked : field.value;
         }
         const url = new URL(window.location.href);
@@ -90,6 +104,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                     referrer: document.referrer || undefined,
                     socialToken: url.searchParams.get("t") || undefined,
                     whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
+                    consent: leadConsent ? consentGiven : undefined,
                 }),
             });
             if (!res.ok) throw new Error("Submission failed");

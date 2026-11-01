@@ -3,7 +3,7 @@
 // The web copy is RESERVED_PATHS in apps/web/src/components/landing-agent/landingPageAddress.ts; both copies
 // are checked against apps/web/tests/fixtures/landing-reserved-paths.json. Keep them in step.
 // robots.txt and favicon.ico are not listed: a page address cannot contain a dot.
-export const RESERVED_PATHS: readonly string[] = ["api", "assets", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"];
+export const RESERVED_PATHS: readonly string[] = ["api", "assets", "data-deletion", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"];
 
 export const RESERVED_PATH_MESSAGE = "That web address is reserved. Try another.";
 

@@ -17,6 +17,7 @@ import { getLandingRenderPayload } from "./rendering";
 import { brandThemeFrom, themeValidationError } from "./theme";
 import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
 import { leadFormMarkerError, mapLeadFormSubmission, type LeadFormColumns } from "./leadFormSubmit";
+import { consentAllowsContact, consentMissing, consentRecordFor, withoutConsentRecord, type LeadConsentRecord } from "./leadConsent";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
@@ -986,6 +987,8 @@ export const landingAgentService = {
             referrer?: string;
             socialToken?: string;
             whatsappConsent?: boolean;
+            // The lead form's consent box (cmfConsent). Checked against the page's form config below.
+            consent?: boolean;
             formFields?: Record<string, unknown>;
             metaEventId?: string;
             metaEventSourceUrl?: string;
@@ -1010,12 +1013,16 @@ export const landingAgentService = {
             company: input.payload.company,
             title: input.payload.title,
         };
-        let rawPayload: unknown = input.payload.rawPayload;
+        let rawPayload: unknown = withoutConsentRecord(input.payload.rawPayload);
+        let consentRecord: LeadConsentRecord | null = null;
         const pageHtml = getLandingRenderPayload(page.renderedJson).html;
         if (hasLeadFormMarker(pageHtml)) {
             const config = readLeadFormConfig(pageHtml);
             const mapped = config ? mapLeadFormSubmission(config, input.payload.formFields) : { ok: false as const, message: "This form is not available" };
             if (!mapped.ok) throw new APIError(mapped.message, 400, "VALIDATION_ERROR");
+            if (config && consentMissing(config, input.payload.consent)) {
+                throw new APIError("Please tick the consent box to send your details.", 400, "VALIDATION_ERROR");
+            }
             columns = mapped.columns;
             rawPayload = mapped.rawPayload;
             // An answer whose key matches a custom property must fit that property's type, or the submit is refused.
@@ -1024,6 +1031,9 @@ export const landingAgentService = {
                 const { errors } = pickPropertyAnswers(await loadActivePropertyDefinitions(page.teamId), answers);
                 if (errors.length > 0) throw new APIError(`Check the answer for ${errors[0]!.key}`, 400, "VALIDATION_ERROR");
             }
+            // A form with a consent box keeps the answer, with the wording shown, in rawPayload.consent.
+            consentRecord = config ? consentRecordFor(config, input.payload.consent, page.slug, new Date()) : null;
+            if (consentRecord) rawPayload = { ...(mapped.rawPayload ?? {}), consent: consentRecord };
         }
 
         const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader);
@@ -1087,7 +1097,8 @@ export const landingAgentService = {
             // copied here; the job reads it from the lead.
             const metaTracking = normalizeTracking(page.tracking);
             const metaSourceUrl = input.payload.metaEventSourceUrl;
-            if (metaTracking?.metaPixelId && input.payload.metaEventId && metaSourceUrl?.startsWith("https://") && !input.doNotTrack) {
+            // Consent: when the form has a consent box, the Lead event is sent only if the visitor ticked it.
+            if (metaTracking?.metaPixelId && input.payload.metaEventId && metaSourceUrl?.startsWith("https://") && !input.doNotTrack && consentAllowsContact(rawPayload)) {
                 await OutboxService.publishEvent(
                     {
                         teamId: page.teamId,

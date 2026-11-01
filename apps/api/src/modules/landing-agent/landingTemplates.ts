@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readFileSync } from "node:fs";
-import { encodeLeadFormMarkerId, leadFormConfigSchema, LEAD_FORM_MARKER_CLASS } from "./leadFormConfig";
+import { encodeLeadFormMarkerId, leadFormConfigSchema, LEAD_FORM_DEFAULT_CONSENT, LEAD_FORM_MARKER_CLASS, type LeadFormConfig } from "./leadFormConfig";
 import { absoluteLandingAssetUrls, landingAppOrigin, LANDING_APP_ORIGIN_FALLBACK } from "./landingAssetUrls";
 
 // The helpers live in landingAssetUrls.ts (no file reads there, so the publish service can import them).
@@ -43,10 +43,15 @@ export function getLandingTemplate(id: string): LandingTemplate | undefined {
   return LANDING_TEMPLATES.find((template) => template.id === id);
 }
 
+// A new page's form starts with the default consent box, as a form added in the editor does.
+export function templateLeadForm(template: LandingTemplate): LeadFormConfig {
+  return { ...template.leadForm, consent: template.leadForm.consent ?? LEAD_FORM_DEFAULT_CONSENT };
+}
+
 export function materializeLandingTemplate(
   template: LandingTemplate,
   origin: string | null,
 ): { html: string; css: string } {
-  const marker = `<div class="${LEAD_FORM_MARKER_CLASS}" id="${encodeLeadFormMarkerId(template.leadForm)}"></div>`;
+  const marker = `<div class="${LEAD_FORM_MARKER_CLASS}" id="${encodeLeadFormMarkerId(templateLeadForm(template))}"></div>`;
   return { html: absoluteLandingAssetUrls(template.html.replace(LANDING_FORM_TOKEN, marker), origin), css: "" };
 }

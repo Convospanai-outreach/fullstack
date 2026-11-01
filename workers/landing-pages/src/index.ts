@@ -23,6 +23,9 @@ interface StoredPage {
 	instagramHandle?: string;
 	// The lead form's booking link (written by cloudflarePagesService.ts, validated there and again in the worker).
 	bookingUrl?: string;
+	// The lead form's consent details for the data-deletion page (written by cloudflarePagesService.ts; escaped on render).
+	deletionSteps?: string;
+	contactEmail?: string;
 }
 
 // Clickjacking protection is enforced (nothing legitimately frames these pages).
@@ -80,6 +83,23 @@ function thankYouHtml(successMessage: string | undefined, instagramHandle: strin
 <p>${message}</p>
 ${book}
 ${follow}
+</body></html>`;
+}
+
+// Plain e-mail shape check for the contact link; anything with quotes, angle brackets or spaces gets no link.
+const EMAIL_PATTERN = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+
+// The data-deletion page: the customer's steps and contact (both escaped), or a neutral line when there are none.
+// The steps keep their line breaks, so they are shown with white-space: pre-line.
+function dataDeletionHtml(deletionSteps: string | undefined, contactEmail: string | undefined): string {
+	const steps = deletionSteps ? `<p style="white-space:pre-line">${escapeText(deletionSteps)}</p>` : `<p>To ask for your data to be deleted, contact the site owner. They run this page and hold the details you sent.</p>`;
+	const contact = contactEmail && EMAIL_PATTERN.test(contactEmail) ? `<p>Contact: <a href="mailto:${escapeText(contactEmail)}">${escapeText(contactEmail)}</a></p>` : "";
+	return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Data deletion</title></head>
+<body style="font-family:system-ui,sans-serif;max-width:640px;margin:80px auto;padding:0 16px;color:#0f172a">
+<h1>Data deletion</h1>
+${steps}
+${contact}
 </body></html>`;
 }
 
@@ -178,6 +198,13 @@ export default {
 		}
 		if (segments[1] === "event" && request.method === "POST") {
 			return proxyToApi(env, request, `/landing-agent/public/${slug}/event`);
+		}
+		if (segments[1] === "data-deletion" && request.method === "GET") {
+			const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");
+			const owned = stored ? await assertHostnameOwnsPage(env, host, stored) : false;
+			return new Response(dataDeletionHtml(owned ? stored?.deletionSteps : undefined, owned ? stored?.contactEmail : undefined), {
+				headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
+			});
 		}
 		if (segments[1] === "thank-you" && request.method === "GET") {
 			const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");

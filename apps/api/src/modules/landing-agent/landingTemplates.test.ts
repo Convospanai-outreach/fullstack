@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { leadFormConfigSchema, encodeLeadFormMarkerId, decodeLeadFormMarkerId } from "./leadFormConfig";
+import { leadFormConfigSchema, encodeLeadFormMarkerId, decodeLeadFormMarkerId, LEAD_FORM_DEFAULT_CONSENT } from "./leadFormConfig";
+import { templateLeadForm } from "./landingTemplates";
 import { findLeadFormMarkers } from "./leadFormHtml";
 import {
     LANDING_APP_ORIGIN_FALLBACK,
@@ -81,12 +82,16 @@ describe("landing template data", () => {
 });
 
 describe("materializeLandingTemplate", () => {
+    it("every template form starts with the default consent box", () => {
+        for (const template of LANDING_TEMPLATES) expect(templateLeadForm(template).consent).toEqual(LEAD_FORM_DEFAULT_CONSENT);
+    });
+
     it.each(LANDING_TEMPLATES.map((t) => [t.id, t] as const))("%s gets exactly one form marker made by the encoder", (_id, template) => {
         const { html } = materializeLandingTemplate(template, "https://app.example");
         const markers = findLeadFormMarkers(html);
         expect(markers).toHaveLength(1);
-        expect(markers[0]!.id).toBe(encodeLeadFormMarkerId(template.leadForm));
-        expect(decodeLeadFormMarkerId(markers[0]!.id)).toEqual(template.leadForm);
+        expect(markers[0]!.id).toBe(encodeLeadFormMarkerId(templateLeadForm(template)));
+        expect(decodeLeadFormMarkerId(markers[0]!.id)).toEqual(templateLeadForm(template));
         expect(html).not.toContain("{{");
     });
 
