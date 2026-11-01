@@ -25,12 +25,14 @@ const followUp = {
     hypothesis: "hyp", pain_context: "pain", days_since_send: 3, signal_type: "sig", memories: ["memory"], ...style,
 };
 const draft = { subject: "s", body: "b" };
+// The retrieval sections are part of the draft prompts, so they are rendered here with placeholders.
+const context = { playbook: ["playbook-x"], examples: [{ subject: "subject-x", body: "body-x" }] };
 
 const RENDERED: Record<PromptId, string> = {
     "email.nodeA.system": buildNodeASystemPrompt(nodeA),
-    "email.nodeA": buildNodeAPrompt(nodeA),
-    "email.nodeB": buildNodeBPrompt(followUp),
-    "email.nodeC": buildNodeCPrompt(followUp),
+    "email.nodeA": buildNodeAPrompt(nodeA, context),
+    "email.nodeB": buildNodeBPrompt(followUp, context),
+    "email.nodeC": buildNodeCPrompt(followUp, context),
     "email.critique": buildCritiquePrompt(nodeA, draft),
     "email.critique.rubric": buildRubricCritiquePrompt(nodeA, draft, { criteria: [{ id: "crit-x", description: "desc-x", weight: 1 }], passScore: 4 }, "style-x"),
 };
@@ -51,7 +53,7 @@ describe("prompt registry", () => {
     });
 
     it("names a prompt id@vN", () => {
-        expect(promptRef("email.nodeA")).toBe("email.nodeA@v1");
+        expect(promptRef("email.nodeA")).toBe("email.nodeA@v2");
         expect(allPromptRefs()["email.critique"]).toBe("email.critique@v1");
         expect(Object.keys(allPromptRefs())).toEqual(Object.keys(PROMPT_REGISTRY));
     });
