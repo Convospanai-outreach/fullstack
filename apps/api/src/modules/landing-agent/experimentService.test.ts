@@ -7,6 +7,7 @@ const { mockPrisma, mockWriteKv } = vi.hoisted(() => ({
         landingExperimentVariant: { findFirst: vi.fn() },
         landingEvent: { findMany: vi.fn() },
         landingLead: { count: vi.fn() },
+        auditLog: { findFirst: vi.fn() },
     },
     mockWriteKv: vi.fn(),
 }));
@@ -249,6 +250,22 @@ describe("getExperimentResults", () => {
         for (const call of mockPrisma.landingLead.count.mock.calls) {
             expect(call[0].where).toMatchObject({ teamId: TEAM });
         }
+    });
+
+    it("reports when each arm's page was last edited while the test ran, from this team's notes", async () => {
+        mockPrisma.landingExperiment.findFirst.mockResolvedValue(experiment({ status: "running", startedAt: new Date("2026-11-01T00:00:00Z") }));
+        mockPrisma.landingEvent.findMany.mockResolvedValue([]);
+        mockPrisma.landingLead.count.mockResolvedValue(0);
+        mockPrisma.auditLog.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ createdAt: new Date("2026-11-05T10:00:00Z") });
+
+        const r = await getExperimentResults({ teamId: TEAM, experimentId: "exp-1", now });
+
+        expect(r.lastEditedAt).toEqual({ A: null, B: new Date("2026-11-05T10:00:00Z") });
+        expect(mockPrisma.auditLog.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ orgId: TEAM, action: "landing_experiment.page_edited", entity: "LandingExperiment", entityId: "exp-1" }),
+            }),
+        );
     });
 
     it("throws not found for another team's experiment", async () => {

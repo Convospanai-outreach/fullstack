@@ -24,6 +24,7 @@ export interface ExperimentResults {
     experimentId: string;
     status: ExperimentRow["status"];
     variants: Record<"A" | "B", { visitors: number; formStarts: number; leads: number; conversionRate: number }>;
+    lastEditedAt?: Record<"A" | "B", string | null>;
     verdict: {
         status: "not_enough_data" | "no_clear_difference" | "clear_winner";
         winner: "A" | "B" | null;

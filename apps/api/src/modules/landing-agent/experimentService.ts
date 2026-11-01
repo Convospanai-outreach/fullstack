@@ -225,5 +225,21 @@ export async function getExperimentResults(input: { teamId: string; experimentId
         startedAt: experiment.startedAt ?? now,
         now,
     });
-    return { experimentId: experiment.id, status: experiment.status, variants: counts, verdict };
+    // The last edit of each arm's page while the test ran (notes written by saveEditorState), from this team's audit rows.
+    const lastEditedAt: Record<"A" | "B", Date | null> = { A: null, B: null };
+    for (const name of ["A", "B"] as const) {
+        const edit = await prisma.auditLog.findFirst({
+            where: {
+                orgId: input.teamId,
+                action: "landing_experiment.page_edited",
+                entity: "LandingExperiment",
+                entityId: experiment.id,
+                metadata: { path: ["variant"], equals: name },
+            },
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
+        });
+        lastEditedAt[name] = edit?.createdAt ?? null;
+    }
+    return { experimentId: experiment.id, status: experiment.status, variants: counts, verdict, lastEditedAt };
 }
