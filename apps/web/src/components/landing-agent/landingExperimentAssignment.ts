@@ -33,8 +33,12 @@ function readCookie(cookieHeader: string | null, name: string): string | null {
     return null;
 }
 
+export function isBotUserAgent(userAgent: string | null): boolean {
+    return userAgent !== null && BOT_PATTERN.test(userAgent);
+}
+
 export function assignVariant(input: AssignInput): AssignResult {
-    if (input.userAgent !== null && BOT_PATTERN.test(input.userAgent)) {
+    if (isBotUserAgent(input.userAgent)) {
         return { variant: "A", setCookie: null, counted: false };
     }
     const name = `${AB_COOKIE_PREFIX}${input.experimentId}`;
