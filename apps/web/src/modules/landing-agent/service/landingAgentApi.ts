@@ -34,7 +34,7 @@ export const landingAgentApi = {
         });
     },
 
-    createCampaignFromTemplate(input: { templateId: string; name: string }) {
+    createCampaignFromTemplate(input: { templateId: string; name: string; path?: string }) {
         return request<{ campaignId: string; pageId: string }>("/landing-agent/campaigns/from-template", {
             method: "POST",
             body: JSON.stringify(input),
@@ -61,7 +61,14 @@ export const landingAgentApi = {
     },
 
     listCampaigns() {
-        return request<{ campaigns: LandingCampaignSummary[]; liveDomain: string | null }>("/landing-agent/campaigns");
+        return request<{ campaigns: LandingCampaignSummary[]; liveDomain: string | null; domains: string[] }>("/landing-agent/campaigns");
+    },
+
+    setPageSlug(campaignId: string, pageId: string, path: string) {
+        return request<{ id: string; slug: string }>(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/slug`, {
+            method: "PATCH",
+            body: JSON.stringify({ path }),
+        });
     },
 
     getCampaign(campaignId: string) {
