@@ -30,7 +30,7 @@ async function request<T>(path: string): Promise<T> {
 }
 
 export const landingFunnelApi = {
-    get(input: { from: string; to: string; landingPageId?: string; variantId?: string }) {
+    get(input: { from: string; to: string; landingPageId?: string | undefined; variantId?: string | undefined }) {
         const params = new URLSearchParams({ from: input.from, to: input.to });
         if (input.landingPageId) params.set("landingPageId", input.landingPageId);
         if (input.variantId) params.set("variantId", input.variantId);
