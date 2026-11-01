@@ -66,7 +66,15 @@ async function loadSequence(teamId: string, sequenceId: string): Promise<LoadedS
 }
 
 // The team's sequences that can be picked for instant confirmation, for the page settings picker.
-export async function listInstantConfirmationSequences(teamId: string): Promise<{ id: string; name: string; channel: ConfirmationChannel }[]> {
+export type InstantConfirmationSequence = {
+    id: string;
+    name: string;
+    channel: ConfirmationChannel;
+    status: "DRAFT" | "ACTIVE";
+    campaignId: string | null;
+};
+
+export async function listInstantConfirmationSequences(teamId: string): Promise<InstantConfirmationSequence[]> {
     const sequences = await prisma.campaignSequence.findMany({
         where: { teamId },
         orderBy: { createdAt: "asc" },
@@ -74,6 +82,7 @@ export async function listInstantConfirmationSequences(teamId: string): Promise<
             id: true,
             name: true,
             status: true,
+            campaignId: true,
             steps: {
                 where: { status: "ACTIVE" },
                 select: { stepType: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
@@ -82,7 +91,8 @@ export async function listInstantConfirmationSequences(teamId: string): Promise<
     });
     return sequences.flatMap((sequence) => {
         const channel = RUNNABLE_STATUSES.includes(sequence.status) ? channelOfSingleStep(sequence.steps) : null;
-        return channel ? [{ id: sequence.id, name: sequence.name, channel }] : [];
+        // Only DRAFT or ACTIVE reach here (RUNNABLE_STATUSES), so the status narrowing is safe.
+        return channel ? [{ id: sequence.id, name: sequence.name, channel, status: sequence.status as "DRAFT" | "ACTIVE", campaignId: sequence.campaignId }] : [];
     });
 }
 

@@ -120,8 +120,8 @@ describe("listInstantConfirmationSequences (picker)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockDb.campaignSequence.findMany.mockResolvedValue([
-            { id: "seq-email", name: "Welcome", status: "ACTIVE", steps: [emailStep] },
-            { id: "seq-wa", name: "WhatsApp hello", status: "DRAFT", steps: [whatsappStep] },
+            { id: "seq-email", name: "Welcome", status: "ACTIVE", campaignId: "camp-1", steps: [emailStep] },
+            { id: "seq-wa", name: "WhatsApp hello", status: "DRAFT", campaignId: null, steps: [whatsappStep] },
             { id: "seq-empty", name: "No steps", status: "DRAFT", steps: [] },
             { id: "seq-two", name: "Two steps", status: "ACTIVE", steps: [emailStep, emailStep] },
             { id: "seq-delay", name: "Delay only", status: "ACTIVE", steps: [{ ...emailStep, stepType: "DELAY" }] },
@@ -130,10 +130,10 @@ describe("listInstantConfirmationSequences (picker)", () => {
         ]);
     });
 
-    it("lists only the team's sequences that can be sent, with their channel", async () => {
+    it("lists only the team's sequences that can be sent, with their channel, status and campaign", async () => {
         expect(await listInstantConfirmationSequences(TEAM)).toEqual([
-            { id: "seq-email", name: "Welcome", channel: "email" },
-            { id: "seq-wa", name: "WhatsApp hello", channel: "whatsapp" },
+            { id: "seq-email", name: "Welcome", channel: "email", status: "ACTIVE", campaignId: "camp-1" },
+            { id: "seq-wa", name: "WhatsApp hello", channel: "whatsapp", status: "DRAFT", campaignId: null },
         ]);
     });
 
