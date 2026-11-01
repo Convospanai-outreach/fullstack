@@ -48,7 +48,7 @@ export default function CampaignDetailPage({
     });
     const [activities, setActivities] = useState<any[]>([]);
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState(() => tabFromQuery(searchParams.get("tab")));
+    const [activeTab, setActiveTab] = useState<string>(() => tabFromQuery(searchParams.get("tab")));
     const [is3DMode, setIs3DMode] = useState(false);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
