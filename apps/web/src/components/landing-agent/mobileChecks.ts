@@ -32,7 +32,7 @@ type Spec = [number, number, number];
 type Selector = { parts: Compound[]; spec: Spec };
 type Rule = { selectors: Selector[]; decls: Map<string, string> };
 type Elem = { tag: string; classes: string[]; id: string | null };
-type TextElem = Elem & { text: string };
+type TextElem = Elem;
 
 function stripComments(css: string): string {
     return css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -138,9 +138,9 @@ function elementsOf(html: string): Elem[] {
 function textElementsOf(html: string): TextElem[] {
     const out: TextElem[] = [];
     for (const match of html.matchAll(/<(p|li|a)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)) {
-        const text = match[3].replace(/<[^>]*>/g, "").trim();
-        if (!text) continue;
-        out.push({ tag: match[1].toLowerCase(), classes: classList(match[2]), id: attrValue(match[2], "id"), text });
+        // Text between tags counts; markup alone does not.
+        if (!/(?:^|>)[^<]*[^<s]/.test(match[3])) continue;
+        out.push({ tag: match[1].toLowerCase(), classes: classList(match[2]), id: attrValue(match[2], "id") });
     }
     return out;
 }
