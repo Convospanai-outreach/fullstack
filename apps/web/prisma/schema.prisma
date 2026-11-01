@@ -50,6 +50,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
+  customFields Json? // phase 10: team-defined property values keyed by LeadProperty.key (lead-properties module)
   embedding    String? // Controlled-beta canonical type: String/text (matches live DB). Vector(1536) upgrade is a future migration phase.
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
@@ -1364,6 +1365,7 @@ model Team {
   landingLeads     LandingLead[]
   landingEvents    LandingEvent[]
   landingExperiments LandingExperiment[]
+  leadProperties     LeadProperty[]
   invoices         Invoice[]
 
   // Billing address (used for invoice GST treatment: India + same state as
@@ -3392,4 +3394,20 @@ model JobApplication {
 
   @@index([createdAt])
   @@index([status])
+}
+
+model LeadProperty {
+  id         String    @id @default(uuid())
+  teamId     String
+  key        String // ^[a-z][a-z0-9_]{0,31}$, unique per team, never changes after create
+  label      String
+  type       String // text | number | choice | yesno | date
+  options    Json? // choice only: array of option strings
+  archivedAt DateTime? // hidden, never deleted: values stay on leads
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  team       Team      @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, key])
+  @@index([teamId])
 }

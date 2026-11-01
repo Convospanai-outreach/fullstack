@@ -4,6 +4,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         landingPage: { findFirst: vi.fn() },
         landingExperimentVariant: { findFirst: vi.fn().mockResolvedValue(null) },
+        leadProperty: { findMany: vi.fn().mockResolvedValue([]) },
     },
 }));
 
@@ -70,6 +71,18 @@ describe("submitLeadBySlug with a lead form marker", () => {
         expect(data.name).toBe("Ada");
         expect(data.email).toBe("ada@example.com");
         expect(data.rawPayload).toEqual({ answers: { budget: "Over $5k", consent: true } });
+    });
+
+    it("refuses an answer that does not fit the custom property with the same key", async () => {
+        captureLead();
+        mockPrisma.leadProperty.findMany.mockResolvedValueOnce([{ key: "budget", type: "number", options: null, archivedAt: null }]);
+        vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue(page(marker) as never);
+        await expect(
+            landingAgentService.submitLeadBySlug({
+                slug: "guide",
+                payload: { formFields: { name: "Ada", email: "ada@example.com", budget: "Over $5k" } },
+            }),
+        ).rejects.toMatchObject({ statusCode: 400, message: "Check the answer for budget" });
     });
 
     it("rejects a key that is not in the page's form", async () => {
