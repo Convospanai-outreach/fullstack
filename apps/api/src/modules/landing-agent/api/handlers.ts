@@ -415,6 +415,22 @@ function doNotTrackRequested(req: Request): boolean {
     return req.headers.get("dnt") === "1" || req.headers.get("sec-gpc") === "1";
 }
 
+// Meta's click and browser IDs, set by the Pixel on the visitor's own domain. Only well-formed values are kept.
+function metaCookiesFrom(req: Request): { fbc?: string; fbp?: string } {
+    const cookieHeader = req.headers.get("cookie") ?? "";
+    const read = (name: string): string | undefined => {
+        const pair = cookieHeader.split(";").map((c) => c.trim()).find((c) => c.startsWith(name + "="));
+        let value = "";
+        try {
+            value = pair ? decodeURIComponent(pair.slice(name.length + 1)) : "";
+        } catch {
+            return undefined;
+        }
+        return /^[\w.-]{1,200}$/.test(value) ? value : undefined;
+    };
+    return { fbc: read("_fbc"), fbp: read("_fbp") };
+}
+
 export async function postPublicLead(req: Request, ctx?: ParamContext) {
     try {
         const slug = await resolveParam(req, ctx, "slug", "public");
@@ -439,6 +455,7 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             ipAddress,
             userAgent,
             doNotTrack: doNotTrackRequested(req),
+            metaCookies: metaCookiesFrom(req),
         });
 
         return successResponse({
