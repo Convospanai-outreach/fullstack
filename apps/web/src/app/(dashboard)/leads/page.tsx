@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ChevronDown, Search, UserPlus, Users } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import LeadsSelectionGrid from "@/components/leads/LeadsSelectionGrid";
+import { leadPropertyFilterWhere } from "@/lib/leadProperties/filter";
 import { FindEmailsButton } from "@/components/leads/FindEmailsButton";
 
 const PIPELINE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED", "CLOSED_WON", "CLOSED_LOST"];
@@ -47,6 +48,16 @@ async function loadLeads(searchParams: PageSearchParams) {
     if (clusterLabel) where.clusterLabel = clusterLabel;
     if (minIcpFitScore && !Number.isNaN(Number(minIcpFitScore))) {
         where.icpFitScore = { gte: Number(minIcpFitScore) };
+    }
+
+    // Custom property filter: ?property=<key>&op=equals|contains&value=<text>. An invalid filter is ignored.
+    const propertyKey = firstParam(searchParams["property"]).trim();
+    if (propertyKey) {
+        const definition = await prisma.leadProperty.findFirst({ where: { teamId, key: propertyKey, archivedAt: null } });
+        if (definition) {
+            const filter = leadPropertyFilterWhere(definition, firstParam(searchParams["op"]) || "equals", firstParam(searchParams["value"]));
+            if (filter.ok) Object.assign(where, filter.where);
+        }
     }
 
     const [leads, total] = await Promise.all([
