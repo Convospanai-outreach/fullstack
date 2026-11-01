@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, enrollPlanNurture, mergeSocial } = vi.hoisted(() => ({
     mockPrisma: {
         landingLead: { findFirst: vi.fn() },
+        campaignSequence: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     },
     enrollPlanNurture: vi.fn(),

@@ -155,3 +155,9 @@ export const landingEventPayloadSchema = z.object({
 export type LandingFramework = z.infer<typeof landingFrameworkEnum>;
 export type LandingLeadPayload = z.infer<typeof landingLeadPayloadSchema>;
 export type LandingEventPayload = z.infer<typeof landingEventPayloadSchema>;
+
+// Phase 9 instant confirmation (a page's optional message after a form lead is stored). Off unless enabled.
+export const instantConfirmationSchema = z
+    .object({ enabled: z.boolean(), sequenceId: z.string().trim().max(64) })
+    .refine((value) => !value.enabled || value.sequenceId.length > 0, { message: "Pick the sequence to send", path: ["sequenceId"] });
+export type InstantConfirmation = z.infer<typeof instantConfirmationSchema>;

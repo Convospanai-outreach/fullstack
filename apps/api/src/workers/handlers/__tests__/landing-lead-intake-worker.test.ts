@@ -5,6 +5,9 @@ vi.mock("@/lib/db", () => ({
         landingLead: {
             findFirst: vi.fn(),
         },
+        campaignSequence: {
+            findFirst: vi.fn(),
+        },
         lead: {
             findFirst: vi.fn(),
             updateMany: vi.fn(),

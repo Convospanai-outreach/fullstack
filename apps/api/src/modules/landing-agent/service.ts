@@ -10,6 +10,8 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
+import { checkConfirmationSequence, listInstantConfirmationSequences } from "./instantConfirmation";
+import type { InstantConfirmation } from "./schemas";
 import { runningArmOf, variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
 import { landingEventNameEnum, landingPagePathSchema } from "./schemas";
@@ -843,6 +845,27 @@ export const landingAgentService = {
             cloudflare = await cloudflarePagesService.publishPageToCloudflare(updatedPage.id);
         }
         return { page: updatedPage, cloudflare };
+    },
+
+    // Phase 9: the sequences a page's confirmation can use (team scoped).
+    async listInstantConfirmationSequences(teamId: string) {
+        return listInstantConfirmationSequences(teamId);
+    },
+
+    // Phase 9: the page's optional confirmation message. Only a sequence that passes the save-time check can be switched on.
+    async savePageInstantConfirmation(input: { teamId: string; campaignId: string; pageId: string; setting: InstantConfirmation }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        if (input.setting.enabled) {
+            const check = await checkConfirmationSequence(input.teamId, input.setting.sequenceId);
+            if (!check.ok) {
+                throw new APIError(check.message, 400, "VALIDATION_ERROR");
+            }
+        }
+        return updateOwnedPage(page.id, input.teamId, { instantConfirmation: input.setting as Prisma.InputJsonValue });
     },
 
     async publishCampaign(input: {
