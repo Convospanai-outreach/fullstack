@@ -163,6 +163,16 @@ async function generateUniqueSlug(name: string): Promise<string> {
     return `${base}-${Date.now().toString(36)}`;
 }
 
+const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
+
+// Slugs are globally unique (LandingPage.slug @unique), so a chosen path must not match any page's slug.
+async function assertAddressFree(slug: string, exceptPageId?: string) {
+    const existing = await prisma.landingPage.findUnique({ where: { slug }, select: { id: true } });
+    if (existing && existing.id !== exceptPageId) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+}
+
 async function getCampaignOrThrow(campaignId: string, teamId: string) {
     const campaign = await prisma.landingCampaign.findFirst({
         where: { id: campaignId, teamId },
@@ -270,6 +280,7 @@ export const landingAgentService = {
         userId: string;
         templateId: string;
         name: string;
+        path?: string;
         env?: Record<string, string | undefined>;
     }) {
         const template = getLandingTemplate(input.templateId);
@@ -284,7 +295,11 @@ export const landingAgentService = {
         }
 
         const name = input.name.trim();
-        const slug = await generateUniqueSlug(name);
+        // A chosen path is the page's address; without one the slug is generated from the name, as before.
+        if (input.path) {
+            await assertAddressFree(input.path);
+        }
+        const slug = input.path ?? (await generateUniqueSlug(name));
         return prisma.$transaction(async (tx) => {
             // The team's default audience, created on first use. The team can rename or edit it in the
             // ICP Builder. A landing campaign needs an ICP; this keeps the template path free of one.
@@ -329,6 +344,16 @@ export const landingAgentService = {
     async getCampaign(teamId: string, campaignId: string) {
         const campaign = await getCampaignOrThrow(campaignId, teamId);
         return { ...campaign, pages: campaign.pages.map(withDraftForEditor) };
+    },
+
+    // The team's active connected domains, oldest first. Each one serves every published page of the team.
+    async getActiveDomains(teamId: string) {
+        const records = await prisma.customDomain.findMany({
+            where: { teamId, status: "active" },
+            orderBy: { createdAt: "asc" },
+            select: { domain: true },
+        });
+        return records.map((record) => record.domain);
     },
 
     // The team's connected domain that published pages are live on (oldest active one), if any.
@@ -701,6 +726,23 @@ export const landingAgentService = {
             version: { increment: 1 },
             status: page.status,
         });
+    },
+
+    // A page's path name can change until the page is first published; after that the address is fixed.
+    async setPageSlug(input: { teamId: string; campaignId: string; pageId: string; path: string }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        if (page.slug === input.path) {
+            return page;
+        }
+        if (page.publishedAt || page.status === "published") {
+            throw new APIError("The web address can only change before the page is first published.", 409, "CONFLICT");
+        }
+        await assertAddressFree(input.path, page.id);
+        return updateOwnedPage(page.id, input.teamId, { slug: input.path });
     },
 
     // Throws away unpublished edits; the live page is unchanged and not pushed again.
