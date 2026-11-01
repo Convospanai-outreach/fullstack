@@ -17,6 +17,7 @@ import {
     type OverlayStrength,
 } from "@/components/landing-agent/heroImageBlock";
 import { imageAltWarnings, imageSourceMessage, type ImageAltWarning } from "@/components/landing-agent/imageSources";
+import { mobilePageWarnings, type MobileCheckWarning } from "@/components/landing-agent/mobileChecks";
 import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
 import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
 import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
@@ -114,6 +115,8 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const savedSnapshotRef = useRef("");
     const dirtyRef = useRef(false);
     const savingRef = useRef(false);
+    // Sizes of images uploaded in this editor session (url -> bytes). Other images are not measured.
+    const uploadedImageBytesRef = useRef<Record<string, number>>({});
 
     const [loadingEditor, setLoadingEditor] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -129,6 +132,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [canRedo, setCanRedo] = useState(false);
     const [isEmpty, setIsEmpty] = useState(false);
     const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
+    const [mobileWarnings, setMobileWarnings] = useState<MobileCheckWarning[]>([]);
     const [imageSrc, setImageSrc] = useState("");
     const [imageAlt, setImageAlt] = useState("");
     const [imageLayout, setImageLayout] = useState<HeroImageLayout>("background");
@@ -180,6 +184,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             setCanRedo(editor.UndoManager.hasRedo());
             setIsEmpty(editor.getWrapper()?.components().length === 0);
             setAltWarnings(imageAltWarnings(rendered.html));
+            setMobileWarnings(mobilePageWarnings({ html: payload.html, css: payload.css, imageBytes: uploadedImageBytesRef.current }));
         }
         refreshRef.current = refresh;
 
@@ -395,6 +400,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         setImageError(null);
         try {
             const { url } = await landingAgentApi.uploadImage(file);
+            uploadedImageBytesRef.current[url] = file.size;
             setImageSrc(url);
             setImageNote("Uploaded to your landing images.");
         } catch (err: any) {
@@ -681,6 +687,20 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         </Button>
                     </div>
                 </div>
+                {previewWidth === "mobile" ? (
+                    <div className="rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 space-y-1 text-sm text-amber-200">
+                        <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Phone checks (suggestions, not blocking)</p>
+                        {mobileWarnings.length === 0 ? (
+                            <p className="text-xs">No phone warnings for this page.</p>
+                        ) : (
+                            <ul className="list-disc pl-5 text-xs">
+                                {mobileWarnings.map((warning) => (
+                                    <li key={warning.kind}>{warning.message}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                ) : null}
                 <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
                     <iframe
                         title="Landing page preview"
