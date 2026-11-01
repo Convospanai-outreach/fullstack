@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { internalErrorMessage } from "@/lib/internalError";
 
+// The data responsibility notice version (step 1). Keep in step with apps/web/src/lib/setupSteps.ts.
+const DATA_RESPONSIBILITY_VERSION = "2026-11";
+
 export async function POST(req: NextRequest) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
@@ -50,7 +53,15 @@ export async function POST(req: NextRequest) {
                 if (data.outreachMode !== "personal" && data.outreachMode !== "company") {
                     return NextResponse.json({ error: "Choose personal or company." }, { status: 400 });
                 }
-                updateData.aiConfig = { ...currentAiConfig, outreachMode: data.outreachMode };
+                // The team owns its leads and their data: keep who agreed, when, and which notice version.
+                if (data.acknowledgedDataResponsibility !== true) {
+                    return NextResponse.json({ error: "Read the data responsibility notice and tick the box to continue." }, { status: 400 });
+                }
+                updateData.aiConfig = {
+                    ...currentAiConfig,
+                    outreachMode: data.outreachMode,
+                    dataResponsibility: { version: DATA_RESPONSIBILITY_VERSION, acknowledgedBy: ctx.userId, acknowledgedAt: new Date().toISOString() },
+                };
                 break;
 
             case 2: // Brand Identity
