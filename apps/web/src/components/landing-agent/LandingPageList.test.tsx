@@ -168,6 +168,18 @@ describe("LandingPageList addresses, domains and new pages", () => {
         expect(mockCreateFromTemplate).toHaveBeenCalledWith(expect.objectContaining({ path: "spring-guide", templateId: expect.any(String) }));
     });
 
+    it("names the new campaign after the template and its address, so pages from one template are told apart", async () => {
+        mockListCampaigns.mockResolvedValue({ campaigns: [], liveDomain: null, domains: [] });
+        mockCreateFromTemplate.mockResolvedValue({ campaignId: "c-new", pageId: "p-new" });
+        await renderList(container, root);
+
+        await act(async () => setFieldValue(container.querySelector<HTMLInputElement>('input[aria-label="New page path"]')!, "spring-guide"));
+        await act(async () => buttonWithText(container, "Create draft").click());
+
+        const templateName = (container.querySelector<HTMLSelectElement>('select[aria-label="Template"]')!.selectedOptions[0]!.textContent ?? "").trim();
+        expect(mockCreateFromTemplate).toHaveBeenCalledWith(expect.objectContaining({ name: `${templateName} (/spring-guide)` }));
+    });
+
     it("says the address is taken when another page already uses it", async () => {
         mockListCampaigns.mockResolvedValue({ campaigns: [], liveDomain: null, domains: [] });
         mockCreateFromTemplate.mockRejectedValue(new Error("This web address is taken. Try another."));

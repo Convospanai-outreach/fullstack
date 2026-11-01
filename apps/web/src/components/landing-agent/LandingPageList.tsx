@@ -75,7 +75,7 @@ export default function LandingPageList() {
         setCreating(true);
         setCreateError(null);
         try {
-            await landingAgentApi.createCampaignFromTemplate({ templateId: template.id, name: template.name, path: checked.path });
+            await landingAgentApi.createCampaignFromTemplate({ templateId: template.id, name: `${template.name} (/${checked.path})`, path: checked.path });
             setNewPath("");
             await load();
         } catch (err) {
