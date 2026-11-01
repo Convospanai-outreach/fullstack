@@ -11,6 +11,7 @@ import {
     landingLeadPayloadSchema,
     publishCampaignSchema,
     selectWireframeSchema,
+    setPageSlugSchema,
 } from "../schemas";
 import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
@@ -87,11 +88,12 @@ export async function postCampaigns(req: Request) {
 export async function getCampaigns(req: Request) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.VIEWER);
-        const [campaigns, liveDomain] = await Promise.all([
+        const [campaigns, domains] = await Promise.all([
             landingAgentService.listCampaigns(teamId),
-            landingAgentService.getLiveDomain(teamId),
+            landingAgentService.getActiveDomains(teamId),
         ]);
-        return successResponse({ campaigns, liveDomain });
+        // liveDomain is still the oldest active domain, for callers that read only one.
+        return successResponse({ campaigns, liveDomain: domains[0] ?? null, domains });
     } catch (error) {
         return handleAPIError(error);
     }
@@ -313,6 +315,26 @@ export async function putPageTracking(req: Request, ctx?: ParamContext) {
             tracking: parsed.data,
         });
         return successResponse(result);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// PATCH .../pages/:pageId/slug: change a page's path name until it is first published.
+export async function patchPageSlug(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const parsed = setPageSlugSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            throw new APIError("Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.setPageSlug({ teamId, campaignId, pageId, path: parsed.data.path });
+        return successResponse(page);
     } catch (error) {
         return handleAPIError(error);
     }

@@ -48,9 +48,22 @@ export const generateBriefSchema = z.object({
     framework: landingFrameworkEnum.optional(),
 });
 
+// A page's path name: its address under each connected domain, e.g. "spring-guide".
+// Keep the rule in step with PAGE_PATH_PATTERN in apps/web/src/components/landing-agent/landingPageAddress.ts.
+export const landingPagePathSchema = z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.");
+
 export const createLandingFromTemplateSchema = z.object({
     templateId: z.string().max(60).refine((id) => getLandingTemplate(id) !== undefined, "Unknown template"),
     name: z.string().trim().min(1).max(200),
+    path: landingPagePathSchema.optional(),
+});
+
+export const setPageSlugSchema = z.object({
+    path: landingPagePathSchema,
 });
 
 export const selectWireframeSchema = z.object({
