@@ -87,7 +87,14 @@ export default async function LeadsPage({
     const pipelineState = firstParam(params["pipelineState"]);
     const clusterLabel = firstParam(params["clusterLabel"]);
     const minIcpFitScore = firstParam(params["minIcpFitScore"]);
+    const propertyKey = firstParam(params["property"]);
+    const propertyOp = firstParam(params["op"]) || "equals";
+    const propertyValue = firstParam(params["value"]);
     const { leads, total, unauthorized } = await loadLeads(params);
+    const { teamId } = await getCurrentContext();
+    const propertyDefs = teamId
+        ? await prisma.leadProperty.findMany({ where: { teamId, archivedAt: null }, select: { key: true, label: true }, orderBy: { createdAt: "asc" } })
+        : [];
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -225,6 +232,44 @@ export default async function LeadsPage({
                     </div>
                     <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{total} records</span>
                 </div>
+                {propertyDefs.length > 0 && (
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <div className="relative md:w-56">
+                            <select
+                                name="property"
+                                defaultValue={propertyKey}
+                                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                                id="lead-property-select"
+                            >
+                                <option value="">Any custom property</option>
+                                {propertyDefs.map((def) => (
+                                    <option key={def.key} value={def.key}>{def.label}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        </div>
+                        <div className="relative md:w-40">
+                            <select
+                                name="op"
+                                defaultValue={propertyOp}
+                                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                                id="lead-property-op-select"
+                            >
+                                <option value="equals">equals</option>
+                                <option value="contains">contains (text)</option>
+                            </select>
+                            <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        </div>
+                        <input
+                            type="text"
+                            name="value"
+                            placeholder="Value: yes/no as true or false, dates as YYYY-MM-DD"
+                            defaultValue={propertyValue}
+                            className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                            id="lead-property-value-input"
+                        />
+                    </div>
+                )}
             </form>
 
             {unauthorized ? (
