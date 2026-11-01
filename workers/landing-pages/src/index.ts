@@ -1,3 +1,5 @@
+import { assignVariant } from "./abAssignment";
+
 export interface Env {
 	LANDING_PAGES: KVNamespace;
 	API_ORIGIN: string;
@@ -76,6 +78,56 @@ async function assertHostnameOwnsPage(env: Env, host: string, page: StoredPage):
 	return ownerTeamId !== null && ownerTeamId === page.teamId;
 }
 
+// A/B test path (phase 6B): exp:<host>:<slug> routes a visitor to one of the test's two pages.
+// Written by apps/api landingExperimentKv.ts. "test" assigns by weight with a sticky cookie; "fixed" serves one arm.
+interface ExperimentEntry {
+	experimentId: string;
+	teamId: string;
+	mode: "test" | "fixed";
+	weightA?: number;
+	fixedVariant?: "A" | "B";
+	arms: { A: string; B: string };
+}
+
+async function serveExperiment(env: Env, request: Request, host: string, slug: string): Promise<Response> {
+	const experiment = await env.LANDING_PAGES.get<ExperimentEntry>(`exp:${host}:${slug}`, "json");
+	if (!experiment || !(await assertHostnameOwnsPage(env, host, { html: "", teamId: experiment.teamId }))) {
+		return new Response("Not found", { status: 404 });
+	}
+	let variant: "A" | "B" = experiment.fixedVariant ?? "A";
+	let setCookie: string | null = null;
+	if (experiment.mode === "test") {
+		const doNotTrack = request.headers.get("DNT") === "1" || request.headers.get("Sec-GPC") === "1";
+		const assigned = assignVariant({
+			experimentId: experiment.experimentId,
+			cookieHeader: request.headers.get("Cookie"),
+			weightA: experiment.weightA ?? 50,
+			userAgent: request.headers.get("User-Agent"),
+			doNotTrack,
+			draw: Math.random(),
+		});
+		variant = assigned.variant;
+		setCookie = assigned.setCookie;
+	}
+	const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${experiment.arms[variant]}`, "json");
+	if (!stored || !(await assertHostnameOwnsPage(env, host, stored))) {
+		return new Response("Not found", { status: 404 });
+	}
+	// A test response depends on the cookie, so it must not be shared between visitors.
+	const headers: Record<string, string> = {
+		"Content-Type": "text/html; charset=utf-8",
+		...securityHeaders(stored.scriptHash, stored.tracking === true),
+	};
+	if (experiment.mode === "test") {
+		headers["Cache-Control"] = "private, no-cache";
+		headers["Vary"] = "Cookie";
+		if (setCookie) headers["Set-Cookie"] = setCookie;
+	} else {
+		headers["Cache-Control"] = "public, max-age=60";
+	}
+	return new Response(stored.html, { headers });
+}
+
 async function proxyToApi(env: Env, request: Request, path: string): Promise<Response> {
 	const upstream = new URL(path, env.API_ORIGIN);
 	const clientIp = request.headers.get("CF-Connecting-IP");
@@ -125,7 +177,7 @@ export default {
 
 		const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");
 		if (!stored) {
-			return new Response("Not found", { status: 404 });
+			return serveExperiment(env, request, host, slug);
 		}
 
 		const allowed = await assertHostnameOwnsPage(env, host, stored);
