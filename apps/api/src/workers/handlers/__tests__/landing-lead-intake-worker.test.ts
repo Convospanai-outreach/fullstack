@@ -25,6 +25,7 @@ vi.mock("@/modules/creator-funnel/socialLinkMerge", () => ({ mergeSignupIntoSoci
 vi.mock("@/modules/creator-funnel/contentRoi", () => ({ setFirstTouchPost: vi.fn() }));
 vi.mock("@/modules/creator-funnel/whatsappOptIn", () => ({ recordWhatsappOptIn: vi.fn() }));
 vi.mock("@/modules/creator-funnel/playbookSwitches", () => ({ enrollPlanNurture: vi.fn() }));
+vi.mock("@/modules/lead-properties/leadCustomFields", () => ({ saveLandingAnswersToLead: vi.fn() }));
 
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
@@ -34,6 +35,7 @@ import { mergeSignupIntoSocialLead } from "@/modules/creator-funnel/socialLinkMe
 import { setFirstTouchPost } from "@/modules/creator-funnel/contentRoi";
 import { recordWhatsappOptIn } from "@/modules/creator-funnel/whatsappOptIn";
 import { enrollPlanNurture } from "@/modules/creator-funnel/playbookSwitches";
+import { saveLandingAnswersToLead } from "@/modules/lead-properties/leadCustomFields";
 import { handleLandingLeadIntake } from "../landing-lead-intake-worker";
 
 describe("landing-lead-intake-worker", () => {
@@ -289,6 +291,25 @@ describe("landing-lead-intake-worker", () => {
             (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
             await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
             expect(setFirstTouchPost).toHaveBeenLastCalledWith("team-1", "lead-new", "post-p");
+        });
+
+        it("saves the form's custom-property answers on the lead of every path (merge, existing, new)", async () => {
+            const row = linkSignUp();
+            (row as any).rawPayload = { answers: { budget: "500" } };
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-social", { answers: { budget: "500" } });
+
+            (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-existing", fullName: null, phone: null, company: null, jobTitle: null, source: "x", campaignId: null });
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-existing", { answers: { budget: "500" } });
+
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-new", { answers: { budget: "500" } });
         });
 
         it("doesn't fail the intake when first-touch attribution throws, and skips it without utm_content", async () => {
