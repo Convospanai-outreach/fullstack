@@ -89,10 +89,10 @@ export const landingAgentApi = {
         });
     },
 
-    selectWireframe(campaignId: string, wireframeId: string) {
+    selectWireframe(campaignId: string, wireframeId: string, path?: string) {
         return request(`/landing-agent/campaigns/${campaignId}/select-wireframe`, {
             method: "POST",
-            body: JSON.stringify({ wireframeId }),
+            body: JSON.stringify(path ? { wireframeId, path } : { wireframeId }),
         });
     },
 

@@ -192,13 +192,15 @@ export async function postSelectWireframe(req: Request, ctx?: ParamContext) {
         const body = await req.json();
         const parsed = selectWireframeSchema.safeParse(body);
         if (!parsed.success) {
-            throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+            const pathIssue = parsed.error.issues.find((issue) => issue.path[0] === "path");
+            throw new APIError(pathIssue?.message ?? "Invalid input", 400, "VALIDATION_ERROR");
         }
 
         const page = await landingAgentService.selectWireframe({
             teamId,
             campaignId,
             wireframeId: parsed.data.wireframeId,
+            path: parsed.data.path,
         });
         return successResponse(page);
     } catch (error) {

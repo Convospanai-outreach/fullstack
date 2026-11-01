@@ -85,6 +85,7 @@ export const pickWinnerSchema = z.object({
 
 export const selectWireframeSchema = z.object({
     wireframeId: z.string().uuid(),
+    path: landingPagePathSchema.optional(),
 });
 
 export const editorStateSchema = z.object({

@@ -614,6 +614,7 @@ export const landingAgentService = {
         teamId: string;
         campaignId: string;
         wireframeId: string;
+        path?: string;
     }) {
         const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
         const wireframe = campaign.wireframeOptions.find((item) => item.id === input.wireframeId);
@@ -642,18 +643,24 @@ export const landingAgentService = {
             return updatedPage;
         }
 
-        const slug = await generateUniqueSlug(campaign.name);
-        const createdPage = await prisma.landingPage.create({
-            data: {
-                campaignId: campaign.id,
-                teamId: campaign.teamId,
-                slug,
-                title: `${campaign.name} Landing Page`,
-                status: "draft",
-                version: 1,
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-            },
-        });
+        // A chosen path is the page's address; without one the slug is generated from the campaign name, as before.
+        if (input.path) {
+            await assertAddressFree(input.path);
+        }
+        const slug = input.path ?? (await generateUniqueSlug(campaign.name));
+        const createdPage = await prisma.landingPage
+            .create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: campaign.teamId,
+                    slug,
+                    title: `${campaign.name} Landing Page`,
+                    status: "draft",
+                    version: 1,
+                    renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                },
+            })
+            .catch(rethrowAddressTaken);
 
         await updateOwnedCampaign(campaign.id, input.teamId, {
             selectedWireframeId: wireframe.id,
