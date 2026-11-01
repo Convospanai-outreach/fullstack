@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockDb, nurture, isSuppressed, checkTemplate, logger } = vi.hoisted(() => ({
     mockDb: {
-        campaignSequence: { findFirst: vi.fn() },
+        campaignSequence: { findFirst: vi.fn(), findMany: vi.fn() },
         lead: { findFirst: vi.fn() },
     },
     nurture: { enrollInNurture: vi.fn(), status: vi.fn() },
@@ -21,7 +21,7 @@ vi.mock("@/modules/creator-funnel/nurtureProvider", async (importOriginal) => ({
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({ isSuppressed }));
 vi.mock("@/modules/whatsapp/whatsappTemplates", () => ({ checkTemplate }));
 
-import { checkConfirmationSequence, instantConfirmationOf, sendInstantConfirmation } from "./instantConfirmation";
+import { checkConfirmationSequence, instantConfirmationOf, listInstantConfirmationSequences, sendInstantConfirmation } from "./instantConfirmation";
 
 const TEAM = "team-a";
 const emailStep = { stepType: "EMAIL", subject: "Welcome", body: "Hi there", whatsappTemplateName: null, whatsappTemplateLanguage: null };
@@ -86,6 +86,13 @@ describe("checkConfirmationSequence (save time)", () => {
         expect((await checkConfirmationSequence(TEAM, "seq-1")).ok).toBe(false);
     });
 
+    it("refuses a paused or stopped sequence, so a lead's sign-up cannot restart it", async () => {
+        for (const status of ["PAUSED", "STOPPED"]) {
+            mockDb.campaignSequence.findFirst.mockResolvedValueOnce(sequence({ status }));
+            expect((await checkConfirmationSequence(TEAM, "seq-1")).ok).toBe(false);
+        }
+    });
+
     it("refuses a step that is neither an email nor an approved WhatsApp template", async () => {
         mockDb.campaignSequence.findFirst.mockResolvedValueOnce(sequence({ steps: [{ ...emailStep, stepType: "DELAY" }] }));
         expect((await checkConfirmationSequence(TEAM, "seq-1")).ok).toBe(false);
@@ -106,6 +113,34 @@ describe("checkConfirmationSequence (save time)", () => {
         mockDb.campaignSequence.findFirst.mockResolvedValueOnce(sequence({ steps: [whatsappStep] }));
         checkTemplate.mockResolvedValueOnce({ ok: false, reason: "Template not approved" });
         expect((await checkConfirmationSequence(TEAM, "seq-1")).ok).toBe(false);
+    });
+});
+
+describe("listInstantConfirmationSequences (picker)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.campaignSequence.findMany.mockResolvedValue([
+            { id: "seq-email", name: "Welcome", status: "ACTIVE", steps: [emailStep] },
+            { id: "seq-wa", name: "WhatsApp hello", status: "DRAFT", steps: [whatsappStep] },
+            { id: "seq-empty", name: "No steps", status: "DRAFT", steps: [] },
+            { id: "seq-two", name: "Two steps", status: "ACTIVE", steps: [emailStep, emailStep] },
+            { id: "seq-delay", name: "Delay only", status: "ACTIVE", steps: [{ ...emailStep, stepType: "DELAY" }] },
+            { id: "seq-paused", name: "Paused", status: "PAUSED", steps: [emailStep] },
+            { id: "seq-archived", name: "Archived", status: "ARCHIVED", steps: [emailStep] },
+        ]);
+    });
+
+    it("lists only the team's sequences that can be sent, with their channel", async () => {
+        expect(await listInstantConfirmationSequences(TEAM)).toEqual([
+            { id: "seq-email", name: "Welcome", channel: "email" },
+            { id: "seq-wa", name: "WhatsApp hello", channel: "whatsapp" },
+        ]);
+    });
+
+    it("queries only the caller's team and checks no WhatsApp templates", async () => {
+        await listInstantConfirmationSequences(TEAM);
+        expect(mockDb.campaignSequence.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: TEAM } }));
+        expect(checkTemplate).not.toHaveBeenCalled();
     });
 });
 
@@ -191,6 +226,12 @@ describe("sendInstantConfirmation", () => {
         nurture.enrollInNurture.mockRejectedValueOnce(new Error("boom"));
         await expect(sendInstantConfirmation(landingLead(ON), "lead-1")).resolves.toBeUndefined();
         expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it("a later send after the first enrollment has ended passes the same sequence; the unique key (skipDuplicates) is the guard", async () => {
+        await sendInstantConfirmation(landingLead(ON), "lead-1");
+        await sendInstantConfirmation(landingLead(ON), "lead-1");
+        expect(nurture.enrollInNurture.mock.calls).toEqual([[TEAM, "lead-1", "seq-1"], [TEAM, "lead-1", "seq-1"]]);
     });
 
     it("never throws when the lead lookup fails", async () => {

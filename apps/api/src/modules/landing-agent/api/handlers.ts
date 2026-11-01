@@ -327,6 +327,16 @@ export async function putPageTracking(req: Request, ctx?: ParamContext) {
     }
 }
 
+// GET /landing-agent/instant-confirmation/sequences: the team's sequences the page settings can pick from.
+export async function getInstantConfirmationSequences(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        return successResponse(await landingAgentService.listInstantConfirmationSequences(teamId));
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
 // PUT .../pages/:pageId/instant-confirmation: the page's optional message to a lead right after the form is stored.
 export async function putPageInstantConfirmation(req: Request, ctx?: ParamContext) {
     try {

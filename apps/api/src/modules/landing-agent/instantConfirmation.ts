@@ -23,6 +23,18 @@ type LoadedSequence =
 
 const refuse = (message: string) => ({ ok: false as const, message });
 
+// Only a draft or an active sequence can be used. Paused or stopped ones must not restart when a lead signs up.
+const RUNNABLE_STATUSES = ["DRAFT", "ACTIVE"];
+
+// The channel of a sequence whose only active step is an email or an approved WhatsApp template step, or null.
+function channelOfSingleStep(steps: ConfirmationStep[]): ConfirmationChannel | null {
+    if (steps.length !== 1) return null;
+    const [step] = steps;
+    const kind = step.stepType.trim().toLowerCase();
+    const channel: ConfirmationChannel | null = kind === "whatsapp" ? "whatsapp" : kind === "email" ? "email" : null;
+    return channel && nurtureCanRunSteps([step]) ? channel : null;
+}
+
 // The page's stored setting, or null when it is off or unreadable. Existing pages store nothing, so they stay off.
 export function instantConfirmationOf(value: unknown): InstantConfirmation | null {
     const parsed = instantConfirmationSchema.safeParse(value);
@@ -45,15 +57,33 @@ async function loadSequence(teamId: string, sequenceId: string): Promise<LoadedS
         },
     });
     if (!sequence) return refuse("That sequence isn't in this team.");
-    if (sequence.status === "ARCHIVED") return refuse("That sequence is archived.");
+    if (!RUNNABLE_STATUSES.includes(sequence.status)) return refuse("Only a draft or active sequence can be used.");
     if (sequence.steps.length !== 1) return refuse("Pick a sequence with exactly one active step.");
     const [step] = sequence.steps;
-    const kind = step.stepType.trim().toLowerCase();
-    const channel: ConfirmationChannel | null = kind === "whatsapp" ? "whatsapp" : kind === "email" ? "email" : null;
-    if (!channel || !nurtureCanRunSteps([step])) {
-        return refuse("The one step must be an email, or a WhatsApp step that uses an approved template.");
-    }
+    const channel = channelOfSingleStep(sequence.steps);
+    if (!channel) return refuse("The one step must be an email, or a WhatsApp step that uses an approved template.");
     return { ok: true, sequenceId: sequence.id, channel, step, senderMailboxIds: sequence.senderMailboxIds };
+}
+
+// The team's sequences that can be picked for instant confirmation, for the page settings picker.
+export async function listInstantConfirmationSequences(teamId: string): Promise<{ id: string; name: string; channel: ConfirmationChannel }[]> {
+    const sequences = await prisma.campaignSequence.findMany({
+        where: { teamId },
+        orderBy: { createdAt: "asc" },
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            steps: {
+                where: { status: "ACTIVE" },
+                select: { stepType: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
+            },
+        },
+    });
+    return sequences.flatMap((sequence) => {
+        const channel = RUNNABLE_STATUSES.includes(sequence.status) ? channelOfSingleStep(sequence.steps) : null;
+        return channel ? [{ id: sequence.id, name: sequence.name, channel }] : [];
+    });
 }
 
 // Save-time validation of the chosen sequence. Returns the channel, or why it can't be used.

@@ -1,19 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetContext, mockAuthorizeRole, mockSave } = vi.hoisted(() => ({
+const { mockGetContext, mockAuthorizeRole, mockSave, mockList } = vi.hoisted(() => ({
     mockGetContext: vi.fn(),
     mockAuthorizeRole: vi.fn(),
     mockSave: vi.fn(),
+    mockList: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: mockGetContext }));
 vi.mock("@/lib/permissions", () => ({ authorizeRole: mockAuthorizeRole, TeamRole: { VIEWER: "VIEWER", MEMBER: "MEMBER" } }));
-vi.mock("../service", () => ({ landingAgentService: { savePageInstantConfirmation: mockSave } }));
+vi.mock("../service", () => ({ landingAgentService: { savePageInstantConfirmation: mockSave, listInstantConfirmationSequences: mockList } }));
 vi.mock("../service/imageGenerationService", () => ({ isLandingImageStorageConfigured: vi.fn(), putLandingImage: vi.fn() }));
 vi.mock("../rendering", () => ({ sanitizeRenderedJsonHtml: vi.fn() }));
 vi.mock("@/lib/apiRateLimit", () => ({ checkApiRateLimit: vi.fn(), rateLimitResponse: vi.fn() }));
 
-import { putPageInstantConfirmation } from "./handlers";
+import { getInstantConfirmationSequences, putPageInstantConfirmation } from "./handlers";
 import { APIError } from "@/lib/apiResponse";
 
 const PARAMS = { params: Promise.resolve({ id: "campaign-1", pageId: "page-1" }) };
@@ -25,6 +26,36 @@ function request(body: unknown): Request {
         body: JSON.stringify(body),
     });
 }
+
+describe("GET /landing-agent/instant-confirmation/sequences", () => {
+    const listRequest = () => new Request("https://app.example/api/landing-agent/instant-confirmation/sequences?teamId=team-b");
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockList.mockResolvedValue([{ id: "seq-1", name: "Welcome", channel: "email" }]);
+    });
+
+    it("requires a signed-in user with a team", async () => {
+        mockGetContext.mockResolvedValue({});
+        expect((await getInstantConfirmationSequences(listRequest())).status).toBe(401);
+        expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it("requires at least member access to the team", async () => {
+        mockAuthorizeRole.mockRejectedValue(new APIError("Forbidden", 403, "FORBIDDEN"));
+        expect((await getInstantConfirmationSequences(listRequest())).status).toBe(403);
+        expect(mockAuthorizeRole).toHaveBeenCalledWith("user-1", "team-1", "MEMBER");
+        expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it("lists the signed-in team's sequences only, ignoring a team id in the query", async () => {
+        const res = await getInstantConfirmationSequences(listRequest());
+        expect(res.status).toBe(200);
+        expect(mockList).toHaveBeenCalledWith("team-1");
+        expect(await res.text()).toContain("seq-1");
+    });
+});
 
 describe("PUT /landing-agent/campaigns/:id/pages/:pageId/instant-confirmation", () => {
     beforeEach(() => {

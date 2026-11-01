@@ -10,7 +10,7 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
-import { checkConfirmationSequence } from "./instantConfirmation";
+import { checkConfirmationSequence, listInstantConfirmationSequences } from "./instantConfirmation";
 import type { InstantConfirmation } from "./schemas";
 import { runningArmOf, variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
@@ -845,6 +845,11 @@ export const landingAgentService = {
             cloudflare = await cloudflarePagesService.publishPageToCloudflare(updatedPage.id);
         }
         return { page: updatedPage, cloudflare };
+    },
+
+    // Phase 9: the sequences a page's confirmation can use (team scoped).
+    async listInstantConfirmationSequences(teamId: string) {
+        return listInstantConfirmationSequences(teamId);
     },
 
     // Phase 9: the page's optional confirmation message. Only a sequence that passes the save-time check can be switched on.
