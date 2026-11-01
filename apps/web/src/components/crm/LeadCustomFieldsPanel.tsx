@@ -48,7 +48,6 @@ export default function LeadCustomFieldsPanel({ leadId, customFields }: Props) {
             cancelled = true;
         };
         // Loaded once per lead; the saved values are kept in state after that.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leadId]);
 
     if (definitions.length === 0) return null;
