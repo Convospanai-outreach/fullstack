@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProvenance, readProvenance } from "../copyProvenance";
+import { buildProvenance, legacyProvenance, readProvenance } from "../copyProvenance";
 
 const base = { retrievalOn: true, briefOn: false, rubricCritic: false, playbook: 2, examples: 1, briefUsed: false, critique: "passed" as const };
 
@@ -28,5 +28,23 @@ describe("readProvenance", () => {
 
     it("ignores anything that is not provenance", () => {
         for (const value of [null, undefined, "x", 3, {}, { v: 2, node: "A" }, { v: 1, node: "B" }]) expect(readProvenance(value)).toBeNull();
+    });
+});
+
+describe("legacyProvenance", () => {
+    it("records the older draft prompt with no critic, context or switches", () => {
+        expect(legacyProvenance(false)).toEqual({
+            v: 1,
+            node: "legacy",
+            prompts: { draft: "email.legacyDraft@v1", system: "none", critique: "none" },
+            flags: { retrieval: false, brief: false, rubricCritic: false },
+            context: { playbook: 0, examples: 0, brief: false },
+            critique: "unreviewed",
+        });
+        expect(legacyProvenance(true).prompts.draft).toBe("email.legacyBatch@v1");
+    });
+
+    it("reads back like any other provenance", () => {
+        expect(readProvenance(JSON.parse(JSON.stringify(legacyProvenance(false))))).toEqual(legacyProvenance(false));
     });
 });
