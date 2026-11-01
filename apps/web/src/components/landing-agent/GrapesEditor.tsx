@@ -25,6 +25,8 @@ import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPa
 import InstagramSettingsPanel from "@/components/landing-agent/InstagramSettingsPanel";
 import { instagramFollowOfSelection } from "@/components/landing-agent/instagramFollow";
 import CopyHelperPanel from "@/components/landing-agent/CopyHelperPanel";
+import PageThemePanel from "@/components/landing-agent/PageThemePanel";
+import { themeFromRenderedJson, themeWrapper, type LandingTheme } from "@/modules/landing-agent/theme";
 import { applyCopyToComponent } from "@/components/landing-agent/copyPatterns";
 import {
     AUTOSAVE_INTERVAL_MS,
@@ -54,8 +56,12 @@ interface Props {
 type DeviceName = (typeof EDITOR_DEVICES)[number]["name"];
 type RenderedPage = { html: string; css: string };
 
-function buildPreviewDoc(html: string, css: string): string {
-    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="la-page">${html}</body></html>`;
+// The preview document carries the page theme the same way the published page does (class and variables on body).
+function buildPreviewDoc(html: string, css: string, theme: LandingTheme | null): string {
+    const wrapper = themeWrapper(theme);
+    const vars = Object.entries(wrapper.vars).map(([key, value]) => `${key}:${value}`).join(";").replace(/"/g, "&quot;");
+    const style = vars ? ` style="${vars}"` : "";
+    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="${wrapper.className}"${style}>${html}</body></html>`;
 }
 
 function toGrapesStyleProperty(prop: EditorStyleProperty) {
@@ -83,9 +89,26 @@ function cleanComponentStyles(editor: Editor) {
     }
 }
 
-function readRendered(editor: Editor): RenderedPage {
+function readRendered(editor: Editor, theme: LandingTheme | null): RenderedPage & { theme?: LandingTheme } {
     cleanComponentStyles(editor);
-    return { html: editor.getHtml(), css: withLandingBaseCss(editor.getCss() || "") };
+    const rendered: RenderedPage & { theme?: LandingTheme } = { html: editor.getHtml(), css: withLandingBaseCss(editor.getCss() || "") };
+    if (theme) rendered.theme = theme;
+    return rendered;
+}
+
+// The canvas body gets the same class and variables as the published page. The wrapper keeps the class
+// too, so GrapesJS does not drop it when it re-renders the body.
+function applyThemeToCanvas(editor: Editor | null, theme: LandingTheme | null) {
+    if (!editor) return;
+    const wrapper = themeWrapper(theme);
+    editor.getWrapper()?.addAttributes({ class: wrapper.className });
+    const body = editor.Canvas.getDocument()?.body;
+    if (!body) return;
+    body.className = wrapper.className;
+    body.removeAttribute("style");
+    for (const [key, value] of Object.entries(wrapper.vars)) {
+        body.style.setProperty(key, value);
+    }
 }
 
 // The link trait writes href only for safe values (see isSafeEditorLink).
@@ -117,6 +140,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const savingRef = useRef(false);
     // Sizes of images uploaded in this editor session (url -> bytes). Other images are not measured.
     const uploadedImageBytesRef = useRef<Record<string, number>>({});
+    const themeRef = useRef<LandingTheme | null>(themeFromRenderedJson(initialRenderedJson));
 
     const [loadingEditor, setLoadingEditor] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -133,6 +157,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [isEmpty, setIsEmpty] = useState(false);
     const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
     const [mobileWarnings, setMobileWarnings] = useState<MobileCheckWarning[]>([]);
+    const [theme, setTheme] = useState<LandingTheme | null>(themeRef.current);
+
+    // Theme changes reach the canvas at once; the next save stores them with the page.
+    function applyTheme(next: LandingTheme | null) {
+        themeRef.current = next;
+        setTheme(next);
+        applyThemeToCanvas(editorRef.current, next);
+        refreshRef.current?.();
+    }
     const [imageSrc, setImageSrc] = useState("");
     const [imageAlt, setImageAlt] = useState("");
     const [imageLayout, setImageLayout] = useState<HeroImageLayout>("background");
@@ -174,9 +207,9 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
         function refresh() {
             if (!editor || !active) return;
-            const rendered = readRendered(editor);
+            const rendered = readRendered(editor, themeRef.current);
             const payload = getLandingRenderPayload(rendered);
-            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css));
+            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css, themeRef.current));
             const nowDirty = JSON.stringify(rendered) !== savedSnapshotRef.current;
             dirtyRef.current = nowDirty;
             setDirty(nowDirty);
@@ -194,7 +227,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             setSaving(true);
             setError(null);
             try {
-                const rendered = readRendered(editor);
+                const rendered = readRendered(editor, themeRef.current);
                 await onSaveRef.current({
                     title: pageTitleRef.current,
                     editorState: { components: editor.getComponents()?.toJSON?.() || null },
@@ -292,7 +325,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
             created.onReady(() => {
                 if (!active) return;
-                created.getWrapper()?.addAttributes({ class: "la-page" });
+                applyThemeToCanvas(created, themeRef.current);
                 const frameDoc = created.Canvas.getDocument();
                 if (frameDoc) {
                     const base = frameDoc.createElement("style");
@@ -306,7 +339,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 const initial = getLandingRenderPayload(initialRef.current);
                 created.setComponents(initial.html);
                 created.setStyle(userCssFromSaved(initial.css));
-                savedSnapshotRef.current = JSON.stringify(readRendered(created));
+                savedSnapshotRef.current = JSON.stringify(readRendered(created, themeRef.current));
                 setLoadingEditor(false);
                 refresh();
                 created.on("update", () => {
@@ -645,6 +678,10 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 </div>
 
                 <div className="space-y-4">
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Page theme</p>
+                        <PageThemePanel theme={theme} onChange={applyTheme} />
+                    </div>
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Style</p>
                         <div ref={stylesRef} />

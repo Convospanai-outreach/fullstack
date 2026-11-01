@@ -153,8 +153,8 @@ function isHexColour(value: unknown): value is string {
 export function brandThemeFrom(branding: unknown): { primary: string; accent: string } | null {
     if (!branding || typeof branding !== "object") return null;
     const data = branding as Record<string, unknown>;
-    const primary = isHexColour(data.primaryColor) ? data.primaryColor : null;
-    const accent = isHexColour(data.accentColor) ? data.accentColor : null;
+    const primary = isHexColour(data["primaryColor"]) ? data["primaryColor"] : null;
+    const accent = isHexColour(data["accentColor"]) ? data["accentColor"] : null;
     if (!primary && !accent) return null;
     return { primary: primary ?? DEFAULT_THEME_PRIMARY, accent: accent ?? DEFAULT_THEME_ACCENT };
 }
