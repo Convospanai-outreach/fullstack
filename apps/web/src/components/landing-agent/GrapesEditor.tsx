@@ -104,8 +104,15 @@ function applyThemeToCanvas(editor: Editor | null, theme: LandingTheme | null) {
     editor.getWrapper()?.addAttributes({ class: wrapper.className });
     const body = editor.Canvas.getDocument()?.body;
     if (!body) return;
-    body.className = wrapper.className;
-    body.removeAttribute("style");
+    // Only the theme's own classes and variables change; GrapesJS keeps its own body classes and styles.
+    for (const name of Array.from(body.classList)) {
+        if (name === "la-page" || name.startsWith("la-theme-")) body.classList.remove(name);
+    }
+    body.classList.add(...wrapper.className.split(" "));
+    for (let i = body.style.length - 1; i >= 0; i--) {
+        const prop = body.style.item(i);
+        if (prop.startsWith("--la-")) body.style.removeProperty(prop);
+    }
     for (const [key, value] of Object.entries(wrapper.vars)) {
         body.style.setProperty(key, value);
     }
@@ -157,7 +164,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [isEmpty, setIsEmpty] = useState(false);
     const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
     const [mobileWarnings, setMobileWarnings] = useState<MobileCheckWarning[]>([]);
-    const [theme, setTheme] = useState<LandingTheme | null>(themeRef.current);
+    const [theme, setTheme] = useState<LandingTheme | null>(() => themeFromRenderedJson(initialRenderedJson));
 
     // Theme changes reach the canvas at once; the next save stores them with the page.
     function applyTheme(next: LandingTheme | null) {
