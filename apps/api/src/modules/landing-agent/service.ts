@@ -156,7 +156,8 @@ async function generateUniqueSlug(name: string): Promise<string> {
         const suffix = i === 0 ? "" : `-${Math.random().toString(36).slice(2, 7)}`;
         const candidate = `${base}${suffix}`;
         const exists = await prisma.landingPage.findUnique({ where: { slug: candidate } });
-        if (!exists) {
+        const experimentExists = exists ? null : await prisma.landingExperiment.findUnique({ where: { slug: candidate }, select: { id: true } });
+        if (!exists && !experimentExists) {
             return candidate;
         }
     }
@@ -166,9 +167,13 @@ async function generateUniqueSlug(name: string): Promise<string> {
 const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
 
 // Slugs are globally unique (LandingPage.slug @unique), so a chosen path must not match any page's slug.
+// An A/B test path (LandingExperiment.slug) is in the same namespace, so it is checked too, both ways.
 async function assertAddressFree(slug: string, exceptPageId?: string) {
     const existing = await prisma.landingPage.findUnique({ where: { slug }, select: { id: true } });
     if (existing && existing.id !== exceptPageId) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    if (await prisma.landingExperiment.findUnique({ where: { slug }, select: { id: true } })) {
         throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
     }
 }

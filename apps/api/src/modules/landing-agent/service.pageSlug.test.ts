@@ -5,6 +5,7 @@ const { mockPrisma } = vi.hoisted(() => ({
         landingCampaign: { findFirst: vi.fn() },
         landingPage: { findUnique: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
         customDomain: { findMany: vi.fn() },
+        landingExperiment: { findUnique: vi.fn() },
     },
 }));
 
@@ -58,6 +59,15 @@ describe("landingAgentService.setPageSlug", () => {
 
     it("refuses an address another page already uses", async () => {
         mockPrisma.landingPage.findUnique.mockResolvedValue({ id: "lp-other" });
+
+        const attempt = landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "spring-guide" });
+
+        await expect(attempt).rejects.toThrow("This web address is taken");
+        expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses an address another test already uses", async () => {
+        mockPrisma.landingExperiment.findUnique.mockResolvedValue({ id: "exp-other" });
 
         const attempt = landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "spring-guide" });
 

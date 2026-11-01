@@ -5,6 +5,7 @@ const { mockPrisma } = vi.hoisted(() => ({
         iCP: { findFirst: vi.fn(), create: vi.fn() },
         landingCampaign: { create: vi.fn() },
         landingPage: { findUnique: vi.fn(), create: vi.fn() },
+        landingExperiment: { findUnique: vi.fn().mockResolvedValue(null) },
         $transaction: vi.fn(),
     },
 }));
