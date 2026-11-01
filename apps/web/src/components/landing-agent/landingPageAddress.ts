@@ -6,7 +6,7 @@ export const PAGE_PATH_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
 // Keep in step with RESERVED_PATHS in apps/api/src/modules/landing-agent/reservedPaths.ts (both are checked
 // against apps/web/tests/fixtures/landing-reserved-paths.json).
-export const RESERVED_PATHS: readonly string[] = ["api", "assets", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"];
+export const RESERVED_PATHS: readonly string[] = ["api", "assets", "data-deletion", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"];
 
 export const RESERVED_PATH_MESSAGE = "That web address is reserved. Try another.";
 

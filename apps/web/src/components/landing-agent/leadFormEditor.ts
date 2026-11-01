@@ -5,9 +5,12 @@ import {
     encodeLeadFormMarkerId,
     LEAD_FORM_MARKER_CLASS,
     LEAD_FORM_MARKER_ID_PREFIX,
+    LEAD_FORM_CONSENT_DEFAULT_TEXT,
+    LEAD_FORM_DEFAULT_CONSENT,
     LEAD_FORM_MAX_FIELDS,
     leadFormConfigSchema,
     type LeadFormConfig,
+    type LeadFormConsent,
     type LeadFormField,
 } from "@/modules/landing-agent/leadFormConfig";
 import { replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
@@ -16,6 +19,7 @@ export const LEAD_FORM_DEFAULT_CONFIG: LeadFormConfig = {
     fields: [{ key: "email", label: "Work email", type: "email", required: true }],
     buttonLabel: "Send it to me",
     successMessage: "Thanks! Check your inbox.",
+    consent: LEAD_FORM_DEFAULT_CONSENT,
 };
 
 // The block the editor inserts. The marker is empty; the form is built from its config when the page renders.
@@ -41,9 +45,17 @@ export function leadFormOfSelection(selection: { id: string; classes: string[] }
 // The first problem with a config, in words for the panel, or null when it can be saved.
 export function leadFormProblem(config: LeadFormConfig): string | null {
     const result = leadFormConfigSchema.safeParse(config);
-    if (result.success) return null;
-    const issue = result.error.issues[0];
-    return issue ? issue.message : "This form is not valid";
+    if (!result.success) {
+        const issue = result.error.issues[0];
+        return issue ? issue.message : "This form is not valid";
+    }
+    // The config is saved in the block's id, which has a length cap.
+    try {
+        encodeLeadFormMarkerId(config);
+        return null;
+    } catch {
+        return "This form is too large to save. Shorten the consent steps or the other text.";
+    }
 }
 
 export function addLeadFormField(config: LeadFormConfig): LeadFormConfig {
@@ -109,6 +121,20 @@ export function setLeadFormSetting(
         else next.instagramHandle = handle;
     }
     return next;
+}
+
+const CONSENT_OPTIONAL_KEYS = ["privacyUrl", "deletionUrl", "deletionSteps", "contactEmail"] as const;
+
+// Changes the consent box. A link or text left empty is removed. Turning the box off keeps its wording.
+export function setLeadFormConsent(config: LeadFormConfig, patch: Partial<LeadFormConsent>): LeadFormConfig {
+    const next: Record<string, unknown> = { ...(config.consent ?? { enabled: false, text: LEAD_FORM_CONSENT_DEFAULT_TEXT }), ...patch };
+    for (const key of CONSENT_OPTIONAL_KEYS) {
+        if (typeof next[key] !== "string") continue;
+        const value = (next[key] as string).trim();
+        if (value === "") delete next[key];
+        else next[key] = value;
+    }
+    return { ...config, consent: next as LeadFormConsent };
 }
 
 // The form's HTML for the editor's Live Preview iframe.

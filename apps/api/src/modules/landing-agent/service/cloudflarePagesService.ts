@@ -8,6 +8,7 @@ import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 import { buildTrackingScript, normalizeTracking } from "../tracking";
 import { hasLeadFormMarker, readLeadFormConfig, replaceLeadFormMarkers } from "../leadFormHtml";
+import { consentModeOf, type ConsentMode } from "../leadConsent";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -36,10 +37,26 @@ function getCloudflareConfig() {
 // sha256 goes into the worker's CSP (see publishPageToCloudflare), so the hash
 // must be taken over exactly the string placed between <script> and </script>.
 // meta: the page has a Meta Pixel, so a successful submit fires Lead with the ID made for that submit.
-function buildLeadFormScript(slug: string, meta = false): string {
+// consent: "none" for a form without a consent box (the script is unchanged), else "optional" or "required".
+export function buildLeadFormScript(slug: string, meta = false, consent: ConsentMode = "none"): string {
+    const consentExclude = consent === "none" ? "" : ` || el.name === "cmfConsent"`;
+    const consentBody = consent === "none" ? "" : `        consent: consentGiven,\n`;
+    const consentStart = consent === "none" ? "" : `    var consentError = document.getElementById("la-consent-error");
+    var consentBox = form.querySelector('input[name="cmfConsent"]');
+    var consentGiven = Boolean(consentBox && consentBox.checked);
+    if (consentError) consentError.textContent = "";
+    if (!consentGiven && ${consent === "required"}) {
+      if (consentError) consentError.textContent = "Please tick the consent box to send your details.";
+      if (consentBox) consentBox.focus();
+      return;
+    }
+`;
     const metaStart = meta ? `    var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;\n` : "";
-    const metaTrack = meta ? `        if (metaEventId) window.cmfMeta.track("Lead", metaEventId);\n` : "";
-    const metaBody = meta ? `        metaEventId: metaEventId || undefined,\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
+    // A consent box gates the browser Lead event and its event ID on the box being ticked (the server gates its own copy too).
+    const metaGate = consent === "none" ? "" : " && consentGiven";
+    const metaIdValue = consent === "none" ? "metaEventId || undefined" : "consentGiven ? metaEventId || undefined : undefined";
+    const metaTrack = meta ? `        if (metaEventId${metaGate}) window.cmfMeta.track("Lead", metaEventId);\n` : "";
+    const metaBody = meta ? `        metaEventId: ${metaIdValue},\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
     return `
 (function () {
   var slug = ${JSON.stringify(slug)};
@@ -52,7 +69,7 @@ function buildLeadFormScript(slug: string, meta = false): string {
     var els = form.querySelectorAll("input, select, textarea");
     for (var i = 0; i < els.length; i++) {
       var el = els[i];
-      if (!el.name || el.name === "website" || el.name === "whatsappConsent") continue;
+      if (!el.name || el.name === "website" || el.name === "whatsappConsent"${consentExclude}) continue;
       out[el.name] = el.type === "checkbox" ? el.checked : el.value;
     }
     return out;
@@ -93,7 +110,7 @@ function buildLeadFormScript(slug: string, meta = false): string {
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    var statusEl = document.getElementById("la-lead-form-status");
+${consentStart}    var statusEl = document.getElementById("la-lead-form-status");
     var submitBtn = form.querySelector("button[type=submit]");
     if (submitBtn) submitBtn.disabled = true;
     if (statusEl) statusEl.textContent = "";
@@ -121,7 +138,7 @@ ${metaStart}
         socialToken: url.searchParams.get("t") || undefined,
         whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
         formFields: form.hasAttribute("data-cmf-form") ? collectFormFields(form) : undefined,
-${metaBody}      }),
+${consentBody}${metaBody}      }),
     })
       .then(function (res) {
         if (!res.ok) throw new Error("Submission failed");
@@ -214,13 +231,18 @@ class CloudflarePagesService {
             // The page's analytics loaders (if any) share the one hashed inline script.
             const trackingScript = buildTrackingScript(page.tracking);
             const metaPixelId = normalizeTracking(page.tracking)?.metaPixelId;
-            const script = trackingScript + buildLeadFormScript(page.slug, Boolean(metaPixelId));
+            const consentMode = consentModeOf(readLeadFormConfig(payload.html)?.consent);
+            const script = trackingScript + buildLeadFormScript(page.slug, Boolean(metaPixelId), consentMode);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
             const theme = themeFromRenderedJson(page.renderedJson);
             const html = buildFullDocument({ title: page.title, css: payload.css, html: absoluteLandingAssetUrls(payload.html, landingAppOrigin(process.env)), script, whatsappOptIn, slug: page.slug, theme });
             const successMessage = readLeadFormConfig(payload.html)?.successMessage;
             const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
             const bookingUrl = readLeadFormConfig(payload.html)?.bookingUrl;
+            // The data-deletion page on the connected domain shows these (the Worker escapes them).
+            const consent = readLeadFormConfig(payload.html)?.consent;
+            const deletionSteps = consent?.enabled ? consent.deletionSteps : undefined;
+            const contactEmail = consent?.enabled ? consent.contactEmail : undefined;
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
@@ -239,6 +261,8 @@ class CloudflarePagesService {
                         ...(successMessage ? { successMessage } : {}),
                         ...(instagramHandle ? { instagramHandle } : {}),
                         ...(bookingUrl ? { bookingUrl } : {}),
+                        ...(deletionSteps ? { deletionSteps } : {}),
+                        ...(contactEmail ? { contactEmail } : {}),
                     }),
                 }
             );

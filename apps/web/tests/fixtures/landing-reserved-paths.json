@@ -1,3 +1,3 @@
 {
-  "reservedPaths": ["api", "assets", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"]
+  "reservedPaths": ["api", "assets", "data-deletion", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"]
 }
