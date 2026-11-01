@@ -110,11 +110,28 @@ export const landingAgentApi = {
         });
     },
 
-    saveTracking(campaignId: string, pageId: string, tracking: { ga4Id: string; gtmId: string; hotjarId: string }) {
+    saveTracking(
+        campaignId: string,
+        pageId: string,
+        tracking: { ga4Id: string; gtmId: string; hotjarId: string; metaPixelId: string; metaTestEventCode: string }
+    ) {
         return request<{ page: { status: string }; cloudflare: { status: string } | null }>(
             `/landing-agent/campaigns/${campaignId}/pages/${pageId}/tracking`,
             { method: "PUT", body: JSON.stringify(tracking) }
         );
+    },
+
+    // Team-level Meta Conversions API token. Only the saved flag comes back; the token is never returned.
+    getMetaCapiToken() {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`);
+    },
+
+    saveMetaCapiToken(accessToken: string) {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`, { method: "PUT", body: JSON.stringify({ accessToken }) });
+    },
+
+    deleteMetaCapiToken() {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`, { method: "DELETE" });
     },
 
     discardDraft(campaignId: string, pageId: string) {

@@ -1401,6 +1401,7 @@ model Team {
   // crystal-knows/crystalCredentials.ts. Unset = enrichment/personality
   // features are skipped for this team.
   crystalApiKeyEnc            Json?
+  metaCapiTokenEnc            Json? // Meta Conversions API token for the team's Pixels (credentialVault EncryptedCredential); null = not set
   crystalApiKeyConfiguredAt   DateTime?
 
   // Chrome extension captures queue lead enrichment (1 credit each) when on.

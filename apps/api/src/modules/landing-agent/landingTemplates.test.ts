@@ -6,6 +6,7 @@ import { findLeadFormMarkers } from "./leadFormHtml";
 import {
     LANDING_APP_ORIGIN_FALLBACK,
     LANDING_TEMPLATES,
+    absoluteLandingAssetUrls,
     getLandingTemplate,
     landingAppOrigin,
     materializeLandingTemplate,
@@ -16,6 +17,33 @@ import {
 const WEB_FIXTURE = resolve(__dirname, "../../../../web/tests/fixtures/landing-templates.json");
 
 const BUILT_IN_IMAGES = Array.from({ length: 8 }, (_, i) => `/landing-assets/gradient-${i + 1}.svg`);
+
+// Editor blocks (hero and image blocks) store relative built-in image paths. They must become absolute on
+// publish, the same as template pages, or the image breaks on a customer's connected domain.
+describe("built-in image URLs on publish", () => {
+    const blockMarkup = ["landing-blocks-markup.json", "hero-image-markup.json"].flatMap(
+        (name) => Object.values((JSON.parse(readFileSync(resolve(__dirname, "../../../../web/tests/fixtures", name), "utf8")) as { blocks: Record<string, unknown> }).blocks) as string[],
+    );
+
+    it("the editor block fixtures use relative built-in images (the case this rule fixes)", () => {
+        expect(blockMarkup.some((html) => html.includes('src="/landing-assets/'))).toBe(true);
+    });
+
+    it("makes every built-in image src absolute on the app origin", () => {
+        for (const html of blockMarkup) {
+            const out = absoluteLandingAssetUrls(html, LANDING_APP_ORIGIN_FALLBACK);
+            expect(out).not.toMatch(/src="\/landing-assets\//);
+            for (const [, src] of html.matchAll(/src="\/landing-assets\/([^"]*)"/g)) {
+                expect(out).toContain(`src="${LANDING_APP_ORIGIN_FALLBACK}/landing-assets/${src}"`);
+            }
+        }
+    });
+
+    it("keeps relative paths when there is no https origin (local development)", () => {
+        const html = blockMarkup[0]!;
+        expect(absoluteLandingAssetUrls(html, null)).toBe(html);
+    });
+});
 
 describe("landing template data", () => {
     it("has unique ids and the copy fields every card needs", () => {
