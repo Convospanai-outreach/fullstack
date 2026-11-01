@@ -142,6 +142,11 @@ describe("combineStallDecision: hard rules are never overridden", () => {
         const rule = judgeStalledEnrollment(autoCandidate);
         expect(combineStallDecision(rule, answer({ leadWaitingOnUs: 0.9, move: pick("wait") }), autoCandidate)).toEqual({ judgment: rule, changed: false });
     });
+
+    it("keeps an automated nudge when the waiting Noul is unsettled (between 0.3 and 0.7)", () => {
+        const rule = judgeStalledEnrollment(autoCandidate);
+        expect(combineStallDecision(rule, answer({ leadWaitingOnUs: 0.5, move: pick("wait") }), autoCandidate)).toEqual({ judgment: rule, changed: false });
+    });
 });
 
 describe("combineStallDecision: Jev's cautious answers are honoured", () => {

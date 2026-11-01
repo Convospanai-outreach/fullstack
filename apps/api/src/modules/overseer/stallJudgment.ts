@@ -1,4 +1,4 @@
-import { judgeStalledThread, NOUL_YES, STALL_NEXT_MOVES, type StallNextMove, type StallThreadJudgment, type StallThreadMessage } from "@/lib/ai/jev";
+import { judgeStalledThread, NOUL_NO, NOUL_YES, STALL_NEXT_MOVES, type StallNextMove, type StallThreadJudgment, type StallThreadMessage } from "@/lib/ai/jev";
 
 export type StallCandidate = {
     enrollmentId: string;
@@ -85,8 +85,9 @@ const sure = (probability: number) => probability >= NOUL_YES;
  * confirm it:
  * - a stop request, a turn-down or a "stop" move gives LIKELY_DEAD, whatever the rules said;
  * - "escalate_to_human" turns an automated nudge (RESEND_STEP, TRY_WHATSAPP) into a rep's review;
- * - "wait" drops an automated nudge, unless the lead is waiting on us;
- * - a rep's hand-off (ROUTE_MANUAL, LIKELY_DEAD) is never removed, and nothing new is created.
+ * - "wait" drops an automated nudge, unless the lead may be waiting on us (not clearly no);
+ * - a rep still sees a nudge for each candidate: a stop can change its type (for example
+ *   ROUTE_MANUAL to LIKELY_DEAD), but a rep-facing nudge is never dropped, and nothing new is created.
  * `changed` is true when Jev's answer altered the rules' outcome.
  */
 export function combineStallDecision(rule: StallJudgment, answer: StallThreadJudgment, candidate: StallCandidate): { judgment: StallJudgment | null; changed: boolean } {
@@ -107,7 +108,7 @@ export function combineStallDecision(rule: StallJudgment, answer: StallThreadJud
             changed: true
         };
     }
-    if (automated && move("wait") && !sure(answer.leadWaitingOnUs)) {
+    if (automated && move("wait") && answer.leadWaitingOnUs <= NOUL_NO) {
         return { judgment: null, changed: true };
     }
     return { judgment: rule, changed: false };
