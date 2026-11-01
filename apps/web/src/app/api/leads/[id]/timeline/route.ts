@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { firstResponseSeconds } from "@/modules/leads/responseTime";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const teamId = await resolveTeamId();
     if (!teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const lead = await prisma.lead.findFirst({ where: { id, teamId }, select: { id: true } });
+    const lead = await prisma.lead.findFirst({ where: { id, teamId }, select: { id: true, createdAt: true } });
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
     const [events, emails, leadActivities] = await Promise.all([
@@ -67,5 +68,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         }))
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return NextResponse.json({ timeline });
+    // Speed to lead: the earliest outbound email, DM or WhatsApp message since the lead was created.
+    const since = { gte: lead.createdAt };
+    const [firstEmail, firstMessage, firstWhatsApp] = await Promise.all([
+        prisma.email.findFirst({ where: { leadId: id, campaign: { teamId }, createdAt: since }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+        prisma.message.findFirst({ where: { leadId: id, direction: "OUTBOUND", status: { not: "draft" }, createdAt: since }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+        prisma.whatsAppMessage.findFirst({ where: { leadId: id, direction: "OUTBOUND", createdAt: since }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
+    ]);
+    const outboundAt = [firstEmail, firstMessage, firstWhatsApp].flatMap((row) => (row ? [row.createdAt] : []));
+
+    return NextResponse.json({ timeline, firstResponseSeconds: firstResponseSeconds(lead.createdAt, outboundAt) });
 }
