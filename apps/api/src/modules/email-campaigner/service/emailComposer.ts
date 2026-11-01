@@ -13,6 +13,8 @@ import { LearningService } from "@/modules/learning/learningService";
 import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrchestrator";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
+import type { Rubric } from "@/evals/copy/evalData";
+import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
 
@@ -99,6 +101,8 @@ export interface NodeCOutput {
     subject: string;
     body: string;
     reasoning: string;
+    // True when the critic's verdict could not be used, so nothing checked this draft.
+    unreviewed?: boolean;
 }
 
 // ─── Prompt builders ──────────────────────────────────────────────────────────
@@ -330,6 +334,27 @@ function readCritique(raw: string, label: string): CritiqueVerdict | null {
     }
 }
 
+// Same contract as readCritique, for the rubric critic's reply.
+function readRubricCritique(raw: string, label: string, rubric: Rubric): CritiqueVerdict | null {
+    try {
+        return readRubricVerdict(parseJsonResponse<unknown>(raw), rubric);
+    } catch (error) {
+        console.warn(`[Critique] ${label}: the rubric critic's answer could not be used; the draft is marked unreviewed`, {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+}
+
+// One critique call per draft: scored against the private rubric when COPY_RUBRIC_DIR is set,
+// the standard critique otherwise.
+async function critiqueDraft(input: any, draft: { subject: string; body: string }, teamId: string, label: string): Promise<CritiqueVerdict | null> {
+    const rubric = loadCriticRubric();
+    const prompt = rubric ? buildRubricCritiquePrompt(input, draft, rubric, buildStyleGuidance(input)) : buildCritiquePrompt(input, draft);
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
+    return rubric ? readRubricCritique(raw, label, rubric) : readCritique(raw, label);
+}
+
 // A usable correction needs both fields; anything else leaves the original draft unchecked.
 function usableCorrection(verdict: CritiqueVerdict | null): { subject: string; body: string } | null {
     const correction = verdict?.status === "FAIL" ? verdict.correction : undefined;
@@ -417,10 +442,7 @@ export async function composeNodeA(
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
-    const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
-    
-    const verdict = readCritique(critiqueRaw, "Node A");
+    const verdict = await critiqueDraft(input, draft, teamId, "Node A");
     const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node A");
     if (correction) {
         console.log(`[Self-Correction] Pivot applied: ${verdict?.critique}`);
@@ -455,10 +477,7 @@ export async function composeNodeB(
     const draft = parseJsonResponse<NodeBOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
-    const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
-
-    const verdict = readCritique(critiqueRaw, "Node B");
+    const verdict = await critiqueDraft(input, draft, teamId, "Node B");
     const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node B");
     if (correction) {
         console.log(`[Self-Correction: Node B] Resulted in pivot: ${verdict?.critique}`);
@@ -493,21 +512,20 @@ export async function composeNodeC(
     const draft = parseJsonResponse<NodeCOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
-    const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
+    const verdict = await critiqueDraft(input, draft, teamId, "Node C");
+    const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node C");
+    if (correction) {
+        console.log(`[Self-Correction: Node C] Resulted in pivot: ${verdict?.critique}`);
+        return normalizeNodeCOutput({
+            ...draft,
+            subject: correction.subject,
+            body: correction.body,
+            reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${verdict?.critique}`
+        });
+    }
 
-    try {
-        const critiqueResult = parseJsonResponse<any>(critiqueRaw);
-        if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
-            console.log(`[Self-Correction: Node C] Resulted in pivot: ${critiqueResult.critique}`);
-            return normalizeNodeCOutput({
-                ...draft,
-                subject: critiqueResult.correction.subject,
-                body: critiqueResult.correction.body,
-                reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            });
-        }
-    } catch (e) {}
-
-    return normalizeNodeCOutput(draft);
+    const normalized = normalizeNodeCOutput(draft);
+    if (verdict?.status === "PASS") return normalized;
+    if (verdict) console.warn("[Critique] Node C: the critic gave no usable verdict or correction; the draft is marked unreviewed", { status: verdict.status });
+    return { ...normalized, reasoning: `${normalized.reasoning}\n\n${UNREVIEWED_NOTE}`, unreviewed: true };
 }

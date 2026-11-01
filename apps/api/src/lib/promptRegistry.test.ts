@@ -10,6 +10,7 @@ import {
     buildNodeBPrompt,
     buildNodeCPrompt,
 } from "@/modules/email-campaigner/service/emailComposer";
+import { buildRubricCritiquePrompt } from "@/modules/email-campaigner/service/rubricCritic";
 import { allPromptRefs, fingerprintPrompt, PROMPT_REGISTRY, promptRef, type PromptId } from "./promptRegistry";
 
 // Placeholder input: the fingerprint depends on the prompt text, not on any real data.
@@ -31,6 +32,7 @@ const RENDERED: Record<PromptId, string> = {
     "email.nodeB": buildNodeBPrompt(followUp),
     "email.nodeC": buildNodeCPrompt(followUp),
     "email.critique": buildCritiquePrompt(nodeA, draft),
+    "email.critique.rubric": buildRubricCritiquePrompt(nodeA, draft, { criteria: [{ id: "crit-x", description: "desc-x", weight: 1 }], passScore: 4 }, "style-x"),
 };
 
 describe("prompt registry", () => {

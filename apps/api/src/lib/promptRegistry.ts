@@ -12,6 +12,7 @@ export const PROMPT_REGISTRY = {
     "email.nodeB": { version: 1, fingerprint: "f9ca7bb0c55c" },
     "email.nodeC": { version: 1, fingerprint: "c9c11f315b68" },
     "email.critique": { version: 1, fingerprint: "bb39618e430e" },
+    "email.critique.rubric": { version: 1, fingerprint: "b3f1ea072e06" },
 } as const satisfies Record<string, { version: number; fingerprint: string }>;
 
 export type PromptId = keyof typeof PROMPT_REGISTRY;
