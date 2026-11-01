@@ -38,6 +38,7 @@ function getCloudflareConfig() {
 function buildLeadFormScript(slug: string, meta = false): string {
     const metaStart = meta ? `    var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;\n` : "";
     const metaTrack = meta ? `        if (metaEventId) window.cmfMeta.track("Lead", metaEventId);\n` : "";
+    const metaBody = meta ? `        metaEventId: metaEventId || undefined,\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
     return `
 (function () {
   var slug = ${JSON.stringify(slug)};
@@ -119,7 +120,7 @@ ${metaStart}
         socialToken: url.searchParams.get("t") || undefined,
         whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
         formFields: form.hasAttribute("data-cmf-form") ? collectFormFields(form) : undefined,
-      }),
+${metaBody}      }),
     })
       .then(function (res) {
         if (!res.ok) throw new Error("Submission failed");
