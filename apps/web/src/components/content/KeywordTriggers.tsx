@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { DmFlowSection } from "./DmFlowSection";
 
 // Creator funnel keyword auto-replies (apps/api keywordTriggerService.ts). A comment or DM with
 // one of the keywords gets an automatic DM (and, for comments, an optional public reply). New
@@ -24,6 +25,7 @@ export type KeywordTrigger = {
     publicCommentReply: string | null;
     landingPageId: string | null;
     mauticPageUrl: string | null;
+    flowId: string | null; // an Instagram DM flow that runs instead of the reply (DmFlowSection.tsx)
     active: boolean;
     sentLast7Days: number;
     lastError: string | null;
@@ -47,6 +49,7 @@ type Draft = {
     publicCommentReply: string;
     landingPageId: string;
     mauticPageUrl: string;
+    flowId: string | null;
 };
 
 const URL_BASE = getBrowserApiUrl("/content/keyword-triggers");
@@ -80,6 +83,7 @@ const emptyDraft = (accountId = "", postId = ""): Draft => ({
     publicCommentReply: "",
     landingPageId: "",
     mauticPageUrl: "",
+    flowId: null,
 });
 
 const fieldClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
@@ -89,6 +93,7 @@ export function KeywordTriggers() {
     const { data, error, mutate } = useSWR<TriggerList | null>(URL_BASE, fetcher);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
+    const [flowBlocker, setFlowBlocker] = useState<string | null>(null); // why the attached flow can't be saved yet
 
     // ?trigger=new&post=<id> (from a live post in the calendar) opens the editor for that post.
     const postParam = params.get("trigger") === "new" ? params.get("post") : null;
@@ -122,6 +127,7 @@ export function KeywordTriggers() {
             publicCommentReply: draft.scope === "DM" ? null : draft.publicCommentReply.trim() || null,
             landingPageId: draft.landingPageId || null,
             mauticPageUrl: draft.mauticPageUrl.trim() || null,
+            flowId: draft.flowId,
         };
         try {
             if (draft.id) await send(`${URL_BASE}/${encodeURIComponent(draft.id)}`, "PATCH", body);
@@ -215,6 +221,7 @@ export function KeywordTriggers() {
                                             publicCommentReply: trigger.publicCommentReply ?? "",
                                             landingPageId: trigger.landingPageId ?? "",
                                             mauticPageUrl: trigger.mauticPageUrl ?? "",
+                                            flowId: trigger.flowId,
                                         })
                                     }
                                     className="text-muted-foreground hover:text-foreground disabled:opacity-50"
@@ -330,6 +337,13 @@ export function KeywordTriggers() {
                         </label>
                     )}
 
+                    <DmFlowSection
+                        flowId={draft.flowId}
+                        landingPageSelected={Boolean(draft.landingPageId)}
+                        onFlowIdChange={(flowId) => setDraft((current) => (current ? { ...current, flowId } : current))}
+                        onBlockerChange={setFlowBlocker}
+                    />
+
                     <div className="flex justify-end gap-3">
                         <button type="button" onClick={() => setDraft(null)} className="h-9 rounded-md px-4 text-sm text-muted-foreground hover:text-foreground">
                             Cancel
@@ -337,7 +351,7 @@ export function KeywordTriggers() {
                         <button
                             type="button"
                             onClick={save}
-                            disabled={busy !== null || !draft.socialAccountId || !draft.keywords.trim() || !draft.replyText.trim() || replyBytes > REPLY_MAX_BYTES}
+                            disabled={busy !== null || flowBlocker !== null || !draft.socialAccountId || !draft.keywords.trim() || !draft.replyText.trim() || replyBytes > REPLY_MAX_BYTES}
                             className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
                         >
                             {busy === "save" ? "Saving..." : "Save"}

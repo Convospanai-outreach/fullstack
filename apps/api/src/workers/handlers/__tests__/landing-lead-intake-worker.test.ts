@@ -5,6 +5,9 @@ vi.mock("@/lib/db", () => ({
         landingLead: {
             findFirst: vi.fn(),
         },
+        campaignSequence: {
+            findFirst: vi.fn(),
+        },
         lead: {
             findFirst: vi.fn(),
             updateMany: vi.fn(),
@@ -25,6 +28,9 @@ vi.mock("@/modules/creator-funnel/socialLinkMerge", () => ({ mergeSignupIntoSoci
 vi.mock("@/modules/creator-funnel/contentRoi", () => ({ setFirstTouchPost: vi.fn() }));
 vi.mock("@/modules/creator-funnel/whatsappOptIn", () => ({ recordWhatsappOptIn: vi.fn() }));
 vi.mock("@/modules/creator-funnel/playbookSwitches", () => ({ enrollPlanNurture: vi.fn() }));
+vi.mock("@/modules/lead-properties/leadCustomFields", () => ({ saveLandingAnswersToLead: vi.fn() }));
+const { pushLead } = vi.hoisted(() => ({ pushLead: vi.fn().mockResolvedValue({ success: true }) }));
+vi.mock("@/modules/mautic-integration/service/mauticService", () => ({ mauticService: { pushLead } }));
 
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
@@ -34,6 +40,7 @@ import { mergeSignupIntoSocialLead } from "@/modules/creator-funnel/socialLinkMe
 import { setFirstTouchPost } from "@/modules/creator-funnel/contentRoi";
 import { recordWhatsappOptIn } from "@/modules/creator-funnel/whatsappOptIn";
 import { enrollPlanNurture } from "@/modules/creator-funnel/playbookSwitches";
+import { saveLandingAnswersToLead } from "@/modules/lead-properties/leadCustomFields";
 import { handleLandingLeadIntake } from "../landing-lead-intake-worker";
 
 describe("landing-lead-intake-worker", () => {
@@ -291,6 +298,25 @@ describe("landing-lead-intake-worker", () => {
             expect(setFirstTouchPost).toHaveBeenLastCalledWith("team-1", "lead-new", "post-p");
         });
 
+        it("saves the form's custom-property answers on the lead of every path (merge, existing, new)", async () => {
+            const row = linkSignUp();
+            (row as any).rawPayload = { answers: { budget: "500" } };
+            (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-social", { answers: { budget: "500" } });
+
+            (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-existing", fullName: null, phone: null, company: null, jobTitle: null, source: "x", campaignId: null });
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-existing", { answers: { budget: "500" } });
+
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+            await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            expect(saveLandingAnswersToLead).toHaveBeenLastCalledWith("team-1", "lead-new", { answers: { budget: "500" } });
+        });
+
         it("doesn't fail the intake when first-touch attribution throws, and skips it without utm_content", async () => {
             optIn();
             (setFirstTouchPost as any).mockRejectedValue(new Error("db down"));
@@ -353,6 +379,38 @@ describe("landing-lead-intake-worker", () => {
             (enrollPlanNurture as any).mockRejectedValue(new Error("db down"));
             await expect(handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any)).resolves.toEqual({ created: true, leadId: "lead-new" });
             expect(enrollPlanNurture).toHaveBeenLastCalledWith(row, "lead-new");
+        });
+
+        describe("Mautic push and the consent box", () => {
+            const consent = (given: boolean) => ({ consent: { given, text: "I agree.", at: "2026-11-01T10:00:00.000Z", pageSlug: "guide", source: "landing_form" } });
+            const run = async (rawPayload: unknown) => {
+                const row = linkSignUp();
+                (row as any).rawPayload = rawPayload;
+                (mergeSignupIntoSocialLead as any).mockResolvedValue("lead-social");
+                await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+                (mergeSignupIntoSocialLead as any).mockResolvedValue(null);
+                (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-existing", fullName: null, phone: null, company: null, jobTitle: null, source: "x", campaignId: null });
+                (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+                await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+                (prisma.lead.findFirst as any).mockResolvedValue(null);
+                (prisma.lead.create as any).mockResolvedValue({ id: "lead-new" });
+                await handleLandingLeadIntake({ landingLeadId: "ll-6", teamId: "team-1" } as any);
+            };
+
+            it("does not push the lead to Mautic when the form had a consent box that was not ticked (merge, existing, new)", async () => {
+                await run(consent(false));
+                expect(pushLead).not.toHaveBeenCalled();
+            });
+
+            it("pushes the lead to Mautic when consent was given, on every path", async () => {
+                await run(consent(true));
+                expect(pushLead.mock.calls.map((c) => c[0])).toEqual(["lead-social", "lead-existing", "lead-new"]);
+            });
+
+            it("pushes the lead to Mautic as before when the page had no consent box", async () => {
+                await run({ answers: {} });
+                expect(pushLead).toHaveBeenCalledTimes(3);
+            });
         });
 
         it("doesn't try a merge for an ordinary sign-up", async () => {

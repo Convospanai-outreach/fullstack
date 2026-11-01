@@ -8,11 +8,23 @@ import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
 import { LANDING_PAGE_TEMPLATES } from "./templates";
+import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
-import { landingEventNameEnum } from "./schemas";
+import { checkConfirmationSequence, confirmationCopyWarnings, listInstantConfirmationSequences } from "./instantConfirmation";
+import type { InstantConfirmation } from "./schemas";
+import { runningArmOf, variantForPage } from "./experimentService";
+import { isBotUserAgent } from "./landingExperimentAssignment";
+import { landingEventNameEnum, landingPagePathSchema } from "./schemas";
+import { getLandingRenderPayload } from "./rendering";
+import { brandThemeFrom, themeValidationError } from "./theme";
+import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
+import { leadFormMarkerError, mapLeadFormSubmission, type LeadFormColumns } from "./leadFormSubmit";
+import { consentAllowsContact, consentMissing, consentRecordFor, withoutConsentRecord, type LeadConsentRecord } from "./leadConsent";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
+import { loadActivePropertyDefinitions } from "@/modules/lead-properties/leadCustomFields";
+import { pickPropertyAnswers } from "@/modules/lead-properties/leadProperties";
 
 export function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
@@ -152,11 +164,56 @@ async function generateUniqueSlug(name: string): Promise<string> {
         const suffix = i === 0 ? "" : `-${Math.random().toString(36).slice(2, 7)}`;
         const candidate = `${base}${suffix}`;
         const exists = await prisma.landingPage.findUnique({ where: { slug: candidate } });
-        if (!exists) {
+        const experimentExists = exists ? null : await prisma.landingExperiment.findUnique({ where: { slug: candidate }, select: { id: true } });
+        if (!exists && !experimentExists) {
             return candidate;
         }
     }
     return `${base}-${Date.now().toString(36)}`;
+}
+
+// Editing a page that is an arm of a running test leaves a note in the audit log; the test's panel shows the last edit.
+async function noteArmEdit(teamId: string, userId: string, pageId: string) {
+    const arm = await runningArmOf(pageId);
+    if (!arm) return;
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "landing_experiment.page_edited",
+        entity: "LandingExperiment",
+        entityId: arm.experimentId,
+        metadata: { pageId, variant: arm.name },
+    });
+}
+
+// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the variant the test cookie names.
+async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined, cookieHeader: string | null | undefined): Promise<string | null> {
+    if (doNotTrack || isBotUserAgent(userAgent ?? null)) return null;
+    return variantForPage(pageId, cookieHeader ?? null);
+}
+
+const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
+
+// Slugs are globally unique (LandingPage.slug @unique), so a chosen path must not match any page's slug.
+// An A/B test path (LandingExperiment.slug) is in the same namespace, so it is checked too, both ways.
+async function assertAddressFree(slug: string, exceptPageId?: string) {
+    const existing = await prisma.landingPage.findUnique({ where: { slug }, select: { id: true } });
+    if (existing && existing.id !== exceptPageId) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    if (await prisma.landingExperiment.findUnique({ where: { slug }, select: { id: true } })) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+}
+
+// Two requests can both pass assertAddressFree for one address; the database's unique slug then rejects the second.
+// Answer that the same way as the pre-check.
+function rethrowAddressTaken(error: unknown): never {
+    const { code, meta } = (error ?? {}) as { code?: unknown; meta?: { target?: unknown } };
+    if (code === "P2002" && String(meta?.target ?? "").includes("slug")) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    throw error;
 }
 
 async function getCampaignOrThrow(campaignId: string, teamId: string) {
@@ -189,6 +246,35 @@ async function updateOwnedPage(id: string, teamId: string, data: Prisma.LandingP
     return prisma.landingPage.findUniqueOrThrow({ where: { id } });
 }
 
+// Publishing copies an unpublished draft (see saveEditorState) to the live columns. A page without
+// a draft publishes exactly as before: no copy and no version bump.
+function draftPublishData(page: { draftRenderedJson?: unknown; draftEditorState?: unknown }): Prisma.LandingPageUpdateInput {
+    if (page.draftRenderedJson == null) return {};
+    return {
+        renderedJson: page.draftRenderedJson as Prisma.InputJsonValue,
+        ...(page.draftEditorState != null ? { editorState: page.draftEditorState as Prisma.InputJsonValue } : {}),
+        version: { increment: 1 },
+        draftRenderedJson: Prisma.DbNull,
+        draftEditorState: Prisma.DbNull,
+    };
+}
+
+// The editor reads the unpublished draft when there is one; the live columns stay in the database for the public page.
+function withDraftForEditor<T extends { renderedJson: unknown; editorState: unknown; draftRenderedJson: unknown; draftEditorState: unknown }>(
+    page: T
+) {
+    const { draftRenderedJson, draftEditorState, ...live } = page;
+    if (draftRenderedJson == null) {
+        return { ...live, hasUnpublishedChanges: false };
+    }
+    return {
+        ...live,
+        renderedJson: draftRenderedJson,
+        editorState: draftEditorState ?? live.editorState,
+        hasUnpublishedChanges: true,
+    };
+}
+
 async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
     const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
     if (result.count === 0) {
@@ -196,6 +282,7 @@ async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.Land
     }
     return prisma.landingCampaign.findUniqueOrThrow({ where: { id } });
 }
+
 
 export const landingAgentService = {
     async createCampaign(input: {
@@ -229,8 +316,89 @@ export const landingAgentService = {
         return campaign;
     },
 
+    // Starts a page from an editor-ready template: no brief, no wireframes and no AI call. The page
+    // goes through the same save-time checks as the editor (sanitizer and the lead form marker).
+    async createCampaignFromTemplate(input: {
+        teamId: string;
+        userId: string;
+        templateId: string;
+        name: string;
+        path?: string;
+        env?: Record<string, string | undefined>;
+    }) {
+        const template = getLandingTemplate(input.templateId);
+        if (!template) {
+            throw new APIError("Template not found", 400, "VALIDATION_ERROR");
+        }
+        const { html, css } = materializeLandingTemplate(template, landingAppOrigin(input.env ?? process.env));
+        // A new page starts with the team's brand colours as its theme (none when the brand has no valid colour).
+        const brandTheme = brandThemeFrom((await prisma.team.findUnique({ where: { id: input.teamId }, select: { branding: true } }))?.branding);
+        const renderedJson = sanitizeJson({ html, css, ...(brandTheme ? { theme: brandTheme } : {}) }) as Prisma.InputJsonValue;
+        const markerError = leadFormMarkerError(renderedJson);
+        if (markerError) {
+            throw new APIError(markerError, 400, "VALIDATION_ERROR");
+        }
+
+        const name = input.name.trim();
+        // A chosen path is the page's address; without one the slug is generated from the name, as before.
+        if (input.path) {
+            await assertAddressFree(input.path);
+        }
+        const slug = input.path ?? (await generateUniqueSlug(name));
+        return prisma.$transaction(async (tx) => {
+            // The team's default audience, created on first use. The team can rename or edit it in the
+            // ICP Builder. A landing campaign needs an ICP; this keeps the template path free of one.
+            const defaultIcp = { name: "Default audience", description: "Created for pages started from a template. Describe your real audience in the ICP Builder." };
+            const icp =
+                (await tx.iCP.findFirst({ where: { teamId: input.teamId, name: defaultIcp.name, status: "active" }, select: { id: true } })) ??
+                (await tx.iCP.create({
+                    data: {
+                        teamId: input.teamId,
+                        name: defaultIcp.name,
+                        description: defaultIcp.description,
+                        criteria: { description: defaultIcp.description, source: "landing-template-default" },
+                        status: "active",
+                    },
+                    select: { id: true },
+                }));
+            const campaign = await tx.landingCampaign.create({
+                data: {
+                    teamId: input.teamId,
+                    ownerId: input.userId,
+                    icpId: icp.id,
+                    name,
+                    prompt: template.description,
+                    status: "draft",
+                },
+            });
+            const page = await tx.landingPage.create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: input.teamId,
+                    slug,
+                    title: name,
+                    status: "draft",
+                    version: 1,
+                    renderedJson,
+                },
+            });
+            return { campaignId: campaign.id, pageId: page.id };
+        }).catch(rethrowAddressTaken);
+    },
+
     async getCampaign(teamId: string, campaignId: string) {
-        return getCampaignOrThrow(campaignId, teamId);
+        const campaign = await getCampaignOrThrow(campaignId, teamId);
+        return { ...campaign, pages: campaign.pages.map(withDraftForEditor) };
+    },
+
+    // The team's active connected domains, oldest first. Each one serves every published page of the team.
+    async getActiveDomains(teamId: string) {
+        const records = await prisma.customDomain.findMany({
+            where: { teamId, status: "active" },
+            orderBy: { createdAt: "asc" },
+            select: { domain: true },
+        });
+        return records.map((record) => record.domain);
     },
 
     // The team's connected domain that published pages are live on (oldest active one), if any.
@@ -245,7 +413,7 @@ export const landingAgentService = {
 
     // Dashboard list: the team's landing campaigns, latest edit first, with only what the list shows.
     async listCampaigns(teamId: string) {
-        return prisma.landingCampaign.findMany({
+        const campaigns = await prisma.landingCampaign.findMany({
             where: { teamId },
             orderBy: { updatedAt: "desc" },
             take: 200,
@@ -256,11 +424,36 @@ export const landingAgentService = {
                 pages: {
                     orderBy: { createdAt: "desc" },
                     take: 1,
-                    select: { slug: true, title: true, status: true, updatedAt: true },
+                    select: { id: true, slug: true, title: true, status: true, updatedAt: true, draftRenderedJson: true },
                 },
                 _count: { select: { wireframeOptions: true, leads: true } },
             },
         });
+        // One grouped count for every page on the list (not one query per page), scoped to the team.
+        const pageIds = campaigns.flatMap((campaign) => campaign.pages.map((page) => page.id));
+        const triggerRows = pageIds.length
+            ? await prisma.keywordTrigger.groupBy({
+                  by: ["landingPageId", "active"],
+                  where: { teamId, landingPageId: { in: pageIds } },
+                  _count: { _all: true },
+              })
+            : [];
+        const autoRepliesByPage = new Map<string, { total: number; active: number }>();
+        for (const row of triggerRows) {
+            if (!row.landingPageId) continue;
+            const entry = autoRepliesByPage.get(row.landingPageId) ?? { total: 0, active: 0 };
+            entry.total += row._count._all;
+            if (row.active) entry.active += row._count._all;
+            autoRepliesByPage.set(row.landingPageId, entry);
+        }
+        return campaigns.map((campaign) => ({
+            ...campaign,
+            pages: campaign.pages.map(({ draftRenderedJson, ...page }) => ({
+                ...page,
+                hasUnpublishedChanges: draftRenderedJson != null,
+                autoReplies: autoRepliesByPage.get(page.id) ?? { total: 0, active: 0 },
+            })),
+        }));
     },
 
     async addAsset(input: {
@@ -440,6 +633,7 @@ export const landingAgentService = {
         teamId: string;
         campaignId: string;
         wireframeId: string;
+        path?: string;
     }) {
         const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
         const wireframe = campaign.wireframeOptions.find((item) => item.id === input.wireframeId);
@@ -449,11 +643,18 @@ export const landingAgentService = {
 
         const existingPage = campaign.pages[0];
         if (existingPage) {
-            const updatedPage = await updateOwnedPage(existingPage.id, input.teamId, {
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: existingPage.status === "published" ? "draft" : existingPage.status,
-            });
+            // A live page keeps serving; the new wireframe waits in the draft columns until publish.
+            const updatedPage = await updateOwnedPage(
+                existingPage.id,
+                input.teamId,
+                existingPage.status === "published"
+                    ? { draftRenderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue }
+                    : {
+                          renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                          version: { increment: 1 },
+                          status: existingPage.status,
+                      }
+            );
             await updateOwnedCampaign(campaign.id, input.teamId, {
                 selectedWireframeId: wireframe.id,
                 status: "draft",
@@ -461,18 +662,24 @@ export const landingAgentService = {
             return updatedPage;
         }
 
-        const slug = await generateUniqueSlug(campaign.name);
-        const createdPage = await prisma.landingPage.create({
-            data: {
-                campaignId: campaign.id,
-                teamId: campaign.teamId,
-                slug,
-                title: `${campaign.name} Landing Page`,
-                status: "draft",
-                version: 1,
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-            },
-        });
+        // A chosen path is the page's address; without one the slug is generated from the campaign name, as before.
+        if (input.path) {
+            await assertAddressFree(input.path);
+        }
+        const slug = input.path ?? (await generateUniqueSlug(campaign.name));
+        const createdPage = await prisma.landingPage
+            .create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: campaign.teamId,
+                    slug,
+                    title: `${campaign.name} Landing Page`,
+                    status: "draft",
+                    version: 1,
+                    renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                },
+            })
+            .catch(rethrowAddressTaken);
 
         await updateOwnedCampaign(campaign.id, input.teamId, {
             selectedWireframeId: wireframe.id,
@@ -493,7 +700,8 @@ export const landingAgentService = {
             throw new Error("Landing page not found");
         }
 
-        const renderedJson = page.renderedJson;
+        // Generate from the unpublished draft when there is one, so the latest edits keep their content.
+        const renderedJson = page.draftRenderedJson ?? page.renderedJson;
         const isPlainArray = Array.isArray(renderedJson);
         const data = !isPlainArray && renderedJson && typeof renderedJson === "object" ? (renderedJson as Record<string, unknown>) : null;
         const sections: LandingPageSection[] | null = isPlainArray
@@ -519,20 +727,25 @@ export const landingAgentService = {
         }
 
         if (!changed) {
-            return page;
+            return page.status === "published" ? withDraftForEditor(page) : page;
         }
 
-        const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
+        const updatedRenderedJson = sanitizeJson(isPlainArray ? sections : { ...(data as Record<string, unknown>), sections }) as Prisma.InputJsonValue;
 
+        // The editor replaces its canvas with the returned content, so return the draft it is editing.
+        if (page.status === "published") {
+            return withDraftForEditor(await updateOwnedPage(page.id, input.teamId, { draftRenderedJson: updatedRenderedJson }));
+        }
         return updateOwnedPage(page.id, input.teamId, {
-            renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+            renderedJson: updatedRenderedJson,
             version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            status: page.status,
         });
     },
 
     async saveEditorState(input: {
         teamId: string;
+        userId: string;
         campaignId: string;
         title?: string;
         editorState?: unknown;
@@ -546,13 +759,64 @@ export const landingAgentService = {
 
         const sanitizedEditorState = sanitizeJson(input.editorState);
         const sanitizedRendered = sanitizeJson(input.renderedJson);
+        const markerError = leadFormMarkerError(input.renderedJson);
+        if (markerError) throw new APIError(markerError, 400, "VALIDATION_ERROR");
+        const themeError = themeValidationError(input.renderedJson);
+        if (themeError) throw new APIError(themeError, 400, "VALIDATION_ERROR");
 
+        // A live page keeps serving its last publish; edits go to the draft columns until publish.
+        // The title is page metadata, not content, so it goes live at once (the public title
+        // only changes on the next publish that copies the draft).
+        const saved =
+            page.status === "published"
+                ? await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                  })
+                : await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                      renderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      version: { increment: 1 },
+                      status: page.status,
+                  });
+        await noteArmEdit(input.teamId, input.userId, page.id);
+        return saved;
+    },
+
+    // A page's path name can change until the page is first published; after that the address is fixed.
+    async setPageSlug(input: { teamId: string; campaignId: string; pageId: string; path: string }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        const path = input.path.trim().toLowerCase();
+        if (page.slug === path) {
+            return page;
+        }
+        const checked = landingPagePathSchema.safeParse(path);
+        if (!checked.success) {
+            throw new APIError(checked.error.issues[0]?.message ?? "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
+        }
+        if (page.publishedAt || page.status === "published") {
+            throw new APIError("The web address can only change before the page is first published.", 409, "CONFLICT");
+        }
+        await assertAddressFree(path, page.id);
+        return updateOwnedPage(page.id, input.teamId, { slug: path }).catch(rethrowAddressTaken);
+    },
+
+    // Throws away unpublished edits; the live page is unchanged and not pushed again.
+    async discardPageDraft(input: { teamId: string; campaignId: string; pageId: string }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
         return updateOwnedPage(page.id, input.teamId, {
-            title: input.title ?? page.title,
-            editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-            renderedJson: sanitizedRendered as Prisma.InputJsonValue,
-            version: { increment: 1 },
-            status: page.status === "published" ? "draft" : page.status,
+            draftRenderedJson: Prisma.DbNull,
+            draftEditorState: Prisma.DbNull,
         });
     },
 
@@ -581,6 +845,30 @@ export const landingAgentService = {
             cloudflare = await cloudflarePagesService.publishPageToCloudflare(updatedPage.id);
         }
         return { page: updatedPage, cloudflare };
+    },
+
+    // Phase 9: the sequences a page's confirmation can use (team scoped).
+    async listInstantConfirmationSequences(teamId: string) {
+        return listInstantConfirmationSequences(teamId);
+    },
+
+    // Phase 9: the page's optional confirmation message. Only a sequence that passes the save-time check can be switched on.
+    async savePageInstantConfirmation(input: { teamId: string; campaignId: string; pageId: string; setting: InstantConfirmation }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+        if (input.setting.enabled) {
+            const check = await checkConfirmationSequence(input.teamId, input.setting.sequenceId);
+            if (!check.ok) {
+                throw new APIError(check.message, 400, "VALIDATION_ERROR");
+            }
+        }
+        const saved = await updateOwnedPage(page.id, input.teamId, { instantConfirmation: input.setting as Prisma.InputJsonValue });
+        // After the save, so Jev can only add a warning, never block it.
+        const warnings = await confirmationCopyWarnings(input.teamId, input.setting);
+        return { ...saved, warnings };
     },
 
     async publishCampaign(input: {
@@ -626,15 +914,26 @@ export const landingAgentService = {
 
         const updates = await prisma.$transaction(async (tx) => {
             const activeSlug = page.slug || (await generateUniqueSlug(campaign.name));
+            // Read the draft inside the transaction so the copy below is the latest saved draft.
+            const current = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
             const pageResult = await tx.landingPage.updateMany({
-                where: { id: page.id, teamId: input.teamId },
+                where: {
+                    id: page.id,
+                    teamId: input.teamId,
+                    // A copy is only valid against the draft it read; a save since then makes it stale.
+                    ...(current.draftRenderedJson == null ? {} : { updatedAt: current.updatedAt }),
+                },
                 data: {
                     slug: activeSlug,
                     status: "published",
                     publishedAt: new Date(),
+                    ...draftPublishData(current),
                 },
             });
             if (pageResult.count === 0) {
+                if (current.draftRenderedJson != null) {
+                    throw new APIError("The page was edited while publishing. Check your changes and publish again.", 409, "CONFLICT");
+                }
                 throw new Error("Landing page not found");
             }
             const campaignResult = await tx.landingCampaign.updateMany({
@@ -714,15 +1013,56 @@ export const landingAgentService = {
             referrer?: string;
             socialToken?: string;
             whatsappConsent?: boolean;
+            // The lead form's consent box (cmfConsent). Checked against the page's form config below.
+            consent?: boolean;
+            formFields?: Record<string, unknown>;
+            metaEventId?: string;
+            metaEventSourceUrl?: string;
         };
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
+        cookieHeader?: string | null;
+        metaCookies?: { fbc?: string; fbp?: string };
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
             throw new APIError("Published landing page not found", 404, "NOT_FOUND");
         }
 
+        // Pages with a lead form marker take their fields from the page's saved form config.
+        // Other pages keep the fixed follow-up box fields.
+        let columns: LeadFormColumns = {
+            name: input.payload.name,
+            email: input.payload.email,
+            phone: input.payload.phone,
+            company: input.payload.company,
+            title: input.payload.title,
+        };
+        let rawPayload: unknown = withoutConsentRecord(input.payload.rawPayload);
+        let consentRecord: LeadConsentRecord | null = null;
+        const pageHtml = getLandingRenderPayload(page.renderedJson).html;
+        if (hasLeadFormMarker(pageHtml)) {
+            const config = readLeadFormConfig(pageHtml);
+            const mapped = config ? mapLeadFormSubmission(config, input.payload.formFields) : { ok: false as const, message: "This form is not available" };
+            if (!mapped.ok) throw new APIError(mapped.message, 400, "VALIDATION_ERROR");
+            if (config && consentMissing(config, input.payload.consent)) {
+                throw new APIError("Please tick the consent box to send your details.", 400, "VALIDATION_ERROR");
+            }
+            columns = mapped.columns;
+            rawPayload = mapped.rawPayload;
+            // An answer whose key matches a custom property must fit that property's type, or the submit is refused.
+            if (mapped.rawPayload) {
+                const answers = (mapped.rawPayload as { answers: Record<string, unknown> }).answers;
+                const { errors } = pickPropertyAnswers(await loadActivePropertyDefinitions(page.teamId), answers);
+                if (errors.length > 0) throw new APIError(`Check the answer for ${errors[0]!.key}`, 400, "VALIDATION_ERROR");
+            }
+            // A form with a consent box keeps the answer, with the wording shown, in rawPayload.consent.
+            consentRecord = config ? consentRecordFor(config, input.payload.consent, page.slug, new Date()) : null;
+            if (consentRecord) rawPayload = { ...(mapped.rawPayload ?? {}), consent: consentRecord };
+        }
+
+        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader);
         const lead = await prisma.$transaction(async (tx) => {
             const createdLead = await tx.landingLead.create({
                 data: {
@@ -731,12 +1071,12 @@ export const landingAgentService = {
                     teamId: page.teamId,
                     sessionId: input.payload.sessionId,
                     pageVersion: input.payload.pageVersion ?? page.version,
-                    name: input.payload.name,
-                    email: input.payload.email,
-                    phone: input.payload.phone,
-                    company: input.payload.company,
-                    title: input.payload.title,
-                    rawPayload: sanitizeJson(input.payload.rawPayload) as Prisma.InputJsonValue | undefined,
+                    name: columns.name,
+                    email: columns.email,
+                    phone: columns.phone,
+                    company: columns.company,
+                    title: columns.title,
+                    rawPayload: sanitizeJson(rawPayload) as Prisma.InputJsonValue | undefined,
                     utmSource: input.payload.utmSource,
                     utmMedium: input.payload.utmMedium,
                     utmCampaign: input.payload.utmCampaign,
@@ -744,34 +1084,63 @@ export const landingAgentService = {
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
                     socialToken: input.payload.socialToken,
+                    variantId,
                     // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
-                    ...(input.payload.whatsappConsent === true && page.funnelStage && input.payload.phone?.trim() ? { whatsappConsent: true } : {}),
+                    ...(input.payload.whatsappConsent === true && page.funnelStage && columns.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
             });
 
-            if (input.payload.email) {
+            if (columns.email) {
                 await BlindIndexService.createBlindIndex(
                     {
                         teamId: page.teamId,
                         entityType: "LandingLead",
                         entityId: createdLead.id,
                         fieldName: "email",
-                        plaintext: input.payload.email,
+                        plaintext: columns.email,
                     },
                     tx
                 );
             }
 
-            if (input.payload.phone) {
+            if (columns.phone) {
                 await BlindIndexService.createBlindIndex(
                     {
                         teamId: page.teamId,
                         entityType: "LandingLead",
                         entityId: createdLead.id,
                         fieldName: "phone",
-                        plaintext: input.payload.phone,
+                        plaintext: columns.phone,
+                    },
+                    tx
+                );
+            }
+
+            // Meta Conversions API: only when the page has a Pixel, the browser sent the event ID it fired
+            // (it skips Do Not Track / GPC visitors), and this request is not DNT/GPC. Personal data is not
+            // copied here; the job reads it from the lead.
+            const metaTracking = normalizeTracking(page.tracking);
+            const metaSourceUrl = input.payload.metaEventSourceUrl;
+            // Consent: when the form has a consent box, the Lead event is sent only if the visitor ticked it.
+            if (metaTracking?.metaPixelId && input.payload.metaEventId && metaSourceUrl?.startsWith("https://") && !input.doNotTrack && consentAllowsContact(rawPayload)) {
+                await OutboxService.publishEvent(
+                    {
+                        teamId: page.teamId,
+                        eventType: "LANDING_META_LEAD_CAPI",
+                        aggregateType: "LandingLead",
+                        aggregateId: createdLead.id,
+                        payload: {
+                            pixelId: metaTracking.metaPixelId,
+                            eventId: input.payload.metaEventId,
+                            eventTime: Math.floor(Date.now() / 1000),
+                            eventSourceUrl: metaSourceUrl,
+                            fbc: input.metaCookies?.fbc,
+                            fbp: input.metaCookies?.fbp,
+                            testEventCode: metaTracking.metaTestEventCode,
+                        },
+                        idempotencyKey: `landing_lead_meta_${createdLead.id}`,
                     },
                     tx
                 );
@@ -787,8 +1156,8 @@ export const landingAgentService = {
                         slug: page.slug,
                         landingPageId: page.id,
                         campaignId: page.campaignId,
-                        email: input.payload.email,
-                        name: input.payload.name,
+                        email: columns.email,
+                        name: columns.name,
                     },
                     idempotencyKey: `landing_lead_${createdLead.id}`,
                 },
@@ -806,6 +1175,7 @@ export const landingAgentService = {
                     eventData: {
                         leadId: createdLead.id,
                     },
+                    variantId,
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
@@ -850,6 +1220,8 @@ export const landingAgentService = {
         utmContent?: string;
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
+        cookieHeader?: string | null;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
             throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
@@ -874,6 +1246,7 @@ export const landingAgentService = {
                 utmCampaign: input.utmCampaign,
                 utmTerm: input.utmTerm,
                 utmContent: input.utmContent,
+                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader),
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

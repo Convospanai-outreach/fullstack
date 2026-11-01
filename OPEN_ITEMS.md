@@ -7178,6 +7178,44 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     extension requests from 1.2.0 (and from every build if the key was already removed) until it is rolled
     forward again.
 
+- **OPEN-353 (Resolved (pending merge) — browser proxy no longer relays the internal-only email routes):** 2026-10-28.
+  - **Why:** apps/api limits `/email/send-verification`, `/email/verification-token` and `/email/verify-token` to
+    calls from the web server. The browser proxy (`/api/proxy/*`) signs forwarded requests with the signed-in
+    user’s session, so those calls could still reach the routes through it. None of the product code calls them
+    that way.
+  - **Change:** `apps/web/src/app/api/proxy/[...path]/route.ts` answers 404 for those three paths (and sub-paths)
+    without forwarding. Other `/email/*` routes are unchanged. Tests cover each path and an unaffected one.
+  - **Deploy:** web only (Render). No migration, no env change.
+
+- **OPEN-354 (Resolved (pending merge) — the LinkedIn browser only opens LinkedIn profile URLs):** 2026-10-28.
+  - **Why:** `Lead.linkedIn` is free text, and enrichment passed it to the worker’s browser as given. The browser’s
+    address check and the browser’s own lookup are separate, so a lookalike address could not be fully ruled out.
+  - **Change:** `runLinkedInAction` (`apps/api/src/linkedin/puppeteerRunner.ts`) opens only a value
+    `canonicalLinkedInProfileUrl` accepts, in its `https://www.linkedin.com/in/<handle>/` form; anything else returns
+    `{ ok: false }` without opening a page. Tests cover non-LinkedIn hosts, lookalike hosts, company pages, empty input
+    and canonicalisation.
+  - **Deploy:** api only. No migration, no env change. Leads whose `linkedIn` is not a profile URL are skipped by
+    enrichment instead of being opened.
+
+- **OPEN-355 (Resolved (pending merge) — jobs that name their team only in the payload count toward the per-team running cap):** 2026-10-28.
+  - **Why:** `JobQueue.dequeue` caps running jobs per team using the `teamId` column. `enqueue` filled that column only
+    from its `teamId` option, so jobs that carried the team in their payload were stored with a null column and were
+    never capped.
+  - **Change:** `enqueue` (`apps/api/src/lib/queue.ts`) falls back to `payload.teamId` for the column when the option
+    is absent. The option still wins. Tests cover option, payload fallback and neither.
+  - **Deploy:** api only. No migration, no env change. Applies to jobs enqueued after deploy.
+
+- **OPEN-356 (Resolved (pending merge) — reply text is pattern-masked before classification even when the Edge Node is down):** 2026-10-28.
+  - **Why:** reply text is masked before it goes to Jev. When the Edge Node (`PHI3_LOCAL_ENDPOINT`) is unreachable and
+    `STRICT_SOVEREIGNTY` is off, `SovereignFirewall.mask` fell back to a local mode that returned the text unchanged.
+  - **Change:** `mask` takes `{ alwaysMask: true }`, which keeps the local pattern masking (emails, phone numbers) in
+    that fallback. `ReplyAnalyzerAgent` passes it for the subject and body. `maskLocal` also recognises ten-digit numbers
+    written as two groups of five (+91 98765 43210). Other callers keep their current behaviour.
+  - **Names:** `SovereignFirewall.maskKnownNames` replaces the lead’s own name (and each word of it, 3+ letters)
+    and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
+    recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
+  - **Deploy:** api only. No migration, no env change.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

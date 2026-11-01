@@ -1,0 +1,77 @@
+{
+  "experimentId": "11111111-2222-4333-8444-555555555555",
+  "cookieName": "cmf_ab_11111111-2222-4333-8444-555555555555",
+  "cookieAttributes": "Max-Age=2592000; Path=/; Secure; SameSite=Lax",
+  "cases": [
+    {
+      "name": "new human visitor, draw under weight gets A and a cookie",
+      "input": { "cookieHeader": null, "weightA": 50, "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0", "doNotTrack": false, "draw": 0.2 },
+      "expected": { "variant": "A", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=A; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "new human visitor, draw over weight gets B and a cookie",
+      "input": { "cookieHeader": null, "weightA": 50, "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari/604.1", "doNotTrack": false, "draw": 0.7 },
+      "expected": { "variant": "B", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=B; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "returning visitor with cookie A keeps A even when the draw would give B",
+      "input": { "cookieHeader": "cmf_ab_11111111-2222-4333-8444-555555555555=A", "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.9 },
+      "expected": { "variant": "A", "setCookie": null, "counted": true }
+    },
+    {
+      "name": "returning visitor with cookie B keeps B among other cookies",
+      "input": { "cookieHeader": "theme=dark; cmf_ab_11111111-2222-4333-8444-555555555555=B; lang=en", "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.1 },
+      "expected": { "variant": "B", "setCookie": null, "counted": true }
+    },
+    {
+      "name": "a cookie with an unknown value is ignored and a new draw is made",
+      "input": { "cookieHeader": "cmf_ab_11111111-2222-4333-8444-555555555555=X", "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.3 },
+      "expected": { "variant": "A", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=A; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "a cookie for another experiment does not count as this experiment's assignment",
+      "input": { "cookieHeader": "cmf_ab_99999999-2222-4333-8444-555555555555=B", "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.8 },
+      "expected": { "variant": "B", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=B; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "a search crawler gets A, no cookie, and is not counted",
+      "input": { "cookieHeader": null, "weightA": 50, "userAgent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)", "doNotTrack": false, "draw": 0.9 },
+      "expected": { "variant": "A", "setCookie": null, "counted": false }
+    },
+    {
+      "name": "a crawler with a cookie for B still gets A and is not counted",
+      "input": { "cookieHeader": "cmf_ab_11111111-2222-4333-8444-555555555555=B", "weightA": 50, "userAgent": "facebookexternalhit/1.1", "doNotTrack": false, "draw": 0.9 },
+      "expected": { "variant": "A", "setCookie": null, "counted": false }
+    },
+    {
+      "name": "a missing user agent is treated as a visitor",
+      "input": { "cookieHeader": null, "weightA": 50, "userAgent": null, "doNotTrack": false, "draw": 0.9 },
+      "expected": { "variant": "B", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=B; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "do-not-track visitor gets a draw, no cookie, and is not counted",
+      "input": { "cookieHeader": null, "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": true, "draw": 0.9 },
+      "expected": { "variant": "B", "setCookie": null, "counted": false }
+    },
+    {
+      "name": "do-not-track visitor with a cookie still sees the cookie's variant and is not counted",
+      "input": { "cookieHeader": "cmf_ab_11111111-2222-4333-8444-555555555555=A", "weightA": 50, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": true, "draw": 0.9 },
+      "expected": { "variant": "A", "setCookie": null, "counted": false }
+    },
+    {
+      "name": "weight 1 gives A only for draws under 0.01",
+      "input": { "cookieHeader": null, "weightA": 1, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.005 },
+      "expected": { "variant": "A", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=A; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "weight 1 gives B for a draw of 0.02",
+      "input": { "cookieHeader": null, "weightA": 1, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.02 },
+      "expected": { "variant": "B", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=B; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    },
+    {
+      "name": "weight 99 gives B only for draws of 0.99 or more",
+      "input": { "cookieHeader": null, "weightA": 99, "userAgent": "Mozilla/5.0 Chrome/120.0", "doNotTrack": false, "draw": 0.995 },
+      "expected": { "variant": "B", "setCookie": "cmf_ab_11111111-2222-4333-8444-555555555555=B; Max-Age=2592000; Path=/; Secure; SameSite=Lax", "counted": true }
+    }
+  ]
+}

@@ -15,18 +15,23 @@ vi.mock("@/lib/aiService", () => ({ aiService: { askAI: mockAskAI } }));
 vi.mock("@/lib/ai/jev", () => ({ classifyReply: mockClassifyReply }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("@/lib/ai/SovereignFirewall", () => ({
-    SovereignFirewall: {
-        mask: vi.fn(async (text: string) => ({ safeContext: text, tokenMap: new Map() })),
-        unmaskAsync: vi.fn(async (text: string) => text),
-    },
-}));
+vi.mock("@/lib/ai/SovereignFirewall", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/ai/SovereignFirewall")>();
+    return {
+        SovereignFirewall: {
+            mask: vi.fn(async (text: string) => ({ safeContext: text, tokenMap: new Map() })),
+            maskKnownNames: vi.fn((...args: Parameters<typeof actual.SovereignFirewall.maskKnownNames>) => actual.SovereignFirewall.maskKnownNames(...args)),
+            unmaskAsync: vi.fn(async (text: string) => text),
+        },
+    };
+});
 vi.mock("@/modules/learning/learningService", () => ({ LearningService: { saveMemory: mockSaveMemory } }));
 vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
     CrystalService: { getGuidanceForLead: mockGetGuidanceForLead },
 }));
 
 import { ReplyAnalyzerAgent } from "../ReplyAnalyzerAgent";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 const classified = (classification: string, confidence = 0.8) => ({ classification, confidence, reasoning: "r" });
 
@@ -76,6 +81,25 @@ describe("ReplyAnalyzerAgent classification and draft", () => {
 
         expect(mockClassifyReply).toHaveBeenCalledWith({ subject: "Re: hi", body: "No thanks" }, "team-1");
         expect(result).toMatchObject({ classification: "NOT_INTERESTED", confidence: 0.9, suggestedAction: "PAUSE_CAMPAIGN" });
+    });
+
+    it("replaces the lead's own name and company before classifying", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ teamId: "team-1", enrichedData: null, fullName: "Jane Doe", company: "Acme Robotics" });
+        mockClassifyReply.mockResolvedValue(classified("NOT_INTERESTED", 0.9));
+        await ReplyAnalyzerAgent.analyzeAndTrack("Re: Acme Robotics", "No thanks. Jane Doe, Acme Robotics", "lead-1", "a@b.com", "msg-1", "team-1");
+
+        const sent = JSON.stringify(mockClassifyReply.mock.calls[0][0]);
+        expect(sent).not.toMatch(/Jane|Doe|Acme|Robotics/);
+        expect(sent).toContain("No thanks.");
+    });
+
+    it("asks for local masking to be applied when the Edge Node is down", async () => {
+        mockClassifyReply.mockResolvedValue(classified("NOT_INTERESTED", 0.9));
+        await ReplyAnalyzerAgent.analyzeAndTrack("Re: hi", "mail me at a@b.com", "lead-1", "a@b.com", "msg-1", "team-1");
+
+        const calls = vi.mocked(SovereignFirewall.mask).mock.calls;
+        expect(calls).toHaveLength(2);
+        for (const call of calls) expect(call[3]).toEqual({ alwaysMask: true });
     });
 
     it.each([

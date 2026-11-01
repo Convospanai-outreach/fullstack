@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { clientIpFromRequest, verifyTurnstile } from "@/lib/botCheck";
 import { randomUUID } from "crypto";
 
 type SupportPayload = {
@@ -8,6 +9,7 @@ type SupportPayload = {
     subject: string;
     message: string;
     website_url?: string;
+    turnstileToken?: string;
     ga_client_id?: string;
 };
 
@@ -121,8 +123,33 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    if (!(await verifyTurnstile(payload.turnstileToken, clientIpFromRequest(req)))) {
+        return NextResponse.json(
+            { error: "Please complete the verification and try again.", status: "verification_failed" },
+            { status: 403 },
+        );
+    }
+
     const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
     const ticketId = generateTicketId();
+
+    // Kept for the superadmin dashboard before anything else can fail. Saving must never stop the email,
+    // and the log line names the ticket only, never what the visitor typed.
+    try {
+        const { prisma } = await import("@/lib/db");
+        await prisma.enquiry.create({
+            data: {
+                ticketId,
+                name: payload.name.trim(),
+                email: payload.email.trim(),
+                subject: payload.subject.trim(),
+                message: payload.message.trim(),
+                source: "support-contact",
+            },
+        });
+    } catch {
+        console.error("Support contact could not be saved", { ticketId });
+    }
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());
