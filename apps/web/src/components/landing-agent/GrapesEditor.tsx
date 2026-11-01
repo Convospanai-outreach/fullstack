@@ -320,6 +320,8 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 leadFormComponentRef.current = selection ? component : null;
                 setLeadForm(selection ? { key: Date.now(), config: selection.config } : null);
                 const isInstagram = instagramFollowOfSelection(classes);
+                // The follow link is set only from a valid handle in the Instagram panel, never typed into the link trait.
+                if (isInstagram) component.removeTrait("href");
                 instagramComponentRef.current = isInstagram ? component : null;
                 setInstagram(isInstagram ? { key: Date.now() } : null);
             });

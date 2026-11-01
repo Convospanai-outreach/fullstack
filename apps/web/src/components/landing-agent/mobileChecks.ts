@@ -6,8 +6,9 @@
 // cascade (ids beat classes beat tags, later rules win ties, @media applies at 390px). Layout is not
 // measured, so the results are estimates. Pseudo-classes and attribute selectors are ignored.
 import { readLeadFormConfig } from "@/modules/landing-agent/leadFormHtml";
+import { INSTAGRAM_FOLLOW_CLASS, isInstagramProfileHref } from "./instagramFollow";
 
-export type MobileCheckKind = "small_text" | "small_tap_target" | "heavy_images" | "no_lead_form";
+export type MobileCheckKind = "small_text" | "small_tap_target" | "heavy_images" | "no_lead_form" | "instagram_handle";
 
 export type MobileCheckWarning = { kind: MobileCheckKind; message: string };
 
@@ -276,6 +277,15 @@ export function mobilePageWarnings(input: MobileCheckInput): MobileCheckWarning[
         warnings.push({
             kind: "small_tap_target",
             message: `${count} button${count === 1 ? "" : "s"} less than ${MOBILE_TAP_MIN_PX}px tall on a phone (about ${Math.round(Math.min(...ctaHeights))}px, estimated from the CSS). Phone buttons should be at least ${MOBILE_TAP_MIN_PX}px tall.`,
+        });
+    }
+
+    // The follow button starts with a placeholder link; it is not an account until a valid handle is set.
+    const instagramLinks = [...html.matchAll(/<a\b([^>]*)>/gi)].filter((m) => classList(m[1]).includes(INSTAGRAM_FOLLOW_CLASS));
+    if (instagramLinks.some((m) => !isInstagramProfileHref(attrValue(m[1], "href") ?? ""))) {
+        warnings.push({
+            kind: "instagram_handle",
+            message: "Set your Instagram handle: the follow button does not link to a profile yet. Select it and enter the handle in its settings panel.",
         });
     }
 

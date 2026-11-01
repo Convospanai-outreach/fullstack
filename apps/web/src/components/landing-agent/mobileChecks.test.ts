@@ -105,6 +105,18 @@ describe("mobilePageWarnings: images", () => {
     });
 });
 
+describe("mobilePageWarnings: Instagram follow link", () => {
+    it("asks for the handle while the follow button has no profile link", () => {
+        const html = `<section class="la-section"><a class="la-cta la-instagram" href="#set-instagram-handle">Follow us on Instagram</a>${FORM_MARKER}</section>`;
+        expect(kinds({ html, css: PADDED_CTA_CSS })).toEqual(["instagram_handle"]);
+    });
+
+    it("does not warn when the follow button links to a valid profile", () => {
+        const html = `<section class="la-section"><a class="la-cta la-instagram" href="https://www.instagram.com/brand/">Follow us on Instagram</a>${FORM_MARKER}</section>`;
+        expect(kinds({ html, css: PADDED_CTA_CSS })).toEqual([]);
+    });
+});
+
 describe("mobilePageWarnings: lead form", () => {
     it("warns when the page has no lead form block and says the default box is used", () => {
         const warnings = mobilePageWarnings({
