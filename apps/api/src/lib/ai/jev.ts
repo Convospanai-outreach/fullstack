@@ -154,3 +154,68 @@ export async function judgeFriction(text: string): Promise<{ hostile: number; re
     }, { timeout: 5000, retry: { maxRetries: 0 } });
     return { hostile: answers.hostile.noul, rejecting: answers.rejecting.noul, spam: answers.spam.noul };
 }
+
+// --- Stalled sequence threads (Overseer) ---
+
+export const STALL_NEXT_MOVES = ["wait", "nudge_now", "escalate_to_human", "stop"] as const;
+export type StallNextMove = (typeof STALL_NEXT_MOVES)[number];
+
+// One message of a lead's thread, oldest first. `us` is our side, `lead` is the prospect.
+export type StallThreadMessage = { from: "us" | "lead"; text: string };
+
+export type StallThreadJudgment = {
+    leadWaitingOnUs: number;
+    leadAskedToStop: number;
+    leadTurnedDown: number;
+    nextMove: { choice: StallNextMove; probabilities: Record<StallNextMove, number> };
+};
+
+const STALL_THREAD_MESSAGES = 5;
+const STALL_MESSAGE_CHARS = 1000;
+
+/**
+ * Judges a stalled lead's thread for the Overseer. Send it already masked. Only the last few
+ * messages, each cut short, are sent. Judgments only: the caller decides what they change.
+ * Throws when Jev can't answer (no key, error, timeout). Callers treat a throw as "no answer",
+ * never as "no".
+ */
+export async function judgeStalledThread(input: { thread: StallThreadMessage[]; quietForDays: number }, teamId: string): Promise<StallThreadJudgment> {
+    const thread = input.thread.slice(-STALL_THREAD_MESSAGES).map((m) => ({ from: m.from, text: m.text.slice(0, STALL_MESSAGE_CHARS) }));
+    const answers = await ask(
+        "STALL_JUDGMENT",
+        teamId,
+        {
+            context: "`thread` is the recent conversation with one stalled lead, oldest first. `us` is our side (outreach emails and replies we sent) and `lead` is the prospect. Names and contact details are masked. `quietForDays` is how long nothing has been sent or received.",
+            thread,
+            quietForDays: input.quietForDays
+        },
+        {
+            leadWaitingOnUs: noul("Is the lead waiting for us to reply to their latest message?", {
+                true: "Their latest message asks us something, asks for a reply, or waits for an answer or next step we haven't given.",
+                false: "Our message came last, or their latest message needs no reply, such as thanks or a sign-off."
+            }),
+            leadAskedToStop: noul("Is the lead's latest message a request to stop contacting them?", {
+                true: "They ask to be removed, to stop the emails or messages, or to be left alone.",
+                false: "They don't ask us to stop, even if they say the timing is wrong or they are busy."
+            }),
+            leadTurnedDown: noul("Does the lead's latest message turn down our offer?", {
+                true: "They say no thanks, that they already have a solution, that it isn't for them, or that it costs too much.",
+                false: "They don't turn it down: they are interested, asking something, or haven't replied."
+            }),
+            nextMove: choice("What should happen next with this stalled conversation?", {
+                wait: "Nothing should be sent yet: the lead isn't waiting on us and more time is reasonable.",
+                nudge_now: "A follow-up on the planned step is reasonable now.",
+                escalate_to_human: "A person should read this thread before anything else is sent, because it is unclear, sensitive, or needs a real answer.",
+                stop: "We should stop contacting this lead: they asked us to, or they clearly are not interested."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+
+    return {
+        leadWaitingOnUs: answers.leadWaitingOnUs.noul,
+        leadAskedToStop: answers.leadAskedToStop.noul,
+        leadTurnedDown: answers.leadTurnedDown.noul,
+        nextMove: { choice: answers.nextMove.choice, probabilities: answers.nextMove.probabilities }
+    };
+}
