@@ -20,6 +20,8 @@ import { leadFormMarkerError, mapLeadFormSubmission, type LeadFormColumns } from
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
+import { loadActivePropertyDefinitions } from "@/modules/lead-properties/leadCustomFields";
+import { pickPropertyAnswers } from "@/modules/lead-properties/leadProperties";
 
 export function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
@@ -1016,6 +1018,12 @@ export const landingAgentService = {
             if (!mapped.ok) throw new APIError(mapped.message, 400, "VALIDATION_ERROR");
             columns = mapped.columns;
             rawPayload = mapped.rawPayload;
+            // An answer whose key matches a custom property must fit that property's type, or the submit is refused.
+            if (mapped.rawPayload) {
+                const answers = (mapped.rawPayload as { answers: Record<string, unknown> }).answers;
+                const { errors } = pickPropertyAnswers(await loadActivePropertyDefinitions(page.teamId), answers);
+                if (errors.length > 0) throw new APIError(`Check the answer for ${errors[0]!.key}`, 400, "VALIDATION_ERROR");
+            }
         }
 
         const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { logger } from "@/lib/logger";
+import { saveLandingAnswersToLead } from "@/modules/lead-properties/leadCustomFields";
 
 /**
  * Promotes a public /p/:slug funnel-page form submission (LandingLead) into the
@@ -44,6 +45,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             logger.warn(`[LandingLeadIntake] Social link merge failed for ${landingLeadId}: ${error instanceof Error ? error.message : error}`);
         }
         if (mergedLeadId) {
+            await saveLandingAnswersToLead(teamId, mergedLeadId, landingLead.rawPayload);
             await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
             await scoreNewLead(mergedLeadId);
             await pushToMautic(mergedLeadId, teamId);
@@ -79,6 +81,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                 return { created: false, reason: "lead_not_found" };
             }
 
+            await saveLandingAnswersToLead(teamId, existing.id, landingLead.rawPayload);
             await recordFirstTouch(teamId, existing.id, landingLead.utmContent);
             await scoreNewLead(existing.id);
             await pushToMautic(existing.id, teamId);
@@ -103,6 +106,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         },
     });
 
+    await saveLandingAnswersToLead(teamId, createdLead.id, landingLead.rawPayload);
     await recordFirstTouch(teamId, createdLead.id, landingLead.utmContent);
     await scoreNewLead(createdLead.id);
     await pushToMautic(createdLead.id, teamId);
