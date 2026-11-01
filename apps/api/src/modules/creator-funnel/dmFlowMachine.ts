@@ -47,6 +47,7 @@ export type StepContext = {
 
 export type Action =
     | { type: "send"; stepIndex: number; step: SendStep; inWindow: boolean }
+    | { type: "hold"; stepIndex: number; reason: "WINDOW_CLOSED" | "DAILY_CAP" } // a message that is not sent yet, and why
     | { type: "save_answer"; stepIndex: number; property: string; value: string }
     | { type: "stop"; reason: "STOP_WORD" };
 
@@ -157,8 +158,8 @@ export function stepRun(steps: FlowStep[], state: RunState, event: FlowEvent, ct
         }
         const wait = { ...s, status: "WAITING" as const, waitingSince: s.waitingSince ?? event.at };
         if (s.awaitingAnswer) return { state: wait, actions };
-        if (dailySent >= DAILY_MESSAGE_CAP) return { state: wait, actions };
-        if (!inWindow && allowance <= 0) return { state: wait, actions };
+        if (dailySent >= DAILY_MESSAGE_CAP) return { state: wait, actions: [...actions, { type: "hold", stepIndex: s.stepIndex, reason: "DAILY_CAP" }] };
+        if (!inWindow && allowance <= 0) return { state: wait, actions: [...actions, { type: "hold", stepIndex: s.stepIndex, reason: "WINDOW_CLOSED" }] };
 
         actions.push({ type: "send", stepIndex: s.stepIndex, step, inWindow });
         dailySent += 1;

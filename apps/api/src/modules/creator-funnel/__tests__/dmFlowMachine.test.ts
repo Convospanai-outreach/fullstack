@@ -125,16 +125,19 @@ describe("stepRun: starts", () => {
         expect(state.waitingSince).toEqual(NOW);
     });
 
-    it("a comment start may send only one message before the person replies", () => {
+    it("a comment start may send only one message before the person replies, and records why the next one waits", () => {
         const steps = [msg("first"), msg("second"), END];
         const { state, actions } = stepRun(steps, fresh(), start("COMMENT"), ctx({ allowance: 1 }));
-        expect(actions).toEqual([{ type: "send", stepIndex: 0, step: msg("first"), inWindow: false }]);
+        expect(actions).toEqual([
+            { type: "send", stepIndex: 0, step: msg("first"), inWindow: false },
+            { type: "hold", stepIndex: 1, reason: "WINDOW_CLOSED" },
+        ]);
         expect(state).toMatchObject({ status: "WAITING", stepIndex: 1, awaitingAnswer: false });
     });
 
     it("a comment start with no allowance sends nothing and waits", () => {
         const { state, actions } = stepRun([msg(), END], fresh(), start("COMMENT"), ctx({ allowance: 0 }));
-        expect(actions).toEqual([]);
+        expect(actions).toEqual([{ type: "hold", stepIndex: 0, reason: "WINDOW_CLOSED" }]);
         expect(state.status).toBe("WAITING");
     });
 
@@ -193,7 +196,7 @@ describe("stepRun: replies from the person", () => {
 describe("stepRun: limits", () => {
     it("does not send past the daily cap and waits instead", () => {
         const { state, actions } = stepRun([msg(), END], fresh(), start("DM"), ctx({ dailySent: DAILY_MESSAGE_CAP }));
-        expect(actions).toEqual([]);
+        expect(actions).toEqual([{ type: "hold", stepIndex: 0, reason: "DAILY_CAP" }]);
         expect(state.status).toBe("WAITING");
     });
 

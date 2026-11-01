@@ -306,6 +306,14 @@ async function handleEvent(ev: { id: string; runId: string; sourceKey: string; c
             await record(run.id, ev.sourceKey, "STOP", run.stepIndex, "The person asked to stop.");
             continue;
         }
+        if (action.type === "hold") {
+            const reason =
+                action.reason === "DAILY_CAP"
+                    ? "The daily message limit for this person was reached; the message waits."
+                    : "Meta only allows messages within the 24-hour window after the person's last message; this one waits for their reply.";
+            await record(run.id, `${ev.sourceKey}:hold:${action.stepIndex}`, "SKIPPED", action.stepIndex, reason);
+            continue;
+        }
         if (action.type === "save_answer") {
             if (currentLead) await saveLandingAnswersToLead(run.teamId, currentLead, { answers: { [action.property]: action.value } });
             await record(run.id, ev.sourceKey, "ANSWER", action.stepIndex, null);

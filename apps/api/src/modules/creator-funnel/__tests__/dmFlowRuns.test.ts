@@ -215,6 +215,10 @@ describe("processPendingFlowEvents", () => {
             where: { id: "run-1", version: 0 },
             data: expect.objectContaining({ status: "WAITING", stepIndex: 1 }),
         });
+        // The next message is not sent, and the log says why.
+        expect(mockDb.dmFlowEvent.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ kind: "SKIPPED", stepIndex: 1, reason: expect.stringContaining("24-hour") }),
+        });
     });
 
     it("an answer is saved to the property, then the flow continues", async () => {
