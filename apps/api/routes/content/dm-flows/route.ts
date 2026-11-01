@@ -5,7 +5,7 @@ import { contentError, creatorContext } from "@/modules/creator-funnel/contentRo
 
 // Instagram DM flows: list the team's active flows and create one. The steps are checked by the
 // service (validateFlowSteps and the custom property keys), so this only checks the envelope.
-export const createDmFlowSchema = z.object({
+const createDmFlowSchema = z.object({
     name: z.string().trim().min(1).max(100),
     steps: z.array(z.unknown()).max(12),
 });
