@@ -9,6 +9,7 @@ const { mockCtx, mockExp } = vi.hoisted(() => ({
         endExperiment: vi.fn(),
         pickWinner: vi.fn(),
         getExperimentResults: vi.fn(),
+        listExperiments: vi.fn(),
     },
 }));
 
@@ -17,7 +18,7 @@ vi.mock("@/lib/permissions", () => ({ authorizeRole: vi.fn(), TeamRole: { MEMBER
 vi.mock("../service", () => ({ landingAgentService: {} }));
 vi.mock("../experimentService", () => mockExp);
 
-import { getExperiment, postCreateExperiment, postExperimentAction } from "./handlers";
+import { getExperiment, getExperiments, postCreateExperiment, postExperimentAction } from "./handlers";
 
 const SIGNED_IN = { userId: "user-1", teamId: "team-1" };
 
@@ -103,5 +104,14 @@ describe("experiment handlers", () => {
     it("returns 404 for an unknown action", async () => {
         const res = await postExperimentAction(jsonRequest("POST", {}), ctx({ id: "exp-1", action: "delete" }));
         expect(res.status).toBe(404);
+    });
+
+    it("lists the team's experiments", async () => {
+        mockExp.listExperiments.mockResolvedValue([{ id: "exp-1", name: "Hero", status: "draft" }]);
+        const res = await getExperiments(jsonRequest("GET"));
+
+        expect(res.status).toBe(200);
+        expect(mockExp.listExperiments).toHaveBeenCalledWith({ teamId: "team-1" });
+        expect(await res.json()).toMatchObject([{ id: "exp-1" }]);
     });
 });
