@@ -29,7 +29,7 @@ const refuse = (message: string) => ({ ok: false as const, message });
 const RUNNABLE_STATUSES = ["DRAFT", "ACTIVE"];
 
 // The channel of a sequence whose only active step is an email or an approved WhatsApp template step, or null.
-function channelOfSingleStep(steps: ConfirmationStep[]): ConfirmationChannel | null {
+export function channelOfSingleStep(steps: ConfirmationStep[]): ConfirmationChannel | null {
     if (steps.length !== 1) return null;
     const [step] = steps;
     const kind = step.stepType.trim().toLowerCase();
