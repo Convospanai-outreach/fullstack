@@ -7,6 +7,7 @@ const { mockPrisma, mockWriteKv } = vi.hoisted(() => ({
         landingExperimentVariant: { findFirst: vi.fn() },
         landingEvent: { findMany: vi.fn() },
         landingLead: { count: vi.fn() },
+        auditLog: { findFirst: vi.fn() },
     },
     mockWriteKv: vi.fn(),
 }));
@@ -92,6 +93,11 @@ describe("createExperiment", () => {
 
     it("rejects the same page for both variants", async () => {
         await expectApiError(createExperiment({ ...base, pageBId: "page-a", weightA: 50 }), 400);
+    });
+
+    it("rejects a test path that a connected domain already serves for something else", async () => {
+        await expectApiError(createExperiment({ ...base, slug: "thank-you", weightA: 50 }), 400);
+        expect(mockPrisma.landingExperiment.create).not.toHaveBeenCalled();
     });
 
     it("only accepts pages that belong to the team", async () => {
@@ -181,16 +187,29 @@ describe("pickWinner", () => {
 });
 
 describe("variantForPage", () => {
+    const armA = { id: "var-a", name: "A", experimentId: "exp-1" };
+
     it("returns the variant id only for a page that is an arm of a running test, scoped to that page", async () => {
-        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue({ id: "var-a" });
-        expect(await variantForPage("page-a")).toBe("var-a");
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=A")).toBe("var-a");
         expect(mockPrisma.landingExperimentVariant.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: { landingPageId: "page-a", experiment: { status: "running" } } }),
         );
     });
 
+    it("returns null for a direct visit to the page's own address, which has no test cookie", async () => {
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", null)).toBeNull();
+        expect(await variantForPage("page-a", "theme=dark")).toBeNull();
+    });
+
+    it("returns null when the test cookie names the other arm", async () => {
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=B")).toBeNull();
+    });
+
     it("returns null when no running test uses the page", async () => {
-        expect(await variantForPage("page-a")).toBeNull();
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=A")).toBeNull();
     });
 });
 
@@ -231,6 +250,22 @@ describe("getExperimentResults", () => {
         for (const call of mockPrisma.landingLead.count.mock.calls) {
             expect(call[0].where).toMatchObject({ teamId: TEAM });
         }
+    });
+
+    it("reports when each arm's page was last edited while the test ran, from this team's notes", async () => {
+        mockPrisma.landingExperiment.findFirst.mockResolvedValue(experiment({ status: "running", startedAt: new Date("2026-11-01T00:00:00Z") }));
+        mockPrisma.landingEvent.findMany.mockResolvedValue([]);
+        mockPrisma.landingLead.count.mockResolvedValue(0);
+        mockPrisma.auditLog.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ createdAt: new Date("2026-11-05T10:00:00Z") });
+
+        const r = await getExperimentResults({ teamId: TEAM, experimentId: "exp-1", now });
+
+        expect(r.lastEditedAt).toEqual({ A: null, B: new Date("2026-11-05T10:00:00Z") });
+        expect(mockPrisma.auditLog.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: expect.objectContaining({ orgId: TEAM, action: "landing_experiment.page_edited", entity: "LandingExperiment", entityId: "exp-1" }),
+            }),
+        );
     });
 
     it("throws not found for another team's experiment", async () => {

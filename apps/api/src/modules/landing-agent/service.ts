@@ -10,9 +10,9 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
-import { variantForPage } from "./experimentService";
+import { runningArmOf, variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
-import { landingEventNameEnum } from "./schemas";
+import { landingEventNameEnum, landingPagePathSchema } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
 import { brandThemeFrom, themeValidationError } from "./theme";
 import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
@@ -167,10 +167,24 @@ async function generateUniqueSlug(name: string): Promise<string> {
     return `${base}-${Date.now().toString(36)}`;
 }
 
-// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the page's running test.
-async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined): Promise<string | null> {
+// Editing a page that is an arm of a running test leaves a note in the audit log; the test's panel shows the last edit.
+async function noteArmEdit(teamId: string, userId: string, pageId: string) {
+    const arm = await runningArmOf(pageId);
+    if (!arm) return;
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "landing_experiment.page_edited",
+        entity: "LandingExperiment",
+        entityId: arm.experimentId,
+        metadata: { pageId, variant: arm.name },
+    });
+}
+
+// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the variant the test cookie names.
+async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined, cookieHeader: string | null | undefined): Promise<string | null> {
     if (doNotTrack || isBotUserAgent(userAgent ?? null)) return null;
-    return variantForPage(pageId);
+    return variantForPage(pageId, cookieHeader ?? null);
 }
 
 const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
@@ -185,6 +199,16 @@ async function assertAddressFree(slug: string, exceptPageId?: string) {
     if (await prisma.landingExperiment.findUnique({ where: { slug }, select: { id: true } })) {
         throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
     }
+}
+
+// Two requests can both pass assertAddressFree for one address; the database's unique slug then rejects the second.
+// Answer that the same way as the pre-check.
+function rethrowAddressTaken(error: unknown): never {
+    const { code, meta } = (error ?? {}) as { code?: unknown; meta?: { target?: unknown } };
+    if (code === "P2002" && String(meta?.target ?? "").includes("slug")) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    throw error;
 }
 
 async function getCampaignOrThrow(campaignId: string, teamId: string) {
@@ -354,7 +378,7 @@ export const landingAgentService = {
                 },
             });
             return { campaignId: campaign.id, pageId: page.id };
-        });
+        }).catch(rethrowAddressTaken);
     },
 
     async getCampaign(teamId: string, campaignId: string) {
@@ -604,6 +628,7 @@ export const landingAgentService = {
         teamId: string;
         campaignId: string;
         wireframeId: string;
+        path?: string;
     }) {
         const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
         const wireframe = campaign.wireframeOptions.find((item) => item.id === input.wireframeId);
@@ -632,18 +657,24 @@ export const landingAgentService = {
             return updatedPage;
         }
 
-        const slug = await generateUniqueSlug(campaign.name);
-        const createdPage = await prisma.landingPage.create({
-            data: {
-                campaignId: campaign.id,
-                teamId: campaign.teamId,
-                slug,
-                title: `${campaign.name} Landing Page`,
-                status: "draft",
-                version: 1,
-                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-            },
-        });
+        // A chosen path is the page's address; without one the slug is generated from the campaign name, as before.
+        if (input.path) {
+            await assertAddressFree(input.path);
+        }
+        const slug = input.path ?? (await generateUniqueSlug(campaign.name));
+        const createdPage = await prisma.landingPage
+            .create({
+                data: {
+                    campaignId: campaign.id,
+                    teamId: campaign.teamId,
+                    slug,
+                    title: `${campaign.name} Landing Page`,
+                    status: "draft",
+                    version: 1,
+                    renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                },
+            })
+            .catch(rethrowAddressTaken);
 
         await updateOwnedCampaign(campaign.id, input.teamId, {
             selectedWireframeId: wireframe.id,
@@ -709,6 +740,7 @@ export const landingAgentService = {
 
     async saveEditorState(input: {
         teamId: string;
+        userId: string;
         campaignId: string;
         title?: string;
         editorState?: unknown;
@@ -728,22 +760,24 @@ export const landingAgentService = {
         if (themeError) throw new APIError(themeError, 400, "VALIDATION_ERROR");
 
         // A live page keeps serving its last publish; edits go to the draft columns until publish.
-        if (page.status === "published") {
-            // The title is page metadata, not content, so it goes live at once (the public title
-            // only changes on the next publish that copies the draft).
-            return updateOwnedPage(page.id, input.teamId, {
-                title: input.title ?? page.title,
-                draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
-                draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-            });
-        }
-        return updateOwnedPage(page.id, input.teamId, {
-            title: input.title ?? page.title,
-            editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-            renderedJson: sanitizedRendered as Prisma.InputJsonValue,
-            version: { increment: 1 },
-            status: page.status,
-        });
+        // The title is page metadata, not content, so it goes live at once (the public title
+        // only changes on the next publish that copies the draft).
+        const saved =
+            page.status === "published"
+                ? await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                  })
+                : await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                      renderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      version: { increment: 1 },
+                      status: page.status,
+                  });
+        await noteArmEdit(input.teamId, input.userId, page.id);
+        return saved;
     },
 
     // A page's path name can change until the page is first published; after that the address is fixed.
@@ -753,14 +787,19 @@ export const landingAgentService = {
         if (!page) {
             throw new Error("Landing page not found");
         }
-        if (page.slug === input.path) {
+        const path = input.path.trim().toLowerCase();
+        if (page.slug === path) {
             return page;
+        }
+        const checked = landingPagePathSchema.safeParse(path);
+        if (!checked.success) {
+            throw new APIError(checked.error.issues[0]?.message ?? "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
         }
         if (page.publishedAt || page.status === "published") {
             throw new APIError("The web address can only change before the page is first published.", 409, "CONFLICT");
         }
-        await assertAddressFree(input.path, page.id);
-        return updateOwnedPage(page.id, input.teamId, { slug: input.path });
+        await assertAddressFree(path, page.id);
+        return updateOwnedPage(page.id, input.teamId, { slug: path }).catch(rethrowAddressTaken);
     },
 
     // Throws away unpublished edits; the live page is unchanged and not pushed again.
@@ -946,10 +985,14 @@ export const landingAgentService = {
             socialToken?: string;
             whatsappConsent?: boolean;
             formFields?: Record<string, unknown>;
+            metaEventId?: string;
+            metaEventSourceUrl?: string;
         };
         ipAddress?: string;
         userAgent?: string;
         doNotTrack?: boolean;
+        cookieHeader?: string | null;
+        metaCookies?: { fbc?: string; fbp?: string };
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
@@ -975,7 +1018,7 @@ export const landingAgentService = {
             rawPayload = mapped.rawPayload;
         }
 
-        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack);
+        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader);
         const lead = await prisma.$transaction(async (tx) => {
             const createdLead = await tx.landingLead.create({
                 data: {
@@ -1026,6 +1069,33 @@ export const landingAgentService = {
                         entityId: createdLead.id,
                         fieldName: "phone",
                         plaintext: columns.phone,
+                    },
+                    tx
+                );
+            }
+
+            // Meta Conversions API: only when the page has a Pixel, the browser sent the event ID it fired
+            // (it skips Do Not Track / GPC visitors), and this request is not DNT/GPC. Personal data is not
+            // copied here; the job reads it from the lead.
+            const metaTracking = normalizeTracking(page.tracking);
+            const metaSourceUrl = input.payload.metaEventSourceUrl;
+            if (metaTracking?.metaPixelId && input.payload.metaEventId && metaSourceUrl?.startsWith("https://") && !input.doNotTrack) {
+                await OutboxService.publishEvent(
+                    {
+                        teamId: page.teamId,
+                        eventType: "LANDING_META_LEAD_CAPI",
+                        aggregateType: "LandingLead",
+                        aggregateId: createdLead.id,
+                        payload: {
+                            pixelId: metaTracking.metaPixelId,
+                            eventId: input.payload.metaEventId,
+                            eventTime: Math.floor(Date.now() / 1000),
+                            eventSourceUrl: metaSourceUrl,
+                            fbc: input.metaCookies?.fbc,
+                            fbp: input.metaCookies?.fbp,
+                            testEventCode: metaTracking.metaTestEventCode,
+                        },
+                        idempotencyKey: `landing_lead_meta_${createdLead.id}`,
                     },
                     tx
                 );
@@ -1106,6 +1176,7 @@ export const landingAgentService = {
         ipAddress?: string;
         userAgent?: string;
         doNotTrack?: boolean;
+        cookieHeader?: string | null;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
             throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
@@ -1130,7 +1201,7 @@ export const landingAgentService = {
                 utmCampaign: input.utmCampaign,
                 utmTerm: input.utmTerm,
                 utmContent: input.utmContent,
-                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack),
+                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader),
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

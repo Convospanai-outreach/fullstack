@@ -92,10 +92,16 @@ export function parseOptionLines(text: string): string[] {
 
 export function setLeadFormSetting(
     config: LeadFormConfig,
-    patch: { buttonLabel?: string; successMessage?: string; redirectUrl?: string; instagramHandle?: string }
+    patch: { buttonLabel?: string; successMessage?: string; redirectUrl?: string; bookingUrl?: string; instagramHandle?: string }
 ): LeadFormConfig {
     const next: LeadFormConfig = { ...config, ...patch };
     if (patch.redirectUrl !== undefined && patch.redirectUrl.trim() === "") delete next.redirectUrl;
+    // The booking link is saved trimmed; an empty one removes the thank-you button.
+    if (patch.bookingUrl !== undefined) {
+        const link = patch.bookingUrl.trim();
+        if (link === "") delete next.bookingUrl;
+        else next.bookingUrl = link;
+    }
     // The handle is saved trimmed; an empty one removes the thank-you follow button.
     if (patch.instagramHandle !== undefined) {
         const handle = patch.instagramHandle.trim();

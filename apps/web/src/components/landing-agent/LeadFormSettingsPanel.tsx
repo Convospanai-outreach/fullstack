@@ -151,6 +151,16 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
             </label>
 
             <label className="block space-y-1">
+                <span className="text-xs text-slate-400">Book a call button on the thank-you page, https link (optional)</span>
+                <input
+                    className={inputClass}
+                    placeholder="https://"
+                    value={draft.bookingUrl ?? ""}
+                    onChange={(e) => change(setLeadFormSetting(draft, { bookingUrl: e.target.value }))}
+                />
+            </label>
+
+            <label className="block space-y-1">
                 <span className="text-xs text-slate-400">Instagram handle for a follow button on the thank-you page (optional, without the @)</span>
                 <input
                     className={inputClass}

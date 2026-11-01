@@ -15,28 +15,32 @@ interface StoredPage {
 	// Set when the page loads its team's GA4/GTM/Hotjar (see tracking.ts in
 	// apps/api); those loaders run inside the hashed script.
 	tracking?: boolean;
+	// Set when the page has a Meta Pixel; the policy then allows Meta's loader and beacon hosts.
+	metaPixel?: boolean;
 	// The lead form's success message, when the page has a form (written by cloudflarePagesService.ts).
 	successMessage?: string;
 	// The lead form's Instagram handle (written by cloudflarePagesService.ts, validated there and again in the worker).
 	instagramHandle?: string;
+	// The lead form's booking link (written by cloudflarePagesService.ts, validated there and again in the worker).
+	bookingUrl?: string;
 }
 
 // Clickjacking protection is enforced (nothing legitimately frames these pages).
 // The rest of the policy ships Report-Only because customer HTML/CSS varies
 // (external images, @import'd fonts): it only allows the page's own inline
 // script by hash, so it can be switched to enforcing once reports are clean.
-function securityHeaders(scriptHash?: string, tracking = false): Record<string, string> {
+function securityHeaders(scriptHash?: string, tracking = false, metaPixel = false): Record<string, string> {
 	return {
 		"Content-Security-Policy": "frame-ancestors 'none'",
 		"X-Frame-Options": "DENY",
 		"Content-Security-Policy-Report-Only": [
 			"default-src 'self'",
 			// 'strict-dynamic' trusts the scripts the hashed loader adds, and only those.
-			`script-src ${scriptHash ? `'${scriptHash}'${tracking ? " 'strict-dynamic'" : ""}` : "'none'"}`,
+			`script-src ${scriptHash ? `'${scriptHash}'${tracking ? " 'strict-dynamic'" : ""}${metaPixel ? " https://connect.facebook.net" : ""}` : "'none'"}`,
 			"style-src 'self' 'unsafe-inline' https:",
 			"img-src 'self' https: data:",
 			"font-src 'self' https: data:",
-			tracking ? "connect-src 'self' https: wss:" : "connect-src 'self'",
+			tracking ? `connect-src 'self' https: wss:${metaPixel ? " https://connect.facebook.net https://www.facebook.com" : ""}` : "connect-src 'self'",
 			// Hotjar surveys and Tag Manager's preview open frames.
 			...(tracking ? ["frame-src 'self' https:"] : []),
 			"form-action 'self'",
@@ -50,19 +54,31 @@ function escapeText(value: string): string {
 	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+// The booking link must be an absolute https URL (the API checks it on save too).
+function isHttpsUrl(value: string): boolean {
+	try {
+		return new URL(value).protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 // Same rule as the API's Instagram handle (leadFormConfig.ts): 1 to 30 letters, digits, dots or underscores.
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 // successMessage is the page's form success message, validated when the page was published.
-function thankYouHtml(successMessage: string | undefined, instagramHandle: string | undefined): string {
+function thankYouHtml(successMessage: string | undefined, instagramHandle: string | undefined, bookingUrl: string | undefined): string {
 	// The handle is put in an href, so it must match the pattern above; anything else gets no button.
 	const follow = instagramHandle && INSTAGRAM_HANDLE_PATTERN.test(instagramHandle) ? `<p><a href="https://www.instagram.com/${instagramHandle}/" rel="noopener noreferrer">Follow us on Instagram</a></p>` : "";
 	const message = successMessage ? escapeText(successMessage) : "Your submission has been received.";
+	// The booking link goes in an href: https only, and escaped like the message.
+	const book = bookingUrl && isHttpsUrl(bookingUrl) ? `<p><a href="${escapeText(bookingUrl)}" rel="noopener noreferrer">Book a call</a></p>` : "";
 	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Thank you</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:640px;margin:80px auto;text-align:center;color:#0f172a">
 <h1>Thanks — we'll be in touch.</h1>
 <p>${message}</p>
+${book}
 ${follow}
 </body></html>`;
 }
@@ -116,7 +132,7 @@ async function serveExperiment(env: Env, request: Request, host: string, slug: s
 	// A test response depends on the cookie, so it must not be shared between visitors.
 	const headers: Record<string, string> = {
 		"Content-Type": "text/html; charset=utf-8",
-		...securityHeaders(stored.scriptHash, stored.tracking === true),
+		...securityHeaders(stored.scriptHash, stored.tracking === true, stored.metaPixel === true),
 	};
 	if (experiment.mode === "test") {
 		headers["Cache-Control"] = "private, no-cache";
@@ -166,7 +182,7 @@ export default {
 		if (segments[1] === "thank-you" && request.method === "GET") {
 			const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");
 			const owned = stored ? await assertHostnameOwnsPage(env, host, stored) : false;
-			return new Response(thankYouHtml(owned ? stored?.successMessage : undefined, owned ? stored?.instagramHandle : undefined), {
+			return new Response(thankYouHtml(owned ? stored?.successMessage : undefined, owned ? stored?.instagramHandle : undefined, owned ? stored?.bookingUrl : undefined), {
 				headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
 			});
 		}
@@ -189,7 +205,7 @@ export default {
 			headers: {
 				"Content-Type": "text/html; charset=utf-8",
 				"Cache-Control": "public, max-age=60",
-				...securityHeaders(stored.scriptHash, stored.tracking === true),
+				...securityHeaders(stored.scriptHash, stored.tracking === true, stored.metaPixel === true),
 			},
 		});
 	},
