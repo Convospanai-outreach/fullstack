@@ -116,6 +116,9 @@ export const landingLeadPayloadSchema = z.object({
     website: z.string().max(500).optional(), // honeypot
     // Lead form marker pages: the visitor's values by field key. Checked against the page's config in the service.
     formFields: z.record(z.string().max(64), z.unknown()).optional(),
+    // Meta Pixel: the event ID the browser fired for this submit, and the page URL (origin and path only).
+    metaEventId: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional(),
+    metaEventSourceUrl: z.string().max(2000).optional(),
 });
 
 export const landingEventNameEnum = z.enum([
