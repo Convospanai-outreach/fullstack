@@ -43,6 +43,9 @@ export interface InstantConfirmationSequence {
     id: string;
     name: string;
     channel: "email" | "whatsapp";
+    status: "DRAFT" | "ACTIVE";
+    // Null for a sequence that is not attached to a campaign (for example a creator-funnel nurture).
+    campaignId: string | null;
 }
 
 // The page's stored instant confirmation (PUT .../instant-confirmation). Off unless enabled.

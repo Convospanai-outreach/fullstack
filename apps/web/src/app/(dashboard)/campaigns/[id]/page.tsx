@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import StatusBadge from "@/components/campaigns/StatusBadge";
@@ -19,6 +19,7 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
+import { tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
 
@@ -46,7 +47,8 @@ export default function CampaignDetailPage({
         draftGenerationMode: "REALTIME" as "REALTIME" | "BATCH",
     });
     const [activities, setActivities] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState("overview");
+    const searchParams = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => tabFromQuery(searchParams.get("tab")));
     const [is3DMode, setIs3DMode] = useState(false);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);

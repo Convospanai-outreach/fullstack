@@ -41,6 +41,7 @@ export default function InstantConfirmationPanel({
     }, [onLoadSequences]);
 
     const noEligibleSequence = sequences !== null && sequences.length === 0;
+    const chosen = sequences?.find((sequence) => sequence.id === sequenceId);
 
     return (
         <GlassCard className="p-6 space-y-4">
@@ -106,10 +107,15 @@ export default function InstantConfirmationPanel({
                             <option value="">Choose a sequence</option>
                             {sequences.map((sequence) => (
                                 <option key={sequence.id} value={sequence.id}>
-                                    {`${sequence.name} (${sequence.channel === "email" ? "Email" : "WhatsApp"})`}
+                                    {`${sequence.name} (${sequence.channel === "email" ? "Email" : "WhatsApp"}, ${sequence.status === "DRAFT" ? "Draft" : "Active"})`}
                                 </option>
                             ))}
                         </select>
+                        {chosen?.campaignId ? (
+                            <Link href={`/campaigns/${encodeURIComponent(chosen.campaignId)}?tab=sequence`} className="text-sm underline">
+                                Open this sequence
+                            </Link>
+                        ) : null}
                     </div>
                 ) : null}
 

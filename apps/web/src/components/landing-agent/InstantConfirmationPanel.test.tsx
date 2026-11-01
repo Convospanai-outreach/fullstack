@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InstantConfirmationPanel from "./InstantConfirmationPanel";
 
 const SEQUENCES = [
-  { id: "seq-1", name: "Welcome", channel: "email" as const },
-  { id: "seq-2", name: "Reminder", channel: "whatsapp" as const },
+  { id: "seq-1", name: "Welcome", channel: "email" as const, status: "ACTIVE" as const, campaignId: "camp-1" },
+  { id: "seq-2", name: "Reminder", channel: "whatsapp" as const, status: "DRAFT" as const, campaignId: null },
 ];
 
 describe("InstantConfirmationPanel", () => {
@@ -75,8 +75,17 @@ describe("InstantConfirmationPanel", () => {
     await turnOn();
     const values = [...picker()!.options].map((option) => option.value).filter(Boolean);
     expect(values).toEqual(["seq-1", "seq-2"]);
-    expect(container.textContent).toContain("Welcome (Email)");
-    expect(container.textContent).toContain("Reminder (WhatsApp)");
+    expect(container.textContent).toContain("Welcome (Email, Active)");
+    expect(container.textContent).toContain("Reminder (WhatsApp, Draft)");
+  });
+
+  it("links the chosen sequence to its campaign's Sequence tab, and only when it has a campaign", async () => {
+    await render();
+    await turnOn();
+    await choose("seq-1");
+    expect(container.querySelector<HTMLAnchorElement>("a[href='/campaigns/camp-1?tab=sequence']")).not.toBeNull();
+    await choose("seq-2");
+    expect(container.querySelector("a[href*='?tab=sequence']")).toBeNull();
   });
 
   it("saves {enabled, sequenceId} with the chosen sequence", async () => {
