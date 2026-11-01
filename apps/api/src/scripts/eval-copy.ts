@@ -10,6 +10,10 @@ import { buildJudgePrompt, parseJudgeReply, runCopyEval, type DraftCopy } from "
 // Scores the current email prompts (Node A, B, C) against the private eval set and rubric in
 // EVAL_DATA_DIR, using EVAL_TEAM_ID's provider keys. Every case is a generate call plus a judge
 // call, so it spends credits: without --yes this only prints what it would run.
+//
+// The composers critique their own drafts. With COPY_RUBRIC_DIR set that critique is scored against
+// the private critic rubric; unset, it is the standard critique. Run once each way to compare. The
+// report records which. Keep the critic rubric separate from the eval rubric (see rubricCritic.ts).
 
 function flag(name: string) {
     const i = process.argv.indexOf(`--${name}`);
@@ -27,7 +31,13 @@ async function main() {
     if (max) cases = cases.slice(0, max);
 
     const counts = (s: string) => cases.filter((c) => c.split === s).length;
-    console.log(`Eval plan: ${cases.length} cases (dev ${counts("dev")}, heldout ${counts("heldout")}), ${cases.length * 2} model calls.`);
+    // Per case: the draft, the composer's own critique, and the judge.
+    console.log(`Eval plan: ${cases.length} cases (dev ${counts("dev")}, heldout ${counts("heldout")}), ${cases.length * 3} model calls.`);
+    const criticDir = process.env["COPY_RUBRIC_DIR"];
+    console.log(`Critique: ${criticDir ? "private critic rubric (COPY_RUBRIC_DIR)" : "standard critique"}.`);
+    if (criticDir && path.resolve(criticDir) === path.resolve(process.env["EVAL_DATA_DIR"]!)) {
+        console.warn("Warning: COPY_RUBRIC_DIR is the eval folder, so the critic and the judge share one rubric and the scores will flatter the critic.");
+    }
     if (process.argv.includes("--dry-run") || !process.argv.includes("--yes")) {
         console.log("Not run. Add --yes to spend credits and score.");
         return;
@@ -65,7 +75,7 @@ async function main() {
     const runsDir = path.join(process.env["EVAL_DATA_DIR"]!, "runs");
     fs.mkdirSync(runsDir, { recursive: true });
     const file = path.join(runsDir, `copy-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-    fs.writeFileSync(file, JSON.stringify({ gitSha, ranAt: new Date().toISOString(), prompts: allPromptRefs(), ...report }, null, 2));
+    fs.writeFileSync(file, JSON.stringify({ gitSha, ranAt: new Date().toISOString(), prompts: allPromptRefs(), rubricCritic: Boolean(criticDir), ...report }, null, 2));
 
     console.log(JSON.stringify(report.summary, null, 2));
     console.log(`Full report: ${file}`);
