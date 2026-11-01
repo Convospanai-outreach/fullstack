@@ -27,7 +27,7 @@ interface Control {
 function describeControls(html: string): Control[] {
   const out: Control[] = [];
   const pattern = /<(input|textarea|select)\b([^>]*?)\/?>/g;
-  const attr = (attrs: string, name: string) => new RegExp(`(?:^|\s)${name}="([^"]*)"`).exec(attrs)?.[1];
+  const attr = (attrs: string, name: string) => new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attrs)?.[1];
   for (const match of html.matchAll(pattern)) {
     const tag = match[1]!;
     const attrs = match[2]!;
