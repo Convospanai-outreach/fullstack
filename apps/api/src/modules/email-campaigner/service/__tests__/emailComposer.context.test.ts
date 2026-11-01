@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAskAI, mockLoadContext } = vi.hoisted(() => ({ mockAskAI: vi.fn(), mockLoadContext: vi.fn() }));
+const { mockAskAI, mockLoadContext, mockLoadBrief } = vi.hoisted(() => ({ mockAskAI: vi.fn(), mockLoadContext: vi.fn(), mockLoadBrief: vi.fn().mockResolvedValue("") }));
+
+vi.mock("../copyBrief", () => ({ loadCampaignBrief: mockLoadBrief }));
 
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI: mockAskAI } }));
 vi.mock("@/modules/learning/learningService", () => ({ LearningService: { getMemories: vi.fn().mockResolvedValue([]) } }));
@@ -56,5 +58,23 @@ describe.each(cases)("Node %s retrieval context", (node, run) => {
         const draftPrompt = mockAskAI.mock.calls[0][0] as string;
         expect(draftPrompt).not.toContain("PLAYBOOK GUIDANCE");
         expect(draftPrompt).not.toContain("EXAMPLES OF GOOD COPY");
+    });
+});
+
+describe("Node A campaign brief", () => {
+    it("is shown to the draft prompt, and absent when there is none", async () => {
+        mockLoadContext.mockResolvedValue(null);
+        mockLoadBrief.mockResolvedValue("Problem: brief-marker");
+        await composeNodeA({ ...inputA }, "team", "camp-1", undefined);
+        expect(mockLoadBrief).toHaveBeenCalledWith("camp-1", "team");
+        const [draftPrompt] = mockAskAI.mock.calls.map((c) => c[0] as string);
+        expect(draftPrompt).toContain("## CAMPAIGN BRIEF");
+        expect(draftPrompt).toContain("brief-marker");
+
+        mockAskAI.mockReset();
+        mockAskAI.mockResolvedValueOnce(draft).mockResolvedValueOnce(JSON.stringify({ status: "PASS", critique: "ok" }));
+        mockLoadBrief.mockResolvedValue("");
+        await composeNodeA({ ...inputA }, "team", "camp-1", undefined);
+        expect(mockAskAI.mock.calls[0][0]).not.toContain("CAMPAIGN BRIEF");
     });
 });
