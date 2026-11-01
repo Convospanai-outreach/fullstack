@@ -275,7 +275,7 @@ export async function postLandingImage(req: Request) {
 
 export async function putEditorState(req: Request, ctx?: ParamContext) {
     try {
-        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const { teamId, userId } = await requireTeamContext(req, TeamRole.MEMBER);
         const campaignId = await resolveParam(req, ctx, "id", "campaigns");
         if (!campaignId) {
             throw new APIError("Campaign ID is required", 400, "VALIDATION_ERROR");
@@ -288,6 +288,7 @@ export async function putEditorState(req: Request, ctx?: ParamContext) {
 
         const page = await landingAgentService.saveEditorState({
             teamId,
+            userId,
             campaignId,
             title: parsed.data.title,
             editorState: parsed.data.editorState,

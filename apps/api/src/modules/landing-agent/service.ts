@@ -10,7 +10,7 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
-import { variantForPage } from "./experimentService";
+import { runningArmOf, variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
 import { landingEventNameEnum, landingPagePathSchema } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
@@ -165,6 +165,20 @@ async function generateUniqueSlug(name: string): Promise<string> {
         }
     }
     return `${base}-${Date.now().toString(36)}`;
+}
+
+// Editing a page that is an arm of a running test leaves a note in the audit log; the test's panel shows the last edit.
+async function noteArmEdit(teamId: string, userId: string, pageId: string) {
+    const arm = await runningArmOf(pageId);
+    if (!arm) return;
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "landing_experiment.page_edited",
+        entity: "LandingExperiment",
+        entityId: arm.experimentId,
+        metadata: { pageId, variant: arm.name },
+    });
 }
 
 // The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the variant the test cookie names.
@@ -726,6 +740,7 @@ export const landingAgentService = {
 
     async saveEditorState(input: {
         teamId: string;
+        userId: string;
         campaignId: string;
         title?: string;
         editorState?: unknown;
@@ -745,22 +760,24 @@ export const landingAgentService = {
         if (themeError) throw new APIError(themeError, 400, "VALIDATION_ERROR");
 
         // A live page keeps serving its last publish; edits go to the draft columns until publish.
-        if (page.status === "published") {
-            // The title is page metadata, not content, so it goes live at once (the public title
-            // only changes on the next publish that copies the draft).
-            return updateOwnedPage(page.id, input.teamId, {
-                title: input.title ?? page.title,
-                draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
-                draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-            });
-        }
-        return updateOwnedPage(page.id, input.teamId, {
-            title: input.title ?? page.title,
-            editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-            renderedJson: sanitizedRendered as Prisma.InputJsonValue,
-            version: { increment: 1 },
-            status: page.status,
-        });
+        // The title is page metadata, not content, so it goes live at once (the public title
+        // only changes on the next publish that copies the draft).
+        const saved =
+            page.status === "published"
+                ? await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      draftRenderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      draftEditorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                  })
+                : await updateOwnedPage(page.id, input.teamId, {
+                      title: input.title ?? page.title,
+                      editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+                      renderedJson: sanitizedRendered as Prisma.InputJsonValue,
+                      version: { increment: 1 },
+                      status: page.status,
+                  });
+        await noteArmEdit(input.teamId, input.userId, page.id);
+        return saved;
     },
 
     // A page's path name can change until the page is first published; after that the address is fixed.

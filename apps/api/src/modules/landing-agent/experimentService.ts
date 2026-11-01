@@ -172,12 +172,17 @@ export async function pickWinner(input: { teamId: string; experimentId: string; 
 // The page's open test variant, when the visitor was sent to this arm by the test: the test cookie must name it.
 // A direct visit to the page's own address has no test cookie, so it is not counted for the test.
 export async function variantForPage(pageId: string, cookieHeader: string | null): Promise<string | null> {
-    const variant = await prisma.landingExperimentVariant.findFirst({
+    const variant = await runningArmOf(pageId);
+    if (!variant) return null;
+    return readCookie(cookieHeader, `${AB_COOKIE_PREFIX}${variant.experimentId}`) === variant.name ? variant.id : null;
+}
+
+// The arm a page is in, when its test is running. Editing the page is noted against this test.
+export async function runningArmOf(pageId: string): Promise<{ id: string; name: string; experimentId: string } | null> {
+    return prisma.landingExperimentVariant.findFirst({
         where: { landingPageId: pageId, experiment: { status: "running" } },
         select: { id: true, name: true, experimentId: true },
     });
-    if (!variant) return null;
-    return readCookie(cookieHeader, `${AB_COOKIE_PREFIX}${variant.experimentId}`) === variant.name ? variant.id : null;
 }
 
 export interface VariantCounts {
