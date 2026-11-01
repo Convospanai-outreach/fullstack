@@ -50,6 +50,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
+  customFields Json? // phase 10: team-defined property values keyed by LeadProperty.key (lead-properties module)
   embedding    String? // Controlled-beta canonical type: String/text (matches live DB). Vector(1536) upgrade is a future migration phase.
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
@@ -453,7 +454,10 @@ model LandingPage {
   version      Int             @default(1)
   editorState  Json?
   renderedJson Json
+  draftRenderedJson Json? // phase 2: unpublished edits while the page is published; the live columns keep serving
+  draftEditorState  Json?
   tracking     Json? // { ga4Id, gtmId, hotjarId }; loaded only on a team's connected domain (tracking.ts)
+  instantConfirmation Json? // { enabled, sequenceId }: one nurture message after a form lead is stored; null = off (instantConfirmation.ts)
   publishedAt  DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
@@ -461,6 +465,7 @@ model LandingPage {
   team         Team            @relation(fields: [teamId], references: [id])
   leads        LandingLead[]
   events       LandingEvent[]
+  experimentVariants LandingExperimentVariant[]
 
   @@index([campaignId])
   @@index([teamId])
@@ -491,6 +496,7 @@ model LandingLead {
   userAgent     String?
   socialToken   String? // creator funnel: the signed ?t= link the visitor came from (linkToken.ts); intake merges into that lead
   whatsappConsent Boolean? // creator funnel: ticked the WhatsApp opt-in on a launch plan page (whatsappOptIn.ts); only kept with a phone
+  variantId     String? // phase 6B: the LandingExperimentVariant the visitor saw, when the page is an arm of a running test
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -519,12 +525,14 @@ model LandingEvent {
   utmCampaign   String?
   utmTerm       String?
   utmContent    String?
+  variantId     String? // phase 6B: the A/B variant the visitor saw (LandingExperimentVariant.id)
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   team          Team            @relation(fields: [teamId], references: [id])
 
   @@index([landingPageId])
+  @@index([variantId])
   @@index([campaignId])
   @@index([teamId, createdAt])
   @@index([eventName])
@@ -759,6 +767,7 @@ model Email {
   repliedAt        DateTime?
   bouncedAt        DateTime?
   unsubscribedAt   DateTime?
+  copyProvenance   Json? // { v, prompts, flags, critique, ... }: which prompt versions wrote it; null = not AI-written (copyProvenance.ts)
   createdAt        DateTime          @default(now())
   campaign         Campaign          @relation(fields: [campaignId], references: [id])
   lead             Lead              @relation(fields: [leadId], references: [id])
@@ -1357,6 +1366,8 @@ model Team {
   landingPages     LandingPage[]
   landingLeads     LandingLead[]
   landingEvents    LandingEvent[]
+  landingExperiments LandingExperiment[]
+  leadProperties     LeadProperty[]
   invoices         Invoice[]
 
   // Billing address (used for invoice GST treatment: India + same state as
@@ -1394,6 +1405,7 @@ model Team {
   // crystal-knows/crystalCredentials.ts. Unset = enrichment/personality
   // features are skipped for this team.
   crystalApiKeyEnc            Json?
+  metaCapiTokenEnc            Json? // Meta Conversions API token for the team's Pixels (credentialVault EncryptedCredential); null = not set
   crystalApiKeyConfiguredAt   DateTime?
 
   // Chrome extension captures queue lead enrichment (1 credit each) when on.
@@ -1438,6 +1450,8 @@ model Team {
   edgeNode                   EdgeNode?
   outboxEvents               OutboxEvent[]
   blindIndexes               BlindIndex[]
+  dmFlows    DmFlow[]
+  dmFlowRuns DmFlowRun[]
 }
 
 model CrmIntegration {
@@ -1585,6 +1599,8 @@ model KeywordTrigger {
 
   @@index([teamId])
   @@index([socialAccountId, active])
+  flowId      String? // Instagram DM flow run when this trigger matches (dmFlowMachine.ts); null = single reply
+  flow        DmFlow? @relation(fields: [flowId], references: [id], onDelete: SetNull)
 }
 
 // One automatic reply: created by the webhook (PENDING), sent by the worker. The unique
@@ -2794,6 +2810,39 @@ model ExperimentVariant {
   experiment Experiment @relation(fields: [experimentId], references: [id])
 }
 
+// Phase 6B: A/B test between two published landing pages served at one shared path (<domain>/<slug>).
+// Separate from Experiment/ExperimentVariant (AI generation config) and CampaignVariant (email copy):
+// neither can point at a LandingPage, and they have no weights, slug or lifecycle for a page test.
+model LandingExperiment {
+  id           String                     @id @default(uuid())
+  teamId       String
+  name         String
+  slug         String                     @unique // the shared path; never equal to a LandingPage.slug
+  status       String                     @default("draft") // draft, running, paused, ended
+  startedAt    DateTime?
+  endedAt      DateTime?
+  winnerPageId String? // set by pick-winner; that page then serves the shared path
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  team         Team                       @relation(fields: [teamId], references: [id])
+  variants     LandingExperimentVariant[]
+
+  @@index([teamId])
+}
+
+model LandingExperimentVariant {
+  id            String            @id @default(uuid())
+  experimentId  String
+  landingPageId String
+  name          String // "A" or "B"
+  weight        Int // 1 to 99; the two variants sum to 100
+  experiment    LandingExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  landingPage   LandingPage       @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, name])
+  @@index([landingPageId])
+}
+
 // Task 7: Immutable Audit Trail
 model ImmutableAudit {
   id        String   @id @default(uuid())
@@ -3297,4 +3346,141 @@ model BlindIndex {
 
   @@unique([teamId, entityType, entityId, fieldName])
   @@index([teamId, entityType, fieldName, indexHash])
+}
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  NOT_INTERESTED
+}
+
+// A message sent through a website form, kept so the team can see and follow it up.
+model Enquiry {
+  id        String         @id @default(uuid())
+  ticketId  String         @unique
+  name      String
+  email     String
+  subject   String
+  message   String         @db.Text
+  source    String
+  status    EnquiryStatus  @default(NEW)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+enum JobApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+// An application sent through a careers page. The resume is kept with it and only a superadmin can download it.
+model JobApplication {
+  id         String               @id @default(uuid())
+  jobSlug    String
+  jobTitle   String
+  name       String
+  email      String
+  phone      String?
+  coverNote  String?              @db.Text
+  resumeName String
+  resumeType String
+  resumeSize Int
+  resumeData Bytes
+  status     JobApplicationStatus @default(NEW)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model LeadProperty {
+  id         String    @id @default(uuid())
+  teamId     String
+  key        String // ^[a-z][a-z0-9_]{0,31}$, unique per team, never changes after create
+  label      String
+  type       String // text | number | choice | yesno | date
+  options    Json? // choice only: array of option strings
+  archivedAt DateTime? // hidden, never deleted: values stay on leads
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  team       Team      @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, key])
+  @@index([teamId])
+}
+
+// Instagram DM flows (creator funnel): an ordered list of steps a keyword trigger starts for a person.
+// steps is validated by dmFlowMachine.validateFlowSteps. Runs keep the steps they started with, so
+// editing a flow (version bump) never changes a run in progress.
+model DmFlow {
+  id          String    @id @default(uuid())
+  teamId      String
+  name        String
+  steps       Json
+  version     Int       @default(1)
+  archivedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  triggers KeywordTrigger[]
+  runs     DmFlowRun[]
+
+  @@index([teamId])
+}
+
+// One person's pass through a flow. (flowId, personKey) is unique; a finished run is restarted in place
+// after the per-person cooldown. version is the optimistic lock the worker uses.
+model DmFlowRun {
+  id              String    @id @default(uuid())
+  teamId          String
+  flowId          String
+  socialAccountId String
+  personKey       String
+  leadId          String?
+  steps           Json
+  stepIndex       Int       @default(0)
+  awaitingAnswer  Boolean   @default(false)
+  status          String    @default("ACTIVE") // ACTIVE | WAITING | COMPLETED | EXPIRED | STOPPED
+  waitingSince    DateTime?
+  lastInboundAt   DateTime?
+  version         Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  flow   DmFlow        @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  events DmFlowEvent[]
+
+  @@unique([flowId, personKey])
+  @@index([teamId])
+  @@index([status, waitingSince])
+}
+
+// The run's log and work queue. A webhook writes a PENDING row ("start:<id>" or "in:<message id>"),
+// the worker claims it, and every send, answer, skip or stop is recorded as its own row. The unique
+// (runId, sourceKey) makes a redelivered webhook a no-op.
+model DmFlowEvent {
+  id        String   @id @default(uuid())
+  runId     String
+  sourceKey String
+  kind      String // PENDING | PROCESSING | DONE | SENT | SKIPPED | FAILED | UNCONFIRMED | ANSWER | STOP | EXPIRED
+  stepIndex Int?
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  run DmFlowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sourceKey])
+  @@index([kind, createdAt])
 }

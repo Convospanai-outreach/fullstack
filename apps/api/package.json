@@ -14,6 +14,10 @@
         "readiness:seed": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/seed-readiness.ts",
         "readiness:audit": "npm run readiness:seed && npm run readiness:audit:strict",
         "readiness:audit:strict": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/validate-production-readiness.ts",
+        "eval:copy": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/eval-copy.ts",
+        "playbook:sync": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/playbook-sync.ts",
+        "copy:outcomes": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/copy-outcomes.ts",
+        "gold:sync": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/gold-sync.ts",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts",
         "test:routes": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts",
         "test:coverage": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts --coverage"

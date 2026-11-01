@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { JobQueue, type JobPayload, type JobType } from "@/lib/queue";
+import { readProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 
 // Per-message approval for AI-written outreach. A worker that has just written an email or a
 // LinkedIn message calls gateAiMessage before sending: unless the team opted out, the message is
@@ -22,6 +23,9 @@ export type HeldMessage = {
     channel: MessageChannel;
     subject?: string;
     body: string;
+    // Which prompt versions wrote the text (copyProvenance.ts). Reviewers approve or reject the text as
+    // written, so it still describes what is sent.
+    copyProvenance?: CopyProvenance;
 };
 
 type GateInput = HeldMessage & {
@@ -37,7 +41,7 @@ export type GateResult =
     | { send: false; held: "needs_attention" };
 
 export type ApprovedMessage =
-    | { state: "ready"; subject?: string; body: string }
+    | { state: "ready"; subject?: string; body: string; copyProvenance?: CopyProvenance }
     | { state: "already_handled" | "expired" | "not_approved" };
 
 function entityIdFor(leadId: string, channel: MessageChannel) {
@@ -83,6 +87,9 @@ export async function flagNeedsAttention(input: {
     channel: MessageChannel;
     reason: string;
     requesterHint?: string | null | undefined;
+    // The job that failed to write the message, kept so a person can retry it or write the message
+    // themselves from the approvals page.
+    job?: { jobType: JobType; jobPayload: JobPayload };
 }) {
     console.error("[MessageApproval] Message needs attention", { leadId: input.leadId, channel: input.channel, reason: input.reason });
     if (!input.teamId) return;
@@ -104,7 +111,7 @@ export async function flagNeedsAttention(input: {
                 entityId,
                 status: NEEDS_ATTENTION,
                 reason: input.reason,
-                payload: { channel: input.channel, leadId: input.leadId },
+                payload: { channel: input.channel, leadId: input.leadId, ...(input.job ?? {}) } as any,
             },
         });
     } catch (error) {
@@ -136,7 +143,7 @@ export async function gateAiMessage(input: GateInput): Promise<GateResult> {
         return { send: false, held: "needs_attention" };
     }
 
-    const held: HeldMessage = { jobType: input.jobType, jobPayload: input.jobPayload, channel, body: input.body, ...(input.subject ? { subject: input.subject } : {}) };
+    const held: HeldMessage = { jobType: input.jobType, jobPayload: input.jobPayload, channel, body: input.body, ...(input.subject ? { subject: input.subject } : {}), ...(input.copyProvenance ? { copyProvenance: input.copyProvenance } : {}) };
     const request = await prisma.approvalRequest.create({
         data: {
             teamId,
@@ -222,7 +229,8 @@ export async function resolveApprovedMessage(approvalId: string, teamId: string)
         await settleMessageApproval(approvalId, teamId, "NEEDS_ATTENTION", "The approved message could not be read.");
         return { state: "not_approved" };
     }
-    return { state: "ready", body: held.body, ...(held.subject ? { subject: held.subject } : {}) };
+    const copyProvenance = readProvenance(held.copyProvenance);
+    return { state: "ready", body: held.body, ...(held.subject ? { subject: held.subject } : {}), ...(copyProvenance ? { copyProvenance } : {}) };
 }
 
 export async function settleMessageApproval(approvalId: string, teamId: string, outcome: "SENT" | "NEEDS_ATTENTION", note?: string) {

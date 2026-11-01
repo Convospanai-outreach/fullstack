@@ -137,6 +137,24 @@ export async function POST(req: Request) {
 
     const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
     const ticketId = generateTicketId();
+
+    // Kept for the superadmin dashboard before anything else can fail. Saving must never stop the email,
+    // and the log line names the ticket only, never what the visitor typed.
+    try {
+        const { prisma } = await import("@/lib/db");
+        await prisma.enquiry.create({
+            data: {
+                ticketId,
+                name: payload.name.trim(),
+                email: payload.email.trim(),
+                subject: payload.subject.trim(),
+                message: payload.message.trim(),
+                source: "support-contact",
+            },
+        });
+    } catch {
+        console.error("Support contact could not be saved", { ticketId });
+    }
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());

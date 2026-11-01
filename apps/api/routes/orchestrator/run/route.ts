@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { findApprovedCampaignStartId } from "@/lib/governance/campaignStartApproval";
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { audit } from "@/lib/governance/audit";
 import { checkLimits } from "@/lib/governance/limits";
 
@@ -33,6 +34,10 @@ export async function POST(req: NextRequest) {
   const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId: callerTeamId } });
   if (!campaign) return new NextResponse("Campaign not found", { status: 404 });
   const teamId = callerTeamId;
+
+  if (!(await hasSendingChannel(teamId))) {
+    return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
+  }
 
   // GOVERNANCE CHECKS
   try {

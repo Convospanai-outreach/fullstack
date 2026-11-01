@@ -1,4 +1,5 @@
 
+import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { withSentryConfig } from '@sentry/nextjs';
@@ -133,7 +134,10 @@ const nextConfig = {
             ['/team', '/settings/team'],
             ['/crm', '/settings/crm'],
             ['/dashboard/settings', '/settings'],
-        ].map(([source, destination]) => ({ source, destination, permanent: false }));
+        ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
+            // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
+            toNextRedirects(loadSiteRedirects())
+        );
     },
     webpack(config) {
         // Ensure three.js ESM builds resolve correctly in the webpack graph

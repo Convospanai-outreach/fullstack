@@ -1,3 +1,4 @@
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { NextResponse } from "next/server";
 import { CampaignService } from "@/lib/campaignService";
 import { prisma } from "@/lib/db";
@@ -72,6 +73,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             await prisma.campaign.update({ where: { id }, data: { draftGenerationMode: body.draftGenerationMode } });
         }
         if (body.action === "start" || body.status === "active") {
+            if (!(await hasSendingChannel(teamId))) {
+                return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
+            }
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);

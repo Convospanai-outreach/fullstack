@@ -1,4 +1,5 @@
 "use client";
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import { useState } from "react";
 import { toast } from "sonner";
 import ScheduleCampaignModal from "./ScheduleCampaignModal";
@@ -18,8 +19,9 @@ export default function CampaignList({ campaigns }: any) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ campaignId: id }),
             });
-            if (!res.ok) throw new Error("Failed to start campaign");
             const data = await res.json().catch(() => ({}));
+            if (handleNoSendingChannel(data)) return;
+            if (!res.ok) throw new Error("Failed to start campaign");
             if (data.status === "pending_approval") {
                 toast.info(data.message || "Approval requested - start this campaign again once it is approved");
                 return;

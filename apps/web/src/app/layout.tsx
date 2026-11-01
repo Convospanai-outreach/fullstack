@@ -79,12 +79,15 @@ export const metadata = {
 
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { getGa4MeasurementId } from "@/lib/siteSettings";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
+  // An ID set in the CMS wins; otherwise the environment, then the built-in default.
   const gaMeasurementId =
+    getGa4MeasurementId() ||
     process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] ||
     process.env["NEXT_PUBLIC_GA_ID"] ||
     "G-PJCWLF4HVJ";

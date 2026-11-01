@@ -131,6 +131,28 @@ describe("OutboxService", () => {
                 landingLeadId: "lead-1",
             });
         });
+
+        it("maps LANDING_META_LEAD_CAPI to meta_capi_lead with the event's own fields only", async () => {
+            const { OutboxService } = await import("@/lib/outboxService");
+            const mapped = OutboxService.mapEventToJob({
+                eventType: "LANDING_META_LEAD_CAPI",
+                aggregateType: "LandingLead",
+                aggregateId: "lead-2",
+                teamId: "team-1",
+                payload: { pixelId: "123456789012345", eventId: "ev-uuid", eventTime: 1800000000, eventSourceUrl: "https://go.brand.test/x", testEventCode: "TEST1" },
+            });
+
+            expect(mapped.type).toBe("meta_capi_lead");
+            expect(mapped.payload).toEqual({
+                teamId: "team-1",
+                landingLeadId: "lead-2",
+                pixelId: "123456789012345",
+                eventId: "ev-uuid",
+                eventTime: 1800000000,
+                eventSourceUrl: "https://go.brand.test/x",
+                testEventCode: "TEST1",
+            });
+        });
     });
 
     describe("relayPendingEvents", () => {

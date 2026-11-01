@@ -60,6 +60,7 @@ export const NAV_SECTIONS: NavSection[] = [
             { label: "Knowledge", href: "/knowledge", feature: "knowledge" },
             { label: "Content calendar", href: "/content/calendar", feature: "creator-funnel" },
             { label: "Launch plans", href: "/content/plans", feature: "creator-funnel" },
+            { label: "Instagram funnel", href: "/content/instagram-funnel", feature: "creator-funnel" },
         ],
     },
     {
@@ -96,6 +97,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         links: [
             { label: "Mailboxes", href: "/settings/mailboxes" },
             { label: "Do-not-contact list", href: "/settings/suppressions" },
+            { label: "Custom properties", href: "/settings/custom-properties" },
             { label: "Social accounts", href: "/settings/social", feature: "creator-funnel" },
             ...(PRODUCT_FLAGS.emailFirstBeta ? [] : [{ label: "CRM sync", href: "/settings/crm" }]),
             { label: "Webhooks", href: "/settings/webhooks" },

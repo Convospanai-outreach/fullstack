@@ -34,13 +34,45 @@ export interface LandingPageTracking {
     ga4Id?: string;
     gtmId?: string;
     hotjarId?: string;
+    metaPixelId?: string;
+    metaTestEventCode?: string;
+}
+
+// Phase 9 instant confirmation: one sequence the page settings can pick (GET /landing-agent/instant-confirmation/sequences).
+export interface InstantConfirmationSequence {
+    id: string;
+    name: string;
+    channel: "email" | "whatsapp";
+    status: "DRAFT" | "ACTIVE";
+    // Null for a sequence that is not attached to a campaign (for example a creator-funnel nurture).
+    campaignId: string | null;
+}
+
+// What a save returns to the settings panel: a status line, and wording warnings that never block the save.
+export interface InstantConfirmationSaveResult {
+    message: string;
+    warnings?: string[];
+}
+
+// The page's stored instant confirmation (PUT .../instant-confirmation). Off unless enabled.
+export interface InstantConfirmationSetting {
+    enabled: boolean;
+    sequenceId: string;
 }
 
 export interface LandingCampaignSummary {
     id: string;
     name: string;
     updatedAt: string;
-    pages: Array<{ slug: string; title?: string | null; status: string; updatedAt: string }>;
+    pages: Array<{
+        id: string;
+        slug: string;
+        title?: string | null;
+        status: string;
+        updatedAt: string;
+        hasUnpublishedChanges?: boolean;
+        autoReplies?: { total: number; active: number };
+    }>;
     _count: { wireframeOptions: number; leads: number };
 }
 
@@ -69,5 +101,8 @@ export interface LandingCampaign {
         renderedJson: unknown;
         editorState?: unknown;
         tracking?: LandingPageTracking | null;
+        instantConfirmation?: InstantConfirmationSetting | null;
+        // True when renderedJson is the unpublished draft (the live page is still the last publish).
+        hasUnpublishedChanges?: boolean;
     }>;
 }
