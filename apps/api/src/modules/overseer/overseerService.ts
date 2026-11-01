@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { toPlainText } from "@/modules/inbox/actionInboxService";
-import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode, StallThreadMessage } from "./stallJudgment";
+import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode } from "./stallJudgment";
+import type { StallThreadMessage } from "@/lib/ai/jev";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
