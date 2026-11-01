@@ -4,6 +4,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         landingCampaign: { findFirst: vi.fn(), findMany: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
         landingPage: { update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+        landingExperimentVariant: { findFirst: vi.fn().mockResolvedValue(null) },
         keywordTrigger: { groupBy: vi.fn() },
     },
 }));

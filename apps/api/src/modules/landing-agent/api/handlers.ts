@@ -407,6 +407,11 @@ export async function getPublicPage(req: Request, ctx?: ParamContext) {
     }
 }
 
+// Do Not Track or Global Privacy Control: the visit is recorded without an A/B variant (see service.ts abVariantFor).
+function doNotTrackRequested(req: Request): boolean {
+    return req.headers.get("dnt") === "1" || req.headers.get("sec-gpc") === "1";
+}
+
 export async function postPublicLead(req: Request, ctx?: ParamContext) {
     try {
         const slug = await resolveParam(req, ctx, "slug", "public");
@@ -430,6 +435,7 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             payload: parsed.data,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
         });
 
         return successResponse({
@@ -472,6 +478,7 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             utmContent: parsed.data.utmContent,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
         });
 
         return successResponse({ ok: true, eventId: event.id }, 201);

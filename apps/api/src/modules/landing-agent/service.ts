@@ -10,6 +10,8 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
+import { variantForPage } from "./experimentService";
+import { isBotUserAgent } from "./landingExperimentAssignment";
 import { landingEventNameEnum } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
 import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
@@ -162,6 +164,12 @@ async function generateUniqueSlug(name: string): Promise<string> {
         }
     }
     return `${base}-${Date.now().toString(36)}`;
+}
+
+// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the page's running test.
+async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined): Promise<string | null> {
+    if (doNotTrack || isBotUserAgent(userAgent ?? null)) return null;
+    return variantForPage(pageId);
 }
 
 const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
@@ -936,6 +944,7 @@ export const landingAgentService = {
         };
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
@@ -961,6 +970,7 @@ export const landingAgentService = {
             rawPayload = mapped.rawPayload;
         }
 
+        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack);
         const lead = await prisma.$transaction(async (tx) => {
             const createdLead = await tx.landingLead.create({
                 data: {
@@ -982,6 +992,7 @@ export const landingAgentService = {
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
                     socialToken: input.payload.socialToken,
+                    variantId,
                     // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
                     ...(input.payload.whatsappConsent === true && page.funnelStage && columns.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
@@ -1044,6 +1055,7 @@ export const landingAgentService = {
                     eventData: {
                         leadId: createdLead.id,
                     },
+                    variantId,
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
@@ -1088,6 +1100,7 @@ export const landingAgentService = {
         utmContent?: string;
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
             throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
@@ -1112,6 +1125,7 @@ export const landingAgentService = {
                 utmCampaign: input.utmCampaign,
                 utmTerm: input.utmTerm,
                 utmContent: input.utmContent,
+                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack),
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },
