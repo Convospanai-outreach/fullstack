@@ -115,6 +115,20 @@ describe("LandingFunnelReport", () => {
         expect(container.textContent).not.toContain("Instagram keyword replies sent");
     });
 
+    it("still shows the table when there are no tracked visits but leads came in", async () => {
+        mockReport.mockResolvedValue({
+            ...report,
+            steps: report.steps.map((s, i) => (i === 0 ? { ...s, count: 0, dropOffPercent: null, medianSecondsFromPrevious: null } : s)),
+        });
+        await act(async () => {
+            root.render(<LandingFunnelReport />);
+        });
+        await flush();
+
+        expect(container.textContent).not.toContain("No visits in this range yet");
+        expect(rowTexts()).toHaveLength(4);
+    });
+
     it("shows an empty message when the range has no visits", async () => {
         mockReport.mockResolvedValue({
             ...report,
