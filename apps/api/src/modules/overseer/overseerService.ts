@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { toPlainText } from "@/modules/inbox/actionInboxService";
-import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevMode, StallCandidate, StallJevInput, StallJevMode, StallThreadMessage } from "./stallJudgment";
+import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode, StallThreadMessage } from "./stallJudgment";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
@@ -89,10 +89,22 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     const teamIds = [...new Set(stalled.map((e) => e.teamId))];
     const teams = await prisma.team.findMany({
         where: { id: { in: teamIds } },
-        select: { id: true, whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true, enabledFeatures: true }
+        select: { id: true, whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true }
     });
     const wabaTeamIds = new Set(teams.filter((t) => !!t.whatsappPhoneNumberId && !!t.whatsappAccessTokenEnc).map((t) => t.id));
-    const jevModeByTeam = new Map(teams.map((t) => [t.id, stallJevMode(t.enabledFeatures)]));
+
+    // Per-team Jev switches (see stallJudgment.ts): one read for the whole tick.
+    const jevFlags = await prisma.featureFlag.findMany({
+        where: { isEnabled: true, key: { in: teamIds.flatMap((id) => Object.values(stallJevFlagKeys(id))) } },
+        select: { key: true }
+    });
+    const jevFlagKeys = new Set(jevFlags.map((f) => f.key));
+    const jevModeByTeam = new Map(
+        teamIds.map((id) => {
+            const keys = stallJevFlagKeys(id);
+            return [id, stallJevMode({ on: jevFlagKeys.has(keys.on), shadow: jevFlagKeys.has(keys.shadow) })] as const;
+        })
+    );
 
     const now = Date.now();
     const candidates: StallCandidate[] = stalled.map((enrollment) => {

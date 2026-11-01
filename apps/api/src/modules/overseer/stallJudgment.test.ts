@@ -18,11 +18,10 @@ import {
     judgeStalledEnrollment,
     judgeStalledEnrollments,
     judgeStalledEnrollmentsWithJev,
+    stallJevFlagKeys,
     stallJevMode,
     StallCandidate,
     StallJudgment,
-    STALL_JEV_FEATURE,
-    STALL_JEV_SHADOW_FEATURE,
 } from "./stallJudgment";
 
 const candidate: StallCandidate = {
@@ -110,16 +109,16 @@ const autoCandidate = { ...candidate, whatsappEligible: true };
 
 describe("stallJevMode", () => {
     it.each([
-        [undefined, "off"],
-        [null, "off"],
-        ["overseer-jev-stall", "off"],
-        [[], "off"],
-        [["some-other-feature"], "off"],
-        [[STALL_JEV_SHADOW_FEATURE], "shadow"],
-        [[STALL_JEV_FEATURE], "on"],
-        [[STALL_JEV_SHADOW_FEATURE, STALL_JEV_FEATURE], "on"],
-    ])("enabledFeatures %j gives %s", (enabledFeatures, mode) => {
-        expect(stallJevMode(enabledFeatures)).toBe(mode);
+        [false, false, "off"],
+        [false, true, "shadow"],
+        [true, false, "on"],
+        [true, true, "on"],
+    ])("on=%s shadow=%s gives %s", (on, shadow, mode) => {
+        expect(stallJevMode({ on, shadow })).toBe(mode);
+    });
+
+    it("keys each team's switches separately", () => {
+        expect(stallJevFlagKeys("team-1")).toEqual({ on: "overseer_jev_stall:team-1", shadow: "overseer_jev_stall_shadow:team-1" });
     });
 });
 

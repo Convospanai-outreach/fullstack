@@ -18,6 +18,9 @@ const { mockPrisma, mockJudge, mockJevJudge, mockLogger } = vi.hoisted(() => ({
         lead: {
             findFirst: vi.fn(),
         },
+        featureFlag: {
+            findMany: vi.fn(),
+        },
     },
     mockJudge: vi.fn(),
     mockJevJudge: vi.fn(),
@@ -65,6 +68,7 @@ describe("runOverseerTick", () => {
         mockPrisma.overseerNudge.findMany.mockResolvedValue([]);
         mockPrisma.breakerState.findMany.mockResolvedValue([]);
         mockPrisma.team.findMany.mockResolvedValue([]);
+        mockPrisma.featureFlag.findMany.mockResolvedValue([]);
     });
 
     it("does nothing and never calls the judge when no enrollments are stalled", async () => {
@@ -279,11 +283,12 @@ describe("runOverseerTick", () => {
                 lead: { phone: null, whatsappConsent: false, messages: [], replies: [] },
             };
         }
-        const jevOn = { id: "team-1", whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null, enabledFeatures: ["overseer-jev-stall"] };
-        const jevOff = { id: "team-2", whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null, enabledFeatures: null };
+        const jevOn = { id: "team-1", whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null };
+        const jevOff = { id: "team-2", whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null };
 
         beforeEach(() => {
             mockPrisma.overseerNudge.create.mockResolvedValue({});
+            mockPrisma.featureFlag.findMany.mockResolvedValue([{ key: "overseer_jev_stall:team-1" }]);
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([enrollment("enr-a", "team-1", "lead-a"), enrollment("enr-b", "team-2", "lead-b")]);
             mockPrisma.team.findMany.mockResolvedValue([jevOn, jevOff]);
             mockPrisma.lead.findFirst.mockResolvedValue({
@@ -299,6 +304,9 @@ describe("runOverseerTick", () => {
         it("consults Jev only for the team that turned the feature on, and reads that team's lead only", async () => {
             await runOverseerTick();
 
+            expect(mockPrisma.featureFlag.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ where: expect.objectContaining({ key: { in: expect.arrayContaining(["overseer_jev_stall:team-1", "overseer_jev_stall_shadow:team-2"]) } }) })
+            );
             expect(mockJevJudge).toHaveBeenCalledTimes(1);
             expect(mockJevJudge.mock.calls[0][0]).toEqual([expect.objectContaining({ mode: "on", teamId: "team-1", candidate: expect.objectContaining({ enrollmentId: "enr-a" }) })]);
             expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ enrollmentId: "enr-b" })]);
@@ -340,7 +348,7 @@ describe("runOverseerTick", () => {
         });
 
         it("skips Jev entirely when no team has the feature on", async () => {
-            mockPrisma.team.findMany.mockResolvedValue([jevOff]);
+            mockPrisma.featureFlag.findMany.mockResolvedValue([]);
 
             await runOverseerTick();
 

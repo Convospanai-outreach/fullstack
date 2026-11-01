@@ -62,17 +62,18 @@ export function judgeStalledEnrollments(candidates: StallCandidate[]): StallJudg
 
 // --- Jev-judged stalls (per team) ---
 
-// Team.enabledFeatures (a string array, default off). "shadow" asks Jev and logs its decision next
-// to the rules' decision, but writes the rules' nudge, so the two can be compared first. "on" writes
-// Jev's decision. Neither key: the rules alone, as before.
-export const STALL_JEV_FEATURE = "overseer-jev-stall";
-export const STALL_JEV_SHADOW_FEATURE = "overseer-jev-stall-shadow";
+// Per-team switches are FeatureFlag rows keyed by team (default off: no row, or isEnabled false).
+// Team.enabledFeatures is not used: the features page rewrites it and an explicit array turns off
+// the readiness defaults for every other hidden feature. "shadow" asks Jev and logs its decision
+// next to the rules' decision, but writes the rules' nudge, so the two can be compared first. "on"
+// writes Jev's decision. Neither: the rules alone, as before.
 export type StallJevMode = "off" | "shadow" | "on";
 
-export function stallJevMode(enabledFeatures: unknown): StallJevMode {
-    if (!Array.isArray(enabledFeatures)) return "off";
-    if (enabledFeatures.includes(STALL_JEV_FEATURE)) return "on";
-    if (enabledFeatures.includes(STALL_JEV_SHADOW_FEATURE)) return "shadow";
+export const stallJevFlagKeys = (teamId: string) => ({ on: `overseer_jev_stall:${teamId}`, shadow: `overseer_jev_stall_shadow:${teamId}` });
+
+export function stallJevMode(enabled: { on: boolean; shadow: boolean }): StallJevMode {
+    if (enabled.on) return "on";
+    if (enabled.shadow) return "shadow";
     return "off";
 }
 
