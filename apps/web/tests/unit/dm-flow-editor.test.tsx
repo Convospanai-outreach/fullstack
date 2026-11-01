@@ -15,8 +15,7 @@ const PROPERTIES = [
 let seen: DraftStep[] = [];
 function Harness({ initial }: { initial: DraftStep[] }) {
     const [steps, setSteps] = useState<DraftStep[]>(initial);
-    seen = steps;
-    return <DmFlowEditor steps={steps} onChange={setSteps} properties={PROPERTIES} />;
+    return <DmFlowEditor steps={steps} onChange={(next) => { seen = next; setSteps(next); }} properties={PROPERTIES} />;
 }
 
 let root: Root;
