@@ -20,6 +20,10 @@ export default function LandingAgentEditorPage() {
     const [error, setError] = useState<string | null>(null);
     // Bumped after a discard so the canvas remounts with the live content.
     const [editorKey, setEditorKey] = useState(0);
+    const [metaTokenSaved, setMetaTokenSaved] = useState(false);
+    useEffect(() => {
+        landingAgentApi.getMetaCapiToken().then((result) => setMetaTokenSaved(result.saved)).catch(() => setMetaTokenSaved(false));
+    }, []);
 
     const loadCampaign = useCallback(async () => {
         if (!campaignId) return;
@@ -126,6 +130,17 @@ export default function LandingAgentEditorPage() {
 
             <PageTrackingPanel
                 initial={page.tracking ?? null}
+                metaTokenSaved={metaTokenSaved}
+                onSaveMetaToken={async (accessToken) => {
+                    const result = await landingAgentApi.saveMetaCapiToken(accessToken);
+                    setMetaTokenSaved(result.saved);
+                    return "Access token saved.";
+                }}
+                onClearMetaToken={async () => {
+                    const result = await landingAgentApi.deleteMetaCapiToken();
+                    setMetaTokenSaved(result.saved);
+                    return "Access token removed.";
+                }}
                 onSave={async (tracking) => {
                     const result = await landingAgentApi.saveTracking(campaignId, page.id, tracking);
                     if (result.page.status !== "published") return "Saved. Tracking starts once the page is published.";

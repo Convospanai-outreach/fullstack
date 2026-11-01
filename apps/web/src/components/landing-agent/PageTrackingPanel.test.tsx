@@ -50,6 +50,22 @@ describe("PageTrackingPanel Meta Pixel fields", () => {
     expect(container.textContent).toContain("Expected a value like 123456789012345");
   });
 
+  it("takes the server-side Meta token write-only: empty input, a saved state, and no token shown", async () => {
+    const onSaveMetaToken = vi.fn(async () => "saved");
+    await act(async () => root.render(<PageTrackingPanel initial={null} onSave={vi.fn()} metaTokenSaved onSaveMetaToken={onSaveMetaToken} />));
+    const tokenField = container.querySelector<HTMLInputElement>("#meta-capi-token")!;
+    expect(tokenField.type).toBe("password");
+    expect(tokenField.value).toBe("");
+    expect(container.textContent).toContain("Access token saved");
+    expect(container.textContent).toContain("never shown again");
+
+    await type(tokenField, "EAAB-long-test-access-token-value");
+    const save = container.querySelector<HTMLButtonElement>("#meta-capi-token-save")!;
+    await act(async () => save.click());
+    expect(onSaveMetaToken).toHaveBeenCalledWith("EAAB-long-test-access-token-value");
+    expect(container.querySelector<HTMLInputElement>("#meta-capi-token")!.value).toBe("");
+  });
+
   it("sends the Meta fields with the other IDs when saved", async () => {
     const onSave = vi.fn(async () => "saved");
     await act(async () => root.render(<PageTrackingPanel initial={null} onSave={onSave} />));
