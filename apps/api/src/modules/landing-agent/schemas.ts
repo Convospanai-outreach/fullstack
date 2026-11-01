@@ -66,6 +66,19 @@ export const setPageSlugSchema = z.object({
     path: landingPagePathSchema,
 });
 
+// A/B test (phase 6B): the test path uses the same rule as a page path.
+export const createExperimentSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    slug: z.string().regex(/^[a-z0-9][a-z0-9-]{1,62}$/),
+    pageAId: z.string().min(1).max(64),
+    pageBId: z.string().min(1).max(64),
+    weightA: z.number().int().min(1).max(99),
+});
+
+export const pickWinnerSchema = z.object({
+    pageId: z.string().min(1).max(64),
+});
+
 export const selectWireframeSchema = z.object({
     wireframeId: z.string().uuid(),
 });
