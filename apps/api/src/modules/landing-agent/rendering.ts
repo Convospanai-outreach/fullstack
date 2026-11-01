@@ -37,7 +37,7 @@ export const LANDING_PAGE_BASE_CSS = `
     background: linear-gradient(135deg, #ecfeff 0%, #ffffff 58%, #f8fafc 100%);
     padding: 44px 32px;
 }
-.la-eyebrow {
+.la-section .la-eyebrow {
     margin: 0 0 10px;
     color: var(--la-primary-text, #0e7490);
     font-size: 12px;
@@ -92,7 +92,7 @@ export const LANDING_PAGE_BASE_CSS = `
     flex-direction: column;
     align-items: flex-start;
 }
-.la-cta-micro {
+.la-section .la-cta-micro {
     margin: 8px 0 0;
     color: #64748b;
     font-size: 13px;
@@ -135,6 +135,9 @@ export const LANDING_PAGE_BASE_CSS = `
     }
     .la-cta-sticky .la-cta {
         margin-top: 0;
+    }
+    .la-page:has(.la-cta-sticky) {
+        padding-bottom: 96px;
     }
     .la-hero-with-image {
         grid-template-columns: 1fr;

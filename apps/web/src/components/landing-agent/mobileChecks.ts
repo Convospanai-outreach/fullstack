@@ -24,6 +24,7 @@ export const MOBILE_IMAGE_BUDGET_BYTES = 1024 * 1024;
 
 const PHONE_WIDTH_PX = 390;
 const ROOT_FONT_PX = 16;
+const SMALL_LABEL_CLASSES = ["la-eyebrow", "la-cta-micro"];
 // Browsers use about 1.2 for "normal" line height in common fonts. An estimate, not a measurement.
 const NORMAL_LINE_HEIGHT = 1.2;
 
@@ -251,7 +252,10 @@ export function mobilePageWarnings(input: MobileCheckInput): MobileCheckWarning[
     const page = elementsOf(html);
     const warnings: MobileCheckWarning[] = [];
 
-    const bodyText = textElementsOf(html).filter((el) => el.tag === "p" || el.tag === "li");
+    // Eyebrow and micro-copy labels are meant to be small (LANDING_PAGE_BASE_CSS), so they are not body text.
+    const bodyText = textElementsOf(html).filter(
+        (el) => (el.tag === "p" || el.tag === "li") && !el.classes.some((cls) => SMALL_LABEL_CLASSES.includes(cls))
+    );
     const textSizes = bodyText
         .map((el) => fontSizePx(el, rules, page))
         .filter((px): px is number => px !== null && px < MOBILE_TEXT_MIN_PX);
