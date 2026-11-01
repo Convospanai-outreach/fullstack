@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FUNNEL_MAX_RANGE_DAYS, buildFunnelSteps, parseFunnelRange } from "./funnelReport";
+import { FUNNEL_MAX_RANGE_DAYS, assembleFunnelReport, buildFunnelSteps, parseFunnelRange } from "./funnelReport";
 
 const NOW = new Date("2026-11-01T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -71,5 +71,51 @@ describe("parseFunnelRange", () => {
     it("rejects an end date in the future", () => {
         const future = new Date(NOW.getTime() + DAY_MS).toISOString();
         expect(parseFunnelRange({ from: "2026-10-01T00:00:00.000Z", to: future }, NOW)).toEqual({ ok: false, reason: "invalid_range" });
+    });
+});
+
+describe("assembleFunnelReport", () => {
+    const row = {
+        visits: 100,
+        form_starts: 40,
+        cta_clicks: 30,
+        leads: 20,
+        contacted: 15,
+        replied: 5,
+        meetings: 2,
+        won: 1,
+        qualified: 8,
+        median_visit_to_form: 120,
+        median_form_to_lead: 30,
+        median_lead_to_contact: 3600,
+        median_contact_to_reply: 7200,
+        median_reply_to_meeting: 86400,
+        median_meeting_to_won: null,
+        median_lead_to_qualified: 600,
+    };
+
+    it("builds the chain with drop-off and the median seconds from the previous step", () => {
+        const report = assembleFunnelReport(row, null);
+        expect(report.steps.map((s) => [s.key, s.count, s.dropOffPercent, s.medianSecondsFromPrevious])).toEqual([
+            ["visit", 100, null, null],
+            ["form_start", 40, 60, 120],
+            ["lead", 20, 50, 30],
+            ["first_contact", 15, 25, 3600],
+            ["reply", 5, 66.7, 7200],
+            ["meeting", 2, 60, 86400],
+            ["won", 1, 50, null],
+        ]);
+    });
+
+    it("keeps CTA anchor clicks and qualified leads as side metrics, not chain steps", () => {
+        const report = assembleFunnelReport(row, null);
+        expect(report.steps.map((s) => s.key)).not.toContain("cta_click");
+        expect(report.steps.map((s) => s.key)).not.toContain("qualified");
+        expect(report.sideMetrics).toEqual({ ctaClicks: 30, qualified: 8, medianSecondsLeadToQualified: 600 });
+    });
+
+    it("passes the Instagram reply count through only when given (team-wide, unfiltered)", () => {
+        expect(assembleFunnelReport(row, { repliesSent: 42 }).instagram).toEqual({ repliesSent: 42 });
+        expect(assembleFunnelReport(row, null).instagram).toBeNull();
     });
 });
