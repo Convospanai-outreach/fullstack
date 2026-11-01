@@ -14,6 +14,7 @@ import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrc
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import type { Rubric } from "@/evals/copy/evalData";
+import { loadCampaignBrief } from "./copyBrief";
 import { loadCopyContext, renderCopyContext, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
@@ -40,6 +41,7 @@ export interface NodeAInput {
     cta_style?: string;
     constraints?: string;
     knowledge_context?: string;
+    campaign_brief?: string;
     memories?: string[];
 }
 
@@ -177,7 +179,11 @@ Timing: ${input.outreach_timing}
 Hypothesis: ${input.hypothesis}
 Sender: ${input.sender_name} <${input.sender_email}>
 
-## KNOWLEDGE_CONTEXT (TOON FORMAT)
+${input.campaign_brief ? `## CAMPAIGN BRIEF
+The landing page this email leads to makes this case. Keep the email consistent with it: the same problem, the same promise. Add no claims beyond it.
+${input.campaign_brief}
+
+` : ""}## KNOWLEDGE_CONTEXT (TOON FORMAT)
 ${input.knowledge_context || "None available."}
 
 ## OUTPUT REQUIREMENTS
@@ -436,6 +442,7 @@ export async function composeNodeA(
     if (campaignId && leadId) {
         input.knowledge_context = await knowledgeOrchestrator.getCampaignContext(campaignId, leadId);
     }
+    input.campaign_brief = (await loadCampaignBrief(campaignId, teamId)) || undefined;
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeAPrompt(input, await loadCopyContext("A", input as unknown as Record<string, unknown>));
