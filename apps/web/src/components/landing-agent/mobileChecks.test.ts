@@ -43,13 +43,19 @@ describe("mobilePageWarnings: body text size", () => {
 });
 
 describe("mobilePageWarnings: tap targets", () => {
-    it("warns when a button is under 44px tall (the base CTA is about 41px)", () => {
+    it("warns when a button is under 44px tall", () => {
         const warnings = mobilePageWarnings({
             html: `<section class="la-section"><a class="la-cta" href="#lead-form">Book a demo</a>${FORM_MARKER}</section>`,
-            css: LANDING_PAGE_BASE_CSS,
+            css: `${LANDING_PAGE_BASE_CSS}
+.la-cta { padding: 11px 16px; }`,
         });
         expect(warnings.map((w) => w.kind)).toEqual(["small_tap_target"]);
         expect(warnings[0].message).toContain("44px");
+    });
+
+    it("does not warn for the base button in the published CSS", () => {
+        const html = `<section class="la-section"><a class="la-cta" href="#lead-form">Book a demo</a>${FORM_MARKER}</section>`;
+        expect(kinds({ html, css: LANDING_PAGE_BASE_CSS })).toEqual([]);
     });
 
     it("does not warn when the button is padded to 44px or more", () => {
