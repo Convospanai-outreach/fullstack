@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, mockWriteKv } = vi.hoisted(() => ({
     mockPrisma: {
         landingPage: { findMany: vi.fn(), findUnique: vi.fn() },
-        landingExperiment: { create: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+        landingExperiment: { create: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
         landingExperimentVariant: { findFirst: vi.fn() },
         landingEvent: { findMany: vi.fn() },
         landingLead: { count: vi.fn() },
@@ -19,6 +19,7 @@ import {
     createExperiment,
     endExperiment,
     getExperimentResults,
+    listExperiments,
     pauseExperiment,
     pickWinner,
     startExperiment,
@@ -235,5 +236,17 @@ describe("getExperimentResults", () => {
     it("throws not found for another team's experiment", async () => {
         mockPrisma.landingExperiment.findFirst.mockResolvedValue(null);
         await expectApiError(getExperimentResults({ teamId: "team-2", experimentId: "exp-1", now }), 404);
+    });
+});
+
+describe("listExperiments", () => {
+    it("lists only the team's experiments, with their variants", async () => {
+        mockPrisma.landingExperiment.findMany.mockResolvedValue([experiment({ status: "running" })]);
+        const rows = await listExperiments({ teamId: TEAM });
+
+        expect(mockPrisma.landingExperiment.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: TEAM }, include: { variants: true } }),
+        );
+        expect(rows).toHaveLength(1);
     });
 });

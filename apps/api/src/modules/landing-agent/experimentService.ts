@@ -87,6 +87,14 @@ export async function createExperiment(input: {
     });
 }
 
+export async function listExperiments(input: { teamId: string }) {
+    return prisma.landingExperiment.findMany({
+        where: { teamId: input.teamId },
+        include: { variants: true },
+        orderBy: { createdAt: "desc" },
+    });
+}
+
 export async function startExperiment(input: { teamId: string; experimentId: string; now?: Date }) {
     const experiment = await findExperimentOrThrow(input.teamId, input.experimentId);
     if (experiment.status !== "draft" && experiment.status !== "paused") {

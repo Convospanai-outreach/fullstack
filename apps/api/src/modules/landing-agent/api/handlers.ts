@@ -15,7 +15,7 @@ import {
     createExperimentSchema,
     pickWinnerSchema,
 } from "../schemas";
-import { createExperiment, endExperiment, getExperimentResults, pauseExperiment, pickWinner, startExperiment } from "../experimentService";
+import { createExperiment, endExperiment, getExperimentResults, listExperiments, pauseExperiment, pickWinner, startExperiment } from "../experimentService";
 import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
 import { isLandingImageStorageConfigured, putLandingImage } from "../service/imageGenerationService";
@@ -500,6 +500,15 @@ export async function postCreateExperiment(req: Request) {
         }
         const experiment = await createExperiment({ teamId, ...parsed.data });
         return successResponse(experiment);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function getExperiments(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        return successResponse(await listExperiments({ teamId }));
     } catch (error) {
         return handleAPIError(error);
     }
