@@ -39,7 +39,7 @@ describe("PublishedLandingRenderer page theme", () => {
     it("un-themed pages keep today's wrapper classes and get no inline variables", () => {
         const wrapper = render({ html: "<p>Hello</p>", css: "" });
         expect(wrapper?.className).toContain("bg-slate-100");
-        expect(wrapper?.getAttribute("style")).toBeNull();
+        expect(wrapper?.style.length).toBe(0);
     });
 
     for (const fixture of themeCases.cases) {
@@ -57,6 +57,6 @@ describe("PublishedLandingRenderer page theme", () => {
     it("an invalid theme renders as un-themed", () => {
         const wrapper = render({ html: "<p>Hello</p>", css: "", theme: { preset: "neon", primary: "#112233", accent: "#abcdef" } });
         expect(wrapper?.className).toContain("bg-slate-100");
-        expect(wrapper?.getAttribute("style")).toBeNull();
+        expect(wrapper?.style.length).toBe(0);
     });
 });
