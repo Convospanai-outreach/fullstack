@@ -62,7 +62,8 @@ export default function LandingFunnelReport() {
         };
     }, [days, pageId, variantId]);
 
-    const hasVisits = report !== null && (report.steps[0]?.count ?? 0) > 0;
+    // A lead can come in without a tracked visit, so the table shows whenever any step has people in it.
+    const hasAnyCount = report !== null && report.steps.some((s) => s.count > 0);
 
     return (
         <GlassCard className="space-y-4">
@@ -105,9 +106,9 @@ export default function LandingFunnelReport() {
             {error && <p className="text-sm text-red-400">{error}</p>}
             {loading && !report && <p className="text-sm text-muted-foreground">Loading the report...</p>}
 
-            {report && !hasVisits && <p className="text-sm text-muted-foreground">No visits in this range yet.</p>}
+            {report && !hasAnyCount && <p className="text-sm text-muted-foreground">No visits in this range yet.</p>}
 
-            {report && hasVisits && (
+            {report && hasAnyCount && (
                 <>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
