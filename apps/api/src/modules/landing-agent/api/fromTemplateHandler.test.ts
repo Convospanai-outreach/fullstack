@@ -80,3 +80,37 @@ describe("POST /landing-agent/campaigns/from-template", () => {
         expect(mockCreate).not.toHaveBeenCalled();
     });
 });
+
+describe("POST /landing-agent/campaigns/from-template with a page address", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockCreate.mockResolvedValue({ campaignId: "lc-1", pageId: "lp-1" });
+    });
+
+    it("passes a valid path through", async () => {
+        const res = await postCampaignFromTemplate(request({ templateId: "free-guide", name: "Spring guide", path: "spring-guide" }));
+
+        expect(res.status).toBe(201);
+        expect(mockCreate.mock.calls[0]?.[0].path).toBe("spring-guide");
+    });
+
+    it("lowercases and trims the path before saving it", async () => {
+        await postCampaignFromTemplate(request({ templateId: "free-guide", name: "Spring guide", path: "  Spring-Guide " }));
+
+        expect(mockCreate.mock.calls[0]?.[0].path).toBe("spring-guide");
+    });
+
+    it.each([
+        ["a path with a space", "Spring Guide!"],
+        ["a path with a slash", "spring/guide"],
+        ["a single character", "a"],
+        ["a path starting with a hyphen", "-guide"],
+    ])("rejects %s and creates nothing", async (_label, path) => {
+        const res = await postCampaignFromTemplate(request({ templateId: "free-guide", name: "Spring guide", path }));
+
+        expect(res.status).toBe(400);
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
+});
