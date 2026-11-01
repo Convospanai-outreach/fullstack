@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockJudge } = vi.hoisted(() => ({
+const { mockPrisma, mockJudge, mockJevJudge, mockLogger } = vi.hoisted(() => ({
     mockPrisma: {
         overseerNudge: {
             findMany: vi.fn(),
@@ -15,16 +15,30 @@ const { mockPrisma, mockJudge } = vi.hoisted(() => ({
         team: {
             findMany: vi.fn(),
         },
+        lead: {
+            findFirst: vi.fn(),
+        },
     },
     mockJudge: vi.fn(),
+    mockJevJudge: vi.fn(),
+    mockLogger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    },
 }));
 
 vi.mock("@/lib/db", () => ({
     prisma: mockPrisma,
 }));
 
+vi.mock("@/lib/logger", () => ({
+    logger: mockLogger,
+}));
+
 vi.mock("./stallJudgment", () => ({
     judgeStalledEnrollments: mockJudge,
+    judgeStalledEnrollmentsWithJev: mockJevJudge,
 }));
 
 import { runOverseerTick } from "./overseerService";
@@ -101,6 +115,40 @@ describe("runOverseerTick", () => {
                 nudgeType: "ROUTE_MANUAL"
             })
         });
+    });
+
+    // Characterization: with the Jev flag off (no enabledFeatures on the team) the tick reads no
+    // thread, calls no Jev code and writes exactly the rule's nudge.
+    it("with the Jev flag off, writes exactly the rule's nudge and never reads a thread or calls Jev", async () => {
+        const lastRunAt = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+        mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([
+            {
+                id: "enr-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", currentStepOrder: 1,
+                lastRunAt, startedAt: lastRunAt, sequence: { name: "Cold Outreach", _count: { steps: 5 } },
+                lead: { phone: null, whatsappConsent: false, messages: [], replies: [] }
+            }
+        ]);
+        mockPrisma.team.findMany.mockResolvedValue([{ id: "team-1", whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null, enabledFeatures: null }]);
+        mockJudge.mockReturnValue([{ enrollmentId: "enr-1", nudgeType: "ROUTE_MANUAL", suggestion: "rule text" }]);
+        mockPrisma.overseerNudge.create.mockResolvedValue({});
+
+        await runOverseerTick();
+
+        expect(mockPrisma.overseerNudge.create).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.overseerNudge.create).toHaveBeenCalledWith({
+            data: {
+                teamId: "team-1",
+                leadId: "lead-1",
+                sequenceId: "seq-1",
+                enrollmentId: "enr-1",
+                stage: "step 2 of 5",
+                stallDays: expect.any(Number),
+                nudgeType: "ROUTE_MANUAL",
+                suggestion: "rule text"
+            }
+        });
+        expect(mockPrisma.lead.findFirst).not.toHaveBeenCalled();
+        expect(mockJevJudge).not.toHaveBeenCalled();
     });
 
     describe("WhatsApp eligibility", () => {

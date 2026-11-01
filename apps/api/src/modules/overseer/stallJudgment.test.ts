@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { judgeStalledEnrollments, StallCandidate } from "./stallJudgment";
+import { judgeStalledEnrollment, judgeStalledEnrollments, StallCandidate } from "./stallJudgment";
 
 const candidate: StallCandidate = {
     enrollmentId: "enr-1",
@@ -45,5 +45,23 @@ describe("judgeStalledEnrollments", () => {
 
     it("returns an empty array for an empty candidate list", () => {
         expect(judgeStalledEnrollments([])).toEqual([]);
+    });
+});
+
+// Characterization: the exact rule outputs (type and suggestion text) that flag-off behaviour must keep.
+describe("current rule outputs (characterization)", () => {
+    const rule = (overrides: Partial<StallCandidate>) => judgeStalledEnrollment({ ...candidate, ...overrides });
+
+    it.each([
+        [{}, "ROUTE_MANUAL", "Stalled 6.3 days at step 2 of 5 with no reply and no recorded next step - flagged for manual follow-up."],
+        [{ whatsappEligible: true }, "TRY_WHATSAPP", "Stalled 6.3 days at step 2 of 5 on email alone - this lead has WhatsApp available and consented, so a personal WhatsApp check-in may re-engage them."],
+        [{ replied: true, replyClassification: "DNC" }, "LIKELY_DEAD", "Stalled 6.3 days at step 2 of 5. The lead's latest reply asks not to be contacted again - consider ending this enrollment."],
+        [{ replied: true, replyClassification: "NOT_INTERESTED" }, "LIKELY_DEAD", "Stalled 6.3 days at step 2 of 5. The lead's latest reply turned the offer down - consider ending this enrollment."],
+        [{ replied: true, replyClassification: "INTERESTED" }, "ROUTE_MANUAL", "Stalled 6.3 days at step 2 of 5. The lead replied with interest and nothing is scheduled - a rep should answer."],
+        [{ replied: true, replyClassification: "QUESTION" }, "ROUTE_MANUAL", "Stalled 6.3 days at step 2 of 5. The lead replied with a question and nothing is scheduled - a rep should answer."],
+        [{ replied: true, replyClassification: "OOO" }, "RESEND_STEP", "Stalled 6.3 days at step 2 of 5. The lead's latest reply was an away message - resend this step once they are back."],
+        [{ replied: true }, "ROUTE_MANUAL", "Stalled 6.3 days at step 2 of 5. The lead replied and nothing is scheduled - review the reply."],
+    ])("keeps the rule output for %o", (overrides, nudgeType, suggestion) => {
+        expect(rule(overrides)).toEqual({ enrollmentId: "enr-1", nudgeType, suggestion });
     });
 });
