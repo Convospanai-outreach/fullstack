@@ -3,6 +3,16 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { applyCustomFieldsPatch, pickPropertyAnswers, type PropertyDefinition } from "./leadProperties";
 
+export async function loadActivePropertyDefinitions(teamId: string): Promise<PropertyDefinition[]> {
+    const rows = await prisma.leadProperty.findMany({ where: { teamId, archivedAt: null } });
+    return rows.map((row) => ({
+        key: row.key,
+        type: row.type as PropertyDefinition["type"],
+        options: (row.options as string[] | null) ?? null,
+        archivedAt: row.archivedAt,
+    }));
+}
+
 // Copies a landing lead form's answers that match an active property onto the CRM lead.
 // Called by the intake worker once the lead id is known. Never throws: the lead is already saved,
 // and a bad answer is skipped (the submit route rejects bad answers before they get this far).
@@ -11,13 +21,7 @@ export async function saveLandingAnswersToLead(teamId: string, leadId: string, r
     if (!answers || typeof answers !== "object" || Array.isArray(answers)) return;
 
     try {
-        const rows = await prisma.leadProperty.findMany({ where: { teamId, archivedAt: null } });
-        const definitions: PropertyDefinition[] = rows.map((row) => ({
-            key: row.key,
-            type: row.type as PropertyDefinition["type"],
-            options: (row.options as string[] | null) ?? null,
-            archivedAt: row.archivedAt,
-        }));
+        const definitions = await loadActivePropertyDefinitions(teamId);
         const { values, errors } = pickPropertyAnswers(definitions, answers as Record<string, unknown>);
         for (const error of errors) {
             logger.warn(`[LeadCustomFields] Skipped an answer for ${error.key} on lead ${leadId}: ${error.message}`);
