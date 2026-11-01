@@ -42,8 +42,8 @@ describe("LeadFormSettingsPanel consent section", () => {
         });
         const text = container.querySelector<HTMLTextAreaElement>('textarea[name="consentText"]')!;
         await act(async () => {
-            text.value = "Send me tips.";
-            text.dispatchEvent(new Event("change", { bubbles: true }));
+            const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+            setValue.call(text, "Send me tips.");
             text.dispatchEvent(new Event("input", { bubbles: true }));
         });
         const applied = onApply.mock.calls.at(-1)?.[0];

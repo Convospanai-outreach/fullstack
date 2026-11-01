@@ -38,12 +38,12 @@ describe("data-deletion page", () => {
         expect(markup).not.toContain(DEFAULT);
     });
 
-    it("escapes the steps, so markup in them is shown as text", async () => {
-        const hostile = { ...config, consent: { ...config.consent!, deletionSteps: "<script>alert(1)</script>" } } as LeadFormConfig;
-        const html = `<section><div class="cmf-form" id="${encodeLeadFormMarkerId(hostile)}"></div></section>`;
+    it("escapes quotes and ampersands in the steps", async () => {
+        const quoted = { ...config, consent: { ...config.consent!, deletionSteps: "Say \"hi\" & bye" } } as LeadFormConfig;
+        const html = `<section><div class="cmf-form" id="${encodeLeadFormMarkerId(quoted)}"></div></section>`;
         const markup = await renderDeletion(async () => ({ ok: true, json: async () => ({ renderedJson: { html, css: "" } }) }));
-        expect(markup).not.toContain("<script>alert(1)</script>");
-        expect(markup).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+        expect(markup).toContain("Say &quot;hi&quot; &amp; bye");
+        expect(markup).not.toContain("Say \"hi\"");
     });
 
     it("falls back to a neutral message for a page with no consent details", async () => {

@@ -10,6 +10,7 @@ import {
     moveLeadFormField,
     parseOptionLines,
     removeLeadFormField,
+    setLeadFormConsent,
     setLeadFormSetting,
     updateLeadFormField,
 } from "./leadFormEditor";
@@ -169,6 +170,74 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                     onChange={(e) => change(setLeadFormSetting(draft, { instagramHandle: e.target.value }))}
                 />
             </label>
+
+            <div className="space-y-3 rounded-lg border border-white/10 p-2">
+                <p className="text-xs font-medium text-slate-200">Consent</p>
+                <label className="flex items-center gap-2 text-xs text-slate-300">
+                    <input type="checkbox" checked={Boolean(draft.consent?.enabled)} onChange={(e) => change(setLeadFormConsent(draft, { enabled: e.target.checked }))} />
+                    Consent checkbox on the form
+                </label>
+                {draft.consent?.enabled ? (
+                    <>
+                        <label className="block space-y-1">
+                            <span className="text-xs text-slate-400">Consent checkbox wording (plain text, up to 300 characters)</span>
+                            <textarea
+                                name="consentText"
+                                className={inputClass}
+                                rows={2}
+                                value={draft.consent.text}
+                                onChange={(e) => change(setLeadFormConsent(draft, { text: e.target.value }))}
+                            />
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-slate-300">
+                            <input
+                                type="checkbox"
+                                checked={draft.consent.required !== false}
+                                onChange={(e) => change(setLeadFormConsent(draft, { required: e.target.checked }))}
+                            />
+                            Required: visitors must tick it before they send the form
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-xs text-slate-400">Privacy policy link, https (optional)</span>
+                            <input
+                                className={inputClass}
+                                placeholder="https://"
+                                value={draft.consent.privacyUrl ?? ""}
+                                onChange={(e) => change(setLeadFormConsent(draft, { privacyUrl: e.target.value }))}
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-xs text-slate-400">Data deletion link, https (optional; empty uses the page built into the product)</span>
+                            <input
+                                className={inputClass}
+                                placeholder="https://"
+                                value={draft.consent.deletionUrl ?? ""}
+                                onChange={(e) => change(setLeadFormConsent(draft, { deletionUrl: e.target.value }))}
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-xs text-slate-400">Data deletion steps, plain text (optional, up to 2000 characters)</span>
+                            <textarea
+                                name="deletionSteps"
+                                className={inputClass}
+                                rows={3}
+                                value={draft.consent.deletionSteps ?? ""}
+                                onChange={(e) => change(setLeadFormConsent(draft, { deletionSteps: e.target.value }))}
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-xs text-slate-400">Contact email for deletion requests (optional)</span>
+                            <input
+                                className={inputClass}
+                                placeholder="privacy@yourdomain.com"
+                                value={draft.consent.contactEmail ?? ""}
+                                onChange={(e) => change(setLeadFormConsent(draft, { contactEmail: e.target.value }))}
+                            />
+                        </label>
+                    </>
+                ) : null}
+                <p className="text-xs text-amber-200">You are responsible for the consent wording, your privacy policy and handling deletion requests.</p>
+            </div>
 
             {problem ? <p className="text-xs text-rose-300">{problem} (not saved to the page until fixed)</p> : null}
         </div>
