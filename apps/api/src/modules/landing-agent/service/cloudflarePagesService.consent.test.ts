@@ -5,6 +5,7 @@ import type { LeadFormConfig } from "../leadFormConfig";
 import { encodeLeadFormMarkerId } from "../leadFormConfig";
 import { replaceLeadFormMarkers } from "../leadFormHtml";
 import { buildLeadFormScript } from "./cloudflarePagesService";
+import { consentModeOf } from "../leadConsent";
 
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 const TEXT = "I agree to be contacted about my enquiry.";
@@ -14,13 +15,22 @@ const optionalConfig = { fields: [email], buttonLabel: "Send", successMessage: "
 const plainConfig = { fields: [email], buttonLabel: "Send", successMessage: "Thanks" } as LeadFormConfig;
 
 // The Worker's inline script for pages without a consent block is unchanged, so their stored HTML and CSP hash stay the same.
+// The script embeds Date.now() as its version, so the clock is pinned. The hashes are those of the script before this change.
 describe("Worker lead script for pages without consent is unchanged", () => {
+    beforeEach(() => {
+        vi.spyOn(Date, "now").mockReturnValue(1793528250004);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it("the script hashes as before (no Meta Pixel)", () => {
-        expect(sha(buildLeadFormScript("guide"))).toBe("4064104e1de0007e70788ec3d64b0a2b8ffbb63b8270de3e5fe51397f0ec9720");
+        expect(sha(buildLeadFormScript("guide"))).toBe("0365894d54f11f33bc10f6166094f9ab0aec37241d0ff5de70d5d14704eb15e3");
     });
 
     it("the script hashes as before (with a Meta Pixel)", () => {
-        expect(sha(buildLeadFormScript("guide", true))).toBe("42a454c8b1847f09a9fc739722e3aedf73ce463d4639f4d40d2976efab3eba63");
+        expect(sha(buildLeadFormScript("guide", true))).toBe("a10e39a94b49a5090a7252b0a984c0e1b52a9d59e060f867bc1bccf77b6af2f0");
     });
 });
 
@@ -35,7 +45,7 @@ describe("Worker lead script enforces the consent box", () => {
         if (box) box.checked = consentTicked;
         const emailInput = document.querySelector<HTMLInputElement>('input[name="email"]');
         if (emailInput) emailInput.value = "ada@example.com";
-        new Function(buildLeadFormScript("guide", false, Boolean(config.consent?.enabled)))();
+        new Function(buildLeadFormScript("guide", false, consentModeOf(config.consent)))();
         return document.getElementById("la-lead-form") as HTMLFormElement;
     }
 
@@ -87,6 +97,6 @@ describe("Worker lead script enforces the consent box", () => {
 
     it("pages without consent do not add the consent check", () => {
         expect(buildLeadFormScript("guide")).not.toContain("cmfConsent");
-        expect(buildLeadFormScript("guide", false, true)).toContain("cmfConsent");
+        expect(buildLeadFormScript("guide", false, "required")).toContain("cmfConsent");
     });
 });

@@ -48,11 +48,12 @@ function page(config: LeadFormConfig) {
     };
 }
 
-function submit(config: LeadFormConfig, formFields: Record<string, unknown>) {
+function submit(config: LeadFormConfig, formFields: Record<string, unknown>, consent?: boolean) {
     vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue(page(config) as never);
     return landingAgentService.submitLeadBySlug({
         slug: "guide",
         payload: {
+            consent,
             formFields: { email: "ada@example.com", ...formFields },
             metaEventId: EVENT_ID,
             metaEventSourceUrl: "https://go.brand.test/guide",
@@ -78,7 +79,7 @@ describe("submitLeadBySlug consent", () => {
     });
 
     it("rejects a required consent that was not ticked, with a 400 and no lead saved", async () => {
-        const promise = submit(requiredConfig, { consent: false });
+        const promise = submit(requiredConfig, {}, false);
         await expect(promise).rejects.toMatchObject({ statusCode: 400, message: expect.stringMatching(/consent/i) });
         expect(TX.landingLead.create).not.toHaveBeenCalled();
     });
@@ -89,25 +90,25 @@ describe("submitLeadBySlug consent", () => {
     });
 
     it("saves a ticked consent as a record in rawPayload with the wording shown", async () => {
-        await submit(requiredConfig, { consent: true });
+        await submit(requiredConfig, {}, true);
         expect(createdData().rawPayload).toEqual({
             consent: { given: true, text: TEXT, at: expect.any(String), pageSlug: "guide", source: "landing_form" },
         });
     });
 
     it("records an optional consent left unticked as not given and still saves the lead", async () => {
-        await submit(optionalConfig, { consent: false });
+        await submit(optionalConfig, {}, false);
         expect(createdData().rawPayload).toMatchObject({ consent: { given: false, text: TEXT } });
         expect(TX.landingLead.create).toHaveBeenCalledTimes(1);
     });
 
     it("queues the Meta Lead event only when consent was given", async () => {
-        await submit(requiredConfig, { consent: true });
+        await submit(requiredConfig, {}, true);
         expect(metaEvents()).toHaveLength(1);
     });
 
     it("does not queue the Meta Lead event when an optional consent was not ticked", async () => {
-        await submit(optionalConfig, { consent: false });
+        await submit(optionalConfig, {}, false);
         expect(metaEvents()).toHaveLength(0);
     });
 

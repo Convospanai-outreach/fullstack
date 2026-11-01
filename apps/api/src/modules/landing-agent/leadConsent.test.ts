@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consentAllowsContact, consentMissing, consentRecordFor, consentRecordOf } from "./leadConsent";
+import { consentAllowsContact, consentMissing, consentModeOf, consentRecordFor, consentRecordOf, withoutConsentRecord } from "./leadConsent";
 import type { LeadFormConfig } from "./leadFormConfig";
 
 const NOW = new Date("2026-11-01T10:00:00.000Z");
@@ -69,5 +69,25 @@ describe("stored consent record", () => {
 
   it("fails closed on a consent entry it cannot read", () => {
     expect(consentAllowsContact({ consent: "given" })).toBe(false);
+  });
+});
+
+describe("a visitor cannot send a consent record", () => {
+  it("drops a consent entry from a visitor's own payload and keeps the rest", () => {
+    expect(withoutConsentRecord({ consent: { given: true }, answers: { a: "b" } })).toEqual({ answers: { a: "b" } });
+  });
+
+  it("passes other payloads through unchanged", () => {
+    expect(withoutConsentRecord(null)).toBeNull();
+    expect(withoutConsentRecord({ answers: {} })).toEqual({ answers: {} });
+  });
+});
+
+describe("consentModeOf", () => {
+  it("is none without a switched-on consent box, optional or required otherwise", () => {
+    expect(consentModeOf(undefined)).toBe("none");
+    expect(consentModeOf({ enabled: false, text: "x" })).toBe("none");
+    expect(consentModeOf({ enabled: true, text: "x" })).toBe("required");
+    expect(consentModeOf({ enabled: true, required: false, text: "x" })).toBe("optional");
   });
 });
