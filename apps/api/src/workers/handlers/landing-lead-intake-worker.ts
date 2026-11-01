@@ -36,6 +36,8 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
     // The landing form's consent box. Only ever sets consentObtained to true, never back to false.
     const consentGiven = consentRecordOf(landingLead.rawPayload)?.given === true;
+    // A form with a consent box that was not ticked does not go to Mautic: its journeys can send mail.
+    const mauticAllowed = consentAllowsContact(landingLead.rawPayload);
 
     // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
     // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
@@ -53,7 +55,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             if (consentGiven) await prisma.lead.updateMany({ where: { id: mergedLeadId, teamId, status: { not: "DNC" } }, data: { consentObtained: true } });
             await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
             await scoreNewLead(mergedLeadId);
-            await pushToMautic(mergedLeadId, teamId);
+            if (mauticAllowed) await pushToMautic(mergedLeadId, teamId);
             await advanceCreatorFunnel(mergedLeadId, teamId);
             await recordOptIn(landingLead, mergedLeadId);
             await joinPlanNurture(landingLead, mergedLeadId);
@@ -90,7 +92,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await saveLandingAnswersToLead(teamId, existing.id, landingLead.rawPayload);
             await recordFirstTouch(teamId, existing.id, landingLead.utmContent);
             await scoreNewLead(existing.id);
-            await pushToMautic(existing.id, teamId);
+            if (mauticAllowed) await pushToMautic(existing.id, teamId);
             await advanceCreatorFunnel(existing.id, teamId);
             await recordOptIn(landingLead, existing.id);
             await joinPlanNurture(landingLead, existing.id);
@@ -116,7 +118,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     await saveLandingAnswersToLead(teamId, createdLead.id, landingLead.rawPayload);
     await recordFirstTouch(teamId, createdLead.id, landingLead.utmContent);
     await scoreNewLead(createdLead.id);
-    await pushToMautic(createdLead.id, teamId);
+    if (mauticAllowed) await pushToMautic(createdLead.id, teamId);
     await advanceCreatorFunnel(createdLead.id, teamId);
     await recordOptIn(landingLead, createdLead.id);
     await joinPlanNurture(landingLead, createdLead.id);
