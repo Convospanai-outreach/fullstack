@@ -83,6 +83,11 @@ describe("theme CSS and document output", () => {
         expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-primary-text, #0e7490)");
     });
 
+    it("the accent colour also drives the eyebrow label and the divider line, with today's colours as fallback", () => {
+        expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section \.la-eyebrow \{[^}]*color: var\(--la-accent, #0e7490\);/);
+        expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section\.la-divider \{[^}]*background: var\(--la-accent, #cbd5e1\);/);
+    });
+
     it("phase 3 blocks (pricing cards, FAQ rules) and the Instagram CTA use theme variables too", () => {
         expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-surface, #f8fafc)");
         expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-hairline, #e2e8f0)");

@@ -116,6 +116,15 @@ export function canvasBaseCss(): string {
     return LANDING_PAGE_BASE_CSS;
 }
 
+// Canvas-only rules, appended after canvasBaseCss(). The divider is a 1px line, which is too thin to click in the
+// canvas, so the canvas gives it a 24px area with the same faint line. The published page never gets this rule.
+export const CANVAS_ONLY_CSS = `
+.la-section.la-divider {
+    min-height: 24px;
+    background: linear-gradient(var(--la-accent, #cbd5e1), var(--la-accent, #cbd5e1)) center / 100% 1px no-repeat;
+}
+`;
+
 // Saved CSS is withLandingBaseCss(userRules). This strips the base part again so
 // the style manager only holds the user's own rules.
 export function userCssFromSaved(savedCss: string): string {

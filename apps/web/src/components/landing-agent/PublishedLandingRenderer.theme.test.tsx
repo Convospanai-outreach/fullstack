@@ -54,6 +54,23 @@ describe("PublishedLandingRenderer page theme", () => {
         });
     }
 
+    it("the fixed follow-up box keeps its Tailwind classes on un-themed pages", () => {
+        render({ html: "<p>Hello</p>", css: "" });
+        expect(container.querySelector("section")?.className).toBe("mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm");
+        expect(container.querySelector("button[type=submit]")?.className).toBe(
+            "rounded-md bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-60"
+        );
+    });
+
+    it("the fixed follow-up box takes the page theme on themed pages, like the Worker's box", () => {
+        render({ html: "<p>Hello</p>", css: "", theme: themeCases.cases[0]!.theme });
+        const box = container.querySelector("section");
+        expect(box?.classList.contains("la-section")).toBe(true);
+        expect(box?.className).not.toContain("bg-white");
+        expect(container.querySelector("button[type=submit]")?.classList.contains("la-cta")).toBe(true);
+        expect(container.querySelector("button[type=submit]")?.className).not.toContain("bg-cyan-600");
+    });
+
     it("an invalid theme renders as un-themed", () => {
         const wrapper = render({ html: "<p>Hello</p>", css: "", theme: { preset: "neon", primary: "#112233", accent: "#abcdef" } });
         expect(wrapper?.className).toContain("bg-slate-100");
