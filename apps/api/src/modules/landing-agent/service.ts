@@ -12,6 +12,7 @@ import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from
 import { normalizeTracking } from "./tracking";
 import { landingEventNameEnum } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
+import { brandThemeFrom, themeValidationError } from "./theme";
 import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
 import { leadFormMarkerError, mapLeadFormSubmission, type LeadFormColumns } from "./leadFormSubmit";
 import { OutboxService } from "@/lib/outboxService";
@@ -288,7 +289,9 @@ export const landingAgentService = {
             throw new APIError("Template not found", 400, "VALIDATION_ERROR");
         }
         const { html, css } = materializeLandingTemplate(template, landingAppOrigin(input.env ?? process.env));
-        const renderedJson = sanitizeJson({ html, css }) as Prisma.InputJsonValue;
+        // A new page starts with the team's brand colours as its theme (none when the brand has no valid colour).
+        const brandTheme = brandThemeFrom((await prisma.team.findUnique({ where: { id: input.teamId }, select: { branding: true } }))?.branding);
+        const renderedJson = sanitizeJson({ html, css, ...(brandTheme ? { theme: brandTheme } : {}) }) as Prisma.InputJsonValue;
         const markerError = leadFormMarkerError(renderedJson);
         if (markerError) {
             throw new APIError(markerError, 400, "VALIDATION_ERROR");
@@ -708,6 +711,8 @@ export const landingAgentService = {
         const sanitizedRendered = sanitizeJson(input.renderedJson);
         const markerError = leadFormMarkerError(input.renderedJson);
         if (markerError) throw new APIError(markerError, 400, "VALIDATION_ERROR");
+        const themeError = themeValidationError(input.renderedJson);
+        if (themeError) throw new APIError(themeError, 400, "VALIDATION_ERROR");
 
         // A live page keeps serving its last publish; edits go to the draft columns until publish.
         if (page.status === "published") {

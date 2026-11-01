@@ -2,6 +2,8 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
+import { themeFromRenderedJson } from "../theme";
+import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 import { buildTrackingScript } from "../tracking";
 import { hasLeadFormMarker, readLeadFormConfig, replaceLeadFormMarkers } from "../leadFormHtml";
@@ -156,7 +158,19 @@ function buildLeadFormMarkup(whatsappOptIn: string | null): string {
 }
 
 // A page with a lead form marker gets its form where the marker is, and no fixed box.
-export function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string; whatsappOptIn: string | null; slug: string }): string {
+export function buildFullDocument(input: {
+    title?: string | null;
+    css: string;
+    html: string;
+    script: string;
+    whatsappOptIn: string | null;
+    slug: string;
+    theme?: LandingTheme | null;
+}): string {
+    // The page's theme goes on the body, the same class and variables the React wrapper gets (see theme.ts).
+    const wrapper = themeWrapper(input.theme ?? null);
+    const styleVars = Object.entries(wrapper.vars).map(([key, value]) => `${key}:${value}`).join(";");
+    const bodyStyle = styleVars ? ` style="${escapeHtml(styleVars)}"` : "";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -165,7 +179,7 @@ export function buildFullDocument(input: { title?: string | null; css: string; h
 <title>${(input.title || "Landing Page").replace(/</g, "&lt;")}</title>
 <style>${input.css}</style>
 </head>
-<body class="la-page">
+<body class="${wrapper.className}"${bodyStyle}>
 ${hasLeadFormMarker(input.html)
 ? replaceLeadFormMarkers(input.html, { slug: input.slug, whatsappOptIn: input.whatsappOptIn })
 : `${input.html}
@@ -196,7 +210,8 @@ class CloudflarePagesService {
             const trackingScript = buildTrackingScript(page.tracking);
             const script = trackingScript + buildLeadFormScript(page.slug);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug });
+            const theme = themeFromRenderedJson(page.renderedJson);
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug, theme });
             const successMessage = readLeadFormConfig(payload.html)?.successMessage;
             const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
             // CSP source for the one inline script the worker is expected to run
