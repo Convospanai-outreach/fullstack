@@ -55,7 +55,7 @@ async function loadLeads(searchParams: PageSearchParams) {
     if (propertyKey) {
         const definition = await prisma.leadProperty.findFirst({ where: { teamId, key: propertyKey, archivedAt: null } });
         if (definition) {
-            const filter = leadPropertyFilterWhere(definition, firstParam(searchParams["op"]) || "equals", firstParam(searchParams["value"]));
+            const filter = leadPropertyFilterWhere({ key: definition.key, type: definition.type, options: Array.isArray(definition.options) ? definition.options.filter((o): o is string => typeof o === "string") : null }, firstParam(searchParams["op"]) || "equals", firstParam(searchParams["value"]));
             if (filter.ok) Object.assign(where, filter.where);
         }
     }
