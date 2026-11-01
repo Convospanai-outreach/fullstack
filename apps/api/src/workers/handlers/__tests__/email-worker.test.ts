@@ -234,6 +234,25 @@ describe("email-worker", () => {
             expect(result).toMatchObject({ sent: true });
         });
 
+        it("records which prompt wrote a live draft, on the held message and on the sent email", async () => {
+            await handleEmailSend(job, "job-3");
+            const expected = expect.objectContaining({ node: "legacy", prompts: expect.objectContaining({ draft: "email.legacyDraft@v1" }) });
+            expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: expected }));
+            expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", expect.anything(), expect.anything(), expect.objectContaining({ copyProvenance: expected }));
+        });
+
+        it("names the batch prompt for a precomputed draft", async () => {
+            await handleEmailSend({ ...job, precomputedDraft: { subject: "S", body: "B" } }, "job-4");
+            expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.objectContaining({ copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "email.legacyBatch@v1" }) }) }));
+        });
+
+        it("carries the provenance of an approved message through to the send", async () => {
+            const copyProvenance = { v: 1, node: "legacy" };
+            (resolveApprovedMessage as any).mockResolvedValue({ state: "ready", subject: "S", body: "B", copyProvenance });
+            await handleEmailSend({ ...job, approvedMessageId: "appr-2" }, "job-5");
+            expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.objectContaining({ copyProvenance }));
+        });
+
         it("sends nothing when the approval is expired or already handled", async () => {
             (resolveApprovedMessage as any).mockResolvedValue({ state: "expired" });
 
