@@ -59,6 +59,12 @@ export const leadFormConfigSchema = z
       .max(2048)
       .refine(isSafeRedirectUrl, { message: "redirect must be an https URL" })
       .optional(),
+    bookingUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(isSafeRedirectUrl, { message: "booking link must be an https URL" })
+      .optional(),
   })
   .strict()
   .superRefine((config, ctx) => {

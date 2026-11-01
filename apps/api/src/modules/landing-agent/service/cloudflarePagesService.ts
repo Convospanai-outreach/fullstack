@@ -220,6 +220,7 @@ class CloudflarePagesService {
             const html = buildFullDocument({ title: page.title, css: payload.css, html: absoluteLandingAssetUrls(payload.html, landingAppOrigin(process.env)), script, whatsappOptIn, slug: page.slug, theme });
             const successMessage = readLeadFormConfig(payload.html)?.successMessage;
             const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
+            const bookingUrl = readLeadFormConfig(payload.html)?.bookingUrl;
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
@@ -237,6 +238,7 @@ class CloudflarePagesService {
                         ...(metaPixelId ? { metaPixel: true } : {}),
                         ...(successMessage ? { successMessage } : {}),
                         ...(instagramHandle ? { instagramHandle } : {}),
+                        ...(bookingUrl ? { bookingUrl } : {}),
                     }),
                 }
             );
