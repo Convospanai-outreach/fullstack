@@ -119,6 +119,23 @@ describe("InstantConfirmationPanel", () => {
     expect(saveButton().disabled).toBe(true);
   });
 
+  it("says so when the saved sequence no longer qualifies, and keeps save off until a new one is picked", async () => {
+    await render({ initial: { enabled: true, sequenceId: "seq-gone" } });
+    await act(async () => {});
+    expect(container.textContent).toContain("The sequence you picked no longer qualifies");
+    expect(picker()!.value).toBe("");
+    expect(saveButton().disabled).toBe(true);
+    await choose("seq-1");
+    expect(container.textContent).not.toContain("no longer qualifies");
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("does not blame the saved sequence when the list could not load", async () => {
+    await render({ initial: { enabled: true, sequenceId: "seq-1" }, onLoadSequences: vi.fn(async () => Promise.reject(new Error("down"))) });
+    await act(async () => {});
+    expect(container.textContent).not.toContain("no longer qualifies");
+  });
+
   it("loads the saved state from the page", async () => {
     await render({ initial: { enabled: true, sequenceId: "seq-2" } });
     await act(async () => {});

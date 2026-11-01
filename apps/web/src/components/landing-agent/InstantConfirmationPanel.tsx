@@ -20,14 +20,24 @@ export default function InstantConfirmationPanel({
     const [sequenceId, setSequenceId] = useState(initial?.sequenceId ?? "");
     const [sequences, setSequences] = useState<InstantConfirmationSequence[] | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
+    // The saved sequence is not among the ones that qualify now (it was paused, deleted, or changed).
+    const [savedNoLongerQualifies, setSavedNoLongerQualifies] = useState(false);
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
     const [saving, setSaving] = useState(false);
+
+    const initialEnabled = Boolean(initial?.enabled);
+    const initialSequenceId = initial?.sequenceId ?? "";
 
     useEffect(() => {
         let cancelled = false;
         onLoadSequences()
             .then((list) => {
-                if (!cancelled) setSequences(list);
+                if (cancelled) return;
+                setSequences(list);
+                if (initialEnabled && initialSequenceId && !list.some((sequence) => sequence.id === initialSequenceId)) {
+                    setSavedNoLongerQualifies(true);
+                    setSequenceId("");
+                }
             })
             .catch(() => {
                 if (!cancelled) {
@@ -38,7 +48,7 @@ export default function InstantConfirmationPanel({
         return () => {
             cancelled = true;
         };
-    }, [onLoadSequences]);
+    }, [onLoadSequences, initialEnabled, initialSequenceId]);
 
     const noEligibleSequence = sequences !== null && sequences.length === 0;
     const chosen = sequences?.find((sequence) => sequence.id === sequenceId);
@@ -101,7 +111,10 @@ export default function InstantConfirmationPanel({
                         <select
                             id="instant-confirmation-sequence"
                             value={sequenceId}
-                            onChange={(e) => setSequenceId(e.target.value)}
+                            onChange={(e) => {
+                                setSequenceId(e.target.value);
+                                setSavedNoLongerQualifies(false);
+                            }}
                             className="w-full md:w-96 bg-background border border-input rounded-lg px-3 py-2 text-foreground"
                         >
                             <option value="">Choose a sequence</option>
@@ -117,6 +130,10 @@ export default function InstantConfirmationPanel({
                             </Link>
                         ) : null}
                     </div>
+                ) : null}
+
+                {enabled && savedNoLongerQualifies ? (
+                    <p className="text-sm text-destructive">The sequence you picked no longer qualifies. Choose another one to save.</p>
                 ) : null}
 
                 <div className="flex items-center gap-3">
