@@ -7,6 +7,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
+    CANVAS_ONLY_CSS,
     canvasBaseCss,
     filterEditorStyle,
     isSafeEditorLink,
@@ -14,6 +15,16 @@ import {
     userCssFromSaved,
 } from "@/components/landing-agent/editorConfig";
 import { LANDING_PAGE_BASE_CSS, getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
+
+describe("canvas-only rules", () => {
+    it("give the divider a clickable height in the canvas", () => {
+        expect(CANVAS_ONLY_CSS).toMatch(/\.la-section\.la-divider \{[^}]*min-height: (1[6-9]|[2-9]\d)px/);
+    });
+
+    it("leave the published divider a 1px line", () => {
+        expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section\.la-divider \{[^}]*height: 1px;[^}]*min-height: 0;/);
+    });
+});
 
 describe("canvas CSS matches the published page CSS", () => {
     it("the canvas stylesheet is exactly the base CSS the published page uses", () => {

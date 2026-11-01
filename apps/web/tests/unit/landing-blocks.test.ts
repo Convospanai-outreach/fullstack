@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { EDITOR_BLOCKS } from "@/components/landing-agent/editorConfig";
-import { INSTAGRAM_FOLLOW_CLASS, instagramBlockHref } from "@/components/landing-agent/instagramFollow";
+import { INSTAGRAM_FOLLOW_CLASS } from "@/components/landing-agent/instagramFollow";
 import { LANDING_PAGE_BASE_CSS, getLandingRenderPayload } from "@/modules/landing-agent/rendering";
 
 const FIXTURE = resolve(__dirname, "../fixtures/landing-blocks-markup.json");
@@ -50,7 +50,7 @@ describe("new editor blocks", () => {
   it.each(NEW_IDS)("%s only links to the lead form or the Instagram profile link", (id) => {
     for (const tag of newBlock(id).match(/<a\b[^>]*>/gi) ?? []) {
       const href = /\shref="([^"]*)"/.exec(tag)?.[1];
-      expect(href === "#lead-form" || /^https:\/\/www\.instagram\.com\/[A-Za-z0-9._]{1,30}\/$/.test(href ?? "")).toBe(true);
+      expect(href === "#lead-form" || href === "#set-instagram-handle" || /^https:\/\/www\.instagram\.com\/[A-Za-z0-9._]{1,30}\/$/.test(href ?? "")).toBe(true);
     }
   });
 
@@ -76,11 +76,11 @@ describe("new editor blocks", () => {
     expect(items.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("the Instagram block links to a profile that the handle rules accept", () => {
-    const placeholder = /href="https:\/\/www\.instagram\.com\/([^/]+)\/"/.exec(newBlock("instagram_follow"))?.[1];
-    expect(instagramBlockHref(placeholder ?? "")).toHaveProperty("href");
+  it("the Instagram block starts with a placeholder link that is not an account (the phone check asks for a handle)", () => {
+    expect(newBlock("instagram_follow")).toContain('href="#set-instagram-handle"');
     expect(newBlock("instagram_follow")).toContain(`class="la-cta ${INSTAGRAM_FOLLOW_CLASS}"`);
   });
+
 
   it("placeholder copy makes no numbers, results or scarcity claims", () => {
     for (const id of NEW_IDS) {

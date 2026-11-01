@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { EDITOR_BLOCKS } from "@/components/landing-agent/editorConfig";
 import { CTA_BLOCKS, CTA_MICRO_COPY, CTA_PRESET_TEXTS } from "@/components/landing-agent/ctaBlocks";
 import { LANDING_PAGE_BASE_CSS } from "@/modules/landing-agent/rendering";
+import { mobilePageWarnings } from "@/components/landing-agent/mobileChecks";
 
 const FIXTURE = resolve(__dirname, "../fixtures/cta-markup.json");
 
@@ -78,6 +79,23 @@ describe("CTA block library", () => {
   it("the markup fixture the sanitizer test reads matches the blocks (drift check)", () => {
     expect(existsSync(FIXTURE)).toBe(true);
     expect(JSON.parse(readFileSync(FIXTURE, "utf8"))).toEqual(JSON.parse(JSON.stringify(snapshot)));
+  });
+});
+
+describe("sticky bar and small labels in the base CSS", () => {
+  it("the phone sticky bar gets bottom room on the page, guarded by :has() so older browsers keep the old layout", () => {
+    expect(LANDING_PAGE_BASE_CSS).toMatch(/@media \(max-width: 720px\) \{[\s\S]*?\.la-page:has\(\.la-cta-sticky\) \{\s*padding-bottom: \d+px;/);
+  });
+
+  it("eyebrow and micro-copy labels win over the paragraph rule, so their small sizes apply", () => {
+    expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section \.la-eyebrow \{[^}]*font-size: 12px;/);
+    expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section \.la-cta-micro \{[^}]*font-size: 13px;/);
+  });
+
+  it("the phone text check does not warn about an eyebrow or micro-copy label", () => {
+    const html = `<section class="la-section"><p class="la-eyebrow">Tag</p><p>Body copy.</p><div class="la-cta-wrap"><a class="la-cta" href="#lead-form">Go</a><p class="la-cta-micro">No spam.</p></div></section>`;
+    const kinds = mobilePageWarnings({ html, css: LANDING_PAGE_BASE_CSS }).map((w) => w.kind);
+    expect(kinds).not.toContain("small_text");
   });
 });
 

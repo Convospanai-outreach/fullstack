@@ -50,6 +50,8 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
     // The theme's class and variables are the same ones the Worker puts on the body (theme.ts).
     const wrapper = useMemo(() => themeWrapper(themeFromRenderedJson(renderedJson)), [renderedJson]);
     const themed = Object.keys(wrapper.vars).length > 0;
+    // On themed pages the follow-up box uses the theme classes, as the Worker box does; un-themed pages keep Tailwind.
+    const fieldClass = themed ? undefined : "rounded-md border border-slate-300 px-3 py-2";
     const leadHtml = useMemo(
         () => (hasLeadFormMarker(payload.html) ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null }) : null),
         [payload.html, slug, whatsappOptIn]
@@ -141,15 +143,19 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                 />
 
                 {leadHtml === null ? (
-                <section className="mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm">
+                <section
+                    className={themed ? "la-section" : "mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm"}
+                    style={themed ? { maxWidth: "640px", margin: "40px auto" } : undefined}
+                >
                     <span id="lead-form" className="block -translate-y-6" aria-hidden="true" />
-                    <h2 className="text-xl font-semibold">Request a follow-up</h2>
-                    <p className="mt-2 text-sm text-slate-600">
+                    <h2 className={themed ? undefined : "text-xl font-semibold"}>Request a follow-up</h2>
+                    <p className={themed ? undefined : "mt-2 text-sm text-slate-600"}>
                         Share details and our team will reach out shortly.
                     </p>
 
                     <form
-                        className="mt-4 grid gap-3"
+                        className={themed ? undefined : "mt-4 grid gap-3"}
+                        style={themed ? { display: "grid", gap: "12px", marginTop: "16px" } : undefined}
                         onFocus={() => {
                             if (formStarted) return;
                             setFormStarted(true);
@@ -209,22 +215,22 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                             }
                         }}
                     >
-                        <input type="text" name="name" placeholder="Name" className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="email" name="email" placeholder="Work email" required className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="text" name="phone" placeholder="Phone" className="rounded-md border border-slate-300 px-3 py-2" />
+                        <input type="text" name="name" placeholder="Name" className={fieldClass} />
+                        <input type="email" name="email" placeholder="Work email" required className={fieldClass} />
+                        <input type="text" name="phone" placeholder="Phone" className={fieldClass} />
                         {whatsappOptIn ? (
                             <label className="flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="whatsappConsent" className="mt-1" />
                                 {whatsappOptIn}
                             </label>
                         ) : null}
-                        <input type="text" name="company" placeholder="Company" className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="text" name="title" placeholder="Title" className="rounded-md border border-slate-300 px-3 py-2" />
+                        <input type="text" name="company" placeholder="Company" className={fieldClass} />
+                        <input type="text" name="title" placeholder="Title" className={fieldClass} />
                         <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="rounded-md bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-60"
+                            className={themed ? "la-cta" : "rounded-md bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-60"}
                         >
                             {submitting ? "Submitting..." : "Submit"}
                         </button>

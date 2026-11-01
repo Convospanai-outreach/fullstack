@@ -6,6 +6,6 @@
     "image_text": "\n<section class=\"la-section la-image-text\">\n    <img src=\"/landing-assets/gradient-2.svg\" alt=\"Abstract header image\" loading=\"lazy\">\n    <div>\n        <h2>Heading for this section</h2>\n        <p>Explain what the image shows and why it matters to the reader.</p>\n    </div>\n</section>",
     "button": "\n<section class=\"la-section\">\n    <a class=\"la-cta\" href=\"#lead-form\">Button text</a>\n</section>",
     "divider": "\n<section class=\"la-section la-divider\"></section>",
-    "instagram_follow": "\n<section class=\"la-section\">\n    <a class=\"la-cta la-instagram\" href=\"https://www.instagram.com/yourhandle/\" target=\"_blank\" rel=\"noopener noreferrer\">Follow us on Instagram</a>\n</section>"
+    "instagram_follow": "\n<section class=\"la-section\">\n    <a class=\"la-cta la-instagram\" href=\"#set-instagram-handle\" target=\"_blank\" rel=\"noopener noreferrer\">Follow us on Instagram</a>\n</section>"
   }
 }
