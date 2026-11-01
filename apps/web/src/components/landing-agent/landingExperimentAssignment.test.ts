@@ -22,3 +22,12 @@ describe("landing experiment assignment (web copy) shared fixture", () => {
         });
     }
 });
+
+// The Worker cannot import from apps/web, so it carries a byte-identical copy of this module.
+describe("landing experiment assignment copies", () => {
+    it("the Worker's abAssignment.ts is identical to this module", () => {
+        const here = readFileSync(resolve(__dirname, "landingExperimentAssignment.ts"), "utf8");
+        const worker = readFileSync(resolve(__dirname, "../../../../../workers/landing-pages/src/abAssignment.ts"), "utf8");
+        expect(worker).toBe(here);
+    });
+});
