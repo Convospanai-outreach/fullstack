@@ -97,6 +97,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         links: [
             { label: "Mailboxes", href: "/settings/mailboxes" },
             { label: "Do-not-contact list", href: "/settings/suppressions" },
+            { label: "Custom properties", href: "/settings/custom-properties" },
             { label: "Social accounts", href: "/settings/social", feature: "creator-funnel" },
             ...(PRODUCT_FLAGS.emailFirstBeta ? [] : [{ label: "CRM sync", href: "/settings/crm" }]),
             { label: "Webhooks", href: "/settings/webhooks" },

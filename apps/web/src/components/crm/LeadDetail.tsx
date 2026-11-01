@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import InstagramSourceLine, { type InstagramLeadSource } from "@/components/crm/InstagramSourceLine";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import LeadCustomFieldsPanel from "./LeadCustomFieldsPanel";
 import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
 
 interface Lead {
@@ -840,6 +841,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             </GlassCard>
                         );
                     })()}
+
+                    {/* Custom properties - team-defined values for this lead (renders nothing when none are defined) */}
+                    <LeadCustomFieldsPanel leadId={lead.id} customFields={(lead as { customFields?: Record<string, unknown> | null }).customFields} />
 
                     {/* Data Sources - per-field provenance (which source supplied which value, and when) */}
                     {dataSources.length > 0 && (
