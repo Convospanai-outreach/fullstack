@@ -18,7 +18,7 @@ vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction } from "../jev";
+import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction, judgeStalledThread } from "../jev";
 
 function replyAnswers({ stop = 0.05, away = 0.05, choice = "interested", p = 0.8 }: { stop?: number; away?: number; choice?: string; p?: number }) {
     return {
@@ -151,5 +151,77 @@ describe("jev", () => {
             mockSystemOne.mockRejectedValue(new Error("timeout"));
             await expect(judgeConfirmationCopy(copy, "team-1")).rejects.toThrow("timeout");
         });
+    });
+});
+
+describe("judgeStalledThread", () => {
+    const probabilities = { wait: 0.1, nudge_now: 0.2, escalate_to_human: 0.3, stop: 0.4 };
+    const questionKeys = ["leadWaitingOnUs", "leadAskedToStop", "leadTurnedDown", "nextMove"];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv("JEV_API_KEY", "test-key");
+        mockSystemOne.mockResolvedValue({
+            model: "jev-1.14.0",
+            usage: { input_tokens: 120, output_tokens: 0 },
+            answers: {
+                leadWaitingOnUs: { type: "noul", noul: 0.9 },
+                leadAskedToStop: { type: "noul", noul: 0.1 },
+                leadTurnedDown: { type: "noul", noul: 0.5 },
+                nextMove: { type: "choice", choice: "escalate_to_human", confidence: 0.3, probabilities },
+            },
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    it("asks the four typed questions over the thread and returns the probabilities", async () => {
+        const result = await judgeStalledThread({ thread: [{ from: "us", text: "Hi" }], quietForDays: 6 }, "team-1");
+
+        const request = mockSystemOne.mock.calls[0][0];
+        expect(Object.keys(request.questions)).toEqual(questionKeys);
+        expect(request.state.thread).toEqual([{ from: "us", text: "Hi" }]);
+        expect(request.state.quietForDays).toBe(6);
+        expect(result).toEqual({
+            leadWaitingOnUs: 0.9,
+            leadAskedToStop: 0.1,
+            leadTurnedDown: 0.5,
+            nextMove: { choice: "escalate_to_human", probabilities },
+        });
+    });
+
+    it("logs usage against the team that asked", async () => {
+        await judgeStalledThread({ thread: [], quietForDays: 6 }, "team-7");
+
+        expect(mockPrisma.lLMUsageLog.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ teamId: "team-7", taskType: "STALL_JUDGMENT", provider: "typesafe", success: true }),
+        });
+    });
+
+    it("caps the thread it sends: the last five messages, each at most 1000 characters", async () => {
+        const thread = Array.from({ length: 8 }, (_, i) => ({ from: "lead" as const, text: `m${i}-${"x".repeat(3000)}` }));
+
+        await judgeStalledThread({ thread, quietForDays: 6 }, "team-1");
+
+        const sent = mockSystemOne.mock.calls[0][0].state.thread as Array<{ text: string }>;
+        expect(sent).toHaveLength(5);
+        expect(sent[0].text.startsWith("m3-")).toBe(true);
+        expect(sent.every((m) => m.text.length <= 1000)).toBe(true);
+    });
+
+    it("rejects, and never returns an answer, when the call fails", async () => {
+        mockSystemOne.mockRejectedValue(new Error("timeout"));
+
+        await expect(judgeStalledThread({ thread: [], quietForDays: 6 }, "team-1")).rejects.toThrow("timeout");
+        expect(mockPrisma.lLMUsageLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ success: false }) });
+    });
+
+    it("rejects with JevUnavailableError when no key is configured, before any call", async () => {
+        vi.stubEnv("JEV_API_KEY", "");
+
+        await expect(judgeStalledThread({ thread: [], quietForDays: 6 }, "team-1")).rejects.toBeInstanceOf(JevUnavailableError);
+        expect(mockSystemOne).not.toHaveBeenCalled();
     });
 });
