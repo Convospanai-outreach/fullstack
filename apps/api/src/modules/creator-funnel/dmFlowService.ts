@@ -67,6 +67,12 @@ export async function listDmFlows(teamId: string) {
     return prisma.dmFlow.findMany({ where: { teamId, archivedAt: null }, orderBy: { createdAt: "asc" } });
 }
 
+export async function getDmFlow(teamId: string, id: string) {
+    const flow = await prisma.dmFlow.findFirst({ where: { id, teamId, archivedAt: null } });
+    if (!flow) fail(404, "Flow not found");
+    return flow;
+}
+
 /**
  * The flow a keyword trigger can start, or a 400/404. A flow with a link step needs the trigger to
  * have a landing page to link to.
