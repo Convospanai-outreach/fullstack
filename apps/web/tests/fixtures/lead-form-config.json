@@ -163,6 +163,19 @@
       "buttonLabel": "Send it to me",
       "successMessage": "Thanks! Check your inbox.",
       "instagramHandle": "brand.shop_2"
+    },
+    "with-booking": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "https://cal.example.com/team/intro?x=1"
     }
   },
   "invalid": {
@@ -593,6 +606,45 @@
       "buttonLabel": "Send it to me",
       "successMessage": "Thanks! Check your inbox.",
       "instagramHandle": "brand/x"
+    },
+    "booking-http": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "http://cal.example.com/intro"
+    },
+    "booking-javascript": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "javascript:alert(1)"
+    },
+    "booking-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "https://cal.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   }
 }
