@@ -155,6 +155,29 @@ export async function judgeFriction(text: string): Promise<{ hostile: number; re
     return { hostile: answers.hostile.noul, rejecting: answers.rejecting.noul, spam: answers.spam.noul };
 }
 
+// --- Confirmation copy check (instant confirmation, at save time) ---
+
+/**
+ * Whether a confirmation message reads as a promise, pressure or marketing rather than a plain
+ * acknowledgement. Send only the template copy (subject and plain-text body), never a lead's data.
+ * Returns the Noul probability that it does.
+ */
+export async function judgeConfirmationCopy(copy: { subject: string; body: string }, teamId: string): Promise<number> {
+    const answers = await ask(
+        "CONFIRMATION_COPY_CHECK",
+        teamId,
+        { message: copy },
+        {
+            salesy: noul("Is `message` a sales message rather than a plain acknowledgement?", {
+                true: "It promises or guarantees results, a price or availability, uses pressure to act now, or reads as marketing.",
+                false: "It thanks the person or confirms what they signed up for, with no promise, pressure or sales pitch."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return answers.salesy.noul;
+}
+
 // --- Stalled sequence threads (Overseer) ---
 
 export const STALL_NEXT_MOVES = ["wait", "nudge_now", "escalate_to_human", "stop"] as const;

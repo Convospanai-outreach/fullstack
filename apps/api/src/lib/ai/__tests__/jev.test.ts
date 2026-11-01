@@ -18,7 +18,7 @@ vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-import { JevUnavailableError, classifyReply, judgeFriction, judgeStalledThread } from "../jev";
+import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction, judgeStalledThread } from "../jev";
 
 function replyAnswers({ stop = 0.05, away = 0.05, choice = "interested", p = 0.8 }: { stop?: number; away?: number; choice?: string; p?: number }) {
     return {
@@ -115,8 +115,44 @@ describe("jev", () => {
             expect(mockPrisma.lLMUsageLog.create).not.toHaveBeenCalled();
         });
     });
-});
 
+    describe("judgeConfirmationCopy", () => {
+        const copy = { subject: "Thanks for signing up", body: "We have your details. Reply if you need anything." };
+
+        it("asks one question about the copy only, and returns its probability", async () => {
+            mockSystemOne.mockResolvedValue({
+                model: "jev-1.14.0",
+                usage: { input_tokens: 60, output_tokens: 0 },
+                answers: { salesy: { type: "noul", noul: 0.91 } },
+            });
+            await expect(judgeConfirmationCopy(copy, "team-1")).resolves.toBe(0.91);
+
+            const request = mockSystemOne.mock.calls[0][0];
+            expect(request.state).toEqual({ message: copy });
+            expect(Object.keys(request.questions)).toEqual(["salesy"]);
+            expect(mockSystemOne.mock.calls[0][1]).toEqual({ retry: { maxRetries: 0 } });
+        });
+
+        it("logs team usage under CONFIRMATION_COPY_CHECK", async () => {
+            mockSystemOne.mockResolvedValue({ model: "jev-1.14.0", usage: { input_tokens: 60, output_tokens: 0 }, answers: { salesy: { type: "noul", noul: 0.1 } } });
+            await judgeConfirmationCopy(copy, "team-1");
+            expect(mockPrisma.lLMUsageLog.create).toHaveBeenCalledWith({
+                data: expect.objectContaining({ teamId: "team-1", taskType: "CONFIRMATION_COPY_CHECK", success: true }),
+            });
+        });
+
+        it("throws JevUnavailableError without a key, before any call", async () => {
+            vi.stubEnv("JEV_API_KEY", "");
+            await expect(judgeConfirmationCopy(copy, "team-1")).rejects.toBeInstanceOf(JevUnavailableError);
+            expect(mockSystemOne).not.toHaveBeenCalled();
+        });
+
+        it("throws when the call fails, so the caller can save without a warning", async () => {
+            mockSystemOne.mockRejectedValue(new Error("timeout"));
+            await expect(judgeConfirmationCopy(copy, "team-1")).rejects.toThrow("timeout");
+        });
+    });
+});
 
 describe("judgeStalledThread", () => {
     const probabilities = { wait: 0.1, nudge_now: 0.2, escalate_to_human: 0.3, stop: 0.4 };

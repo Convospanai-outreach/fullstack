@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InstantConfirmationPanel from "./InstantConfirmationPanel";
 
 const SEQUENCES = [
-  { id: "seq-1", name: "Welcome", channel: "email" as const },
-  { id: "seq-2", name: "Reminder", channel: "whatsapp" as const },
+  { id: "seq-1", name: "Welcome", channel: "email" as const, status: "ACTIVE" as const, campaignId: "camp-1" },
+  { id: "seq-2", name: "Reminder", channel: "whatsapp" as const, status: "DRAFT" as const, campaignId: null },
 ];
 
 describe("InstantConfirmationPanel", () => {
@@ -34,7 +34,7 @@ describe("InstantConfirmationPanel", () => {
       root.render(
         <InstantConfirmationPanel
           onLoadSequences={vi.fn(async () => SEQUENCES)}
-          onSave={vi.fn(async () => "Saved.")}
+          onSave={vi.fn(async () => ({ message: "Saved." }))}
           {...props}
         />
       );
@@ -75,17 +75,48 @@ describe("InstantConfirmationPanel", () => {
     await turnOn();
     const values = [...picker()!.options].map((option) => option.value).filter(Boolean);
     expect(values).toEqual(["seq-1", "seq-2"]);
-    expect(container.textContent).toContain("Welcome (Email)");
-    expect(container.textContent).toContain("Reminder (WhatsApp)");
+    expect(container.textContent).toContain("Welcome (Email, Active)");
+    expect(container.textContent).toContain("Reminder (WhatsApp, Draft)");
+  });
+
+  it("links the chosen sequence to its campaign's Sequence tab, and only when it has a campaign", async () => {
+    await render();
+    await turnOn();
+    await choose("seq-1");
+    expect(container.querySelector<HTMLAnchorElement>("a[href='/campaigns/camp-1?tab=sequence']")).not.toBeNull();
+    await choose("seq-2");
+    expect(container.querySelector("a[href*='?tab=sequence']")).toBeNull();
   });
 
   it("saves {enabled, sequenceId} with the chosen sequence", async () => {
-    const onSave = vi.fn(async () => "Saved.");
+    const onSave = vi.fn(async () => ({ message: "Saved." }));
     await render({ onSave });
     await turnOn();
     await choose("seq-2");
     await submit();
     expect(onSave).toHaveBeenCalledWith({ enabled: true, sequenceId: "seq-2" });
+  });
+
+  it("shows the copy warnings the save returned, as plain text", async () => {
+    const onSave = vi.fn(async () => ({
+      message: "Saved.",
+      warnings: ["This message sounds like a promise or a sales pitch. A confirmation works best as a plain thank-you."],
+    }));
+    await render({ onSave });
+    await turnOn();
+    await choose("seq-1");
+    await submit();
+    expect(container.textContent).toContain("This message sounds like a promise or a sales pitch.");
+    expect(container.querySelector("b, script")).toBeNull();
+  });
+
+  it("shows no warning when the save returned none", async () => {
+    await render({ onSave: vi.fn(async () => ({ message: "Saved.", warnings: [] })) });
+    await turnOn();
+    await choose("seq-1");
+    await submit();
+    expect(container.textContent).toContain("Saved.");
+    expect(container.textContent).not.toContain("sales pitch");
   });
 
   it("shows the API error inline when the save is refused", async () => {
@@ -108,6 +139,23 @@ describe("InstantConfirmationPanel", () => {
     expect(container.textContent).toContain("sender mailbox");
     expect(container.textContent).toContain("approved WhatsApp template");
     expect(saveButton().disabled).toBe(true);
+  });
+
+  it("says so when the saved sequence no longer qualifies, and keeps save off until a new one is picked", async () => {
+    await render({ initial: { enabled: true, sequenceId: "seq-gone" } });
+    await act(async () => {});
+    expect(container.textContent).toContain("The sequence you picked no longer qualifies");
+    expect(picker()!.value).toBe("");
+    expect(saveButton().disabled).toBe(true);
+    await choose("seq-1");
+    expect(container.textContent).not.toContain("no longer qualifies");
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("does not blame the saved sequence when the list could not load", async () => {
+    await render({ initial: { enabled: true, sequenceId: "seq-1" }, onLoadSequences: vi.fn(async () => Promise.reject(new Error("down"))) });
+    await act(async () => {});
+    expect(container.textContent).not.toContain("no longer qualifies");
   });
 
   it("loads the saved state from the page", async () => {
