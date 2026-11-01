@@ -121,7 +121,7 @@ export function canvasBaseCss(): string {
 export const CANVAS_ONLY_CSS = `
 .la-section.la-divider {
     min-height: 24px;
-    background: linear-gradient(#cbd5e1, #cbd5e1) center / 100% 1px no-repeat;
+    background: linear-gradient(var(--la-accent, #cbd5e1), var(--la-accent, #cbd5e1)) center / 100% 1px no-repeat;
 }
 `;
 

@@ -37,7 +37,7 @@ export const LANDING_PAGE_BASE_CSS = `
 }
 .la-section .la-eyebrow {
     margin: 0 0 10px;
-    color: var(--la-primary-text, #0e7490);
+    color: var(--la-accent, #0e7490);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.16em;
@@ -148,7 +148,7 @@ export const LANDING_PAGE_BASE_CSS = `
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    background: #cbd5e1;
+    background: var(--la-accent, #cbd5e1);
 }
 .la-image-text {
     display: grid;
