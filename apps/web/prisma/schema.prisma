@@ -1448,6 +1448,8 @@ model Team {
   edgeNode                   EdgeNode?
   outboxEvents               OutboxEvent[]
   blindIndexes               BlindIndex[]
+  dmFlows    DmFlow[]
+  dmFlowRuns DmFlowRun[]
 }
 
 model CrmIntegration {
@@ -1595,6 +1597,8 @@ model KeywordTrigger {
 
   @@index([teamId])
   @@index([socialAccountId, active])
+  flowId      String? // Instagram DM flow run when this trigger matches (dmFlowMachine.ts); null = single reply
+  flow        DmFlow? @relation(fields: [flowId], references: [id], onDelete: SetNull)
 }
 
 // One automatic reply: created by the webhook (PENDING), sent by the worker. The unique
@@ -3410,4 +3414,71 @@ model LeadProperty {
 
   @@unique([teamId, key])
   @@index([teamId])
+}
+
+// Instagram DM flows (creator funnel): an ordered list of steps a keyword trigger starts for a person.
+// steps is validated by dmFlowMachine.validateFlowSteps. Runs keep the steps they started with, so
+// editing a flow (version bump) never changes a run in progress.
+model DmFlow {
+  id          String    @id @default(uuid())
+  teamId      String
+  name        String
+  steps       Json
+  version     Int       @default(1)
+  archivedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team     Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  triggers KeywordTrigger[]
+  runs     DmFlowRun[]
+
+  @@index([teamId])
+}
+
+// One person's pass through a flow. (flowId, personKey) is unique; a finished run is restarted in place
+// after the per-person cooldown. version is the optimistic lock the worker uses.
+model DmFlowRun {
+  id              String    @id @default(uuid())
+  teamId          String
+  flowId          String
+  socialAccountId String
+  personKey       String
+  leadId          String?
+  steps           Json
+  stepIndex       Int       @default(0)
+  awaitingAnswer  Boolean   @default(false)
+  status          String    @default("ACTIVE") // ACTIVE | WAITING | COMPLETED | EXPIRED | STOPPED
+  waitingSince    DateTime?
+  lastInboundAt   DateTime?
+  version         Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  team   Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  flow   DmFlow        @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  events DmFlowEvent[]
+
+  @@unique([flowId, personKey])
+  @@index([teamId])
+  @@index([status, waitingSince])
+}
+
+// The run's log and work queue. A webhook writes a PENDING row ("start:<id>" or "in:<message id>"),
+// the worker claims it, and every send, answer, skip or stop is recorded as its own row. The unique
+// (runId, sourceKey) makes a redelivered webhook a no-op.
+model DmFlowEvent {
+  id        String   @id @default(uuid())
+  runId     String
+  sourceKey String
+  kind      String // PENDING | PROCESSING | DONE | SENT | SKIPPED | FAILED | UNCONFIRMED | ANSWER | STOP | EXPIRED
+  stepIndex Int?
+  reason    String?  @db.Text
+  createdAt DateTime @default(now())
+
+  run DmFlowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sourceKey])
+  @@index([kind, createdAt])
 }
