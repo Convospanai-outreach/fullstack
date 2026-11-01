@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextStepId, previousStepId, readOutreachMode, visibleStepIds } from "./setupSteps";
+import { hasDataResponsibilityAck, nextStepId, previousStepId, readOutreachMode, visibleStepIds } from "./setupSteps";
 
 const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
@@ -29,5 +29,14 @@ describe("setup steps by outreach mode", () => {
         expect(readOutreachMode({ outreachMode: "agency" })).toBeNull();
         expect(readOutreachMode({})).toBeNull();
         expect(readOutreachMode(null)).toBeNull();
+    });
+});
+
+describe("data responsibility acknowledgement", () => {
+    it("counts only an acknowledgement of the current notice version", () => {
+        expect(hasDataResponsibilityAck({ dataResponsibility: { version: "2026-11", acknowledgedBy: "user-1", acknowledgedAt: "2026-11-01T10:00:00.000Z" } })).toBe(true);
+        expect(hasDataResponsibilityAck({ dataResponsibility: { version: "2026-10", acknowledgedBy: "user-1", acknowledgedAt: "2026-10-01T10:00:00.000Z" } })).toBe(false);
+        expect(hasDataResponsibilityAck({ outreachMode: "company" })).toBe(false);
+        expect(hasDataResponsibilityAck(null)).toBe(false);
     });
 });
