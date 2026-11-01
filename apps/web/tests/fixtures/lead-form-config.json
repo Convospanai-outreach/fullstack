@@ -176,6 +176,77 @@
       "buttonLabel": "Send it to me",
       "successMessage": "Thanks! Check your inbox.",
       "bookingUrl": "https://cal.example.com/team/intro?x=1"
+    },
+    "consent-default": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "required": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy."
+      }
+    },
+    "consent-full": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "required": false,
+        "text": "Send me tips.",
+        "privacyUrl": "https://example.com/privacy",
+        "deletionUrl": "https://example.com/delete",
+        "deletionSteps": "Email us.\nWe delete within 30 days.",
+        "contactEmail": "privacy@example.com"
+      },
+      "redirectUrl": "https://example.com/thanks"
+    },
+    "consent-disabled": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": false,
+        "text": "Not shown"
+      }
+    },
+    "consent-text-300": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
     }
   },
   "invalid": {
@@ -645,6 +716,156 @@
       "buttonLabel": "Send it to me",
       "successMessage": "Thanks! Check your inbox.",
       "bookingUrl": "https://cal.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "consent-privacy-http": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "privacyUrl": "http://example.com/privacy"
+      }
+    },
+    "consent-privacy-javascript": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "privacyUrl": "javascript:alert(1)"
+      }
+    },
+    "consent-deletion-data": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "deletionUrl": "data:text/html,hi"
+      }
+    },
+    "consent-text-301": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "consent-text-markup": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "<b>I agree</b>"
+      }
+    },
+    "consent-empty-text": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": ""
+      }
+    },
+    "consent-steps-2001": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "deletionSteps": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "consent-contact-invalid": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "contactEmail": "not-an-email"
+      }
+    },
+    "consent-unknown-key": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "extra": 1
+      }
     }
   }
 }

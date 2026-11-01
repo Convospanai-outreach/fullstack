@@ -12,6 +12,14 @@ export const LEAD_FORM_MAX_MARKER_ID_LENGTH = 2000;
 // Instagram handle for the thank-you page's follow button: 1 to 30 letters, digits, dots or underscores.
 export const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 export const INSTAGRAM_HANDLE_MESSAGE = "Instagram handle: 1 to 30 letters, numbers, dots or underscores (no @ and no link)";
+// Consent box on a lead form (optional). The checkbox is named cmfConsent and is sent as the lead's consent flag,
+// never as a form field. The wording, links and deletion steps belong to the customer: the product gives no legal text.
+export const LEAD_FORM_CONSENT_CHECKBOX_NAME = "cmfConsent";
+export const LEAD_FORM_CONSENT_TEXT_MAX = 300;
+export const LEAD_FORM_CONSENT_STEPS_MAX = 2000;
+export const LEAD_FORM_CONSENT_DEFAULT_TEXT = "I agree to be contacted about my enquiry and to the privacy policy.";
+// The address of the default data-deletion page: /p/<slug>/data-deletion on the app, /<slug>/data-deletion on a connected domain.
+export const LEAD_FORM_DATA_DELETION_PATH = "data-deletion";
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 const MARKER_PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -47,6 +55,42 @@ export function isSafeRedirectUrl(value: string): boolean {
   }
 }
 
+// Plain text is shown as text only, so angle brackets are refused rather than escaped.
+const isPlainText = (value: string) => !/[<>]/.test(value);
+
+const leadFormConsentSchema = z
+  .object({
+    enabled: z.boolean(),
+    // Required by default when consent is on: a missing key means required.
+    required: z.boolean().optional(),
+    text: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LEAD_FORM_CONSENT_TEXT_MAX)
+      .refine(isPlainText, { message: "consent wording is plain text (no < or >)" }),
+    privacyUrl: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine(isSafeRedirectUrl, { message: "privacy policy link must be an https URL" })
+      .optional(),
+    deletionUrl: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine(isSafeRedirectUrl, { message: "data deletion link must be an https URL" })
+      .optional(),
+    deletionSteps: z
+      .string()
+      .trim()
+      .max(LEAD_FORM_CONSENT_STEPS_MAX)
+      .refine(isPlainText, { message: "deletion steps are plain text (no < or >)" })
+      .optional(),
+    contactEmail: z.string().trim().max(320).email({ message: "contact email must be a valid email address" }).optional(),
+  })
+  .strict();
+
 export const leadFormConfigSchema = z
   .object({
     fields: z.array(fieldSchema).min(1).max(LEAD_FORM_MAX_FIELDS),
@@ -65,6 +109,7 @@ export const leadFormConfigSchema = z
       .max(500)
       .refine(isSafeRedirectUrl, { message: "booking link must be an https URL" })
       .optional(),
+    consent: leadFormConsentSchema.optional(),
   })
   .strict()
   .superRefine((config, ctx) => {
@@ -81,6 +126,15 @@ export const leadFormConfigSchema = z
 
 export type LeadFormField = z.infer<typeof fieldSchema>;
 export type LeadFormConfig = z.infer<typeof leadFormConfigSchema>;
+export type LeadFormConsent = z.infer<typeof leadFormConsentSchema>;
+
+// The consent a new lead form starts with: on, required, neutral wording.
+export const LEAD_FORM_DEFAULT_CONSENT: LeadFormConsent = { enabled: true, required: true, text: LEAD_FORM_CONSENT_DEFAULT_TEXT };
+
+// True when the form cannot be sent without a ticked consent box.
+export function leadFormConsentRequired(consent: LeadFormConsent | undefined): boolean {
+  return Boolean(consent?.enabled) && consent?.required !== false;
+}
 
 // Returns the parsed config, or null when anything about it is invalid.
 export function parseLeadFormConfig(value: unknown): LeadFormConfig | null {

@@ -37,7 +37,7 @@ import { landingAgentService } from "./service";
 import { APIError } from "@/lib/apiResponse";
 import { decodeLeadFormMarkerId } from "./leadFormConfig";
 import { findLeadFormMarkers } from "./leadFormHtml";
-import { getLandingTemplate } from "./landingTemplates";
+import { getLandingTemplate, templateLeadForm } from "./landingTemplates";
 
 const ENV = { NEXTAUTH_URL: "https://app.example" };
 
@@ -85,7 +85,7 @@ describe("landingAgentService.createCampaignFromTemplate", () => {
 
         const markers = findLeadFormMarkers(savedRenderedJson().html);
         expect(markers).toHaveLength(1);
-        expect(decodeLeadFormMarkerId(markers[0]!.id)).toEqual(getLandingTemplate("free-guide")!.leadForm);
+        expect(decodeLeadFormMarkerId(markers[0]!.id)).toEqual(templateLeadForm(getLandingTemplate("free-guide")!));
     });
 
     it("writes image URLs as absolute URLs on the canonical origin", async () => {

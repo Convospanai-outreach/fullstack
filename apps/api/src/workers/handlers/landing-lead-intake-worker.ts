@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 import { saveLandingAnswersToLead } from "@/modules/lead-properties/leadCustomFields";
+import { consentAllowsContact, consentRecordOf } from "@/modules/landing-agent/leadConsent";
 
 /**
  * Promotes a public /p/:slug funnel-page form submission (LandingLead) into the
@@ -33,6 +34,8 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
 
     const email = landingLead.email?.trim().toLowerCase() || undefined;
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
+    // The landing form's consent box. Only ever sets consentObtained to true, never back to false.
+    const consentGiven = consentRecordOf(landingLead.rawPayload)?.given === true;
 
     // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
     // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
@@ -46,6 +49,8 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         }
         if (mergedLeadId) {
             await saveLandingAnswersToLead(teamId, mergedLeadId, landingLead.rawPayload);
+            // The merged lead gets consent only when it was given, and never for an opted-out (DNC) lead.
+            if (consentGiven) await prisma.lead.updateMany({ where: { id: mergedLeadId, teamId, status: { not: "DNC" } }, data: { consentObtained: true } });
             await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
             await scoreNewLead(mergedLeadId);
             await pushToMautic(mergedLeadId, teamId);
@@ -73,6 +78,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                     company: landingLead.company?.trim() || existing.company || undefined,
                     jobTitle: landingLead.title?.trim() || existing.jobTitle || undefined,
                     source: existing.source || "landing_page",
+                    ...(consentGiven && existing.status !== "DNC" ? { consentObtained: true } : {}),
                 },
             });
 
@@ -103,6 +109,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             jobTitle: landingLead.title?.trim() || undefined,
             source: "landing_page",
             status: "NEW",
+            ...(consentGiven ? { consentObtained: true } : {}),
         },
     });
 
@@ -127,7 +134,12 @@ export async function afterSocialSignup(teamId: string, leadId: string, utmConte
 
 // Creator funnel: a sign-up on a launch plan's lead-magnet page joins the plan's nurture emails
 // when that plan's nurture is switched on (playbookSwitches.ts). Never fails the intake job.
-async function joinPlanNurture(landingLead: { teamId: string; landingPageId: string }, leadId: string) {
+async function joinPlanNurture(landingLead: { teamId: string; landingPageId: string; rawPayload?: unknown }, leadId: string) {
+    // A form whose consent box was not ticked gets no automatic emails.
+    if (!consentAllowsContact(landingLead.rawPayload)) {
+        logger.info(`[LandingLeadIntake] Plan nurture skipped for lead ${leadId}: consent not given`);
+        return;
+    }
     try {
         const { enrollPlanNurture } = await import("@/modules/creator-funnel/playbookSwitches");
         const skipped = await enrollPlanNurture(landingLead, leadId);

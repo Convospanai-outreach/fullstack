@@ -118,6 +118,7 @@ export const landingLeadPayloadSchema = z.object({
     referrer: z.string().max(2000).optional(),
     socialToken: z.string().max(300).optional(), // creator funnel ?t= link token, verified by the intake worker
     whatsappConsent: z.boolean().optional(), // creator funnel pages' WhatsApp opt-in checkbox
+    consent: z.boolean().optional(), // lead form consent box (cmfConsent); a required box must be ticked (see leadConsent.ts)
     website: z.string().max(500).optional(), // honeypot
     // Lead form marker pages: the visitor's values by field key. Checked against the page's config in the service.
     formFields: z.record(z.string().max(64), z.unknown()).optional(),
