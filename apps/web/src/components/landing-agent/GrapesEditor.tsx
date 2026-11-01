@@ -21,6 +21,8 @@ import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-a
 import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
 import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
 import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPanel";
+import InstagramSettingsPanel from "@/components/landing-agent/InstagramSettingsPanel";
+import { instagramFollowOfSelection } from "@/components/landing-agent/instagramFollow";
 import CopyHelperPanel from "@/components/landing-agent/CopyHelperPanel";
 import { applyCopyToComponent } from "@/components/landing-agent/copyPatterns";
 import {
@@ -136,6 +138,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [imageError, setImageError] = useState<string | null>(null);
     const [leadForm, setLeadForm] = useState<{ key: number; config: LeadFormConfig | null } | null>(null);
     const leadFormComponentRef = useRef<Component | null>(null);
+    const [instagram, setInstagram] = useState<{ key: number } | null>(null);
+    const instagramComponentRef = useRef<Component | null>(null);
+
+    function applyInstagramHref(href: string) {
+        const component = instagramComponentRef.current;
+        if (!component) return;
+        component.addAttributes({ href });
+        refreshRef.current?.();
+    }
 
     function applyLeadForm(config: LeadFormConfig) {
         const component = leadFormComponentRef.current;
@@ -263,10 +274,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 const selection = leadFormOfSelection({ id: String(component.getAttributes()["id"] ?? ""), classes });
                 leadFormComponentRef.current = selection ? component : null;
                 setLeadForm(selection ? { key: Date.now(), config: selection.config } : null);
+                const isInstagram = instagramFollowOfSelection(classes);
+                instagramComponentRef.current = isInstagram ? component : null;
+                setInstagram(isInstagram ? { key: Date.now() } : null);
             });
             created.on("component:deselected", () => {
                 leadFormComponentRef.current = null;
                 setLeadForm(null);
+                instagramComponentRef.current = null;
+                setInstagram(null);
             });
 
             created.onReady(() => {
@@ -635,6 +651,12 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lead form</p>
                             <LeadFormSettingsPanel key={leadForm.key} config={leadForm.config} onApply={applyLeadForm} />
+                        </div>
+                    ) : null}
+                    {instagram ? (
+                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Instagram follow</p>
+                            <InstagramSettingsPanel key={instagram.key} onApply={applyInstagramHref} />
                         </div>
                     ) : null}
                     <div className="hidden" ref={selectorsRef} />

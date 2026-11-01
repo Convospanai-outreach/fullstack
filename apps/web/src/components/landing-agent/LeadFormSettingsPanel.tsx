@@ -150,6 +150,16 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                 />
             </label>
 
+            <label className="block space-y-1">
+                <span className="text-xs text-slate-400">Instagram handle for a follow button on the thank-you page (optional, without the @)</span>
+                <input
+                    className={inputClass}
+                    placeholder="yourhandle"
+                    value={draft.instagramHandle ?? ""}
+                    onChange={(e) => change(setLeadFormSetting(draft, { instagramHandle: e.target.value }))}
+                />
+            </label>
+
             {problem ? <p className="text-xs text-rose-300">{problem} (not saved to the page until fixed)</p> : null}
         </div>
     );

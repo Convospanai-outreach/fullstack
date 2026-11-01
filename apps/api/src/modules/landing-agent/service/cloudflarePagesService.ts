@@ -198,6 +198,7 @@ class CloudflarePagesService {
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
             const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug });
             const successMessage = readLeadFormConfig(payload.html)?.successMessage;
+            const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
@@ -213,6 +214,7 @@ class CloudflarePagesService {
                         scriptHash,
                         ...(trackingScript ? { tracking: true } : {}),
                         ...(successMessage ? { successMessage } : {}),
+                        ...(instagramHandle ? { instagramHandle } : {}),
                     }),
                 }
             );

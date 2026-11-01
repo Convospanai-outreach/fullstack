@@ -1,6 +1,7 @@
 import { CTA_BLOCKS } from "./ctaBlocks";
 import { LANDING_PAGE_BASE_CSS } from "@/modules/landing-agent/rendering";
 import { leadFormBlockContent } from "./leadFormEditor";
+import { LANDING_BLOCKS } from "./landingBlocks";
 
 // Pure editor settings shared by GrapesEditor and its tests. Nothing here imports
 // GrapesJS, so the rules can be checked without a DOM.
@@ -223,4 +224,5 @@ export const EDITOR_BLOCKS: readonly { id: string; label: string; content: strin
         content: leadFormBlockContent(),
     },
     ...CTA_BLOCKS,
+    ...LANDING_BLOCKS,
 ];

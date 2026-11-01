@@ -150,6 +150,19 @@
       "buttonLabel": "Send it",
       "successMessage": "Thanks!",
       "redirectUrl": "https://example.com/a/b?x=1"
+    },
+    "with-instagram": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "brand.shop_2"
     }
   },
   "invalid": {
@@ -541,6 +554,45 @@
       ],
       "buttonLabel": "Send it",
       "successMessage": "Thanks!"
+    },
+    "instagram-with-at": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "@brand"
+    },
+    "instagram-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "instagram-with-slash": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "brand/x"
     }
   }
 }
