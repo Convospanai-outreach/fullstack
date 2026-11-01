@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
-import { absoluteLandingAssetUrls, landingAppOrigin } from "../landingTemplates";
+import { absoluteLandingAssetUrls, landingAppOrigin } from "../landingAssetUrls";
 import { themeFromRenderedJson } from "../theme";
 import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
