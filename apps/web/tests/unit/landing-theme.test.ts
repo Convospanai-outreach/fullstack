@@ -8,6 +8,8 @@ import {
     landingThemeSchema,
     parseLandingTheme,
     textOn,
+    themeFromRenderedJson,
+    themeValidationError,
     themeTokens,
     themeWrapper,
 } from "@/modules/landing-agent/theme";
@@ -126,6 +128,26 @@ describe("themeWrapper (shared fixture for React and buildFullDocument)", () => 
             }
         });
     }
+});
+
+describe("theme stored in renderedJson", () => {
+    it("reads the theme key and ignores pages without one", () => {
+        expect(themeFromRenderedJson({ html: "<p>x</p>", css: "" })).toBeNull();
+        expect(themeFromRenderedJson([{ type: "hero" }])).toBeNull();
+        expect(themeFromRenderedJson({ html: "", theme: { preset: "bold", primary: "#112233", accent: "#abcdef" } })).toEqual({
+            preset: "bold",
+            primary: "#112233",
+            accent: "#abcdef",
+        });
+        expect(themeFromRenderedJson({ theme: { primary: "#fff", accent: "#abcdef" } })).toBeNull();
+    });
+
+    it("validation error names the problem for a save, and is null for a valid or absent theme", () => {
+        expect(themeValidationError({ html: "" })).toBeNull();
+        expect(themeValidationError({ html: "", theme: { primary: "#112233", accent: "#abcdef" } })).toBeNull();
+        expect(themeValidationError({ html: "", theme: { primary: "#112233", accent: "#abcdef", preset: "neon" } })).toMatch(/theme/i);
+        expect(themeValidationError({ html: "", theme: { primary: "javascript:alert(1)", accent: "#abcdef" } })).toMatch(/theme/i);
+    });
 });
 
 describe("brand seeding", () => {

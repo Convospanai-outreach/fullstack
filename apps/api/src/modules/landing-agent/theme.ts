@@ -46,6 +46,21 @@ export function parseLandingTheme(value: unknown): LandingTheme | null {
     return parsed.success ? parsed.data : null;
 }
 
+// The theme lives under the `theme` key of renderedJson (the editor save and the publish copy both keep it).
+export function themeFromRenderedJson(renderedJson: unknown): LandingTheme | null {
+    if (!renderedJson || typeof renderedJson !== "object" || Array.isArray(renderedJson)) return null;
+    return parseLandingTheme((renderedJson as Record<string, unknown>)["theme"]);
+}
+
+// Save-time check: a page that sends a theme must send a valid one. Null when there is no theme key.
+export function themeValidationError(renderedJson: unknown): string | null {
+    if (!renderedJson || typeof renderedJson !== "object" || Array.isArray(renderedJson)) return null;
+    if (!("theme" in renderedJson) || (renderedJson as Record<string, unknown>)["theme"] === undefined) return null;
+    return landingThemeSchema.safeParse((renderedJson as Record<string, unknown>)["theme"]).success
+        ? null
+        : "Invalid page theme: use a preset, a font from the list and #RRGGBB colours";
+}
+
 type RGB = [number, number, number];
 
 function toRgb(hex: string): RGB {
