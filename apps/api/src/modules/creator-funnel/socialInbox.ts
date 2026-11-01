@@ -197,8 +197,11 @@ async function storeInbound(account: ReceivingAccount, event: Extract<DmEvent, {
 }
 
 // A keyword auto-reply for this DM, when one of the account's active triggers matches.
-// keywordTriggers.ts only queues it; the worker sends it.
+// keywordTriggers.ts only queues it; the worker sends it. DM flows get the message first: it can
+// be an answer to a flow in progress (dmFlowRuns.ts), even when it has no text.
 async function queueDmAutoReply(account: ReceivingAccount, event: Extract<DmEvent, { kind: "message" }>, leadId: string, now: Date) {
+    const { queueDmFlowMessage } = await import("./dmFlowRuns");
+    await queueDmFlowMessage(account, { mid: event.mid, senderId: event.senderId, text: event.text }, now);
     const { queueDmReply } = await import("./keywordTriggers");
     if (!event.text.trim()) return;
     await queueDmReply(account, { mid: event.mid, senderId: event.senderId, text: event.text, leadId }, now);

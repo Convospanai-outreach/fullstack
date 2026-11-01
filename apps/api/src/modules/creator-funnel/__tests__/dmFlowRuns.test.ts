@@ -10,7 +10,7 @@ const mockDb: any = vi.hoisted(() => ({
     dmFlowEvent: { create: vi.fn(), findMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     socialAccount: { findFirst: vi.fn() },
     socialContact: { findFirst: vi.fn() },
-    keywordTrigger: { findFirst: vi.fn() },
+    keywordTrigger: { findFirst: vi.fn(), findMany: vi.fn() },
     keywordTriggerReply: { create: vi.fn() },
     landingPage: { findFirst: vi.fn() },
     lead: { findUnique: vi.fn() },
@@ -33,7 +33,7 @@ vi.mock("../keywordTriggers", async (importOriginal) => ({ ...(await importOrigi
 vi.mock("@/modules/governance/ComplianceGuard", () => ({ complianceGuard: { enforceOptOut } }));
 vi.mock("@/modules/lead-properties/leadCustomFields", () => ({ saveLandingAnswersToLead }));
 
-import { processPendingFlowEvents, queueFlowInbound, queueFlowStart } from "../dmFlowRuns";
+import { processPendingFlowEvents, queueDmFlowMessage, queueFlowInbound, queueFlowStart } from "../dmFlowRuns";
 import { GraphError } from "../metaGraph";
 import type { FlowStep } from "../dmFlowMachine";
 
@@ -168,6 +168,26 @@ describe("queueFlowInbound", () => {
     });
 });
 
+describe("queueDmFlowMessage", () => {
+    it("a message from someone mid-flow answers their run, and no new run starts", async () => {
+        mockDb.dmFlowRun.findMany.mockResolvedValue([{ id: "run-1" }]);
+        await queueDmFlowMessage(account as any, { mid: "mid-20", senderId: "ig-user-1", text: "5000" }, NOW);
+        expect(mockDb.dmFlowEvent.create).toHaveBeenCalledWith({ data: { runId: "run-1", sourceKey: "in:mid-20", kind: "PENDING" } });
+        expect(mockDb.dmFlowRun.create).not.toHaveBeenCalled();
+    });
+
+    it("a keyword on a flow trigger starts a run for a person with none", async () => {
+        mockDb.dmFlowRun.findMany.mockResolvedValue([]);
+        mockDb.keywordTrigger.findMany.mockResolvedValue([
+            { id: "trg-1", keywords: ["GUIDE"], match: "CONTAINS", contentPostId: null, publicCommentReply: null, flowId: "flow-1", landingPageId: null, contentPost: null },
+        ]);
+        mockDb.dmFlowRun.findUnique.mockResolvedValue(null);
+        await queueDmFlowMessage(account as any, { mid: "mid-21", senderId: "ig-user-1", text: "guide please" }, NOW);
+        expect(mockDb.dmFlowRun.create).toHaveBeenCalledWith({ data: expect.objectContaining({ personKey: "ig-user-1", flowId: "flow-1" }) });
+        expect(mockDb.dmFlowEvent.create).toHaveBeenCalledWith({ data: { runId: "run-1", sourceKey: "start:dm:mid-21", kind: "PENDING" } });
+    });
+});
+
 describe("processPendingFlowEvents", () => {
     it("a DM start sends each message in order and waits at the question", async () => {
         mockDb.dmFlowEvent.findMany.mockResolvedValue([event("start:dm:mid-1")]);
@@ -266,7 +286,7 @@ describe("processPendingFlowEvents", () => {
         mockDb.dmFlowRun.findUnique.mockResolvedValue(run({ steps: [{ type: "link", text: "Here is the guide" }, { type: "end" }] }));
         await processPendingFlowEvents(NOW);
         expect(mockDb.keywordTriggerReply.create).toHaveBeenCalledWith({
-            data: expect.objectContaining({ teamId: "team-a", triggerId: "trg-1", socialAccountId: "acc-ig", sourceKey: "flow:run-1:0", status: "SENT", leadId: "lead-1" }),
+            data: expect.objectContaining({ teamId: "team-a", triggerId: "trg-1", socialAccountId: "acc-ig", sourceKey: expect.stringMatching(/^flow:run-1:start:dm:mid-10:0$/), status: "SENT", leadId: "lead-1" }),
         });
         expect(signLinkToken).toHaveBeenCalledWith("rep-1", NOW);
         const text = sendMessageRequest.mock.calls[0][4] as string;
