@@ -129,3 +129,37 @@ describe("landingAgentService.createCampaignFromTemplate", () => {
         expect(mockPrisma.landingPage.create).not.toHaveBeenCalled();
     });
 });
+
+describe("landingAgentService.createCampaignFromTemplate with a page address", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma));
+        mockPrisma.iCP.findFirst.mockResolvedValue(null);
+        mockPrisma.iCP.create.mockResolvedValue({ id: "icp-1" });
+        mockPrisma.landingCampaign.create.mockResolvedValue({ id: "lc-1" });
+        mockPrisma.landingPage.findUnique.mockResolvedValue(null);
+        mockPrisma.landingPage.create.mockResolvedValue({ id: "lp-1" });
+    });
+
+    it("uses the requested path as the page's slug", async () => {
+        await landingAgentService.createCampaignFromTemplate(createInput({ path: "spring-guide" }));
+
+        expect(mockPrisma.landingPage.create.mock.calls[0]?.[0]?.data.slug).toBe("spring-guide");
+    });
+
+    it("refuses a path another page already uses, and creates nothing", async () => {
+        mockPrisma.landingPage.findUnique.mockResolvedValue({ id: "lp-other" });
+
+        const attempt = landingAgentService.createCampaignFromTemplate(createInput({ path: "spring-guide" }));
+
+        await expect(attempt).rejects.toThrow("This web address is taken");
+        expect(mockPrisma.landingCampaign.create).not.toHaveBeenCalled();
+        expect(mockPrisma.landingPage.create).not.toHaveBeenCalled();
+    });
+
+    it("keeps the generated slug when no path is given", async () => {
+        await landingAgentService.createCampaignFromTemplate(createInput());
+
+        expect(mockPrisma.landingPage.create.mock.calls[0]?.[0]?.data.slug).toBe("spring-guide");
+    });
+});

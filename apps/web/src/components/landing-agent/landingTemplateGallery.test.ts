@@ -77,6 +77,14 @@ describe("request and redirect helpers", () => {
         expect(templateRequestBody("free-guide", " Spring ")).toEqual({ templateId: "free-guide", name: "Spring" });
     });
 
+    it("adds the chosen page address to the request body", () => {
+        expect(templateRequestBody("free-guide", " Spring ", "spring-guide")).toEqual({ templateId: "free-guide", name: "Spring", path: "spring-guide" });
+    });
+
+    it("leaves the address out when it is blank, so the server generates one", () => {
+        expect(templateRequestBody("free-guide", "Spring", "   ")).not.toHaveProperty("path");
+    });
+
     it("recognises a create response and rejects anything else", () => {
         expect(isCreateFromTemplateResponse({ campaignId: "lc-1", pageId: "lp-1" })).toBe(true);
         expect(isCreateFromTemplateResponse({ campaignId: "lc-1" })).toBe(false);

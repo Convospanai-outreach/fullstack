@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
+import { pageLink } from '@/components/landing-agent/landingPageAddress';
 import { Palette, Globe, Upload, MailPlus } from 'lucide-react';
 
 const DEFAULT_EMAIL_FOOTER_TEXT = "Thanks for your time.";
@@ -121,6 +122,15 @@ export default function BrandingSettingsPage() {
             }
         } catch (e) {
             toast.error("Error setting the home page");
+        }
+    };
+
+    const copyPageLink = async (domain: string, slug: string) => {
+        try {
+            await navigator.clipboard.writeText(pageLink(domain, slug));
+            toast.success("Link copied");
+        } catch (e) {
+            toast.error("Could not copy the link");
         }
     };
 
@@ -337,6 +347,11 @@ export default function BrandingSettingsPage() {
                         </div>
                     </div>
 
+                    <p className="text-xs text-muted-foreground">
+                        Want a separate address next to your main domain, such as go.yourbrand.com or offers.yourbrand.com? Enter it
+                        above like any other domain. It uses one CNAME record at your DNS provider, and your main domain is not changed.
+                    </p>
+
                     <div className="space-y-3">
                         {domains.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No domains connected yet.</p>
@@ -395,6 +410,30 @@ export default function BrandingSettingsPage() {
                                                 ))}
                                             </select>
                                         </label>
+                                    )}
+                                    {d.status === "active" && (
+                                        <div className="text-xs text-muted-foreground space-y-2">
+                                            <p>Published page addresses on {d.domain}:</p>
+                                            {publishedPages.length === 0 ? (
+                                                <p>Publish a page to get its address.</p>
+                                            ) : (
+                                                <ul className="space-y-1">
+                                                    {publishedPages.map((p) => (
+                                                        <li key={p.slug} className="flex flex-wrap items-center gap-2">
+                                                            <code className="bg-background/60 border border-border rounded px-2 py-1 break-all">
+                                                                {pageLink(d.domain, p.slug)}
+                                                            </code>
+                                                            <button
+                                                                onClick={() => copyPageLink(d.domain, p.slug)}
+                                                                className="text-xs font-semibold text-primary hover:underline"
+                                                            >
+                                                                Copy link
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
                                     )}
                                     <button
                                         onClick={() => handleRemoveDomain(d)}

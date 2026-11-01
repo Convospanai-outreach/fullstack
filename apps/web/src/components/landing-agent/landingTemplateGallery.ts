@@ -69,8 +69,10 @@ export function validateTemplateName(value: string): PageNameResult {
     return { ok: true, name };
 }
 
-export function templateRequestBody(templateId: string, name: string): { templateId: string; name: string } {
-    return { templateId, name: name.trim() };
+// A blank page address is left out so the server generates one from the name.
+export function templateRequestBody(templateId: string, name: string, path?: string): { templateId: string; name: string; path?: string } {
+    const address = path?.trim();
+    return address ? { templateId, name: name.trim(), path: address } : { templateId, name: name.trim() };
 }
 
 export function isCreateFromTemplateResponse(value: unknown): value is { campaignId: string; pageId: string } {
