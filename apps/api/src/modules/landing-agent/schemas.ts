@@ -62,8 +62,10 @@ export const createLandingFromTemplateSchema = z.object({
     path: landingPagePathSchema.optional(),
 });
 
+// Any length here: the service checks the format only after it has confirmed the path is not the page's
+// current one, so a legacy address that predates the 2 to 63 rule can be saved unchanged.
 export const setPageSlugSchema = z.object({
-    path: landingPagePathSchema,
+    path: z.string().trim().toLowerCase().min(1).max(200),
 });
 
 // A/B test (phase 6B): the test path uses the same rule as a page path.

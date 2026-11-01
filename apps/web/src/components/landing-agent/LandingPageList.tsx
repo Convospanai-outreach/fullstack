@@ -40,7 +40,7 @@ export default function LandingPageList() {
     const [newTemplateId, setNewTemplateId] = useState(TEMPLATES[0]?.id ?? "");
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
-    const [editing, setEditing] = useState<{ campaignId: string; pageId: string; value: string } | null>(null);
+    const [editing, setEditing] = useState<{ campaignId: string; pageId: string; value: string; currentSlug: string } | null>(null);
     const [editError, setEditError] = useState<string | null>(null);
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
@@ -87,7 +87,7 @@ export default function LandingPageList() {
 
     async function saveAddress() {
         if (!editing) return;
-        const checked = validatePagePath(editing.value);
+        const checked = validatePagePath(editing.value, editing.currentSlug);
         if (!checked.ok) {
             setEditError(checked.error);
             return;
@@ -250,7 +250,7 @@ export default function LandingPageList() {
                                             </>
                                         ) : null}
                                         {page && page.status !== "published" && !editingThis ? (
-                                            <Button variant="outline" onClick={() => setEditing({ campaignId: campaign.id, pageId: page.id, value: page.slug })}>
+                                            <Button variant="outline" onClick={() => setEditing({ campaignId: campaign.id, pageId: page.id, value: page.slug, currentSlug: page.slug })}>
                                                 Change address
                                             </Button>
                                         ) : null}

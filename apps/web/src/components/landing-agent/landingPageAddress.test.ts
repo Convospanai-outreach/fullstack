@@ -27,6 +27,20 @@ describe("validatePagePath", () => {
     });
 });
 
+describe("validatePagePath with the page's current address", () => {
+    it.each([
+        ["a single character", "a"],
+        ["64 characters", "a".repeat(64)],
+    ])("keeps a legacy address of %s when it is saved unchanged", (_label, current) => {
+        expect(validatePagePath(current, current)).toEqual({ ok: true, path: current });
+    });
+
+    it("still rejects a new 64-character address", () => {
+        const result = validatePagePath("b".repeat(64), "a");
+        expect(result.ok).toBe(false);
+    });
+});
+
 describe("pageLink", () => {
     it("builds the address on an apex domain", () => {
         expect(pageLink("yourbrand.com", "spring-guide")).toBe("https://yourbrand.com/spring-guide");

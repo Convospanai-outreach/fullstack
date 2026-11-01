@@ -12,7 +12,7 @@ import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from
 import { normalizeTracking } from "./tracking";
 import { variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
-import { landingEventNameEnum } from "./schemas";
+import { landingEventNameEnum, landingPagePathSchema } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
 import { brandThemeFrom, themeValidationError } from "./theme";
 import { hasLeadFormMarker, readLeadFormConfig } from "./leadFormHtml";
@@ -753,14 +753,19 @@ export const landingAgentService = {
         if (!page) {
             throw new Error("Landing page not found");
         }
-        if (page.slug === input.path) {
+        const path = input.path.trim().toLowerCase();
+        if (page.slug === path) {
             return page;
+        }
+        const checked = landingPagePathSchema.safeParse(path);
+        if (!checked.success) {
+            throw new APIError(checked.error.issues[0]?.message ?? "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
         }
         if (page.publishedAt || page.status === "published") {
             throw new APIError("The web address can only change before the page is first published.", 409, "CONFLICT");
         }
-        await assertAddressFree(input.path, page.id);
-        return updateOwnedPage(page.id, input.teamId, { slug: input.path });
+        await assertAddressFree(path, page.id);
+        return updateOwnedPage(page.id, input.teamId, { slug: path });
     },
 
     // Throws away unpublished edits; the live page is unchanged and not pushed again.

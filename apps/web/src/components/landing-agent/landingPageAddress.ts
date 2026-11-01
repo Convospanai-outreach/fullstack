@@ -6,8 +6,10 @@ export const PAGE_PATH_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
 
 export type PagePathResult = { ok: true; path: string } | { ok: false; error: string };
 
-export function validatePagePath(value: string): PagePathResult {
+// A page's current address is accepted as it is, even a legacy one that breaks the rule (no-op save, as the API does).
+export function validatePagePath(value: string, currentSlug?: string | null): PagePathResult {
     const path = value.trim().toLowerCase();
+    if (currentSlug && path === currentSlug) return { ok: true, path };
     if (!PAGE_PATH_PATTERN.test(path)) {
         return { ok: false, error: "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number." };
     }
