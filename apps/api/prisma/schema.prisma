@@ -463,6 +463,7 @@ model LandingPage {
   team         Team            @relation(fields: [teamId], references: [id])
   leads        LandingLead[]
   events       LandingEvent[]
+  experimentVariants LandingExperimentVariant[]
 
   @@index([campaignId])
   @@index([teamId])
@@ -493,6 +494,7 @@ model LandingLead {
   userAgent     String?
   socialToken   String? // creator funnel: the signed ?t= link the visitor came from (linkToken.ts); intake merges into that lead
   whatsappConsent Boolean? // creator funnel: ticked the WhatsApp opt-in on a launch plan page (whatsappOptIn.ts); only kept with a phone
+  variantId     String? // phase 6B: the LandingExperimentVariant the visitor saw, when the page is an arm of a running test
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -521,12 +523,14 @@ model LandingEvent {
   utmCampaign   String?
   utmTerm       String?
   utmContent    String?
+  variantId     String? // phase 6B: the A/B variant the visitor saw (LandingExperimentVariant.id)
   createdAt     DateTime        @default(now())
   landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
   campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   team          Team            @relation(fields: [teamId], references: [id])
 
   @@index([landingPageId])
+  @@index([variantId])
   @@index([campaignId])
   @@index([teamId, createdAt])
   @@index([eventName])
@@ -1359,6 +1363,7 @@ model Team {
   landingPages     LandingPage[]
   landingLeads     LandingLead[]
   landingEvents    LandingEvent[]
+  landingExperiments LandingExperiment[]
   invoices         Invoice[]
 
   // Billing address (used for invoice GST treatment: India + same state as
@@ -2794,6 +2799,39 @@ model ExperimentVariant {
   successCount Int    @default(0) // Weighted success
 
   experiment Experiment @relation(fields: [experimentId], references: [id])
+}
+
+// Phase 6B: A/B test between two published landing pages served at one shared path (<domain>/<slug>).
+// Separate from Experiment/ExperimentVariant (AI generation config) and CampaignVariant (email copy):
+// neither can point at a LandingPage, and they have no weights, slug or lifecycle for a page test.
+model LandingExperiment {
+  id           String                     @id @default(uuid())
+  teamId       String
+  name         String
+  slug         String                     @unique // the shared path; never equal to a LandingPage.slug
+  status       String                     @default("draft") // draft, running, paused, ended
+  startedAt    DateTime?
+  endedAt      DateTime?
+  winnerPageId String? // set by pick-winner; that page then serves the shared path
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  team         Team                       @relation(fields: [teamId], references: [id])
+  variants     LandingExperimentVariant[]
+
+  @@index([teamId])
+}
+
+model LandingExperimentVariant {
+  id            String            @id @default(uuid())
+  experimentId  String
+  landingPageId String
+  name          String // "A" or "B"
+  weight        Int // 1 to 99; the two variants sum to 100
+  experiment    LandingExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  landingPage   LandingPage       @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, name])
+  @@index([landingPageId])
 }
 
 // Task 7: Immutable Audit Trail
