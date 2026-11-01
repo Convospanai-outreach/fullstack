@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAskAI, mockLoadContext, mockLoadBrief } = vi.hoisted(() => ({ mockAskAI: vi.fn(), mockLoadContext: vi.fn(), mockLoadBrief: vi.fn().mockResolvedValue("") }));
 
-vi.mock("../copyBrief", () => ({ loadCampaignBrief: mockLoadBrief }));
+vi.mock("../copyBrief", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../copyBrief")>()),
+    loadCampaignBrief: mockLoadBrief,
+}));
 
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI: mockAskAI } }));
 vi.mock("@/modules/learning/learningService", () => ({ LearningService: { getMemories: vi.fn().mockResolvedValue([]) } }));
@@ -76,5 +79,31 @@ describe("Node A campaign brief", () => {
         mockLoadBrief.mockResolvedValue("");
         await composeNodeA({ ...inputA }, "team", "camp-1", undefined);
         expect(mockAskAI.mock.calls[0][0]).not.toContain("CAMPAIGN BRIEF");
+    });
+});
+
+describe("Node A provenance", () => {
+    const run = async (critique: object | string) => {
+        mockAskAI.mockReset();
+        mockAskAI.mockResolvedValueOnce(draft).mockResolvedValueOnce(typeof critique === "string" ? critique : JSON.stringify(critique));
+        return composeNodeA({ ...inputA }, "team", "camp-1");
+    };
+
+    it("records the context the draft received and that the critic passed it", async () => {
+        mockLoadContext.mockResolvedValue({ playbook: ["a", "b"], examples: [{ subject: "s", body: "b" }] });
+        mockLoadBrief.mockResolvedValue("Problem: x");
+        const out = await run({ status: "PASS", critique: "ok" });
+        expect(out.provenance).toMatchObject({ v: 1, node: "A", context: { playbook: 2, examples: 1, brief: true }, critique: "passed", flags: { rubricCritic: false } });
+        expect(out.provenance?.prompts.draft).toBe("email.nodeA@v3");
+    });
+
+    it("records a corrected draft and an unreviewed one", async () => {
+        mockLoadContext.mockResolvedValue(null);
+        mockLoadBrief.mockResolvedValue("");
+        const corrected = await run({ status: "FAIL", critique: "tighten", correction: { subject: "New subject", body: "New body" } });
+        expect(corrected.provenance).toMatchObject({ critique: "corrected", context: { playbook: 0, examples: 0, brief: false } });
+        const unreviewed = await run("not json");
+        expect(unreviewed.unreviewed).toBe(true);
+        expect(unreviewed.provenance?.critique).toBe("unreviewed");
     });
 });
