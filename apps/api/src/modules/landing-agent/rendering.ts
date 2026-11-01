@@ -79,7 +79,7 @@ export const LANDING_PAGE_BASE_CSS = `
     background: #0891b2;
     color: #ffffff;
     font-weight: 700;
-    padding: 11px 16px;
+    padding: 14px 20px;
     text-decoration: none;
 }
 .la-cta-outline {
