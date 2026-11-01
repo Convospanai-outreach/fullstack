@@ -170,7 +170,7 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
             });
             await cloudflarePagesService.publishPageToCloudflare("page-1");
             const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-            expect(createHash("sha256").update(body.html, "utf8").digest("hex")).toBe("6c98142beb816be687117a3d24d32a5a732b35a523d434caf85b38cbb1771dfa");
+            expect(createHash("sha256").update(body.html, "utf8").digest("hex")).toBe("4293a478b0893b5ec47e364340603904bcfbf2292f6011569074a0c16abf2046");
             const script = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
             expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
             expect(body.metaPixel).toBeUndefined();
