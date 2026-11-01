@@ -186,16 +186,29 @@ describe("pickWinner", () => {
 });
 
 describe("variantForPage", () => {
+    const armA = { id: "var-a", name: "A", experimentId: "exp-1" };
+
     it("returns the variant id only for a page that is an arm of a running test, scoped to that page", async () => {
-        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue({ id: "var-a" });
-        expect(await variantForPage("page-a")).toBe("var-a");
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=A")).toBe("var-a");
         expect(mockPrisma.landingExperimentVariant.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: { landingPageId: "page-a", experiment: { status: "running" } } }),
         );
     });
 
+    it("returns null for a direct visit to the page's own address, which has no test cookie", async () => {
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", null)).toBeNull();
+        expect(await variantForPage("page-a", "theme=dark")).toBeNull();
+    });
+
+    it("returns null when the test cookie names the other arm", async () => {
+        mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue(armA);
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=B")).toBeNull();
+    });
+
     it("returns null when no running test uses the page", async () => {
-        expect(await variantForPage("page-a")).toBeNull();
+        expect(await variantForPage("page-a", "cmf_ab_exp-1=A")).toBeNull();
     });
 });
 

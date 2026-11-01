@@ -441,6 +441,7 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             ipAddress,
             userAgent,
             doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
         });
 
         return successResponse({
@@ -484,6 +485,7 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             ipAddress,
             userAgent,
             doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
         });
 
         return successResponse({ ok: true, eventId: event.id }, 201);

@@ -167,10 +167,10 @@ async function generateUniqueSlug(name: string): Promise<string> {
     return `${base}-${Date.now().toString(36)}`;
 }
 
-// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the page's running test.
-async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined): Promise<string | null> {
+// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the variant the test cookie names.
+async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined, cookieHeader: string | null | undefined): Promise<string | null> {
     if (doNotTrack || isBotUserAgent(userAgent ?? null)) return null;
-    return variantForPage(pageId);
+    return variantForPage(pageId, cookieHeader ?? null);
 }
 
 const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
@@ -972,6 +972,7 @@ export const landingAgentService = {
         ipAddress?: string;
         userAgent?: string;
         doNotTrack?: boolean;
+        cookieHeader?: string | null;
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
@@ -997,7 +998,7 @@ export const landingAgentService = {
             rawPayload = mapped.rawPayload;
         }
 
-        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack);
+        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader);
         const lead = await prisma.$transaction(async (tx) => {
             const createdLead = await tx.landingLead.create({
                 data: {
@@ -1128,6 +1129,7 @@ export const landingAgentService = {
         ipAddress?: string;
         userAgent?: string;
         doNotTrack?: boolean;
+        cookieHeader?: string | null;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
             throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
@@ -1152,7 +1154,7 @@ export const landingAgentService = {
                 utmCampaign: input.utmCampaign,
                 utmTerm: input.utmTerm,
                 utmContent: input.utmContent,
-                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack),
+                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack, input.cookieHeader),
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

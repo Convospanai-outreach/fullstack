@@ -6,6 +6,7 @@ import { APIError } from "@/lib/apiResponse";
 import { verdictFor, type ExperimentVerdict } from "./landingExperimentStats";
 import { writeExperimentToKv } from "./landingExperimentKv";
 import { RESERVED_PATH_MESSAGE, isReservedPath } from "./reservedPaths";
+import { AB_COOKIE_PREFIX, readCookie } from "./landingExperimentAssignment";
 
 // Same rule as a page path (service.ts setPageSlug / schemas.ts), so an experiment path is also a valid address.
 export const EXPERIMENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
@@ -168,13 +169,15 @@ export async function pickWinner(input: { teamId: string; experimentId: string; 
     return updated;
 }
 
-// The page's open test variant, if the page is an arm of a running test. Used by the event and lead endpoints.
-export async function variantForPage(pageId: string): Promise<string | null> {
+// The page's open test variant, when the visitor was sent to this arm by the test: the test cookie must name it.
+// A direct visit to the page's own address has no test cookie, so it is not counted for the test.
+export async function variantForPage(pageId: string, cookieHeader: string | null): Promise<string | null> {
     const variant = await prisma.landingExperimentVariant.findFirst({
         where: { landingPageId: pageId, experiment: { status: "running" } },
-        select: { id: true },
+        select: { id: true, name: true, experimentId: true },
     });
-    return variant?.id ?? null;
+    if (!variant) return null;
+    return readCookie(cookieHeader, `${AB_COOKIE_PREFIX}${variant.experimentId}`) === variant.name ? variant.id : null;
 }
 
 export interface VariantCounts {

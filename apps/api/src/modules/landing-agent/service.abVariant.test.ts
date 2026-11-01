@@ -44,14 +44,20 @@ beforeEach(() => {
     mockPrisma.landingPage.findFirst.mockResolvedValue(page);
     mockPrisma.landingEvent.create.mockResolvedValue({ id: "ev-1" });
     mockPrisma.landingLead.create.mockResolvedValue({ id: "lead-1", email: null });
-    mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue({ id: "var-a" });
+    mockPrisma.landingExperimentVariant.findFirst.mockResolvedValue({ id: "var-a", name: "A", experimentId: "exp-1" });
 });
 
 describe("trackEventBySlug and the A/B variant", () => {
     it("records the variant the visitor saw on a page that is an arm of a running test", async () => {
-        await landingAgentService.trackEventBySlug({ slug: "offer-a", eventName: "page_view", sessionId: "s1", userAgent: HUMAN });
+        await landingAgentService.trackEventBySlug({ slug: "offer-a", eventName: "page_view", sessionId: "s1", userAgent: HUMAN, cookieHeader: "cmf_ab_exp-1=A" });
 
         expect(mockPrisma.landingEvent.create.mock.calls[0][0].data.variantId).toBe("var-a");
+    });
+
+    it("records no variant for a direct visit to an arm's own address, which carries no test cookie", async () => {
+        await landingAgentService.trackEventBySlug({ slug: "offer-a", eventName: "page_view", sessionId: "s1", userAgent: HUMAN, cookieHeader: null });
+
+        expect(mockPrisma.landingEvent.create.mock.calls[0][0].data.variantId).toBeNull();
     });
 
     it("records no variant for a crawler, and does not look the test up", async () => {
@@ -82,6 +88,7 @@ describe("submitLeadBySlug and the A/B variant", () => {
             slug: "offer-a",
             payload: { sessionId: "s1", email: "pat@example.com" },
             userAgent: HUMAN,
+            cookieHeader: "cmf_ab_exp-1=A",
         });
 
         expect(mockPrisma.landingLead.create.mock.calls[0][0].data.variantId).toBe("var-a");
