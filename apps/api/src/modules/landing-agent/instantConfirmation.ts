@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { judgeConfirmationCopy, NOUL_YES } from "@/lib/ai/jev";
 import { nurtureCanRunSteps, whatsappStepProblem } from "@/modules/creator-funnel/nurtureProvider";
 import { consentAllowsContact } from "./leadConsent";
 import { instantConfirmationSchema, type InstantConfirmation } from "./schemas";
@@ -12,6 +13,7 @@ export type ConfirmationChannel = "email" | "whatsapp";
 
 type ConfirmationStep = {
     stepType: string;
+    subject: string | null;
     body: string | null;
     whatsappTemplateName: string | null;
     whatsappTemplateLanguage: string | null;
@@ -52,7 +54,7 @@ async function loadSequence(teamId: string, sequenceId: string): Promise<LoadedS
             senderMailboxIds: true,
             steps: {
                 where: { status: "ACTIVE" },
-                select: { stepType: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
+                select: { stepType: true, subject: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
             },
         },
     });
@@ -85,7 +87,7 @@ export async function listInstantConfirmationSequences(teamId: string): Promise<
             campaignId: true,
             steps: {
                 where: { status: "ACTIVE" },
-                select: { stepType: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
+                select: { stepType: true, subject: true, body: true, whatsappTemplateName: true, whatsappTemplateLanguage: true },
             },
         },
     });
@@ -111,6 +113,36 @@ export async function checkConfirmationSequence(
         if (problem) return refuse(problem);
     }
     return { ok: true, channel: loaded.channel };
+}
+
+const COPY_WARNING = "This message sounds like a promise or a sales pitch. A confirmation works best as a plain thank-you.";
+
+// Email bodies can hold HTML. A regex is enough: the text only goes to Jev as wording.
+function plainTextOf(html: string) {
+    return html
+        .replace(/<(style|script)[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<br\s*\/?>|<\/(p|div|li|h\d)>/gi, "\n")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+// Save-time check of the confirmation wording by Jev. Only the template copy is sent, never a lead's data.
+// Email only: a WhatsApp step's body holds template values, not the message. Never blocks the save: when Jev is
+// unavailable or fails, there is no warning and the failure is logged.
+export async function confirmationCopyWarnings(teamId: string, setting: InstantConfirmation): Promise<string[]> {
+    if (!setting.enabled) return [];
+    const loaded = await loadSequence(teamId, setting.sequenceId);
+    if (!loaded.ok || loaded.channel !== "email") return [];
+    try {
+        const salesy = await judgeConfirmationCopy({ subject: loaded.step.subject ?? "", body: plainTextOf(loaded.step.body ?? "") }, teamId);
+        return salesy >= NOUL_YES ? [COPY_WARNING] : [];
+    } catch (error) {
+        logger.warn(`[InstantConfirmation] Copy check skipped for sequence ${setting.sequenceId}: ${error instanceof Error ? error.message : error}`);
+        return [];
+    }
 }
 
 // Intake hook: enrolls the lead in the page's confirmation sequence. Sends only when the form had no consent

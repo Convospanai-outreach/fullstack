@@ -10,7 +10,7 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
-import { checkConfirmationSequence, listInstantConfirmationSequences } from "./instantConfirmation";
+import { checkConfirmationSequence, confirmationCopyWarnings, listInstantConfirmationSequences } from "./instantConfirmation";
 import type { InstantConfirmation } from "./schemas";
 import { runningArmOf, variantForPage } from "./experimentService";
 import { isBotUserAgent } from "./landingExperimentAssignment";
@@ -865,7 +865,10 @@ export const landingAgentService = {
                 throw new APIError(check.message, 400, "VALIDATION_ERROR");
             }
         }
-        return updateOwnedPage(page.id, input.teamId, { instantConfirmation: input.setting as Prisma.InputJsonValue });
+        const saved = await updateOwnedPage(page.id, input.teamId, { instantConfirmation: input.setting as Prisma.InputJsonValue });
+        // After the save, so Jev can only add a warning, never block it.
+        const warnings = await confirmationCopyWarnings(input.teamId, input.setting);
+        return { ...saved, warnings };
     },
 
     async publishCampaign(input: {

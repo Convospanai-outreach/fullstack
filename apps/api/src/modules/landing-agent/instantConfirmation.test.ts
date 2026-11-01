@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { judgeCopy } = vi.hoisted(() => ({ judgeCopy: vi.fn() }));
+
 const { mockDb, nurture, isSuppressed, checkTemplate, logger } = vi.hoisted(() => ({
     mockDb: {
         campaignSequence: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -20,8 +22,12 @@ vi.mock("@/modules/creator-funnel/nurtureProvider", async (importOriginal) => ({
 }));
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({ isSuppressed }));
 vi.mock("@/modules/whatsapp/whatsappTemplates", () => ({ checkTemplate }));
+vi.mock("@/lib/ai/jev", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/ai/jev")>()),
+    judgeConfirmationCopy: judgeCopy,
+}));
 
-import { checkConfirmationSequence, instantConfirmationOf, listInstantConfirmationSequences, sendInstantConfirmation } from "./instantConfirmation";
+import { checkConfirmationSequence, confirmationCopyWarnings, instantConfirmationOf, listInstantConfirmationSequences, sendInstantConfirmation } from "./instantConfirmation";
 
 const TEAM = "team-a";
 const emailStep = { stepType: "EMAIL", subject: "Welcome", body: "Hi there", whatsappTemplateName: null, whatsappTemplateLanguage: null };
@@ -141,6 +147,51 @@ describe("listInstantConfirmationSequences (picker)", () => {
         await listInstantConfirmationSequences(TEAM);
         expect(mockDb.campaignSequence.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: TEAM } }));
         expect(checkTemplate).not.toHaveBeenCalled();
+    });
+});
+
+describe("confirmationCopyWarnings (save time, Jev)", () => {
+    const WARNING = "This message sounds like a promise or a sales pitch. A confirmation works best as a plain thank-you.";
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.campaignSequence.findFirst.mockResolvedValue(sequence());
+        checkTemplate.mockResolvedValue({ ok: true });
+    });
+
+    it("warns when Jev reads the copy as a promise, pressure or marketing", async () => {
+        judgeCopy.mockResolvedValue(0.9);
+        expect(await confirmationCopyWarnings(TEAM, ON)).toEqual([WARNING]);
+    });
+
+    it("gives no warning when Jev reads it as a plain acknowledgement", async () => {
+        judgeCopy.mockResolvedValue(0.2);
+        expect(await confirmationCopyWarnings(TEAM, ON)).toEqual([]);
+    });
+
+    it("sends only the step's subject and plain-text body, for the team, never a lead's data", async () => {
+        mockDb.campaignSequence.findFirst.mockResolvedValue(sequence({ steps: [{ ...emailStep, subject: "Welcome", body: "<p>Hi <b>there</b></p>" }] }));
+        judgeCopy.mockResolvedValue(0.1);
+        await confirmationCopyWarnings(TEAM, ON);
+        expect(judgeCopy).toHaveBeenCalledWith({ subject: "Welcome", body: "Hi there" }, TEAM);
+    });
+
+    it("never blocks: when Jev fails or is unavailable, no warning and a warn log", async () => {
+        judgeCopy.mockRejectedValue(new Error("timeout"));
+        expect(await confirmationCopyWarnings(TEAM, ON)).toEqual([]);
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("timeout"));
+    });
+
+    it("makes no Jev call when the switch is off", async () => {
+        expect(await confirmationCopyWarnings(TEAM, { enabled: false, sequenceId: "" })).toEqual([]);
+        expect(judgeCopy).not.toHaveBeenCalled();
+    });
+
+    it("makes no Jev call for a WhatsApp template, or a sequence that cannot send", async () => {
+        mockDb.campaignSequence.findFirst.mockResolvedValue(sequence({ steps: [whatsappStep] }));
+        expect(await confirmationCopyWarnings(TEAM, ON)).toEqual([]);
+        mockDb.campaignSequence.findFirst.mockResolvedValue(null);
+        expect(await confirmationCopyWarnings(TEAM, ON)).toEqual([]);
+        expect(judgeCopy).not.toHaveBeenCalled();
     });
 });
 
