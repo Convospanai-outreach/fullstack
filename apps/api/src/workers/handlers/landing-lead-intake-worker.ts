@@ -49,6 +49,8 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         }
         if (mergedLeadId) {
             await saveLandingAnswersToLead(teamId, mergedLeadId, landingLead.rawPayload);
+            // The merged lead gets consent only when it was given, and never for an opted-out (DNC) lead.
+            if (consentGiven) await prisma.lead.updateMany({ where: { id: mergedLeadId, teamId, status: { not: "DNC" } }, data: { consentObtained: true } });
             await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
             await scoreNewLead(mergedLeadId);
             await pushToMautic(mergedLeadId, teamId);
@@ -76,7 +78,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                     company: landingLead.company?.trim() || existing.company || undefined,
                     jobTitle: landingLead.title?.trim() || existing.jobTitle || undefined,
                     source: existing.source || "landing_page",
-                    ...(consentGiven ? { consentObtained: true } : {}),
+                    ...(consentGiven && existing.status !== "DNC" ? { consentObtained: true } : {}),
                 },
             });
 

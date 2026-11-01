@@ -100,3 +100,42 @@ describe("Worker lead script enforces the consent box", () => {
         expect(buildLeadFormScript("guide", false, "required")).toContain("cmfConsent");
     });
 });
+
+describe("browser Lead event follows the consent box", () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+        fetchMock = vi.fn(async () => ({ ok: true }));
+        vi.stubGlobal("fetch", fetchMock);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        delete (window as unknown as { cmfMeta?: unknown }).cmfMeta;
+        document.body.innerHTML = "";
+    });
+
+    async function submitWithPixel(ticked: boolean) {
+        const track = vi.fn();
+        (window as unknown as { cmfMeta: unknown }).cmfMeta = { newId: () => "evt-1", track };
+        document.body.innerHTML = replaceLeadFormMarkers(`<section><div class="cmf-form" id="${encodeLeadFormMarkerId(optionalConfig)}"></div></section>`, { slug: "guide" });
+        (document.querySelector<HTMLInputElement>('input[name="cmfConsent"]') as HTMLInputElement).checked = ticked;
+        (document.querySelector<HTMLInputElement>('input[name="email"]') as HTMLInputElement).value = "ada@example.com";
+        new Function(buildLeadFormScript("guide", true, "optional"))();
+        (document.getElementById("la-lead-form") as HTMLFormElement).dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return { track, body: JSON.parse(String((fetchMock.mock.calls.find(([url]) => String(url).endsWith("/guide/lead"))?.[1] as RequestInit | undefined)?.body ?? "{}")) };
+    }
+
+    it("does not fire the browser Lead event or send its ID when the optional box was not ticked", async () => {
+        const { track, body } = await submitWithPixel(false);
+        expect(track).not.toHaveBeenCalled();
+        expect(body.metaEventId).toBeUndefined();
+    });
+
+    it("fires the browser Lead event with the same ID it sends when the box was ticked", async () => {
+        const { track, body } = await submitWithPixel(true);
+        expect(track).toHaveBeenCalledWith("Lead", "evt-1");
+        expect(body.metaEventId).toBe("evt-1");
+    });
+});

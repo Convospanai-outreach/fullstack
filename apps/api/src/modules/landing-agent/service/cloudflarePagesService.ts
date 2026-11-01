@@ -52,8 +52,11 @@ export function buildLeadFormScript(slug: string, meta = false, consent: Consent
     }
 `;
     const metaStart = meta ? `    var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;\n` : "";
-    const metaTrack = meta ? `        if (metaEventId) window.cmfMeta.track("Lead", metaEventId);\n` : "";
-    const metaBody = meta ? `        metaEventId: metaEventId || undefined,\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
+    // A consent box gates the browser Lead event and its event ID on the box being ticked (the server gates its own copy too).
+    const metaGate = consent === "none" ? "" : " && consentGiven";
+    const metaIdValue = consent === "none" ? "metaEventId || undefined" : "consentGiven ? metaEventId || undefined : undefined";
+    const metaTrack = meta ? `        if (metaEventId${metaGate}) window.cmfMeta.track("Lead", metaEventId);\n` : "";
+    const metaBody = meta ? `        metaEventId: ${metaIdValue},\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
     return `
 (function () {
   var slug = ${JSON.stringify(slug)};

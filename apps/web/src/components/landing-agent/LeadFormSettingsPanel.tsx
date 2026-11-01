@@ -237,6 +237,9 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                     </>
                 ) : null}
                 <p className="text-xs text-amber-200">You are responsible for the consent wording, your privacy policy and handling deletion requests.</p>
+                {draft.consent?.enabled && !draft.consent.privacyUrl ? (
+                    <p className="text-xs text-amber-200">Add a privacy policy link: the consent wording refers to your privacy policy.</p>
+                ) : null}
             </div>
 
             {problem ? <p className="text-xs text-rose-300">{problem} (not saved to the page until fixed)</p> : null}

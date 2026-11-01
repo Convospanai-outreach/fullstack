@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, enrollPlanNurture } = vi.hoisted(() => ({
+const { mockPrisma, enrollPlanNurture, mergeSocial } = vi.hoisted(() => ({
     mockPrisma: {
         landingLead: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     },
     enrollPlanNurture: vi.fn(),
+    mergeSocial: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -15,6 +16,8 @@ vi.mock("@/modules/scoring", () => ({ leadScoringService: { scoreAndPersist: vi.
 vi.mock("@/modules/mautic-integration/service/mauticService", () => ({ mauticService: { pushLead: vi.fn().mockResolvedValue({ status: "skipped" }) } }));
 vi.mock("@/modules/creator-funnel/featureGate", () => ({ isCreatorFunnelEnabled: vi.fn().mockResolvedValue(false) }));
 vi.mock("@/modules/creator-funnel/playbookSwitches", () => ({ enrollPlanNurture }));
+vi.mock("@/modules/creator-funnel/socialLinkMerge", () => ({ mergeSignupIntoSocialLead: mergeSocial }));
+vi.mock("@/modules/lead-properties/leadCustomFields", () => ({ saveLandingAnswersToLead: vi.fn().mockResolvedValue(undefined) }));
 
 import { handleLandingLeadIntake } from "./landing-lead-intake-worker";
 
@@ -98,5 +101,40 @@ describe("landing lead intake and consent", () => {
         enrollPlanNurture.mockResolvedValue(null);
         await run(null);
         expect(enrollPlanNurture).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("social sign-ups and opted-out leads", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        enrollPlanNurture.mockResolvedValue(null);
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
+        mergeSocial.mockResolvedValue("lead-9");
+    });
+
+    function runSocial(rawPayload: unknown) {
+        mockPrisma.landingLead.findFirst.mockResolvedValue({ ...landingLead(rawPayload), socialToken: "signed-token" });
+        return handleLandingLeadIntake({ teamId: "team-1", landingLeadId: "ll-1" } as never);
+    }
+
+    it("records consent on the lead a social sign-up joined, when it was given", async () => {
+        await runSocial({ consent: CONSENT_GIVEN });
+        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith({
+            where: { id: "lead-9", teamId: "team-1", status: { not: "DNC" } },
+            data: { consentObtained: true },
+        });
+    });
+
+    it("does not record consent on a joined lead when it was declined", async () => {
+        await runSocial({ consent: CONSENT_DECLINED });
+        expect(mockPrisma.lead.updateMany.mock.calls.some(([args]) => "consentObtained" in (args as { data: object }).data)).toBe(false);
+    });
+
+    it("does not give an opted-out (DNC) lead consent again when it submits a ticked form", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", campaignId: null, fullName: "Ada", phone: null, company: null, jobTitle: null, source: "landing_page", status: "DNC", consentObtained: false });
+        await run({ consent: CONSENT_GIVEN });
+        expect(mockPrisma.lead.updateMany.mock.calls[0]![0].data).not.toHaveProperty("consentObtained");
     });
 });

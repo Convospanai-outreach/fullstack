@@ -54,17 +54,91 @@ function describeConsent(html: string) {
   };
 }
 
+// The two configs the byte-identical tests hash. Inlined so a later fixture edit (another phase) cannot change the baseline.
+const FULL_CONFIG = {
+  "fields": [
+    {
+      "key": "name",
+      "label": "Label name",
+      "type": "text",
+      "required": true
+    },
+    {
+      "key": "email",
+      "label": "Label email",
+      "type": "email",
+      "required": true
+    },
+    {
+      "key": "phone",
+      "label": "Label phone",
+      "type": "tel",
+      "required": false
+    },
+    {
+      "key": "company",
+      "label": "Label company",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "title",
+      "label": "Label title",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "goal",
+      "label": "Label goal",
+      "type": "textarea",
+      "required": false
+    },
+    {
+      "key": "budget",
+      "label": "Label budget",
+      "type": "select",
+      "required": true,
+      "options": [
+        "Under $1k",
+        "$1k-$5k",
+        "Over $5k"
+      ]
+    },
+    {
+      "key": "consent",
+      "label": "Label consent",
+      "type": "checkbox",
+      "required": false
+    }
+  ],
+  "buttonLabel": "Get my plan",
+  "successMessage": "Thanks! We will be in touch.",
+  "redirectUrl": "https://example.com/thanks"
+} as LeadFormConfig;
+const EMAIL_ONLY_CONFIG = {
+  "fields": [
+    {
+      "key": "email",
+      "label": "Label email",
+      "type": "email",
+      "required": true
+    }
+  ],
+  "buttonLabel": "Send it to me",
+  "successMessage": "Thanks! Check your inbox."
+} as LeadFormConfig;
+
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
 
 describe("forms without a consent block are byte-identical to before", () => {
   it("the full form hashes as before", () => {
-    expect(sha(buildLeadFormHtml(configs.valid["full"]!, { slug: "guide" }))).toBe(
+    expect(sha(buildLeadFormHtml(FULL_CONFIG, { slug: "guide" }))).toBe(
       "45617b217d4311ee36fba4ea4803df978584250b2711b2e351b2c458e52343ca"
     );
   });
 
   it("the email-only form with the WhatsApp opt-in hashes as before", () => {
-    expect(sha(buildLeadFormHtml(configs.valid["email-only"]!, { slug: "guide", whatsappOptIn: "x" }))).toBe(
+    expect(sha(buildLeadFormHtml(EMAIL_ONLY_CONFIG, { slug: "guide", whatsappOptIn: "x" }))).toBe(
       "2d4615205c11f7a1efcb250ce064c465ede13ff4435e29a323b737ba4e7df481"
     );
   });
