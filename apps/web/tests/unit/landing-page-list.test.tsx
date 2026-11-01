@@ -96,6 +96,7 @@ describe("LandingPageList", () => {
             json(200, {
                 campaigns: [campaign({ pages: [{ slug: "spring", title: null, status: "published", updatedAt: "2026-10-11T10:00:00.000Z" }] })],
                 liveDomain: "go.example.com",
+                domains: ["go.example.com"],
             })
         );
         await render();

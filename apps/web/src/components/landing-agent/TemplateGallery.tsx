@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import { GlassCard } from "@/components/ui/GlassCard";
 import TemplatePreview from "./TemplatePreview";
+import { validatePagePath } from "./landingPageAddress";
 import {
     editorPathForCampaign,
     galleryTemplates,
@@ -19,6 +20,7 @@ const TEMPLATE_CARDS = galleryTemplates();
 export default function TemplateGallery() {
     const router = useRouter();
     const [name, setName] = useState("");
+    const [path, setPath] = useState("");
     const [busyId, setBusyId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,10 +30,19 @@ export default function TemplateGallery() {
             setError(checked.error);
             return;
         }
+        let address: string | undefined;
+        if (path.trim()) {
+            const checkedPath = validatePagePath(path);
+            if (!checkedPath.ok) {
+                setError(checkedPath.error);
+                return;
+            }
+            address = checkedPath.path;
+        }
         setBusyId(templateId);
         setError(null);
         try {
-            const created = await landingAgentApi.createCampaignFromTemplate(templateRequestBody(templateId, checked.name));
+            const created = await landingAgentApi.createCampaignFromTemplate(templateRequestBody(templateId, checked.name, address));
             if (!isCreateFromTemplateResponse(created)) {
                 throw new Error("Unexpected response from the server. Try again.");
             }
@@ -59,6 +70,21 @@ export default function TemplateGallery() {
                         {error}
                     </p>
                 )}
+            </div>
+
+            <div className="space-y-2">
+                <label htmlFor="template-page-path" className="text-sm text-slate-200">Web address (optional)</label>
+                <input
+                    id="template-page-path"
+                    value={path}
+                    maxLength={63}
+                    onChange={(e) => setPath(e.target.value)}
+                    placeholder="spring-guide"
+                    className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                />
+                <p className="text-xs text-slate-400">
+                    The page will be at yourdomain/web-address. Leave it empty to make one from the name. You can change it until the page is published.
+                </p>
             </div>
 
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
