@@ -143,6 +143,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [lead, setLead] = useState(initialLead);
     const [loading, setLoading] = useState(false);
     const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+    const [firstResponseSeconds, setFirstResponseSeconds] = useState<number | null>(null);
     const [journeyUpdate, setJourneyUpdate] = useState({
         channel: "EMAIL",
         status: "CONTACTED",
@@ -164,6 +165,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             const res = await fetch(`/api/leads/${lead.id}/timeline`, { cache: "no-store" });
             const data = res.ok ? await res.json() : null;
             setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
+            setFirstResponseSeconds(typeof data?.firstResponseSeconds === "number" ? data.firstResponseSeconds : null);
         } catch {
             setTimeline([]);
         }
@@ -513,6 +515,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <Activity className="w-5 h-5 text-cyan-400" />
                             Activity Timeline
                         </h3>
+                        {firstResponseSeconds !== null ? (
+                            <p className="text-sm text-white/60">First response: {firstResponseSeconds < 3600 ? `${Math.round(firstResponseSeconds / 60)} min` : `${(firstResponseSeconds / 3600).toFixed(1)} h`} after the lead came in</p>
+                        ) : null}
                         {timeline.length === 0 ? (
                             <p className="text-sm text-white/50">No email, LinkedIn, or campaign activity has been recorded for this lead yet.</p>
                         ) : (
