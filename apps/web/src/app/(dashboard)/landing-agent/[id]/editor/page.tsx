@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import GrapesEditor from "@/components/landing-agent/GrapesEditor";
 import PageTrackingPanel from "@/components/landing-agent/PageTrackingPanel";
+import InstantConfirmationPanel from "@/components/landing-agent/InstantConfirmationPanel";
 import { pageLink, readShownDomain, shownDomain } from "@/components/landing-agent/landingPageAddress";
 import UnpublishedChangesBanner from "./UnpublishedChangesBanner";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
@@ -25,6 +26,8 @@ export default function LandingAgentEditorPage() {
     useEffect(() => {
         landingAgentApi.getMetaCapiToken().then((result) => setMetaTokenSaved(result.saved)).catch(() => setMetaTokenSaved(false));
     }, []);
+
+    const loadInstantConfirmationSequences = useCallback(() => landingAgentApi.listInstantConfirmationSequences(), []);
 
     const loadCampaign = useCallback(async () => {
         if (!campaignId) return;
@@ -149,6 +152,15 @@ export default function LandingAgentEditorPage() {
                     if (result.cloudflare?.status === "pushed") return "Saved. The live page on your connected domain now uses these IDs.";
                     if (result.cloudflare?.status === "error") throw new Error("Saved, but updating the live page failed. Publish again to retry.");
                     return "Saved. Tracking will run once a domain is connected in Settings → Branding.";
+                }}
+            />
+
+            <InstantConfirmationPanel
+                initial={page.instantConfirmation ?? null}
+                onLoadSequences={loadInstantConfirmationSequences}
+                onSave={async (setting) => {
+                    await landingAgentApi.saveInstantConfirmation(campaignId, page.id, setting);
+                    return setting.enabled ? "Saved. The confirmation is sent once a lead submits the form." : "Saved. No confirmation will be sent.";
                 }}
             />
         </div>

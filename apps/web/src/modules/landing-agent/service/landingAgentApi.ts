@@ -1,4 +1,4 @@
-import type { LandingCampaign, LandingCampaignSummary } from "../types";
+import type { InstantConfirmationSequence, InstantConfirmationSetting, LandingCampaign, LandingCampaignSummary } from "../types";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const API_BASE = getBrowserApiBase();
@@ -119,6 +119,18 @@ export const landingAgentApi = {
             `/landing-agent/campaigns/${campaignId}/pages/${pageId}/tracking`,
             { method: "PUT", body: JSON.stringify(tracking) }
         );
+    },
+
+    // Phase 9 instant confirmation: the team's sequences that can be picked (only eligible ones come back).
+    listInstantConfirmationSequences() {
+        return request<InstantConfirmationSequence[]>("/landing-agent/instant-confirmation/sequences");
+    },
+
+    saveInstantConfirmation(campaignId: string, pageId: string, setting: InstantConfirmationSetting) {
+        return request(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/instant-confirmation`, {
+            method: "PUT",
+            body: JSON.stringify({ enabled: setting.enabled, sequenceId: setting.sequenceId }),
+        });
     },
 
     // Team-level Meta Conversions API token. Only the saved flag comes back; the token is never returned.
