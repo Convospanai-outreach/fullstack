@@ -6,7 +6,7 @@ import { absoluteLandingAssetUrls, landingAppOrigin } from "../landingAssetUrls"
 import { themeFromRenderedJson } from "../theme";
 import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
-import { buildTrackingScript } from "../tracking";
+import { buildTrackingScript, normalizeTracking } from "../tracking";
 import { hasLeadFormMarker, readLeadFormConfig, replaceLeadFormMarkers } from "../leadFormHtml";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
@@ -35,7 +35,10 @@ function getCloudflareConfig() {
 // component, this isn't a redesign. Returns the script's text content only - its
 // sha256 goes into the worker's CSP (see publishPageToCloudflare), so the hash
 // must be taken over exactly the string placed between <script> and </script>.
-function buildLeadFormScript(slug: string): string {
+// meta: the page has a Meta Pixel, so a successful submit fires Lead with the ID made for that submit.
+function buildLeadFormScript(slug: string, meta = false): string {
+    const metaStart = meta ? `    var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;\n` : "";
+    const metaTrack = meta ? `        if (metaEventId) window.cmfMeta.track("Lead", metaEventId);\n` : "";
     return `
 (function () {
   var slug = ${JSON.stringify(slug)};
@@ -93,7 +96,7 @@ function buildLeadFormScript(slug: string): string {
     var submitBtn = form.querySelector("button[type=submit]");
     if (submitBtn) submitBtn.disabled = true;
     if (statusEl) statusEl.textContent = "";
-
+${metaStart}
     var data = new FormData(form);
     var url = new URL(location.href);
     fetch("/" + slug + "/lead", {
@@ -121,7 +124,7 @@ function buildLeadFormScript(slug: string): string {
     })
       .then(function (res) {
         if (!res.ok) throw new Error("Submission failed");
-        trackEvent("cta_click", { cta: "form_submit" });
+${metaTrack}        trackEvent("cta_click", { cta: "form_submit" });
         location.href = (form.hasAttribute("data-cmf-form") && form.getAttribute("data-redirect")) || "/" + slug + "/thank-you";
       })
       .catch(function () {
@@ -209,7 +212,8 @@ class CloudflarePagesService {
             const payload = getLandingRenderPayload(page.renderedJson);
             // The page's analytics loaders (if any) share the one hashed inline script.
             const trackingScript = buildTrackingScript(page.tracking);
-            const script = trackingScript + buildLeadFormScript(page.slug);
+            const metaPixelId = normalizeTracking(page.tracking)?.metaPixelId;
+            const script = trackingScript + buildLeadFormScript(page.slug, Boolean(metaPixelId));
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
             const theme = themeFromRenderedJson(page.renderedJson);
             const html = buildFullDocument({ title: page.title, css: payload.css, html: absoluteLandingAssetUrls(payload.html, landingAppOrigin(process.env)), script, whatsappOptIn, slug: page.slug, theme });
@@ -229,6 +233,7 @@ class CloudflarePagesService {
                         teamId: page.campaign.teamId,
                         scriptHash,
                         ...(trackingScript ? { tracking: true } : {}),
+                        ...(metaPixelId ? { metaPixel: true } : {}),
                         ...(successMessage ? { successMessage } : {}),
                         ...(instagramHandle ? { instagramHandle } : {}),
                     }),

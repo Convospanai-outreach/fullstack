@@ -9,6 +9,8 @@ const FIELDS = [
     { key: "ga4Id", label: "Google Analytics 4 measurement ID", placeholder: "G-XXXXXXXXXX", pattern: /^G-[A-Z0-9]{4,12}$/ },
     { key: "gtmId", label: "Google Tag Manager container ID", placeholder: "GTM-XXXXXXX", pattern: /^GTM-[A-Z0-9]{4,10}$/ },
     { key: "hotjarId", label: "Hotjar site ID", placeholder: "1234567", pattern: /^\d{5,10}$/ },
+    { key: "metaPixelId", label: "Meta Pixel ID", placeholder: "123456789012345", pattern: /^\d{5,20}$/ },
+    { key: "metaTestEventCode", label: "Meta test event code (optional)", placeholder: "TEST12345", pattern: /^[A-Za-z0-9_-]{1,40}$/ },
 ] as const;
 
 type Key = (typeof FIELDS)[number]["key"];
@@ -24,6 +26,8 @@ export default function PageTrackingPanel({
         ga4Id: initial?.ga4Id ?? "",
         gtmId: initial?.gtmId ?? "",
         hotjarId: initial?.hotjarId ?? "",
+        metaPixelId: initial?.metaPixelId ?? "",
+        metaTestEventCode: initial?.metaTestEventCode ?? "",
     });
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
     const [saving, setSaving] = useState(false);
