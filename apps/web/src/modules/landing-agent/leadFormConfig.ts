@@ -9,6 +9,9 @@ export const LEAD_FORM_FIELD_TYPES = ["text", "email", "tel", "textarea", "selec
 export const LEAD_FORM_MARKER_CLASS = "cmf-form";
 export const LEAD_FORM_MARKER_ID_PREFIX = "cmf-form-";
 export const LEAD_FORM_MAX_MARKER_ID_LENGTH = 2000;
+// Instagram handle for the thank-you page's follow button: 1 to 30 letters, digits, dots or underscores.
+export const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+export const INSTAGRAM_HANDLE_MESSAGE = "Instagram handle: 1 to 30 letters, numbers, dots or underscores (no @ and no link)";
 
 const KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 const MARKER_PAYLOAD_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -49,6 +52,7 @@ export const leadFormConfigSchema = z
     fields: z.array(fieldSchema).min(1).max(LEAD_FORM_MAX_FIELDS),
     buttonLabel: z.string().trim().min(1).max(40),
     successMessage: z.string().trim().min(1).max(300),
+    instagramHandle: z.string().regex(INSTAGRAM_HANDLE_PATTERN, { message: INSTAGRAM_HANDLE_MESSAGE }).optional(),
     redirectUrl: z
       .string()
       .trim()
@@ -76,6 +80,20 @@ export type LeadFormConfig = z.infer<typeof leadFormConfigSchema>;
 export function parseLeadFormConfig(value: unknown): LeadFormConfig | null {
   const result = leadFormConfigSchema.safeParse(value);
   return result.success ? result.data : null;
+}
+
+export function isValidInstagramHandle(value: unknown): value is string {
+  return typeof value === "string" && INSTAGRAM_HANDLE_PATTERN.test(value);
+}
+
+// The message for a handle that is not usable, or null when it is valid.
+export function instagramHandleProblem(value: string): string | null {
+  return isValidInstagramHandle(value) ? null : INSTAGRAM_HANDLE_MESSAGE;
+}
+
+// The profile link built from a validated handle only, or null.
+export function instagramProfileUrl(handle: string): string | null {
+  return isValidInstagramHandle(handle) ? `https://www.instagram.com/${handle}/` : null;
 }
 
 // Plain base64url without padding; TextEncoder/atob work in browsers and in Node 18+.

@@ -138,6 +138,54 @@ export const LANDING_PAGE_BASE_CSS = `
         grid-template-columns: 1fr;
     }
 }
+.la-section.la-divider {
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: #cbd5e1;
+}
+.la-image-text {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 32px;
+}
+.la-image-text img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+}
+.la-pricing {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+.la-plan {
+    border: 1px solid #dbe4ee;
+    border-radius: 12px;
+    padding: 20px;
+    background: #f8fafc;
+}
+.la-faq-item {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+.la-faq-item h3 {
+    font-size: 18px;
+}
+.la-cta.la-instagram {
+    background: #0f172a;
+}
+@media (max-width: 720px) {
+    .la-image-text {
+        grid-template-columns: 1fr;
+    }
+}
 .la-proof img,
 .la-testimonial img {
     width: 100%;

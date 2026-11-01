@@ -14,8 +14,9 @@ function sanitize(html: string): string {
   return (sanitizeRenderedJsonHtml({ html, css: "" }) as { html: string }).html;
 }
 
+// Void tags come back as <img ...> from the web copy and <img ... /> from the API copy; both are the same markup.
 function normalize(html: string): string {
-  return html.replace(/\s+/g, " ").replace(/> </g, "><").trim();
+  return html.replace(/\s+/g, " ").replace(/\s*\/>/g, ">").replace(/> </g, "><").trim();
 }
 
 describe("editor blocks through the sanitizer", () => {
