@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { judgeStalledEnrollments, StallCandidate } from "./stallJudgment";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { toPlainText } from "@/modules/inbox/actionInboxService";
+import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevMode, StallCandidate, StallJevInput, StallJevMode, StallThreadMessage } from "./stallJudgment";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const STALL_THREAD_MESSAGES = 5;
 
 /**
  * Overseer v0, primary job (see OVERSEER_ARCHITECTURE_PLAN.md §02): finds ACTIVE
@@ -86,9 +89,10 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     const teamIds = [...new Set(stalled.map((e) => e.teamId))];
     const teams = await prisma.team.findMany({
         where: { id: { in: teamIds } },
-        select: { id: true, whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true }
+        select: { id: true, whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true, enabledFeatures: true }
     });
     const wabaTeamIds = new Set(teams.filter((t) => !!t.whatsappPhoneNumberId && !!t.whatsappAccessTokenEnc).map((t) => t.id));
+    const jevModeByTeam = new Map(teams.map((t) => [t.id, stallJevMode(t.enabledFeatures)]));
 
     const now = Date.now();
     const candidates: StallCandidate[] = stalled.map((enrollment) => {
@@ -110,8 +114,30 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
         };
     });
 
-    const judgments = judgeStalledEnrollments(candidates);
     const byEnrollmentId = new Map(stalled.map((e) => [e.id, e]));
+
+    // Teams with the Jev judgment on (or in shadow) go through judgeStalledEnrollmentsWithJev; every
+    // other candidate gets the rules exactly as before.
+    const rulesOnly: StallCandidate[] = [];
+    const jevInputs: StallJevInput[] = [];
+    for (const candidate of candidates) {
+        const enrollment = byEnrollmentId.get(candidate.enrollmentId)!;
+        const mode: StallJevMode = jevModeByTeam.get(enrollment.teamId) ?? "off";
+        if (mode === "off") {
+            rulesOnly.push(candidate);
+            continue;
+        }
+        jevInputs.push({ candidate, teamId: enrollment.teamId, thread: await loadStallThread(enrollment.teamId, enrollment.leadId), mode });
+    }
+
+    const judgments = judgeStalledEnrollments(rulesOnly);
+    if (jevInputs.length > 0) {
+        const jev = await judgeStalledEnrollmentsWithJev(jevInputs);
+        judgments.push(...jev.judgments);
+        for (const log of jev.logs) {
+            logger.info("[Overseer] Stall judgment", { ...log });
+        }
+    }
 
     let created = 0;
     for (const judgment of judgments) {
@@ -136,4 +162,46 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
 
     logger.info("[Overseer] Tick complete", { candidates: stalled.length, nudgesCreated: created });
     return { candidates: stalled.length, nudgesCreated: created };
+}
+
+/**
+ * The last few messages of one lead, oldest first, masked for Jev. Team-scoped: a lead that
+ * isn't on this team reads as an empty thread. Inbound messages are the lead's side; our sent
+ * messages come from both Message (outbound) and Email (sequence sends).
+ */
+async function loadStallThread(teamId: string, leadId: string): Promise<StallThreadMessage[]> {
+    const lead = await prisma.lead.findFirst({
+        where: { id: leadId, teamId },
+        select: {
+            fullName: true,
+            company: true,
+            messages: {
+                orderBy: { createdAt: "desc" },
+                take: STALL_THREAD_MESSAGES,
+                select: { direction: true, content: true, createdAt: true }
+            },
+            emails: {
+                orderBy: { createdAt: "desc" },
+                take: STALL_THREAD_MESSAGES,
+                select: { subject: true, body: true, createdAt: true }
+            }
+        }
+    });
+    if (!lead) return [];
+
+    const entries = [
+        ...lead.messages.map((m) => ({ at: m.createdAt, from: m.direction === "INBOUND" ? ("lead" as const) : ("us" as const), text: toPlainText(m.content) })),
+        ...lead.emails.map((e) => ({ at: e.createdAt, from: "us" as const, text: `Subject: ${e.subject}\n${toPlainText(e.body)}` }))
+    ]
+        .sort((a, b) => a.at.getTime() - b.at.getTime())
+        .slice(-STALL_THREAD_MESSAGES);
+
+    const names = { person: lead.fullName, company: lead.company };
+    return Promise.all(entries.map(async (e) => ({ from: e.from, text: await maskForJev(e.text, names) })));
+}
+
+// Same masking as the reply analyzer: this text goes to a third-party model.
+async function maskForJev(text: string, names: { person?: string | null; company?: string | null }): Promise<string> {
+    const { safeContext } = await SovereignFirewall.mask(text, "GLOBAL", undefined, { alwaysMask: true });
+    return SovereignFirewall.maskKnownNames(safeContext, names).safeContext;
 }
