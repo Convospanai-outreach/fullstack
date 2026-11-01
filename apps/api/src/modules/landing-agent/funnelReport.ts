@@ -33,10 +33,58 @@ export interface FunnelStep extends FunnelStageCount {
     dropOffPercent: number | null;
 }
 
-export function buildFunnelSteps(stages: FunnelStageCount[]): FunnelStep[] {
+export function buildFunnelSteps<T extends FunnelStageCount>(stages: T[]): Array<T & { dropOffPercent: number | null }> {
     return stages.map((stage, index) => {
         const previous = index === 0 ? 0 : stages[index - 1].count;
         if (index === 0 || previous <= 0) return { ...stage, dropOffPercent: null };
         return { ...stage, dropOffPercent: Math.round((1 - stage.count / previous) * 1000) / 10 };
     });
+}
+
+// One row of the report query (funnelReportService.ts). Counts are integers; medians are seconds, or null
+// when no lead or session had both timestamps of that step.
+export interface FunnelQueryRow {
+    visits: number;
+    form_starts: number;
+    cta_clicks: number;
+    leads: number;
+    contacted: number;
+    replied: number;
+    meetings: number;
+    won: number;
+    qualified: number;
+    median_visit_to_form: number | null;
+    median_form_to_lead: number | null;
+    median_lead_to_contact: number | null;
+    median_contact_to_reply: number | null;
+    median_reply_to_meeting: number | null;
+    median_meeting_to_won: number | null;
+    median_lead_to_qualified: number | null;
+}
+
+export interface FunnelReport {
+    // The chain. Each step's median is the time from the previous chain step, for those who reached both.
+    steps: Array<FunnelStep & { medianSecondsFromPrevious: number | null }>;
+    // Not chain steps: a CTA anchor click can come after the form has started (form-only pages), and a
+    // HOT lead can come before or after first contact, so neither has a fixed place in the order.
+    sideMetrics: { ctaClicks: number; qualified: number; medianSecondsLeadToQualified: number | null };
+    // Team-wide keyword replies sent in the range. Only set when no page or variant filter applies.
+    instagram: { repliesSent: number } | null;
+}
+
+export function assembleFunnelReport(row: FunnelQueryRow, instagram: { repliesSent: number } | null): FunnelReport {
+    const chain: Array<FunnelStageCount & { medianSecondsFromPrevious: number | null }> = [
+        { key: "visit", label: "Visit", count: row.visits, medianSecondsFromPrevious: null },
+        { key: "form_start", label: "Form start", count: row.form_starts, medianSecondsFromPrevious: row.median_visit_to_form },
+        { key: "lead", label: "Lead", count: row.leads, medianSecondsFromPrevious: row.median_form_to_lead },
+        { key: "first_contact", label: "First contact", count: row.contacted, medianSecondsFromPrevious: row.median_lead_to_contact },
+        { key: "reply", label: "Reply", count: row.replied, medianSecondsFromPrevious: row.median_contact_to_reply },
+        { key: "meeting", label: "Meeting", count: row.meetings, medianSecondsFromPrevious: row.median_reply_to_meeting },
+        { key: "won", label: "Won", count: row.won, medianSecondsFromPrevious: row.median_meeting_to_won },
+    ];
+    return {
+        steps: buildFunnelSteps(chain),
+        sideMetrics: { ctaClicks: row.cta_clicks, qualified: row.qualified, medianSecondsLeadToQualified: row.median_lead_to_qualified },
+        instagram,
+    };
 }
