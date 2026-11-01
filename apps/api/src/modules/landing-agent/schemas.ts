@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getLandingTemplate } from "./landingTemplates";
+import { RESERVED_PATH_MESSAGE, isReservedPath } from "./reservedPaths";
 
 const PROMPT_GUARD_PATTERN = /\b(ignore|disregard|bypass)\s+(all\s+)?(previous|prior)\s+(instructions?|rules?)\b|<script[\s\S]*?>|javascript:/i;
 
@@ -54,7 +55,8 @@ export const landingPagePathSchema = z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.");
+    .regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.")
+    .refine((path) => !isReservedPath(path), RESERVED_PATH_MESSAGE);
 
 export const createLandingFromTemplateSchema = z.object({
     templateId: z.string().max(60).refine((id) => getLandingTemplate(id) !== undefined, "Unknown template"),
@@ -62,8 +64,10 @@ export const createLandingFromTemplateSchema = z.object({
     path: landingPagePathSchema.optional(),
 });
 
+// Any length here: the service checks the format only after it has confirmed the path is not the page's
+// current one, so a legacy address that predates the 2 to 63 rule can be saved unchanged.
 export const setPageSlugSchema = z.object({
-    path: landingPagePathSchema,
+    path: z.string().trim().toLowerCase().min(1).max(200),
 });
 
 // A/B test (phase 6B): the test path uses the same rule as a page path.
@@ -81,6 +85,7 @@ export const pickWinnerSchema = z.object({
 
 export const selectWireframeSchema = z.object({
     wireframeId: z.string().uuid(),
+    path: landingPagePathSchema.optional(),
 });
 
 export const editorStateSchema = z.object({
@@ -116,6 +121,9 @@ export const landingLeadPayloadSchema = z.object({
     website: z.string().max(500).optional(), // honeypot
     // Lead form marker pages: the visitor's values by field key. Checked against the page's config in the service.
     formFields: z.record(z.string().max(64), z.unknown()).optional(),
+    // Meta Pixel: the event ID the browser fired for this submit, and the page URL (origin and path only).
+    metaEventId: z.string().regex(/^[A-Za-z0-9-]{8,64}$/).optional(),
+    metaEventSourceUrl: z.string().max(2000).optional(),
 });
 
 export const landingEventNameEnum = z.enum([

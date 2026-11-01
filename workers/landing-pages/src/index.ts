@@ -15,6 +15,8 @@ interface StoredPage {
 	// Set when the page loads its team's GA4/GTM/Hotjar (see tracking.ts in
 	// apps/api); those loaders run inside the hashed script.
 	tracking?: boolean;
+	// Set when the page has a Meta Pixel; the policy then allows Meta's loader and beacon hosts.
+	metaPixel?: boolean;
 	// The lead form's success message, when the page has a form (written by cloudflarePagesService.ts).
 	successMessage?: string;
 	// The lead form's Instagram handle (written by cloudflarePagesService.ts, validated there and again in the worker).
@@ -27,18 +29,18 @@ interface StoredPage {
 // The rest of the policy ships Report-Only because customer HTML/CSS varies
 // (external images, @import'd fonts): it only allows the page's own inline
 // script by hash, so it can be switched to enforcing once reports are clean.
-function securityHeaders(scriptHash?: string, tracking = false): Record<string, string> {
+function securityHeaders(scriptHash?: string, tracking = false, metaPixel = false): Record<string, string> {
 	return {
 		"Content-Security-Policy": "frame-ancestors 'none'",
 		"X-Frame-Options": "DENY",
 		"Content-Security-Policy-Report-Only": [
 			"default-src 'self'",
 			// 'strict-dynamic' trusts the scripts the hashed loader adds, and only those.
-			`script-src ${scriptHash ? `'${scriptHash}'${tracking ? " 'strict-dynamic'" : ""}` : "'none'"}`,
+			`script-src ${scriptHash ? `'${scriptHash}'${tracking ? " 'strict-dynamic'" : ""}${metaPixel ? " https://connect.facebook.net" : ""}` : "'none'"}`,
 			"style-src 'self' 'unsafe-inline' https:",
 			"img-src 'self' https: data:",
 			"font-src 'self' https: data:",
-			tracking ? "connect-src 'self' https: wss:" : "connect-src 'self'",
+			tracking ? `connect-src 'self' https: wss:${metaPixel ? " https://connect.facebook.net https://www.facebook.com" : ""}` : "connect-src 'self'",
 			// Hotjar surveys and Tag Manager's preview open frames.
 			...(tracking ? ["frame-src 'self' https:"] : []),
 			"form-action 'self'",
@@ -130,7 +132,7 @@ async function serveExperiment(env: Env, request: Request, host: string, slug: s
 	// A test response depends on the cookie, so it must not be shared between visitors.
 	const headers: Record<string, string> = {
 		"Content-Type": "text/html; charset=utf-8",
-		...securityHeaders(stored.scriptHash, stored.tracking === true),
+		...securityHeaders(stored.scriptHash, stored.tracking === true, stored.metaPixel === true),
 	};
 	if (experiment.mode === "test") {
 		headers["Cache-Control"] = "private, no-cache";
@@ -203,7 +205,7 @@ export default {
 			headers: {
 				"Content-Type": "text/html; charset=utf-8",
 				"Cache-Control": "public, max-age=60",
-				...securityHeaders(stored.scriptHash, stored.tracking === true),
+				...securityHeaders(stored.scriptHash, stored.tracking === true, stored.metaPixel === true),
 			},
 		});
 	},

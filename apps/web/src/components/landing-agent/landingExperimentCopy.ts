@@ -16,6 +16,11 @@ export function conversionText(rate: number): string {
     return `${(rate * 100).toFixed(1)}%`;
 }
 
+// Shown under the results when a page of the test was edited while it ran (its last edit).
+export function editedText(arm: "A" | "B", editedAt: string | null): string | null {
+    return editedAt ? `Page ${arm} was edited on ${new Date(editedAt).toLocaleDateString()}` : null;
+}
+
 // Confidence is rounded down, so the panel never claims more certainty than the test has.
 export function verdictMessage(results: ExperimentResults): string {
     const { verdict, variants } = results;

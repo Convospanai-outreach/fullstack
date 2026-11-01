@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import WireframeOptionCard from "@/components/landing-agent/WireframeOptionCard";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaign } from "@/modules/landing-agent/types";
+import { validatePagePath } from "@/components/landing-agent/landingPageAddress";
 
 export default function LandingAgentWireframesPage() {
     const params = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ export default function LandingAgentWireframesPage() {
     const [generating, setGenerating] = useState(false);
     const [selectingId, setSelectingId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [path, setPath] = useState("");
 
     const loadCampaign = useCallback(async () => {
         if (!campaignId) return;
@@ -50,10 +52,20 @@ export default function LandingAgentWireframesPage() {
 
     async function handleSelect(wireframeId: string) {
         if (!campaignId) return;
+        // The address is optional: left empty, the page's address is generated from the campaign name.
+        let chosenPath: string | undefined;
+        if (path.trim()) {
+            const checked = validatePagePath(path);
+            if (!checked.ok) {
+                setError(checked.error);
+                return;
+            }
+            chosenPath = checked.path;
+        }
         setSelectingId(wireframeId);
         setError(null);
         try {
-            await landingAgentApi.selectWireframe(campaignId, wireframeId);
+            await landingAgentApi.selectWireframe(campaignId, wireframeId, chosenPath);
             router.push(`/landing-agent/${campaignId}/editor`);
         } catch (err: any) {
             setError(err?.message || "Failed to select wireframe");
@@ -80,6 +92,19 @@ export default function LandingAgentWireframesPage() {
                         {generating ? "Generating..." : "Generate 3 Wireframes"}
                     </Button>
                 </div>
+                {campaign.pages.length === 0 ? (
+                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                        Web address (optional)
+                        <input
+                            aria-label="Web address"
+                            value={path}
+                            maxLength={63}
+                            placeholder="spring-guide"
+                            onChange={(e) => setPath(e.target.value)}
+                            className="max-w-sm rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+                        />
+                    </label>
+                ) : null}
                 {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </GlassCard>
 

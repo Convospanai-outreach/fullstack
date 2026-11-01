@@ -164,4 +164,12 @@ describe("landingAgentService.createCampaignFromTemplate with a page address", (
 
         expect(mockPrisma.landingPage.create.mock.calls[0]?.[0]?.data.slug).toBe("spring-guide");
     });
+
+    it("answers the same taken message when another request takes the path first", async () => {
+        mockPrisma.landingPage.create.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002", meta: { target: ["slug"] } }));
+
+        const attempt = landingAgentService.createCampaignFromTemplate(createInput({ path: "spring-guide" }));
+
+        await expect(attempt).rejects.toMatchObject({ message: "This web address is taken. Try another.", statusCode: 409 });
+    });
 });

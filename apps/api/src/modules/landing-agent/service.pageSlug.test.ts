@@ -20,6 +20,7 @@ vi.mock("@/modules/governance/ApprovalService", () => ({ ApprovalService: { requ
 vi.mock("./service/imageGenerationService", () => ({ imageGenerationService: { generateSectionImage: vi.fn() } }));
 
 import { landingAgentService } from "./service";
+import { setPageSlugSchema } from "./schemas";
 import { APIError } from "@/lib/apiResponse";
 
 function campaignWithPage(page: Record<string, unknown>) {
@@ -31,6 +32,7 @@ describe("landingAgentService.setPageSlug", () => {
         vi.clearAllMocks();
         mockPrisma.landingCampaign.findFirst.mockResolvedValue(campaignWithPage({}));
         mockPrisma.landingPage.findUnique.mockResolvedValue(null);
+        mockPrisma.landingExperiment.findUnique.mockResolvedValue(null);
         mockPrisma.landingPage.updateMany.mockResolvedValue({ count: 1 });
         mockPrisma.landingPage.findUniqueOrThrow.mockResolvedValue({ id: "lp-1", slug: "spring-guide" });
     });
@@ -66,6 +68,14 @@ describe("landingAgentService.setPageSlug", () => {
         expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
     });
 
+    it("answers the same taken message when another request takes the address first", async () => {
+        mockPrisma.landingPage.updateMany.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002", meta: { target: ["slug"] } }));
+
+        const attempt = landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "spring-guide" });
+
+        await expect(attempt).rejects.toMatchObject({ message: "This web address is taken. Try another.", statusCode: 409 });
+    });
+
     it("refuses an address another test already uses", async () => {
         mockPrisma.landingExperiment.findUnique.mockResolvedValue({ id: "exp-other" });
 
@@ -79,5 +89,28 @@ describe("landingAgentService.setPageSlug", () => {
         await landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "old-name" });
 
         expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps a legacy 64-character address without a write when it is saved unchanged", async () => {
+        const legacy = "a".repeat(64);
+        mockPrisma.landingCampaign.findFirst.mockResolvedValue(campaignWithPage({ slug: legacy }));
+
+        const page = await landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: legacy });
+
+        expect(page).toMatchObject({ slug: legacy });
+        expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a new 64-character address before any write", async () => {
+        const attempt = landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "b".repeat(64) });
+
+        await expect(attempt).rejects.toThrow("Use 2 to 63 letters, numbers or hyphens");
+        expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("setPageSlugSchema", () => {
+    it("accepts a legacy 64-character path so the service can decide whether it is unchanged", () => {
+        expect(setPageSlugSchema.safeParse({ path: "a".repeat(64) }).success).toBe(true);
     });
 });

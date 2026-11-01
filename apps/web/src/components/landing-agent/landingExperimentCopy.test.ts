@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conversionText, statusLabel, verdictMessage } from "./landingExperimentCopy";
+import { conversionText, editedText, statusLabel, verdictMessage } from "./landingExperimentCopy";
 import type { ExperimentResults } from "@/modules/landing-agent/service/landingExperimentApi";
 
 function results(overrides: Partial<ExperimentResults["verdict"]>, visitors = { A: 1000, B: 1000 }): ExperimentResults {
@@ -61,5 +61,15 @@ describe("verdictMessage", () => {
     it("names the leading variant at 95% or more, rounding the confidence down", () => {
         const text = verdictMessage(results({}));
         expect(text).toContain("Variant B is ahead with 96% confidence");
+    });
+});
+
+describe("editedText", () => {
+    it("says which page was edited and when", () => {
+        expect(editedText("B", "2026-11-05T10:00:00Z")).toBe(`Page B was edited on ${new Date("2026-11-05T10:00:00Z").toLocaleDateString()}`);
+    });
+
+    it("says nothing when the page was not edited during the test", () => {
+        expect(editedText("A", null)).toBeNull();
     });
 });

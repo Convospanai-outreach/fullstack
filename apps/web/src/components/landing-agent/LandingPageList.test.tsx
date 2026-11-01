@@ -13,6 +13,7 @@ vi.mock("@/modules/landing-agent/service/landingAgentApi", () => ({
 }));
 
 import LandingPageList from "./LandingPageList";
+import { SHOWN_DOMAIN_KEY } from "./landingPageAddress";
 
 const campaign = (autoReplies: { total: number; active: number } | undefined) => ({
     id: "campaign-1",
@@ -148,6 +149,17 @@ describe("LandingPageList addresses, domains and new pages", () => {
         expect(clipboardWrite).toHaveBeenCalledWith("https://go.yourbrand.com/guide");
     });
 
+    it("remembers the picked domain for the next visit", async () => {
+        window.localStorage.removeItem(SHOWN_DOMAIN_KEY);
+        mockListCampaigns.mockResolvedValue({ campaigns: [publishedGuide], liveDomain: "yourbrand.com", domains: ["yourbrand.com", "go.yourbrand.com"] });
+        await renderList(container, root);
+
+        await act(async () => setFieldValue(container.querySelector<HTMLSelectElement>('select[aria-label="Domain"]')!, "go.yourbrand.com"));
+
+        expect(window.localStorage.getItem(SHOWN_DOMAIN_KEY)).toBe("go.yourbrand.com");
+        window.localStorage.removeItem(SHOWN_DOMAIN_KEY);
+    });
+
     it("falls back to the app's /p address and shows no domain picker without an active domain", async () => {
         mockListCampaigns.mockResolvedValue({ campaigns: [publishedGuide], liveDomain: null, domains: [] });
 
@@ -166,6 +178,18 @@ describe("LandingPageList addresses, domains and new pages", () => {
         await act(async () => buttonWithText(container, "Create draft").click());
 
         expect(mockCreateFromTemplate).toHaveBeenCalledWith(expect.objectContaining({ path: "spring-guide", templateId: expect.any(String) }));
+    });
+
+    it("names the new campaign after the template and its address, so pages from one template are told apart", async () => {
+        mockListCampaigns.mockResolvedValue({ campaigns: [], liveDomain: null, domains: [] });
+        mockCreateFromTemplate.mockResolvedValue({ campaignId: "c-new", pageId: "p-new" });
+        await renderList(container, root);
+
+        await act(async () => setFieldValue(container.querySelector<HTMLInputElement>('input[aria-label="New page path"]')!, "spring-guide"));
+        await act(async () => buttonWithText(container, "Create draft").click());
+
+        const templateName = (container.querySelector<HTMLSelectElement>('select[aria-label="Template"]')!.selectedOptions[0]!.textContent ?? "").trim();
+        expect(mockCreateFromTemplate).toHaveBeenCalledWith(expect.objectContaining({ name: `${templateName} (/spring-guide)` }));
     });
 
     it("says the address is taken when another page already uses it", async () => {

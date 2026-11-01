@@ -152,6 +152,81 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(plain.tracking).toBeUndefined();
     });
 
+    // Regression pin: a page with no Meta Pixel must publish exactly as it did before the Pixel existed,
+    // so its stored document and script hash never change. Date is frozen because the lead script embeds Date.now().
+    it("publishes a page without a Meta Pixel byte-for-byte as before", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+        try {
+            const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+            global.fetch = fetchMock as any;
+            mockPrisma.landingPage.findUnique.mockResolvedValue({
+                id: "page-1",
+                slug: "plain",
+                title: "Plain",
+                renderedJson: { html: "<p>Hello</p>", css: "" },
+                campaign: { teamId: "team-1" },
+                tracking: { ga4Id: "G-ABC1234", hotjarId: "1234567" },
+            });
+            await cloudflarePagesService.publishPageToCloudflare("page-1");
+            const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+            expect(createHash("sha256").update(body.html, "utf8").digest("hex")).toBe("4293a478b0893b5ec47e364340603904bcfbf2292f6011569074a0c16abf2046");
+            const script = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
+            expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
+            expect(body.metaPixel).toBeUndefined();
+            expect(body.html).not.toContain("fbevents");
+            expect(body.html).not.toContain("cmfMeta");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("adds the Meta Pixel to the one hashed script, flags the page, and fires Lead after a successful submit", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "my-campaign",
+            title: "My Campaign",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+            tracking: { metaPixelId: "123456789012345" },
+        });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)];
+        expect(scripts).toHaveLength(1);
+        const script = scripts[0]![1]!;
+        expect(script).toContain('window.fbq("init", "123456789012345")');
+        expect(script).toContain('var slug = "my-campaign"');
+        expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
+        expect(body.tracking).toBe(true);
+        expect(body.metaPixel).toBe(true);
+        // Lead fires only after the server accepted the submission, with the ID made for this submit.
+        expect(script).toContain('var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;');
+        expect(script).toMatch(/if \(!res\.ok\) throw new Error\("Submission failed"\);\s*if \(metaEventId\) window\.cmfMeta\.track\("Lead", metaEventId\);/);
+        // The lead POST carries the same ID, and the page URL without its query (the ?t= social token must not reach Meta).
+        expect(script).toContain("metaEventId: metaEventId || undefined,");
+        expect(script).toContain("metaEventSourceUrl: location.origin + location.pathname,");
+    });
+
+    it("sends no Meta fields from a page without a Meta Pixel", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "plain",
+            title: "Plain",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+            tracking: { ga4Id: "G-ABC1234" },
+        });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const script = [...JSON.parse(fetchMock.mock.calls[0][1].body).html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
+        expect(script).not.toContain("metaEventId");
+        expect(script).not.toContain("metaEventSourceUrl");
+    });
+
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {
         mockPrisma.landingPage.findUnique.mockResolvedValue({
             id: "page-1",

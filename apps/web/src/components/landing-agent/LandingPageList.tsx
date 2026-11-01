@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaignSummary } from "@/modules/landing-agent/types";
 import { galleryTemplates } from "./landingTemplateGallery";
-import { pageLink, shownDomain, validatePagePath } from "./landingPageAddress";
+import { pageLink, readShownDomain, shownDomain, validatePagePath, writeShownDomain } from "./landingPageAddress";
 
 // Where a landing campaign picks up again: the editor once a page exists, else the step it stopped at.
 export function nextStep(campaign: LandingCampaignSummary): { href: string; label: string; status: string } {
@@ -34,13 +34,13 @@ export default function LandingPageList() {
     const [campaigns, setCampaigns] = useState<LandingCampaignSummary[] | null>(null);
     const [domains, setDomains] = useState<string[]>([]);
     const [liveDomain, setLiveDomain] = useState<string | null>(null);
-    const [chosenDomain, setChosenDomain] = useState<string | null>(null);
+    const [chosenDomain, setChosenDomain] = useState<string | null>(() => readShownDomain());
     const [error, setError] = useState<string | null>(null);
     const [newPath, setNewPath] = useState("");
     const [newTemplateId, setNewTemplateId] = useState(TEMPLATES[0]?.id ?? "");
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
-    const [editing, setEditing] = useState<{ campaignId: string; pageId: string; value: string } | null>(null);
+    const [editing, setEditing] = useState<{ campaignId: string; pageId: string; value: string; currentSlug: string } | null>(null);
     const [editError, setEditError] = useState<string | null>(null);
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export default function LandingPageList() {
         setCreating(true);
         setCreateError(null);
         try {
-            await landingAgentApi.createCampaignFromTemplate({ templateId: template.id, name: template.name, path: checked.path });
+            await landingAgentApi.createCampaignFromTemplate({ templateId: template.id, name: `${template.name} (/${checked.path})`, path: checked.path });
             setNewPath("");
             await load();
         } catch (err) {
@@ -87,7 +87,7 @@ export default function LandingPageList() {
 
     async function saveAddress() {
         if (!editing) return;
-        const checked = validatePagePath(editing.value);
+        const checked = validatePagePath(editing.value, editing.currentSlug);
         if (!checked.ok) {
             setEditError(checked.error);
             return;
@@ -172,7 +172,10 @@ export default function LandingPageList() {
                     <select
                         aria-label="Domain"
                         value={shown ?? ""}
-                        onChange={(e) => setChosenDomain(e.target.value)}
+                        onChange={(e) => {
+                            setChosenDomain(e.target.value);
+                            writeShownDomain(e.target.value);
+                        }}
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                     >
                         {domains.map((domain) => (
@@ -250,7 +253,7 @@ export default function LandingPageList() {
                                             </>
                                         ) : null}
                                         {page && page.status !== "published" && !editingThis ? (
-                                            <Button variant="outline" onClick={() => setEditing({ campaignId: campaign.id, pageId: page.id, value: page.slug })}>
+                                            <Button variant="outline" onClick={() => setEditing({ campaignId: campaign.id, pageId: page.id, value: page.slug, currentSlug: page.slug })}>
                                                 Change address
                                             </Button>
                                         ) : null}
