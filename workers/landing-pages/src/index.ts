@@ -19,6 +19,8 @@ interface StoredPage {
 	successMessage?: string;
 	// The lead form's Instagram handle (written by cloudflarePagesService.ts, validated there and again in the worker).
 	instagramHandle?: string;
+	// The lead form's booking link (written by cloudflarePagesService.ts, validated there and again in the worker).
+	bookingUrl?: string;
 }
 
 // Clickjacking protection is enforced (nothing legitimately frames these pages).
@@ -50,19 +52,31 @@ function escapeText(value: string): string {
 	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+// The booking link must be an absolute https URL (the API checks it on save too).
+function isHttpsUrl(value: string): boolean {
+	try {
+		return new URL(value).protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
 // Same rule as the API's Instagram handle (leadFormConfig.ts): 1 to 30 letters, digits, dots or underscores.
 const INSTAGRAM_HANDLE_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
 // successMessage is the page's form success message, validated when the page was published.
-function thankYouHtml(successMessage: string | undefined, instagramHandle: string | undefined): string {
+function thankYouHtml(successMessage: string | undefined, instagramHandle: string | undefined, bookingUrl: string | undefined): string {
 	// The handle is put in an href, so it must match the pattern above; anything else gets no button.
 	const follow = instagramHandle && INSTAGRAM_HANDLE_PATTERN.test(instagramHandle) ? `<p><a href="https://www.instagram.com/${instagramHandle}/" rel="noopener noreferrer">Follow us on Instagram</a></p>` : "";
 	const message = successMessage ? escapeText(successMessage) : "Your submission has been received.";
+	// The booking link goes in an href: https only, and escaped like the message.
+	const book = bookingUrl && isHttpsUrl(bookingUrl) ? `<p><a href="${escapeText(bookingUrl)}" rel="noopener noreferrer">Book a call</a></p>` : "";
 	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Thank you</title></head>
 <body style="font-family:system-ui,sans-serif;max-width:640px;margin:80px auto;text-align:center;color:#0f172a">
 <h1>Thanks — we'll be in touch.</h1>
 <p>${message}</p>
+${book}
 ${follow}
 </body></html>`;
 }
@@ -166,7 +180,7 @@ export default {
 		if (segments[1] === "thank-you" && request.method === "GET") {
 			const stored = await env.LANDING_PAGES.get<StoredPage>(`page:${slug}`, "json");
 			const owned = stored ? await assertHostnameOwnsPage(env, host, stored) : false;
-			return new Response(thankYouHtml(owned ? stored?.successMessage : undefined, owned ? stored?.instagramHandle : undefined), {
+			return new Response(thankYouHtml(owned ? stored?.successMessage : undefined, owned ? stored?.instagramHandle : undefined, owned ? stored?.bookingUrl : undefined), {
 				headers: { "Content-Type": "text/html; charset=utf-8", ...securityHeaders() },
 			});
 		}
