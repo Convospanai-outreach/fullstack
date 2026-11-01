@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
+import { themeFromRenderedJson, themeWrapper } from "@/modules/landing-agent/theme";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
 import { hasLeadFormMarker, leadFormSuccessUrl, readLeadFormConfig, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
@@ -46,6 +47,9 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
     const [formStarted, setFormStarted] = useState(false);
     const sessionId = useMemo(createSessionId, []);
     const payload = useMemo(() => getLandingRenderPayload(renderedJson), [renderedJson]);
+    // The theme's class and variables are the same ones the Worker puts on the body (theme.ts).
+    const wrapper = useMemo(() => themeWrapper(themeFromRenderedJson(renderedJson)), [renderedJson]);
+    const themed = Object.keys(wrapper.vars).length > 0;
     const leadHtml = useMemo(
         () => (hasLeadFormMarker(payload.html) ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null }) : null),
         [payload.html, slug, whatsappOptIn]
@@ -113,7 +117,11 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
     };
 
     return (
-        <div className="la-page min-h-screen bg-slate-100 text-slate-900" onClickCapture={onCtaClick}>
+        <div
+            className={themed ? `${wrapper.className} min-h-screen` : "la-page min-h-screen bg-slate-100 text-slate-900"}
+            style={themed ? (wrapper.vars as CSSProperties) : undefined}
+            onClickCapture={onCtaClick}
+        >
             <div className="mx-auto max-w-6xl px-4 py-8">
                 {title ? <h1 className="mb-4 text-2xl font-semibold">{title}</h1> : null}
                 <style>{payload.css}</style>
