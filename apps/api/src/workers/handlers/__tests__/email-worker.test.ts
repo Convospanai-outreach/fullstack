@@ -17,6 +17,11 @@ vi.mock("@/lib/aiService", () => ({
     aiService: { generateEmailDraft: vi.fn() },
 }));
 
+vi.mock("@/modules/email-campaigner/service/emailComposer", () => ({
+    legacyCriticEnabled: vi.fn().mockReturnValue(false),
+    reviewLegacyDraft: vi.fn(),
+}));
+
 vi.mock("@/lib/logger", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
     logWorker: vi.fn(),
@@ -38,6 +43,7 @@ import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
 import { aiService } from "@/lib/aiService";
 import { flagNeedsAttention, gateAiMessage, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
+import { legacyCriticEnabled, reviewLegacyDraft } from "@/modules/email-campaigner/service/emailComposer";
 import { handleEmailSend } from "../email-worker";
 
 describe("email-worker", () => {
@@ -251,6 +257,33 @@ describe("email-worker", () => {
             (resolveApprovedMessage as any).mockResolvedValue({ state: "ready", subject: "S", body: "B", copyProvenance });
             await handleEmailSend({ ...job, approvedMessageId: "appr-2" }, "job-5");
             expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.objectContaining({ copyProvenance }));
+        });
+
+        describe("legacy critic", () => {
+            const reviewed = { draft: { subject: "Fixed subject", body: "Fixed body" }, critique: "corrected", rubricCritic: false };
+
+            it("reviews a live draft when the switch is on, sends the reviewed text and records the critic", async () => {
+                (legacyCriticEnabled as any).mockReturnValue(true);
+                (reviewLegacyDraft as any).mockResolvedValue(reviewed);
+                await handleEmailSend(job, "job-6");
+                expect(reviewLegacyDraft).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), null, expect.any(Object), "team-a");
+                const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "email.critique@v1" }) });
+                expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ subject: "Fixed subject", body: "Fixed body", copyProvenance: provenance }));
+                expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "Fixed subject", "Fixed body", expect.objectContaining({ copyProvenance: provenance }));
+            });
+
+            it("does nothing when the switch is off", async () => {
+                (legacyCriticEnabled as any).mockReturnValue(false);
+                await handleEmailSend(job, "job-7");
+                expect(reviewLegacyDraft).not.toHaveBeenCalled();
+            });
+
+            it("leaves a batch draft as it was written, even with the switch on", async () => {
+                (legacyCriticEnabled as any).mockReturnValue(true);
+                await handleEmailSend({ ...job, precomputedDraft: { subject: "S", body: "B" } }, "job-8");
+                expect(reviewLegacyDraft).not.toHaveBeenCalled();
+                expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.anything());
+            });
         });
 
         it("sends nothing when the approval is expired or already handled", async () => {
