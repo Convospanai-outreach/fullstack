@@ -23,7 +23,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         where: { id: landingLeadId, teamId },
         include: {
             campaign: { select: { linkedCampaignId: true } },
-            landingPage: { select: { slug: true, team: { select: { name: true } } } },
+            landingPage: { select: { slug: true, team: { select: { name: true } }, instantConfirmation: true } },
         },
     });
 
@@ -59,6 +59,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await advanceCreatorFunnel(mergedLeadId, teamId);
             await recordOptIn(landingLead, mergedLeadId);
             await joinPlanNurture(landingLead, mergedLeadId);
+            await sendConfirmation(landingLead, mergedLeadId);
             return { created: false, leadId: mergedLeadId, merged: true };
         }
     }
@@ -96,6 +97,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await advanceCreatorFunnel(existing.id, teamId);
             await recordOptIn(landingLead, existing.id);
             await joinPlanNurture(landingLead, existing.id);
+            await sendConfirmation(landingLead, existing.id);
             return { created: false, leadId: existing.id };
         }
     }
@@ -122,6 +124,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     await advanceCreatorFunnel(createdLead.id, teamId);
     await recordOptIn(landingLead, createdLead.id);
     await joinPlanNurture(landingLead, createdLead.id);
+    await sendConfirmation(landingLead, createdLead.id);
     return { created: true, leadId: createdLead.id };
 }
 
@@ -148,6 +151,16 @@ async function joinPlanNurture(landingLead: { teamId: string; landingPageId: str
         if (skipped && skipped !== "no switched-on plan for this page") logger.info(`[LandingLeadIntake] Plan nurture skipped for lead ${leadId}: ${skipped}`);
     } catch (error) {
         logger.warn(`[LandingLeadIntake] Plan nurture enrollment failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
+// Phase 9: the page's optional instant confirmation to the lead (instantConfirmation.ts). Never fails the intake job.
+async function sendConfirmation(landingLead: Parameters<typeof import("@/modules/landing-agent/instantConfirmation").sendInstantConfirmation>[0], leadId: string) {
+    try {
+        const { sendInstantConfirmation } = await import("@/modules/landing-agent/instantConfirmation");
+        await sendInstantConfirmation(landingLead, leadId);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Instant confirmation failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
     }
 }
 

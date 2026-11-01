@@ -14,6 +14,7 @@ import {
     setPageSlugSchema,
     createExperimentSchema,
     pickWinnerSchema,
+    instantConfirmationSchema,
 } from "../schemas";
 import { createExperiment, endExperiment, getExperimentResults, listExperiments, pauseExperiment, pickWinner, startExperiment } from "../experimentService";
 import { pageTrackingSchema } from "../tracking";
@@ -321,6 +322,26 @@ export async function putPageTracking(req: Request, ctx?: ParamContext) {
             tracking: parsed.data,
         });
         return successResponse(result);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// PUT .../pages/:pageId/instant-confirmation: the page's optional message to a lead right after the form is stored.
+export async function putPageInstantConfirmation(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const parsed = instantConfirmationSchema.safeParse(await req.json().catch(() => null));
+        if (!parsed.success) {
+            throw new APIError("Choose the sequence to send, or switch instant confirmation off.", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.savePageInstantConfirmation({ teamId, campaignId, pageId, setting: parsed.data });
+        return successResponse(page);
     } catch (error) {
         return handleAPIError(error);
     }
