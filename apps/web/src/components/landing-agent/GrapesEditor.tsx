@@ -36,6 +36,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
+    CANVAS_ONLY_CSS,
     canvasBaseCss,
     filterEditorStyle,
     shouldAutosave,
@@ -339,7 +340,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 if (frameDoc) {
                     const base = frameDoc.createElement("style");
                     base.setAttribute("data-landing-base", "");
-                    base.textContent = canvasBaseCss();
+                    base.textContent = canvasBaseCss() + CANVAS_ONLY_CSS;
                     frameDoc.head.appendChild(base);
                     const leadFormStyle = frameDoc.createElement("style");
                     leadFormStyle.textContent = LEAD_FORM_CANVAS_CSS;
