@@ -110,7 +110,11 @@ export const landingAgentApi = {
         });
     },
 
-    saveTracking(campaignId: string, pageId: string, tracking: { ga4Id: string; gtmId: string; hotjarId: string }) {
+    saveTracking(
+        campaignId: string,
+        pageId: string,
+        tracking: { ga4Id: string; gtmId: string; hotjarId: string; metaPixelId: string; metaTestEventCode: string }
+    ) {
         return request<{ page: { status: string }; cloudflare: { status: string } | null }>(
             `/landing-agent/campaigns/${campaignId}/pages/${pageId}/tracking`,
             { method: "PUT", body: JSON.stringify(tracking) }

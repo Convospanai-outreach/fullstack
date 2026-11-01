@@ -34,6 +34,8 @@ export interface LandingPageTracking {
     ga4Id?: string;
     gtmId?: string;
     hotjarId?: string;
+    metaPixelId?: string;
+    metaTestEventCode?: string;
 }
 
 export interface LandingCampaignSummary {
