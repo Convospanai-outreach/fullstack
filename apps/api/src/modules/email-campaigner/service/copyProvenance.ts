@@ -39,16 +39,21 @@ export function buildProvenance(input: {
     };
 }
 
-// The older draft path (email-worker) has no critic, retrieval or brief, so what it records is the
-// prompt that wrote the email, to compare against the composer in copy:outcomes.
-export function legacyProvenance(batch: boolean): CopyProvenance {
+// The older draft path (email-worker) has no retrieval or brief, and a critic only when LEGACY_CRITIC is
+// on, so what it records is the prompt that wrote the email (and the critic, if it ran), to compare
+// against the composer in copy:outcomes.
+export function legacyProvenance(batch: boolean, review?: { critique: CopyProvenance["critique"]; rubricCritic: boolean }): CopyProvenance {
     return {
         v: 1,
         node: "legacy",
-        prompts: { draft: promptRef(batch ? "email.legacyBatch" : "email.legacyDraft"), system: "none", critique: "none" },
-        flags: { retrieval: false, brief: false, rubricCritic: false },
+        prompts: {
+            draft: promptRef(batch ? "email.legacyBatch" : "email.legacyDraft"),
+            system: "none",
+            critique: review ? promptRef(review.rubricCritic ? "email.critique.rubric" : "email.critique") : "none",
+        },
+        flags: { retrieval: false, brief: false, rubricCritic: review?.rubricCritic ?? false },
         context: { playbook: 0, examples: 0, brief: false },
-        critique: "unreviewed",
+        critique: review?.critique ?? "unreviewed",
     };
 }
 
