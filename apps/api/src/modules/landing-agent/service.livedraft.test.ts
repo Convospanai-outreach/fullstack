@@ -12,6 +12,7 @@ const { mockPrisma, mockCloudflare } = vi.hoisted(() => ({
             findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "campaign-1" }),
         },
         landingPage: { updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+        landingExperimentVariant: { findFirst: vi.fn() },
         keywordTrigger: { groupBy: vi.fn().mockResolvedValue([]) },
     },
     mockCloudflare: { publishPageToCloudflare: vi.fn() },

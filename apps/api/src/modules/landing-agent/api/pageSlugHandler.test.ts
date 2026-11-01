@@ -53,15 +53,20 @@ describe("PATCH /landing-agent/campaigns/:id/pages/:pageId/slug", () => {
         expect(mockSetPageSlug).not.toHaveBeenCalled();
     });
 
-    it.each([
-        ["a path with a space", "Spring Guide!"],
-        ["a single character", "a"],
-        ["a missing path", undefined],
-    ])("rejects %s and changes nothing", async (_label, path) => {
-        const res = await patchPageSlug(request({ path }), PARAMS);
+    it("refuses a missing path before the service is called", async () => {
+        const res = await patchPageSlug(request({}), PARAMS);
 
         expect(res.status).toBe(400);
         expect(mockSetPageSlug).not.toHaveBeenCalled();
+    });
+
+    it("passes a malformed path to the service, which refuses it unless it is the page's current address", async () => {
+        mockSetPageSlug.mockRejectedValue(new APIError("Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR"));
+
+        const res = await patchPageSlug(request({ path: "Spring Guide!" }), PARAMS);
+
+        expect(res.status).toBe(400);
+        expect(mockSetPageSlug).toHaveBeenCalledWith(expect.objectContaining({ path: "spring guide!" }));
     });
 
     it("uses the team from the session, never a team id sent in the body", async () => {

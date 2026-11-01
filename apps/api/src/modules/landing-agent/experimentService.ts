@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { verdictFor, type ExperimentVerdict } from "./landingExperimentStats";
 import { writeExperimentToKv } from "./landingExperimentKv";
+import { RESERVED_PATH_MESSAGE, isReservedPath } from "./reservedPaths";
+import { AB_COOKIE_PREFIX, readCookie } from "./landingExperimentAssignment";
 
 // Same rule as a page path (service.ts setPageSlug / schemas.ts), so an experiment path is also a valid address.
 export const EXPERIMENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}$/;
@@ -58,6 +60,9 @@ export async function createExperiment(input: {
     }
     if (!EXPERIMENT_SLUG_PATTERN.test(input.slug)) {
         throw new APIError("Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
+    }
+    if (isReservedPath(input.slug)) {
+        throw new APIError(RESERVED_PATH_MESSAGE, 400, "VALIDATION_ERROR");
     }
     const pages = await loadTeamPages(input.teamId, [input.pageAId, input.pageBId]);
     if (pages.length !== 2) {
@@ -164,13 +169,20 @@ export async function pickWinner(input: { teamId: string; experimentId: string; 
     return updated;
 }
 
-// The page's open test variant, if the page is an arm of a running test. Used by the event and lead endpoints.
-export async function variantForPage(pageId: string): Promise<string | null> {
-    const variant = await prisma.landingExperimentVariant.findFirst({
+// The page's open test variant, when the visitor was sent to this arm by the test: the test cookie must name it.
+// A direct visit to the page's own address has no test cookie, so it is not counted for the test.
+export async function variantForPage(pageId: string, cookieHeader: string | null): Promise<string | null> {
+    const variant = await runningArmOf(pageId);
+    if (!variant) return null;
+    return readCookie(cookieHeader, `${AB_COOKIE_PREFIX}${variant.experimentId}`) === variant.name ? variant.id : null;
+}
+
+// The arm a page is in, when its test is running. Editing the page is noted against this test.
+export async function runningArmOf(pageId: string): Promise<{ id: string; name: string; experimentId: string } | null> {
+    return prisma.landingExperimentVariant.findFirst({
         where: { landingPageId: pageId, experiment: { status: "running" } },
-        select: { id: true },
+        select: { id: true, name: true, experimentId: true },
     });
-    return variant?.id ?? null;
 }
 
 export interface VariantCounts {
@@ -213,5 +225,21 @@ export async function getExperimentResults(input: { teamId: string; experimentId
         startedAt: experiment.startedAt ?? now,
         now,
     });
-    return { experimentId: experiment.id, status: experiment.status, variants: counts, verdict };
+    // The last edit of each arm's page while the test ran (notes written by saveEditorState), from this team's audit rows.
+    const lastEditedAt: Record<"A" | "B", Date | null> = { A: null, B: null };
+    for (const name of ["A", "B"] as const) {
+        const edit = await prisma.auditLog.findFirst({
+            where: {
+                orgId: input.teamId,
+                action: "landing_experiment.page_edited",
+                entity: "LandingExperiment",
+                entityId: experiment.id,
+                metadata: { path: ["variant"], equals: name },
+            },
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
+        });
+        lastEditedAt[name] = edit?.createdAt ?? null;
+    }
+    return { experimentId: experiment.id, status: experiment.status, variants: counts, verdict, lastEditedAt };
 }

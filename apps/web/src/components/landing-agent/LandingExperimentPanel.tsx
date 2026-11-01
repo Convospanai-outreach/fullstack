@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import { landingExperimentApi, type ExperimentResults, type ExperimentRow } from "@/modules/landing-agent/service/landingExperimentApi";
-import { conversionText, statusLabel, verdictMessage } from "./landingExperimentCopy";
+import { conversionText, editedText, statusLabel, verdictMessage } from "./landingExperimentCopy";
 import { validatePagePath } from "./landingPageAddress";
 
 interface PageOption {
@@ -189,6 +189,14 @@ export default function LandingExperimentPanel() {
                                         </tbody>
                                     </table>
                                     <p>{verdictMessage(r)}</p>
+                                    {(["A", "B"] as const).map((arm) => {
+                                        const line = editedText(arm, r.lastEditedAt?.[arm] ?? null);
+                                        return line ? (
+                                            <p key={arm} className="text-xs text-muted-foreground">
+                                                {line}
+                                            </p>
+                                        ) : null;
+                                    })}
                                     {exp.status !== "ended" || !exp.winnerPageId ? (
                                         <div className="flex gap-2">
                                             {exp.variants.map((v) => (

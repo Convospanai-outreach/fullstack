@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import GrapesEditor from "@/components/landing-agent/GrapesEditor";
 import PageTrackingPanel from "@/components/landing-agent/PageTrackingPanel";
+import { pageLink, readShownDomain, shownDomain } from "@/components/landing-agent/landingPageAddress";
 import UnpublishedChangesBanner from "./UnpublishedChangesBanner";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaign } from "@/modules/landing-agent/types";
@@ -119,8 +120,9 @@ export default function LandingAgentEditorPage() {
                             body: JSON.stringify({ slug }),
                         }).catch(() => {});
                         if (result?.liveDomain) {
-                            // The team's connected domain serves the page from Cloudflare.
-                            window.location.assign(`https://${result.liveDomain}/${slug}`);
+                            // The team's connected domain serves the page from Cloudflare: the one picked in the page list, else the oldest.
+                            const domains = await landingAgentApi.listCampaigns().then((data) => data.domains ?? [], () => []);
+                            window.location.assign(pageLink(shownDomain(domains, readShownDomain()) ?? result.liveDomain, slug));
                         } else {
                             router.push(`/p/${slug}`);
                         }

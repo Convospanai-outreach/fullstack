@@ -192,13 +192,15 @@ export async function postSelectWireframe(req: Request, ctx?: ParamContext) {
         const body = await req.json();
         const parsed = selectWireframeSchema.safeParse(body);
         if (!parsed.success) {
-            throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+            const pathIssue = parsed.error.issues.find((issue) => issue.path[0] === "path");
+            throw new APIError(pathIssue?.message ?? "Invalid input", 400, "VALIDATION_ERROR");
         }
 
         const page = await landingAgentService.selectWireframe({
             teamId,
             campaignId,
             wireframeId: parsed.data.wireframeId,
+            path: parsed.data.path,
         });
         return successResponse(page);
     } catch (error) {
@@ -273,7 +275,7 @@ export async function postLandingImage(req: Request) {
 
 export async function putEditorState(req: Request, ctx?: ParamContext) {
     try {
-        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const { teamId, userId } = await requireTeamContext(req, TeamRole.MEMBER);
         const campaignId = await resolveParam(req, ctx, "id", "campaigns");
         if (!campaignId) {
             throw new APIError("Campaign ID is required", 400, "VALIDATION_ERROR");
@@ -286,6 +288,7 @@ export async function putEditorState(req: Request, ctx?: ParamContext) {
 
         const page = await landingAgentService.saveEditorState({
             teamId,
+            userId,
             campaignId,
             title: parsed.data.title,
             editorState: parsed.data.editorState,
@@ -455,6 +458,7 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             ipAddress,
             userAgent,
             doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
             metaCookies: metaCookiesFrom(req),
         });
 
@@ -499,6 +503,7 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             ipAddress,
             userAgent,
             doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
         });
 
         return successResponse({ ok: true, eventId: event.id }, 201);
