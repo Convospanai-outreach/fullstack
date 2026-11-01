@@ -57,4 +57,14 @@ describe("cloudflarePagesService.publishPageToCloudflare thank-you handle", () =
         const body = await publish(`<section><div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div></section>`);
         expect(body).not.toHaveProperty("instagramHandle");
     });
+
+    it("stores the booking link with the page when the form has one", async () => {
+        const body = await publish(`<section><div class="cmf-form" id="${encodeLeadFormMarkerId({ ...config, bookingUrl: "https://cal.example.com/intro" })}"></div></section>`);
+        expect(body.bookingUrl).toBe("https://cal.example.com/intro");
+    });
+
+    it("stores no booking link when the form has none", async () => {
+        const body = await publish(`<section><div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div></section>`);
+        expect(body).not.toHaveProperty("bookingUrl");
+    });
 });

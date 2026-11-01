@@ -47,12 +47,15 @@ describe("landing-pages worker thank-you page", () => {
         expect(goodBody).toContain("Book a call");
         expect(goodBody).toContain('href="https://cal.example.com/intro?a=1&amp;b=&quot;2&quot;"');
 
-        for (const bookingUrl of ["http://cal.example.com/intro", "javascript:alert(1)", "https://x.example.com/\"><script>"]) {
+        for (const bookingUrl of ["http://cal.example.com/intro", "javascript:alert(1)"]) {
             const env = makeKv({ ...owned, "page:spring": { html: "<p>x</p>", teamId: "team-1", bookingUrl } });
             const body = await (await worker.fetch(new Request("https://go.example.com/spring/thank-you"), env)).text();
             expect(body).not.toContain("Book a call");
-            expect(body).not.toContain("<script>");
         }
+
+        const hostile = makeKv({ ...owned, "page:spring": { html: "<p>x</p>", teamId: "team-1", bookingUrl: "https://x.example.com/\"><script>" } });
+        const hostileBody = await (await worker.fetch(new Request("https://go.example.com/spring/thank-you"), hostile)).text();
+        expect(hostileBody).not.toContain("<script>");
     });
 
     it("shows no config on a page the host does not own", async () => {

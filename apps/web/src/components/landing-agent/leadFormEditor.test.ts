@@ -125,4 +125,10 @@ describe("preview", () => {
         expect(out).toContain(`data-cmf-form="1"`);
         expect(out).not.toContain("cmf-form-");
     });
+
+    it("saves the booking link trimmed and removes it when cleared", () => {
+        expect(setLeadFormSetting(base, { bookingUrl: " https://cal.example.com/intro " }).bookingUrl).toBe("https://cal.example.com/intro");
+        const withBooking = setLeadFormSetting(base, { bookingUrl: "https://cal.example.com/intro" });
+        expect(setLeadFormSetting(withBooking, { bookingUrl: "  " })).not.toHaveProperty("bookingUrl");
+    });
 });
