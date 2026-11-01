@@ -83,6 +83,13 @@ describe("theme CSS and document output", () => {
         expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-primary-text, #0e7490)");
     });
 
+    it("phase 3 blocks (pricing cards, FAQ rules) and the Instagram CTA use theme variables too", () => {
+        expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-surface, #f8fafc)");
+        expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-hairline, #e2e8f0)");
+        expect(LANDING_PAGE_BASE_CSS).toContain("var(--la-accent, #0f172a)");
+        expect(LANDING_PAGE_BASE_CSS).toContain("color: var(--la-on-accent);");
+    });
+
     it("buildFullDocument puts the preset class and the variables on the body", () => {
         for (const fixture of themeCases.cases) {
             const doc = buildFullDocument({

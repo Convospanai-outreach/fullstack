@@ -165,21 +165,21 @@ export const LANDING_PAGE_BASE_CSS = `
     margin-top: 18px;
 }
 .la-plan {
-    border: 1px solid #dbe4ee;
+    border: 1px solid var(--la-hairline, #dbe4ee);
     border-radius: 12px;
     padding: 20px;
-    background: #f8fafc;
+    background: var(--la-surface, #f8fafc);
 }
 .la-faq-item {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--la-hairline, #e2e8f0);
 }
 .la-faq-item h3 {
     font-size: 18px;
 }
 .la-cta.la-instagram {
-    background: #0f172a;
+    background: var(--la-accent, #0f172a);
 }
 @media (max-width: 720px) {
     .la-image-text {
@@ -346,6 +346,9 @@ export const LANDING_PAGE_BASE_CSS = `
         animation: none !important;
         scroll-behavior: auto !important;
     }
+}
+.la-page[style*="--la-on-accent"] .la-cta.la-instagram {
+    color: var(--la-on-accent);
 }
 /* theme:end */
 `;
