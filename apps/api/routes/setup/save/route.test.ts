@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The notice version, shared with apps/web (tests/fixtures/data-responsibility.json).
+const NOTICE_VERSION = (JSON.parse(readFileSync(resolve(__dirname, "../../../../web/tests/fixtures/data-responsibility.json"), "utf8")) as { version: string }).version;
 
 const { mockCheckTeamPermission, mockGetCurrentContextFromRequest, mockPrisma } = vi.hoisted(() => ({
     mockCheckTeamPermission: vi.fn(),
@@ -57,12 +62,42 @@ describe("/setup/save", () => {
         mockPrisma.team.findUnique.mockResolvedValue({ branding: {}, aiConfig: { tone: "Friendly" } });
         const { POST } = await import("./route");
 
-        const response = await POST(postRequest({ step: 1, data: { outreachMode: "personal" } }));
+        const response = await POST(postRequest({ step: 1, data: { outreachMode: "personal", acknowledgedDataResponsibility: true } }));
 
         expect(response.status).toBe(200);
         expect(mockPrisma.team.update).toHaveBeenCalledWith({
             where: { id: "team-1" },
-            data: { aiConfig: { tone: "Friendly", outreachMode: "personal" } },
+            data: { aiConfig: { tone: "Friendly", outreachMode: "personal", dataResponsibility: expect.objectContaining({ version: NOTICE_VERSION }) } },
+        });
+    });
+
+    it("needs the data responsibility acknowledgement to save the launch brief (step 1)", async () => {
+        mockCheckTeamPermission.mockResolvedValue(true);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 1, data: { outreachMode: "company", acknowledgedDataResponsibility: false } }));
+
+        expect(response.status).toBe(400);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+
+    it("stores who acknowledged the notice, when, and which version, keeping the other settings", async () => {
+        mockCheckTeamPermission.mockResolvedValue(true);
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: {}, aiConfig: { tone: "Friendly" } });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ step: 1, data: { outreachMode: "company", acknowledgedDataResponsibility: true } }));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledWith({
+            where: { id: "team-1" },
+            data: {
+                aiConfig: {
+                    tone: "Friendly",
+                    outreachMode: "company",
+                    dataResponsibility: { version: NOTICE_VERSION, acknowledgedBy: "user-1", acknowledgedAt: expect.any(String) },
+                },
+            },
         });
     });
 
