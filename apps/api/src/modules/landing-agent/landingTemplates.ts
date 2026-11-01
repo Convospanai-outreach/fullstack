@@ -59,9 +59,12 @@ export function materializeLandingTemplate(
   origin: string | null,
 ): { html: string; css: string } {
   const marker = `<div class="${LEAD_FORM_MARKER_CLASS}" id="${encodeLeadFormMarkerId(template.leadForm)}"></div>`;
-  let html = template.html.replace(LANDING_FORM_TOKEN, marker);
-  if (origin) {
-    html = html.replace(/src="\/landing-assets\//g, `src="${origin}/landing-assets/`);
-  }
-  return { html, css: "" };
+  return { html: absoluteLandingAssetUrls(template.html.replace(LANDING_FORM_TOKEN, marker), origin), css: "" };
+}
+
+// Built-in image paths (/landing-assets/...) made absolute on the app origin, so they load on a connected domain.
+// Relative paths stay as they are when there is no https origin (local development).
+export function absoluteLandingAssetUrls(html: string, origin: string | null): string {
+  if (!origin) return html;
+  return html.replace(/src="\/landing-assets\//g, `src="${origin}/landing-assets/`);
 }
