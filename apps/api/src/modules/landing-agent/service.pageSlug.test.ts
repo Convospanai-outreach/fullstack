@@ -68,6 +68,14 @@ describe("landingAgentService.setPageSlug", () => {
         expect(mockPrisma.landingPage.updateMany).not.toHaveBeenCalled();
     });
 
+    it("answers the same taken message when another request takes the address first", async () => {
+        mockPrisma.landingPage.updateMany.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002", meta: { target: ["slug"] } }));
+
+        const attempt = landingAgentService.setPageSlug({ teamId: "team-1", campaignId: "lc-1", pageId: "lp-1", path: "spring-guide" });
+
+        await expect(attempt).rejects.toMatchObject({ message: "This web address is taken. Try another.", statusCode: 409 });
+    });
+
     it("refuses an address another test already uses", async () => {
         mockPrisma.landingExperiment.findUnique.mockResolvedValue({ id: "exp-other" });
 

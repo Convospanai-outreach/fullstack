@@ -187,6 +187,16 @@ async function assertAddressFree(slug: string, exceptPageId?: string) {
     }
 }
 
+// Two requests can both pass assertAddressFree for one address; the database's unique slug then rejects the second.
+// Answer that the same way as the pre-check.
+function rethrowAddressTaken(error: unknown): never {
+    const { code, meta } = (error ?? {}) as { code?: unknown; meta?: { target?: unknown } };
+    if (code === "P2002" && String(meta?.target ?? "").includes("slug")) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    throw error;
+}
+
 async function getCampaignOrThrow(campaignId: string, teamId: string) {
     const campaign = await prisma.landingCampaign.findFirst({
         where: { id: campaignId, teamId },
@@ -354,7 +364,7 @@ export const landingAgentService = {
                 },
             });
             return { campaignId: campaign.id, pageId: page.id };
-        });
+        }).catch(rethrowAddressTaken);
     },
 
     async getCampaign(teamId: string, campaignId: string) {
@@ -765,7 +775,7 @@ export const landingAgentService = {
             throw new APIError("The web address can only change before the page is first published.", 409, "CONFLICT");
         }
         await assertAddressFree(path, page.id);
-        return updateOwnedPage(page.id, input.teamId, { slug: path });
+        return updateOwnedPage(page.id, input.teamId, { slug: path }).catch(rethrowAddressTaken);
     },
 
     // Throws away unpublished edits; the live page is unchanged and not pushed again.
