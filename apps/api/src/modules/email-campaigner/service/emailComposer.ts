@@ -553,3 +553,40 @@ export async function composeNodeC(
     if (verdict) console.warn("[Critique] Node C: the critic gave no usable verdict or correction; the draft is marked unreviewed", { status: verdict.status });
     return { ...normalized, reasoning: `${normalized.reasoning}\n\n${UNREVIEWED_NOTE}`, unreviewed: true };
 }
+
+// ─── Older draft path ─────────────────────────────────────────────────────────
+
+// Off unless LEGACY_CRITIC=on. The email-worker draft has no critic; with this on, its live drafts
+// get the same single critique call (and the same guarded rewrite) the composer's Node A gets.
+export function legacyCriticEnabled(): boolean {
+    return process.env["LEGACY_CRITIC"] === "on";
+}
+
+// What the critic and the rewrite guard may know about the prospect: the fields the draft was written
+// from, not the whole Lead row. enrichedData is clipped so one large row cannot bloat the critic call.
+const LEGACY_FACTS_CHARS = 3000;
+function legacyCriticInput(lead: any, icp: unknown) {
+    const facts = lead?.enrichedData ? JSON.stringify(lead.enrichedData).slice(0, LEGACY_FACTS_CHARS) : undefined;
+    return { prospect_name: lead?.fullName, prospect_title: lead?.jobTitle, prospect_company: lead?.company, facts, icp };
+}
+
+// One critique call on a draft from the older path. Never throws: a critic that fails or answers
+// badly leaves the draft as written and marks it unreviewed, as Node A does.
+export async function reviewLegacyDraft(
+    lead: unknown,
+    icp: unknown,
+    draft: { subject: string; body: string },
+    teamId: string,
+): Promise<{ draft: { subject: string; body: string }; critique: CopyProvenance["critique"]; rubricCritic: boolean }> {
+    const rubric = loadCriticRubric();
+    const input = legacyCriticInput(lead, icp);
+    try {
+        const verdict = await critiqueDraft(input, draft, teamId, "Legacy draft", rubric);
+        const correction = guardCorrection(usableCorrection(verdict), input, draft, "Legacy draft");
+        if (correction) return { draft: correction, critique: "corrected", rubricCritic: rubric !== null };
+        return { draft, critique: verdict?.status === "PASS" ? "passed" : "unreviewed", rubricCritic: rubric !== null };
+    } catch (error) {
+        console.warn("[Critique] Legacy draft: the critic call failed; the draft is marked unreviewed", { error: error instanceof Error ? error.message : String(error) });
+        return { draft, critique: "unreviewed", rubricCritic: rubric !== null };
+    }
+}
