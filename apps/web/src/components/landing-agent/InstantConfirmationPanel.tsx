@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
-import type { InstantConfirmationSequence, InstantConfirmationSetting } from "@/modules/landing-agent/types";
+import type { InstantConfirmationSaveResult, InstantConfirmationSequence, InstantConfirmationSetting } from "@/modules/landing-agent/types";
 
 // The page's optional message right after a form lead is stored (apps/api instantConfirmation.ts).
 // The API returns only the sequences that can send, and the picker lists exactly those.
@@ -14,20 +14,31 @@ export default function InstantConfirmationPanel({
 }: {
     initial?: InstantConfirmationSetting | null;
     onLoadSequences: () => Promise<InstantConfirmationSequence[]>;
-    onSave: (setting: InstantConfirmationSetting) => Promise<string>;
+    onSave: (setting: InstantConfirmationSetting) => Promise<InstantConfirmationSaveResult>;
 }) {
     const [enabled, setEnabled] = useState(Boolean(initial?.enabled));
     const [sequenceId, setSequenceId] = useState(initial?.sequenceId ?? "");
     const [sequences, setSequences] = useState<InstantConfirmationSequence[] | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
+    // The saved sequence is not among the ones that qualify now (it was paused, deleted, or changed).
+    const [savedNoLongerQualifies, setSavedNoLongerQualifies] = useState(false);
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+    const [warnings, setWarnings] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+
+    const initialEnabled = Boolean(initial?.enabled);
+    const initialSequenceId = initial?.sequenceId ?? "";
 
     useEffect(() => {
         let cancelled = false;
         onLoadSequences()
             .then((list) => {
-                if (!cancelled) setSequences(list);
+                if (cancelled) return;
+                setSequences(list);
+                if (initialEnabled && initialSequenceId && !list.some((sequence) => sequence.id === initialSequenceId)) {
+                    setSavedNoLongerQualifies(true);
+                    setSequenceId("");
+                }
             })
             .catch(() => {
                 if (!cancelled) {
@@ -38,9 +49,10 @@ export default function InstantConfirmationPanel({
         return () => {
             cancelled = true;
         };
-    }, [onLoadSequences]);
+    }, [onLoadSequences, initialEnabled, initialSequenceId]);
 
     const noEligibleSequence = sequences !== null && sequences.length === 0;
+    const chosen = sequences?.find((sequence) => sequence.id === sequenceId);
 
     return (
         <GlassCard className="p-6 space-y-4">
@@ -61,8 +73,11 @@ export default function InstantConfirmationPanel({
                     e.preventDefault();
                     setSaving(true);
                     setMessage(null);
+                    setWarnings([]);
                     try {
-                        setMessage({ ok: true, text: await onSave({ enabled, sequenceId }) });
+                        const result = await onSave({ enabled, sequenceId });
+                        setMessage({ ok: true, text: result.message });
+                        setWarnings(result.warnings ?? []);
                     } catch (err: any) {
                         setMessage({ ok: false, text: err?.message || "Could not save instant confirmation" });
                     } finally {
@@ -100,17 +115,29 @@ export default function InstantConfirmationPanel({
                         <select
                             id="instant-confirmation-sequence"
                             value={sequenceId}
-                            onChange={(e) => setSequenceId(e.target.value)}
+                            onChange={(e) => {
+                                setSequenceId(e.target.value);
+                                setSavedNoLongerQualifies(false);
+                            }}
                             className="w-full md:w-96 bg-background border border-input rounded-lg px-3 py-2 text-foreground"
                         >
                             <option value="">Choose a sequence</option>
                             {sequences.map((sequence) => (
                                 <option key={sequence.id} value={sequence.id}>
-                                    {`${sequence.name} (${sequence.channel === "email" ? "Email" : "WhatsApp"})`}
+                                    {`${sequence.name} (${sequence.channel === "email" ? "Email" : "WhatsApp"}, ${sequence.status === "DRAFT" ? "Draft" : "Active"})`}
                                 </option>
                             ))}
                         </select>
+                        {chosen?.campaignId ? (
+                            <Link href={`/campaigns/${encodeURIComponent(chosen.campaignId)}?tab=sequence`} className="text-sm underline">
+                                Open this sequence
+                            </Link>
+                        ) : null}
                     </div>
+                ) : null}
+
+                {enabled && savedNoLongerQualifies ? (
+                    <p className="text-sm text-destructive">The sequence you picked no longer qualifies. Choose another one to save.</p>
                 ) : null}
 
                 <div className="flex items-center gap-3">
@@ -123,6 +150,13 @@ export default function InstantConfirmationPanel({
                     </button>
                     {message ? <p className={`text-sm ${message.ok ? "text-emerald-600" : "text-destructive"}`}>{message.text}</p> : null}
                 </div>
+                {warnings.length > 0 ? (
+                    <ul className="space-y-1 text-sm text-amber-700">
+                        {warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                        ))}
+                    </ul>
+                ) : null}
             </form>
         </GlassCard>
     );
