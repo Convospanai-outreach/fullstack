@@ -335,6 +335,29 @@ describe("handleSequenceAction approval gate", () => {
         expect(SequenceService.scheduleNextStep).toHaveBeenCalled();
     });
 
+    it("carries the draft's provenance to the held approval, and from the approval to the sent email", async () => {
+        const provenance = { v: 1, node: "A", marker: "prov-x" };
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(ownLead as any);
+        vi.mocked(composeNodeA).mockResolvedValueOnce({ subject: "Drafted subject", body: "Drafted body", provenance } as any);
+        vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: false, held: "approval", approvalId: "appr-9" });
+        await handleSequenceAction({ leadId: "lead-own", action: "EMAIL", teamId: "team-1" } as any);
+        expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: provenance }));
+
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(ownLead as any);
+        vi.mocked(resolveApprovedMessage).mockResolvedValueOnce({ state: "ready", subject: "S", body: "B", copyProvenance: provenance } as any);
+        vi.mocked(emailService.sendEmail).mockResolvedValueOnce({ ok: true } as any);
+        await handleSequenceAction({ leadId: "lead-own", action: "EMAIL", teamId: "team-1", approvedMessageId: "appr-9" } as any);
+        expect(emailService.sendEmail).toHaveBeenCalledWith("own@example.com", "S", "B", expect.objectContaining({ copyProvenance: provenance }));
+    });
+
+    it("sends a drafted email with no provenance when the draft carries none", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(ownLead as any);
+        vi.mocked(composeNodeA).mockResolvedValueOnce({ subject: "Drafted subject", body: "Drafted body" } as any);
+        vi.mocked(emailService.sendEmail).mockResolvedValueOnce({ ok: true } as any);
+        await handleSequenceAction({ leadId: "lead-own", action: "EMAIL", teamId: "team-1" } as any);
+        expect(vi.mocked(emailService.sendEmail).mock.calls.at(-1)![3]).not.toHaveProperty("copyProvenance");
+    });
+
     it("flags the approval needs-attention when sending the approved message throws", async () => {
         vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
         vi.mocked(resolveApprovedMessage).mockResolvedValueOnce({ state: "ready", body: "The approved note" });

@@ -14,8 +14,9 @@ import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrc
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import type { Rubric } from "@/evals/copy/evalData";
-import { loadCampaignBrief } from "./copyBrief";
-import { loadCopyContext, renderCopyContext, type CopyContext } from "./copyContext";
+import { briefEnabled, loadCampaignBrief } from "./copyBrief";
+import { buildProvenance, type CopyProvenance } from "./copyProvenance";
+import { loadCopyContext, renderCopyContext, retrievalEnabled, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
@@ -51,6 +52,8 @@ export interface NodeAOutput {
     internal_notes: string;
     // True when the critic's verdict could not be used, so nothing checked this draft.
     unreviewed?: boolean;
+    // Which prompt versions and settings wrote this draft (see copyProvenance.ts).
+    provenance?: CopyProvenance;
 }
 
 // ─── Node B Types ─────────────────────────────────────────────────────────────
@@ -355,8 +358,7 @@ function readRubricCritique(raw: string, label: string, rubric: Rubric): Critiqu
 
 // One critique call per draft: scored against the private rubric when COPY_RUBRIC_DIR is set,
 // the standard critique otherwise.
-async function critiqueDraft(input: any, draft: { subject: string; body: string }, teamId: string, label: string): Promise<CritiqueVerdict | null> {
-    const rubric = loadCriticRubric();
+async function critiqueDraft(input: any, draft: { subject: string; body: string }, teamId: string, label: string, rubric: Rubric | null = loadCriticRubric()): Promise<CritiqueVerdict | null> {
     const prompt = rubric ? buildRubricCritiquePrompt(input, draft, rubric, buildStyleGuidance(input)) : buildCritiquePrompt(input, draft);
     const raw = await aiService.askAI(prompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     return rubric ? readRubricCritique(raw, label, rubric) : readCritique(raw, label);
@@ -445,27 +447,41 @@ export async function composeNodeA(
     input.campaign_brief = (await loadCampaignBrief(campaignId, teamId)) || undefined;
 
     // 2. INITIAL GENERATION
-    const prompt = buildNodeAPrompt(input, await loadCopyContext("A", input as unknown as Record<string, unknown>));
+    const context = await loadCopyContext("A", input as unknown as Record<string, unknown>);
+    const prompt = buildNodeAPrompt(input, context);
     const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true, systemPrompt: buildNodeASystemPrompt(input) });
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
-    const verdict = await critiqueDraft(input, draft, teamId, "Node A");
+    const rubric = loadCriticRubric();
+    const verdict = await critiqueDraft(input, draft, teamId, "Node A", rubric);
     const correction = guardCorrection(usableCorrection(verdict), input, draft, "Node A");
+    const provenance = (critique: CopyProvenance["critique"]) => buildProvenance({
+        retrievalOn: retrievalEnabled(),
+        briefOn: briefEnabled(),
+        rubricCritic: rubric !== null,
+        playbook: context?.playbook.length ?? 0,
+        examples: context?.examples.length ?? 0,
+        briefUsed: Boolean(input.campaign_brief),
+        critique,
+    });
     if (correction) {
         console.log(`[Self-Correction] Pivot applied: ${verdict?.critique}`);
-        return normalizeNodeAOutput({
-            ...draft,
-            subject: correction.subject,
-            body: correction.body,
-            internal_notes: `${draft.internal_notes}\n\n[SELF-CORRECTION]: ${verdict?.critique}`
-        });
+        return {
+            ...normalizeNodeAOutput({
+                ...draft,
+                subject: correction.subject,
+                body: correction.body,
+                internal_notes: `${draft.internal_notes}\n\n[SELF-CORRECTION]: ${verdict?.critique}`
+            }),
+            provenance: provenance("corrected"),
+        };
     }
 
     const normalized = normalizeNodeAOutput(draft);
-    if (verdict?.status === "PASS") return normalized;
+    if (verdict?.status === "PASS") return { ...normalized, provenance: provenance("passed") };
     if (verdict) console.warn("[Critique] Node A: the critic gave no usable verdict or correction; the draft is marked unreviewed", { status: verdict.status });
-    return { ...normalized, internal_notes: `${normalized.internal_notes}\n\n${UNREVIEWED_NOTE}`, unreviewed: true };
+    return { ...normalized, internal_notes: `${normalized.internal_notes}\n\n${UNREVIEWED_NOTE}`, unreviewed: true, provenance: provenance("unreviewed") };
 }
 
 export async function composeNodeB(

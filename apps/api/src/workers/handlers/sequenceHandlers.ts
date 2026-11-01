@@ -4,6 +4,7 @@ import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
+import type { CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { emailService } from "@/modules/email-campaigner";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
@@ -194,6 +195,8 @@ export async function handleSequenceAction(payload: JobPayload) {
                 let emailSubject = "";
                 let emailBody = "";
                 let sentVariantId: string | undefined;
+                // Set only for copy the AI wrote; an operator's variant text carries none.
+                let copyProvenance: CopyProvenance | undefined;
                 const emailApprovalTeamId = emailLeadTeamId || campaign.teamId || undefined;
 
                 const variant = variantId
@@ -213,6 +216,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     approvedClaim = { id: approvedMessageId, teamId: emailApprovalTeamId || "" };
                     emailSubject = approved.subject;
                     emailBody = approved.body;
+                    copyProvenance = approved.copyProvenance;
                 } else {
                     const style = resolveEmailStyle(campaign);
                     // 1. Prepare Node A Input
@@ -253,11 +257,13 @@ export async function handleSequenceAction(payload: JobPayload) {
                     const gate = await gateAiMessage({
                         teamId: emailApprovalTeamId, leadId, channel: "EMAIL", jobType: "SEQUENCE_ACTION", jobPayload: payload,
                         subject: draft.subject, body: draft.body, requesterHint: campaign.ownerId,
+                        ...(draft.provenance ? { copyProvenance: draft.provenance } : {}),
                     });
                     if (!gate.send) return { ok: false, held: gate.held };
 
                     emailSubject = draft.subject;
                     emailBody = draft.body;
+                    copyProvenance = draft.provenance;
                 }
 
                 result = await emailService.sendEmail(lead.email, emailSubject, emailBody, {
@@ -265,6 +271,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     campaignId: lead.campaignId || undefined,
                     leadId: lead.id,
                     variantId: sentVariantId || undefined,
+                    ...(copyProvenance ? { copyProvenance } : {}),
                     ...(approvedMessageId ? { idempotencyKey: `approved_message_${approvedMessageId}` } : {}),
                 });
 

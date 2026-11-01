@@ -767,6 +767,7 @@ model Email {
   repliedAt        DateTime?
   bouncedAt        DateTime?
   unsubscribedAt   DateTime?
+  copyProvenance   Json? // { v, prompts, flags, critique, ... }: which prompt versions wrote it; null = not AI-written (copyProvenance.ts)
   createdAt        DateTime          @default(now())
   campaign         Campaign          @relation(fields: [campaignId], references: [id])
   lead             Lead              @relation(fields: [leadId], references: [id])
