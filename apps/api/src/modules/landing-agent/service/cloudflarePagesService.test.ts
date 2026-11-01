@@ -38,6 +38,24 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(mockPrisma.landingPage.findUnique).not.toHaveBeenCalled();
     });
 
+    it("publishes a themed page with the preset class and variables on the body", async () => {
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "themed",
+            title: "Themed",
+            renderedJson: { html: "<p>Hello</p>", css: "", theme: { preset: "glass", primary: "#112233", accent: "#abcdef" } },
+            campaign: { teamId: "team-1" },
+        });
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.html).toContain('<body class="la-page la-theme-glass" style="');
+        expect(body.html).toContain("--la-primary:#112233");
+    });
+
     it("PUTs the rendered HTML and owning teamId to the correct KV key", async () => {
         mockPrisma.landingPage.findUnique.mockResolvedValue({
             id: "page-1",

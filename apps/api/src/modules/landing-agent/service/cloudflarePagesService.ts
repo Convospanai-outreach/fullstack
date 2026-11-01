@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
+import { themeFromRenderedJson } from "../theme";
 import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 import { buildTrackingScript } from "../tracking";
@@ -209,7 +210,8 @@ class CloudflarePagesService {
             const trackingScript = buildTrackingScript(page.tracking);
             const script = trackingScript + buildLeadFormScript(page.slug);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug });
+            const theme = themeFromRenderedJson(page.renderedJson);
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn, slug: page.slug, theme });
             const successMessage = readLeadFormConfig(payload.html)?.successMessage;
             const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
             // CSP source for the one inline script the worker is expected to run

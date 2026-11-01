@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         iCP: { findFirst: vi.fn(), create: vi.fn() },
+        team: { findUnique: vi.fn().mockResolvedValue(null) },
         landingCampaign: { create: vi.fn() },
         landingPage: { findUnique: vi.fn(), create: vi.fn() },
         $transaction: vi.fn(),
