@@ -205,6 +205,26 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         // Lead fires only after the server accepted the submission, with the ID made for this submit.
         expect(script).toContain('var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;');
         expect(script).toMatch(/if \(!res\.ok\) throw new Error\("Submission failed"\);\s*if \(metaEventId\) window\.cmfMeta\.track\("Lead", metaEventId\);/);
+        // The lead POST carries the same ID, and the page URL without its query (the ?t= social token must not reach Meta).
+        expect(script).toContain("metaEventId: metaEventId || undefined,");
+        expect(script).toContain("metaEventSourceUrl: location.origin + location.pathname,");
+    });
+
+    it("sends no Meta fields from a page without a Meta Pixel", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "plain",
+            title: "Plain",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+            tracking: { ga4Id: "G-ABC1234" },
+        });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const script = [...JSON.parse(fetchMock.mock.calls[0][1].body).html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
+        expect(script).not.toContain("metaEventId");
+        expect(script).not.toContain("metaEventSourceUrl");
     });
 
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {

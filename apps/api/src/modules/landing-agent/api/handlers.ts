@@ -60,7 +60,7 @@ function getClientMeta(req: Request) {
     return { ipAddress, userAgent };
 }
 
-async function requireTeamContext(req: Request, minRole: TeamRole) {
+export async function requireTeamContext(req: Request, minRole: TeamRole) {
     const ctx = await getCurrentContextFromRequest(req);
     if (!ctx.userId || !ctx.teamId) {
         throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
