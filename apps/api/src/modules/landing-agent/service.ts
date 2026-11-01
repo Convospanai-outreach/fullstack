@@ -10,6 +10,8 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { getLandingTemplate, landingAppOrigin, materializeLandingTemplate } from "./landingTemplates";
 import { normalizeTracking } from "./tracking";
+import { variantForPage } from "./experimentService";
+import { isBotUserAgent } from "./landingExperimentAssignment";
 import { landingEventNameEnum } from "./schemas";
 import { getLandingRenderPayload } from "./rendering";
 import { brandThemeFrom, themeValidationError } from "./theme";
@@ -157,19 +159,30 @@ async function generateUniqueSlug(name: string): Promise<string> {
         const suffix = i === 0 ? "" : `-${Math.random().toString(36).slice(2, 7)}`;
         const candidate = `${base}${suffix}`;
         const exists = await prisma.landingPage.findUnique({ where: { slug: candidate } });
-        if (!exists) {
+        const experimentExists = exists ? null : await prisma.landingExperiment.findUnique({ where: { slug: candidate }, select: { id: true } });
+        if (!exists && !experimentExists) {
             return candidate;
         }
     }
     return `${base}-${Date.now().toString(36)}`;
 }
 
+// The A/B variant a visit counts toward: none for crawlers and Do Not Track visitors, else the page's running test.
+async function abVariantFor(pageId: string, userAgent: string | undefined, doNotTrack: boolean | undefined): Promise<string | null> {
+    if (doNotTrack || isBotUserAgent(userAgent ?? null)) return null;
+    return variantForPage(pageId);
+}
+
 const ADDRESS_TAKEN_MESSAGE = "This web address is taken. Try another.";
 
 // Slugs are globally unique (LandingPage.slug @unique), so a chosen path must not match any page's slug.
+// An A/B test path (LandingExperiment.slug) is in the same namespace, so it is checked too, both ways.
 async function assertAddressFree(slug: string, exceptPageId?: string) {
     const existing = await prisma.landingPage.findUnique({ where: { slug }, select: { id: true } });
     if (existing && existing.id !== exceptPageId) {
+        throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
+    }
+    if (await prisma.landingExperiment.findUnique({ where: { slug }, select: { id: true } })) {
         throw new APIError(ADDRESS_TAKEN_MESSAGE, 409, "CONFLICT");
     }
 }
@@ -936,6 +949,7 @@ export const landingAgentService = {
         };
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
@@ -961,6 +975,7 @@ export const landingAgentService = {
             rawPayload = mapped.rawPayload;
         }
 
+        const variantId = await abVariantFor(page.id, input.userAgent, input.doNotTrack);
         const lead = await prisma.$transaction(async (tx) => {
             const createdLead = await tx.landingLead.create({
                 data: {
@@ -982,6 +997,7 @@ export const landingAgentService = {
                     utmContent: input.payload.utmContent,
                     referrer: input.payload.referrer,
                     socialToken: input.payload.socialToken,
+                    variantId,
                     // Only creator funnel pages show the WhatsApp opt-in, and it needs a phone number.
                     ...(input.payload.whatsappConsent === true && page.funnelStage && columns.phone?.trim() ? { whatsappConsent: true } : {}),
                     ipAddress: input.ipAddress,
@@ -1044,6 +1060,7 @@ export const landingAgentService = {
                     eventData: {
                         leadId: createdLead.id,
                     },
+                    variantId,
                     ipAddress: input.ipAddress,
                     userAgent: input.userAgent,
                 },
@@ -1088,6 +1105,7 @@ export const landingAgentService = {
         utmContent?: string;
         ipAddress?: string;
         userAgent?: string;
+        doNotTrack?: boolean;
     }) {
         if (!landingEventNameEnum.safeParse(input.eventName).success) {
             throw new APIError("Invalid event name", 400, "VALIDATION_ERROR");
@@ -1112,6 +1130,7 @@ export const landingAgentService = {
                 utmCampaign: input.utmCampaign,
                 utmTerm: input.utmTerm,
                 utmContent: input.utmContent,
+                variantId: await abVariantFor(page.id, input.userAgent, input.doNotTrack),
                 ipAddress: input.ipAddress,
                 userAgent: input.userAgent,
             },

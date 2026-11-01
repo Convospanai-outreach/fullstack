@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         landingPage: { findFirst: vi.fn() },
+        landingExperimentVariant: { findFirst: vi.fn().mockResolvedValue(null) },
     },
 }));
 

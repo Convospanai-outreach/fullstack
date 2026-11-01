@@ -12,7 +12,10 @@ import {
     publishCampaignSchema,
     selectWireframeSchema,
     setPageSlugSchema,
+    createExperimentSchema,
+    pickWinnerSchema,
 } from "../schemas";
+import { createExperiment, endExperiment, getExperimentResults, pauseExperiment, pickWinner, startExperiment } from "../experimentService";
 import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
 import { isLandingImageStorageConfigured, putLandingImage } from "../service/imageGenerationService";
@@ -407,6 +410,11 @@ export async function getPublicPage(req: Request, ctx?: ParamContext) {
     }
 }
 
+// Do Not Track or Global Privacy Control: the visit is recorded without an A/B variant (see service.ts abVariantFor).
+function doNotTrackRequested(req: Request): boolean {
+    return req.headers.get("dnt") === "1" || req.headers.get("sec-gpc") === "1";
+}
+
 export async function postPublicLead(req: Request, ctx?: ParamContext) {
     try {
         const slug = await resolveParam(req, ctx, "slug", "public");
@@ -430,6 +438,7 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             payload: parsed.data,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
         });
 
         return successResponse({
@@ -472,9 +481,62 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             utmContent: parsed.data.utmContent,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
         });
 
         return successResponse({ ok: true, eventId: event.id }, 201);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// A/B tests between two landing pages (phase 6B). Team scoping happens in experimentService.
+export async function postCreateExperiment(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const parsed = createExperimentSchema.safeParse(await req.json().catch(() => ({})));
+        if (!parsed.success) {
+            throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+        }
+        const experiment = await createExperiment({ teamId, ...parsed.data });
+        return successResponse(experiment);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function getExperiment(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const experimentId = await resolveParam(req, ctx, "id", "experiments");
+        if (!experimentId) {
+            throw new APIError("Experiment ID is required", 400, "VALIDATION_ERROR");
+        }
+        return successResponse(await getExperimentResults({ teamId, experimentId }));
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function postExperimentAction(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const experimentId = await resolveParam(req, ctx, "id", "experiments");
+        const action = await resolveParam(req, ctx, "action");
+        if (!experimentId) {
+            throw new APIError("Experiment ID is required", 400, "VALIDATION_ERROR");
+        }
+        if (action === "start") return successResponse(await startExperiment({ teamId, experimentId }));
+        if (action === "pause") return successResponse(await pauseExperiment({ teamId, experimentId }));
+        if (action === "end") return successResponse(await endExperiment({ teamId, experimentId }));
+        if (action === "winner") {
+            const parsed = pickWinnerSchema.safeParse(await req.json().catch(() => ({})));
+            if (!parsed.success) {
+                throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+            }
+            return successResponse(await pickWinner({ teamId, experimentId, pageId: parsed.data.pageId }));
+        }
+        throw new APIError("Not found", 404, "NOT_FOUND");
     } catch (error) {
         return handleAPIError(error);
     }
