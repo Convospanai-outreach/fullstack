@@ -946,10 +946,13 @@ export const landingAgentService = {
             socialToken?: string;
             whatsappConsent?: boolean;
             formFields?: Record<string, unknown>;
+            metaEventId?: string;
+            metaEventSourceUrl?: string;
         };
         ipAddress?: string;
         userAgent?: string;
         doNotTrack?: boolean;
+        metaCookies?: { fbc?: string; fbp?: string };
     }) {
         const page = await this.getPublicPageBySlug(input.slug);
         if (!page) {
@@ -1026,6 +1029,33 @@ export const landingAgentService = {
                         entityId: createdLead.id,
                         fieldName: "phone",
                         plaintext: columns.phone,
+                    },
+                    tx
+                );
+            }
+
+            // Meta Conversions API: only when the page has a Pixel, the browser sent the event ID it fired
+            // (it skips Do Not Track / GPC visitors), and this request is not DNT/GPC. Personal data is not
+            // copied here; the job reads it from the lead.
+            const metaTracking = normalizeTracking(page.tracking);
+            const metaSourceUrl = input.payload.metaEventSourceUrl;
+            if (metaTracking?.metaPixelId && input.payload.metaEventId && metaSourceUrl?.startsWith("https://") && !input.doNotTrack) {
+                await OutboxService.publishEvent(
+                    {
+                        teamId: page.teamId,
+                        eventType: "LANDING_META_LEAD_CAPI",
+                        aggregateType: "LandingLead",
+                        aggregateId: createdLead.id,
+                        payload: {
+                            pixelId: metaTracking.metaPixelId,
+                            eventId: input.payload.metaEventId,
+                            eventTime: Math.floor(Date.now() / 1000),
+                            eventSourceUrl: metaSourceUrl,
+                            fbc: input.metaCookies?.fbc,
+                            fbp: input.metaCookies?.fbp,
+                            testEventCode: metaTracking.metaTestEventCode,
+                        },
+                        idempotencyKey: `landing_lead_meta_${createdLead.id}`,
                     },
                     tx
                 );
