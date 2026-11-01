@@ -12,6 +12,16 @@ export function readOutreachMode(aiConfig: unknown): OutreachMode | null {
     return mode === "personal" || mode === "company" ? mode : null;
 }
 
+// The data responsibility notice (step 1). Bump the version when its wording changes; the API route keeps the same
+// value, and both read apps/web/tests/fixtures/data-responsibility.json in their tests.
+export const DATA_RESPONSIBILITY_VERSION = "2026-11";
+
+// Whether the team has agreed to the current notice. Stored in the team's aiConfig as dataResponsibility.
+export function hasDataResponsibilityAck(aiConfig: unknown): boolean {
+    const record = (aiConfig as { dataResponsibility?: { version?: unknown } } | null)?.dataResponsibility;
+    return record?.version === DATA_RESPONSIBILITY_VERSION;
+}
+
 export function visibleStepIds(stepIds: readonly number[], mode: OutreachMode | null): number[] {
     return mode === "personal" ? stepIds.filter((id) => !PERSONAL_HIDDEN_STEPS.has(id)) : [...stepIds];
 }

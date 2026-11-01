@@ -34,7 +34,7 @@ import {
 import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import { useLiveFeatureKeys } from "@/components/dashboard/SectionTabs";
-import { nextStepId, previousStepId, readOutreachMode, visibleStepIds, type OutreachMode } from "@/lib/setupSteps";
+import { hasDataResponsibilityAck, nextStepId, previousStepId, readOutreachMode, visibleStepIds, type OutreachMode } from "@/lib/setupSteps";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
@@ -137,7 +137,7 @@ export default function SetupWizardPage() {
   const stepComplete = useMemo(() => {
     if (!status) return () => false;
     return (stepId: number) => {
-      if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig);
+      if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig) && hasDataResponsibilityAck(status.aiConfig);
       if (stepId === 2) return status.brandingComplete;
       if (stepId === 3) return status.canSendEmail || connectedMailboxes > 0;
       if (stepId === 4) return true;
@@ -161,7 +161,7 @@ export default function SetupWizardPage() {
       const data = await readJson(res);
       setStatus(data);
       setFormData({
-        step1: { outreachMode: readOutreachMode(data.aiConfig) },
+        step1: { outreachMode: readOutreachMode(data.aiConfig), acknowledgedDataResponsibility: hasDataResponsibilityAck(data.aiConfig) },
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
@@ -259,6 +259,10 @@ export default function SetupWizardPage() {
   async function handleSaveStep(stepId: number) {
     if (stepId === 1 && !outreachMode) {
       setActionMessage("Choose who you're reaching out for to continue.");
+      return;
+    }
+    if (stepId === 1 && formData.step1?.acknowledgedDataResponsibility !== true) {
+      setActionMessage("Read the notice about your leads and tick the box to continue.");
       return;
     }
     setSaving(true);
@@ -511,9 +515,14 @@ export default function SetupWizardPage() {
                 status={status}
                 mode={outreachMode}
                 message={actionMessage}
+                acknowledged={formData.step1?.acknowledgedDataResponsibility === true}
+                onAcknowledge={(value) => {
+                  setActionMessage(null);
+                  setFormData({ ...formData, step1: { ...formData.step1, acknowledgedDataResponsibility: value } });
+                }}
                 onChoose={(mode) => {
                   setActionMessage(null);
-                  setFormData({ ...formData, step1: { outreachMode: mode } });
+                  setFormData({ ...formData, step1: { ...formData.step1, outreachMode: mode } });
                 }}
               />
             )}
@@ -884,7 +893,21 @@ const OUTREACH_MODES: Array<{ mode: OutreachMode; title: string; text: string; i
   { mode: "company", title: "On behalf of a company", text: "You're reaching out to other companies for your company or a client, with teammates and brand details.", icon: Building2 },
 ];
 
-function LaunchBrief({ status, mode, message, onChoose }: { status: SetupStatus; mode: OutreachMode | null; message: string | null; onChoose: (mode: OutreachMode) => void }) {
+function LaunchBrief({
+  status,
+  mode,
+  message,
+  acknowledged,
+  onAcknowledge,
+  onChoose,
+}: {
+  status: SetupStatus;
+  mode: OutreachMode | null;
+  message: string | null;
+  acknowledged: boolean;
+  onAcknowledge: (value: boolean) => void;
+  onChoose: (mode: OutreachMode) => void;
+}) {
   return (
     <div className="space-y-5">
       <section className={panelClass}>
@@ -912,10 +935,26 @@ function LaunchBrief({ status, mode, message, onChoose }: { status: SetupStatus;
         {message ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{message}</p> : null}
       </section>
       <section className={panelClass}>
+        <h3 className="text-xl font-semibold text-white">Your leads and your responsibilities</h3>
+        <div className="mt-4 space-y-3 text-sm text-slate-300">
+          <p>You own the leads you collect and the data you store about them.</p>
+          <p>
+            You are responsible for getting consent, publishing a privacy policy, honouring unsubscribe and data-deletion requests, and following the
+            laws that apply to you and your recipients.
+          </p>
+          <p>This product gives you tools: a consent checkbox on landing page forms, a data-deletion page and a do-not-contact list. It does not give legal advice.</p>
+        </div>
+        <label className="mt-5 flex items-start gap-3 text-sm text-white">
+          <input type="checkbox" className="mt-1" checked={acknowledged} onChange={(e) => onAcknowledge(e.target.checked)} />
+          <span>I understand and accept these responsibilities for my team.</span>
+        </label>
+      </section>
+      <section className={panelClass}>
         <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <ChecklistItem label="Account exists" passed={status.hasAccount} />
           <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
+          <ChecklistItem label="Notice about your leads accepted" passed={hasDataResponsibilityAck(status.aiConfig)} />
           <ChecklistItem label="Qualified lead definition reviewed" passed={false} />
           <ChecklistItem label="Meeting workflow tracking confirmed" passed={false} />
         </div>
