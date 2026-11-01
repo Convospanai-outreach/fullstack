@@ -38,6 +38,19 @@ export interface LandingPageTracking {
     metaTestEventCode?: string;
 }
 
+// Phase 9 instant confirmation: one sequence the page settings can pick (GET /landing-agent/instant-confirmation/sequences).
+export interface InstantConfirmationSequence {
+    id: string;
+    name: string;
+    channel: "email" | "whatsapp";
+}
+
+// The page's stored instant confirmation (PUT .../instant-confirmation). Off unless enabled.
+export interface InstantConfirmationSetting {
+    enabled: boolean;
+    sequenceId: string;
+}
+
 export interface LandingCampaignSummary {
     id: string;
     name: string;
@@ -79,6 +92,7 @@ export interface LandingCampaign {
         renderedJson: unknown;
         editorState?: unknown;
         tracking?: LandingPageTracking | null;
+        instantConfirmation?: InstantConfirmationSetting | null;
         // True when renderedJson is the unpublished draft (the live page is still the last publish).
         hasUnpublishedChanges?: boolean;
     }>;
