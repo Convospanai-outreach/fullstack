@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
-import type { InstantConfirmationSequence, InstantConfirmationSetting } from "@/modules/landing-agent/types";
+import type { InstantConfirmationSaveResult, InstantConfirmationSequence, InstantConfirmationSetting } from "@/modules/landing-agent/types";
 
 // The page's optional message right after a form lead is stored (apps/api instantConfirmation.ts).
 // The API returns only the sequences that can send, and the picker lists exactly those.
@@ -14,7 +14,7 @@ export default function InstantConfirmationPanel({
 }: {
     initial?: InstantConfirmationSetting | null;
     onLoadSequences: () => Promise<InstantConfirmationSequence[]>;
-    onSave: (setting: InstantConfirmationSetting) => Promise<string>;
+    onSave: (setting: InstantConfirmationSetting) => Promise<InstantConfirmationSaveResult>;
 }) {
     const [enabled, setEnabled] = useState(Boolean(initial?.enabled));
     const [sequenceId, setSequenceId] = useState(initial?.sequenceId ?? "");
@@ -23,6 +23,7 @@ export default function InstantConfirmationPanel({
     // The saved sequence is not among the ones that qualify now (it was paused, deleted, or changed).
     const [savedNoLongerQualifies, setSavedNoLongerQualifies] = useState(false);
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+    const [warnings, setWarnings] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
 
     const initialEnabled = Boolean(initial?.enabled);
@@ -72,8 +73,11 @@ export default function InstantConfirmationPanel({
                     e.preventDefault();
                     setSaving(true);
                     setMessage(null);
+                    setWarnings([]);
                     try {
-                        setMessage({ ok: true, text: await onSave({ enabled, sequenceId }) });
+                        const result = await onSave({ enabled, sequenceId });
+                        setMessage({ ok: true, text: result.message });
+                        setWarnings(result.warnings ?? []);
                     } catch (err: any) {
                         setMessage({ ok: false, text: err?.message || "Could not save instant confirmation" });
                     } finally {
@@ -146,6 +150,13 @@ export default function InstantConfirmationPanel({
                     </button>
                     {message ? <p className={`text-sm ${message.ok ? "text-emerald-600" : "text-destructive"}`}>{message.text}</p> : null}
                 </div>
+                {warnings.length > 0 ? (
+                    <ul className="space-y-1 text-sm text-amber-700">
+                        {warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                        ))}
+                    </ul>
+                ) : null}
             </form>
         </GlassCard>
     );

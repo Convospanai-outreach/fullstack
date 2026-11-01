@@ -34,7 +34,7 @@ describe("InstantConfirmationPanel", () => {
       root.render(
         <InstantConfirmationPanel
           onLoadSequences={vi.fn(async () => SEQUENCES)}
-          onSave={vi.fn(async () => "Saved.")}
+          onSave={vi.fn(async () => ({ message: "Saved." }))}
           {...props}
         />
       );
@@ -89,12 +89,34 @@ describe("InstantConfirmationPanel", () => {
   });
 
   it("saves {enabled, sequenceId} with the chosen sequence", async () => {
-    const onSave = vi.fn(async () => "Saved.");
+    const onSave = vi.fn(async () => ({ message: "Saved." }));
     await render({ onSave });
     await turnOn();
     await choose("seq-2");
     await submit();
     expect(onSave).toHaveBeenCalledWith({ enabled: true, sequenceId: "seq-2" });
+  });
+
+  it("shows the copy warnings the save returned, as plain text", async () => {
+    const onSave = vi.fn(async () => ({
+      message: "Saved.",
+      warnings: ["This message sounds like a promise or a sales pitch. A confirmation works best as a plain thank-you."],
+    }));
+    await render({ onSave });
+    await turnOn();
+    await choose("seq-1");
+    await submit();
+    expect(container.textContent).toContain("This message sounds like a promise or a sales pitch.");
+    expect(container.querySelector("b, script")).toBeNull();
+  });
+
+  it("shows no warning when the save returned none", async () => {
+    await render({ onSave: vi.fn(async () => ({ message: "Saved.", warnings: [] })) });
+    await turnOn();
+    await choose("seq-1");
+    await submit();
+    expect(container.textContent).toContain("Saved.");
+    expect(container.textContent).not.toContain("sales pitch");
   });
 
   it("shows the API error inline when the save is refused", async () => {

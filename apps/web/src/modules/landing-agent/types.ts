@@ -48,6 +48,12 @@ export interface InstantConfirmationSequence {
     campaignId: string | null;
 }
 
+// What a save returns to the settings panel: a status line, and wording warnings that never block the save.
+export interface InstantConfirmationSaveResult {
+    message: string;
+    warnings?: string[];
+}
+
 // The page's stored instant confirmation (PUT .../instant-confirmation). Off unless enabled.
 export interface InstantConfirmationSetting {
     enabled: boolean;

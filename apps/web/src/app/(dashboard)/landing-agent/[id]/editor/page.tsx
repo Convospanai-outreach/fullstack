@@ -159,8 +159,9 @@ export default function LandingAgentEditorPage() {
                 initial={page.instantConfirmation ?? null}
                 onLoadSequences={loadInstantConfirmationSequences}
                 onSave={async (setting) => {
-                    await landingAgentApi.saveInstantConfirmation(campaignId, page.id, setting);
-                    return setting.enabled ? "Saved. The confirmation is sent once a lead submits the form." : "Saved. No confirmation will be sent.";
+                    const saved = await landingAgentApi.saveInstantConfirmation(campaignId, page.id, setting);
+                    const message = setting.enabled ? "Saved. The confirmation is sent once a lead submits the form." : "Saved. No confirmation will be sent.";
+                    return { message, warnings: saved.warnings ?? [] };
                 }}
             />
         </div>

@@ -127,7 +127,7 @@ export const landingAgentApi = {
     },
 
     saveInstantConfirmation(campaignId: string, pageId: string, setting: InstantConfirmationSetting) {
-        return request(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/instant-confirmation`, {
+        return request<{ warnings?: string[] }>(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/instant-confirmation`, {
             method: "PUT",
             body: JSON.stringify({ enabled: setting.enabled, sequenceId: setting.sequenceId }),
         });
