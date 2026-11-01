@@ -121,6 +121,19 @@ export const landingAgentApi = {
         );
     },
 
+    // Team-level Meta Conversions API token. Only the saved flag comes back; the token is never returned.
+    getMetaCapiToken() {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`);
+    },
+
+    saveMetaCapiToken(accessToken: string) {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`, { method: "PUT", body: JSON.stringify({ accessToken }) });
+    },
+
+    deleteMetaCapiToken() {
+        return request<{ saved: boolean }>(`/landing-agent/meta-capi-token`, { method: "DELETE" });
+    },
+
     discardDraft(campaignId: string, pageId: string) {
         return request(`/landing-agent/campaigns/${campaignId}/pages/${pageId}/discard-draft`, {
             method: "POST",
