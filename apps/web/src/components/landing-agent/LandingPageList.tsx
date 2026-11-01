@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import type { LandingCampaignSummary } from "@/modules/landing-agent/types";
 import { galleryTemplates } from "./landingTemplateGallery";
-import { pageLink, shownDomain, validatePagePath } from "./landingPageAddress";
+import { pageLink, readShownDomain, shownDomain, validatePagePath, writeShownDomain } from "./landingPageAddress";
 
 // Where a landing campaign picks up again: the editor once a page exists, else the step it stopped at.
 export function nextStep(campaign: LandingCampaignSummary): { href: string; label: string; status: string } {
@@ -34,7 +34,7 @@ export default function LandingPageList() {
     const [campaigns, setCampaigns] = useState<LandingCampaignSummary[] | null>(null);
     const [domains, setDomains] = useState<string[]>([]);
     const [liveDomain, setLiveDomain] = useState<string | null>(null);
-    const [chosenDomain, setChosenDomain] = useState<string | null>(null);
+    const [chosenDomain, setChosenDomain] = useState<string | null>(() => readShownDomain());
     const [error, setError] = useState<string | null>(null);
     const [newPath, setNewPath] = useState("");
     const [newTemplateId, setNewTemplateId] = useState(TEMPLATES[0]?.id ?? "");
@@ -172,7 +172,10 @@ export default function LandingPageList() {
                     <select
                         aria-label="Domain"
                         value={shown ?? ""}
-                        onChange={(e) => setChosenDomain(e.target.value)}
+                        onChange={(e) => {
+                            setChosenDomain(e.target.value);
+                            writeShownDomain(e.target.value);
+                        }}
                         className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                     >
                         {domains.map((domain) => (

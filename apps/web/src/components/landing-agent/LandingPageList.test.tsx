@@ -13,6 +13,7 @@ vi.mock("@/modules/landing-agent/service/landingAgentApi", () => ({
 }));
 
 import LandingPageList from "./LandingPageList";
+import { SHOWN_DOMAIN_KEY } from "./landingPageAddress";
 
 const campaign = (autoReplies: { total: number; active: number } | undefined) => ({
     id: "campaign-1",
@@ -146,6 +147,17 @@ describe("LandingPageList addresses, domains and new pages", () => {
         expect(linkWithText(container, "View live")?.getAttribute("href")).toBe("https://go.yourbrand.com/guide");
         await act(async () => buttonWithText(container, "Copy link").click());
         expect(clipboardWrite).toHaveBeenCalledWith("https://go.yourbrand.com/guide");
+    });
+
+    it("remembers the picked domain for the next visit", async () => {
+        window.localStorage.removeItem(SHOWN_DOMAIN_KEY);
+        mockListCampaigns.mockResolvedValue({ campaigns: [publishedGuide], liveDomain: "yourbrand.com", domains: ["yourbrand.com", "go.yourbrand.com"] });
+        await renderList(container, root);
+
+        await act(async () => setFieldValue(container.querySelector<HTMLSelectElement>('select[aria-label="Domain"]')!, "go.yourbrand.com"));
+
+        expect(window.localStorage.getItem(SHOWN_DOMAIN_KEY)).toBe("go.yourbrand.com");
+        window.localStorage.removeItem(SHOWN_DOMAIN_KEY);
     });
 
     it("falls back to the app's /p address and shows no domain picker without an active domain", async () => {

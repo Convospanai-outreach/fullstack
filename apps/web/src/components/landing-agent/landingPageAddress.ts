@@ -33,3 +33,34 @@ export function shownDomain(domains: readonly string[], preferred: string | null
     if (preferred && domains.includes(preferred)) return preferred;
     return domains[0] ?? null;
 }
+
+// The domain the list was last set to show. The browser does not know the team id, so this is one key per browser;
+// a value that is not one of the team's domains is ignored by shownDomain, so another team's value does no harm.
+export const SHOWN_DOMAIN_KEY = "cmf.landing.shownDomain";
+
+type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+
+function browserStorage(): KeyValueStorage | undefined {
+    try {
+        return globalThis.localStorage;
+    } catch {
+        return undefined;
+    }
+}
+
+// Storage can be blocked or full (private windows, cleared site data): then the choice is just not remembered.
+export function readShownDomain(storage: KeyValueStorage | undefined = browserStorage()): string | null {
+    try {
+        return storage?.getItem(SHOWN_DOMAIN_KEY) ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export function writeShownDomain(domain: string, storage: KeyValueStorage | undefined = browserStorage()): void {
+    try {
+        storage?.setItem(SHOWN_DOMAIN_KEY, domain);
+    } catch {
+        // Not remembered; the list still shows the chosen domain for this visit.
+    }
+}
