@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The notice version, shared with apps/web (tests/fixtures/data-responsibility.json).
+const NOTICE_VERSION = (JSON.parse(readFileSync(resolve(__dirname, "../../../../web/tests/fixtures/data-responsibility.json"), "utf8")) as { version: string }).version;
 
 const { mockCheckTeamPermission, mockGetCurrentContextFromRequest, mockPrisma } = vi.hoisted(() => ({
     mockCheckTeamPermission: vi.fn(),
@@ -62,7 +67,7 @@ describe("/setup/save", () => {
         expect(response.status).toBe(200);
         expect(mockPrisma.team.update).toHaveBeenCalledWith({
             where: { id: "team-1" },
-            data: { aiConfig: { tone: "Friendly", outreachMode: "personal", dataResponsibility: expect.objectContaining({ version: "2026-11" }) } },
+            data: { aiConfig: { tone: "Friendly", outreachMode: "personal", dataResponsibility: expect.objectContaining({ version: NOTICE_VERSION }) } },
         });
     });
 
@@ -90,7 +95,7 @@ describe("/setup/save", () => {
                 aiConfig: {
                     tone: "Friendly",
                     outreachMode: "company",
-                    dataResponsibility: { version: "2026-11", acknowledgedBy: "user-1", acknowledgedAt: expect.any(String) },
+                    dataResponsibility: { version: NOTICE_VERSION, acknowledgedBy: "user-1", acknowledgedAt: expect.any(String) },
                 },
             },
         });
