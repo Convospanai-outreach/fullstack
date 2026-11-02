@@ -9,6 +9,7 @@
  * Uses Claude Sonnet 4 via the /api/ai/proxy or falls back to Gemini via aiStatsService.
  */
 import { aiService } from "@/lib/aiService";
+import { TOON } from "@/lib/ai/TOON";
 import { LearningService } from "@/modules/learning/learningService";
 import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrchestrator";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
@@ -566,7 +567,7 @@ export function legacyCriticEnabled(): boolean {
 // from, not the whole Lead row. enrichedData is clipped so one large row cannot bloat the critic call.
 const LEGACY_FACTS_CHARS = 3000;
 function legacyCriticInput(lead: any, icp: unknown) {
-    const facts = lead?.enrichedData ? JSON.stringify(lead.enrichedData).slice(0, LEGACY_FACTS_CHARS) : undefined;
+    const facts = lead?.enrichedData ? TOON.serializeTabular(lead.enrichedData).slice(0, LEGACY_FACTS_CHARS) : undefined;
     return { prospect_name: lead?.fullName, prospect_title: lead?.jobTitle, prospect_company: lead?.company, facts, icp };
 }
 

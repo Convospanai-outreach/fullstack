@@ -16,7 +16,7 @@ export const PROMPT_REGISTRY = {
     "linkedin.connect": { version: 1, fingerprint: "8b9a221db6fb" },
     "linkedin.followUp": { version: 1, fingerprint: "d61c09234756" },
     "email.critique": { version: 1, fingerprint: "bb39618e430e" },
-    "email.critique.rubric": { version: 1, fingerprint: "b3f1ea072e06" },
+    "email.critique.rubric": { version: 2, fingerprint: "84861b7fec57" },
 } as const satisfies Record<string, { version: number; fingerprint: string }>;
 
 export type PromptId = keyof typeof PROMPT_REGISTRY;
