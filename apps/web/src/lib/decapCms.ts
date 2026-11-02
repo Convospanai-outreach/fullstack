@@ -7,8 +7,10 @@ export const DECAP_SCRIPT = {
 };
 
 // The GitHub login is registered for one address, so the admin and its callback always use it.
+// CMS_ORIGIN overrides the site address for the CMS alone: the site can serve from a host that
+// differs from NEXTAUTH_URL (www redirecting to the bare domain), which would send /cms in a loop.
 export function canonicalOrigin(requestUrl: string): string {
-    const configured = process.env["NEXTAUTH_URL"] || process.env["APP_URL"];
+    const configured = process.env["CMS_ORIGIN"] || process.env["NEXTAUTH_URL"] || process.env["APP_URL"];
     try {
         return new URL(configured || requestUrl).origin;
     } catch {
