@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
+import { createHmac } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
@@ -63,7 +63,15 @@ function clientIp(req: unknown) {
     return ipFromHeaders(headers) || "unknown";
 }
 
-// Failed sign-ins were not recorded anywhere, so a guessing run could not be seen. Only a short hash of the
+// Keyed so the logged id cannot be recomputed from a guessed address by someone who only has the logs.
+// Left out when no secret is configured rather than falling back to an unkeyed hash.
+export function loginLogId(email: string) {
+    const secret = process.env["NEXTAUTH_SECRET"];
+    if (!secret) return undefined;
+    return createHmac("sha256", secret).update(`login-log:${email}`).digest("hex").slice(0, 12);
+}
+
+// Failed sign-ins were not recorded anywhere, so a guessing run could not be seen. Only a short keyed hash of the
 // email is logged (enough to correlate attempts), never the address or the password, and wrong-password and
 // unknown-email share one reason so the log does not reveal which emails exist.
 function logLoginFailure(reason: "bad_credentials" | "rate_limited", req: unknown, email: string) {
@@ -72,7 +80,7 @@ function logLoginFailure(reason: "bad_credentials" | "rate_limited", req: unknow
             event: "login_failed",
             reason,
             ip: clientIp(req),
-            emailHash: createHash("sha256").update(email).digest("hex").slice(0, 12),
+            emailHash: loginLogId(email),
         }),
     );
 }

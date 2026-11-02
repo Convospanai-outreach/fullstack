@@ -16,7 +16,7 @@ describe("buildProvenance", () => {
     });
 
     it("names the rubric critique prompt when the rubric critic ran", () => {
-        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v1");
+        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v2");
     });
 });
 
@@ -52,7 +52,7 @@ describe("legacyProvenance", () => {
 describe("legacyProvenance with a critic", () => {
     it("names the critic prompt and the outcome", () => {
         const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
-        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v1" }, flags: { rubricCritic: true } });
+        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v2" }, flags: { rubricCritic: true } });
     });
 });
 
@@ -61,6 +61,12 @@ describe("linkedinProvenance", () => {
         expect(linkedinProvenance("connect")).toMatchObject({ node: "linkedin", prompts: { draft: "linkedin.connect@v1", critique: "none" }, critique: "unreviewed" });
         expect(linkedinProvenance("followUp").prompts.draft).toBe("linkedin.followUp@v1");
         expect(readProvenance(JSON.parse(JSON.stringify(linkedinProvenance("connect"))))).toEqual(linkedinProvenance("connect"));
+    });
+});
+
+describe("linkedinProvenance with a critic", () => {
+    it("names the LinkedIn critic prompt and the outcome", () => {
+        expect(linkedinProvenance("connect", { critique: "passed" })).toMatchObject({ critique: "passed", prompts: { draft: "linkedin.connect@v1", critique: "linkedin.critique@v1" } });
     });
 });
 
