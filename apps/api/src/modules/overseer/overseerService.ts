@@ -4,6 +4,7 @@ import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { toPlainText } from "@/modules/inbox/actionInboxService";
 import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode } from "./stallJudgment";
 import type { StallThreadMessage } from "@/lib/ai/jev";
+import { STRATEGY_STALL, stallRuleFor } from "./strategyStall";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
@@ -38,7 +39,17 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     });
     const throttledTeamIds = throttledTeams.map((t) => t.teamId);
 
-    const stalled = await prisma.sequenceEnrollment.findMany({
+    // A campaign whose strategy sets its own rhythm (strategyStall.ts) stalls sooner than the usual
+    // threshold, so those enrollments are also matched at the strategy's shorter cutoff.
+    const strategyClauses = Object.entries(STRATEGY_STALL).map(([id, rule]) => {
+        const strategyCutoff = new Date(Date.now() - rule.days * MS_PER_DAY);
+        return {
+            sequence: { campaign: { aiConfig: { path: ["strategies"], array_contains: [id] } } },
+            OR: [{ lastRunAt: { lt: strategyCutoff } }, { lastRunAt: null, startedAt: { lt: strategyCutoff } }]
+        };
+    });
+
+    const stalledRows = await prisma.sequenceEnrollment.findMany({
         where: {
             status: "ACTIVE",
             nextRunAt: null,
@@ -46,7 +57,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             teamId: { notIn: throttledTeamIds },
             OR: [
                 { lastRunAt: { lt: cutoff } },
-                { lastRunAt: null, startedAt: { lt: cutoff } }
+                { lastRunAt: null, startedAt: { lt: cutoff } },
+                ...strategyClauses
             ]
         },
         take: BATCH_SIZE,
@@ -58,7 +70,7 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             currentStepOrder: true,
             lastRunAt: true,
             startedAt: true,
-            sequence: { select: { name: true, _count: { select: { steps: true } } } },
+            sequence: { select: { name: true, campaign: { select: { aiConfig: true } }, _count: { select: { steps: true } } } },
             lead: {
                 select: {
                     phone: true,
@@ -77,6 +89,17 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
                 }
             }
         }
+    });
+
+    // Each enrollment must have been quiet for its own campaign's threshold.
+    const nowMs = Date.now();
+    const noteByEnrollmentId = new Map<string, string>();
+    const stalled = stalledRows.filter((enrollment) => {
+        const rule = stallRuleFor(enrollment.sequence.campaign?.aiConfig, STALL_THRESHOLD_DAYS);
+        const quietDays = (nowMs - (enrollment.lastRunAt || enrollment.startedAt).getTime()) / MS_PER_DAY;
+        if (quietDays < rule.days) return false;
+        if (rule.note) noteByEnrollmentId.set(enrollment.id, rule.note);
+        return true;
     });
 
     if (stalled.length === 0) {
@@ -169,7 +192,7 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
                 stage: candidate.stage,
                 stallDays: candidate.stallDays,
                 nudgeType: judgment.nudgeType,
-                suggestion: judgment.suggestion
+                suggestion: noteByEnrollmentId.has(enrollment.id) ? `${judgment.suggestion} ${noteByEnrollmentId.get(enrollment.id)}` : judgment.suggestion
             }
         });
         created += 1;

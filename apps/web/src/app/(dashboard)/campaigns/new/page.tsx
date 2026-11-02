@@ -6,10 +6,11 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import StrategyPicker from "@/components/campaigns/StrategyPicker";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
 
-type ICP = { id: string; name: string };
+type ICP = { id: string; name: string; criteria?: unknown };
 
 function buildLeadsQuery(stage: string, domain: string) {
     const params = new URLSearchParams({ pipelineState: stage, unassignedOnly: "true", limit: "500" });
@@ -24,6 +25,8 @@ export default function NewCampaignPage() {
     const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [draftGenerationMode, setDraftGenerationMode] = useState<"REALTIME" | "BATCH">("REALTIME");
+    const [strategies, setStrategies] = useState<string[]>([]);
+    const [objective, setObjective] = useState("");
 
     const [targetStageEnabled, setTargetStageEnabled] = useState(false);
     const [stage, setStage] = useState<string>("WARM");
@@ -93,6 +96,10 @@ export default function NewCampaignPage() {
                 icpId,
                 draftGenerationMode,
             };
+            if (strategies.length > 0 || objective.trim()) {
+                body["strategies"] = strategies;
+                body["objective"] = objective;
+            }
 
             if (targetStageEnabled) {
                 const res = await fetch(buildLeadsQuery(stage, domain));
@@ -193,6 +200,21 @@ export default function NewCampaignPage() {
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Target audience, value proposition summary, or key campaign goals..."
                                 className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Strategy <span className="text-muted-foreground">(Optional)</span>
+                            </label>
+                            <StrategyPicker
+                                value={strategies}
+                                objective={objective}
+                                icp={icps.find((i) => i.id === icpId) ? { name: icps.find((i) => i.id === icpId)!.name, criteria: icps.find((i) => i.id === icpId)!.criteria } : null}
+                                onChange={(next, nextObjective) => {
+                                    setStrategies(next);
+                                    setObjective(nextObjective);
+                                }}
                             />
                         </div>
 

@@ -137,6 +137,55 @@ describe("runOverseerTick", () => {
         });
     });
 
+    describe("strategy-aware stall timing", () => {
+        const threeDaysAgo = () => new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const enrollment = (id: string, aiConfig: unknown) => ({
+            id,
+            teamId: "team-1",
+            leadId: `lead-${id}`,
+            sequenceId: "seq-1",
+            currentStepOrder: 1,
+            lastRunAt: threeDaysAgo(),
+            startedAt: threeDaysAgo(),
+            sequence: { name: "Seq", campaign: aiConfig === undefined ? null : { aiConfig }, _count: { steps: 5 } }
+        });
+
+        it("also queries campaigns that follow a strategy with its own rhythm", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([]);
+
+            await runOverseerTick();
+
+            const where = mockPrisma.sequenceEnrollment.findMany.mock.calls[0][0].where;
+            expect(where.OR).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        sequence: { campaign: { aiConfig: { path: ["strategies"], array_contains: ["S3"] } } }
+                    })
+                ])
+            );
+        });
+
+        it("nudges a daily-narrative campaign quiet for 3 days and says why, but leaves a plain one alone", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([
+                enrollment("enr-s3", { strategies: ["S3"] }),
+                enrollment("enr-plain", { strategies: ["S10"] }),
+                enrollment("enr-nocampaign", undefined)
+            ]);
+            mockJudge.mockReturnValue([
+                { enrollmentId: "enr-s3", nudgeType: "RESEND_STEP", suggestion: "Resend the step." }
+            ]);
+            mockPrisma.overseerNudge.create.mockResolvedValue({});
+
+            const result = await runOverseerTick();
+
+            expect(result.candidates).toBe(1);
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ enrollmentId: "enr-s3" })]);
+            const data = mockPrisma.overseerNudge.create.mock.calls[0][0].data;
+            expect(data.suggestion).toContain("Resend the step.");
+            expect(data.suggestion).toContain("Daily narrative expects activity within 2 days");
+        });
+    });
+
     // Characterization: with the Jev flag off (no enabledFeatures on the team) the tick reads no
     // thread, calls no Jev code and writes exactly the rule's nudge.
     it("with the Jev flag off, writes exactly the rule's nudge and never reads a thread or calls Jev", async () => {
