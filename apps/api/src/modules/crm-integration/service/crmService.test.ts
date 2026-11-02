@@ -26,7 +26,7 @@ vi.mock("@hubspot/api-client", () => ({
 }));
 
 import { crmService } from "./crmService";
-import { encryptCrmToken } from "./crmSecrets";
+import { decryptCrmToken, encryptCrmToken } from "./crmSecrets";
 
 describe("crmService.syncLead - cross-tenant scoping", () => {
     beforeEach(() => vi.clearAllMocks());
@@ -72,5 +72,31 @@ describe("crmService.syncLead - token encryption", () => {
 
         expect(mockClientCtor).toHaveBeenCalledWith({ accessToken: "real-access-token" });
         expect(result).toEqual({ status: "success", crmId: "hs-1" });
+    });
+    it("re-stores a legacy plaintext refresh token encrypted when HubSpot omits a new one", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", email: "a@b.com", company: null, jobTitle: null, fullName: null });
+        mockPrisma.crmIntegration.findUnique.mockResolvedValue({
+            isActive: true,
+            accessToken: encryptCrmToken("old-access"),
+            refreshToken: "legacy-plain-refresh",
+            expiresAt: new Date(Date.now() - 60_000),
+            fieldMapping: null,
+        });
+        mockSearch.mockResolvedValue({ results: [] });
+        mockCreate.mockResolvedValue({ id: "hs-1" });
+        mockPrisma.lead.update.mockResolvedValue({});
+        process.env["HUBSPOT_CLIENT_ID"] = "id";
+        process.env["HUBSPOT_CLIENT_SECRET"] = "secret";
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ access_token: "new-access", expires_in: 1800 }),
+        }));
+
+        await crmService.syncLead("lead-1", "team-a");
+
+        const written = mockPrisma.crmIntegration.update.mock.calls[0][0].data;
+        expect(written.refreshToken).not.toContain("legacy-plain-refresh");
+        expect(decryptCrmToken(written.refreshToken)).toBe("legacy-plain-refresh");
+        vi.unstubAllGlobals();
     });
 });
