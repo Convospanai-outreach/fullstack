@@ -7,6 +7,8 @@ import { Loader2 } from "lucide-react";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import AIPanel from "./AIPanel";
 import SequenceCanvas, { SequenceStepItem } from "./SequenceCanvas";
+import StrategyPicker from "@/components/campaigns/StrategyPicker";
+import { strategiesFromConfig } from "@/lib/campaigns/strategies";
 import { SequenceMailbox } from "./SenderScheduleNode";
 
 interface SequenceStepFromApi {
@@ -41,6 +43,54 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [timezone, setTimezone] = useState("UTC");
     const [mailboxes, setMailboxes] = useState<SequenceMailbox[]>([]);
     const [linkedinLocked, setLinkedinLocked] = useState(true);
+    const [strategies, setStrategies] = useState<string[]>([]);
+    const [objective, setObjective] = useState("");
+    const [strategyOpen, setStrategyOpen] = useState(false);
+    const [icp, setIcp] = useState<{ name: string; criteria: unknown } | null>(null);
+    const [savingStrategy, setSavingStrategy] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`/api/campaigns/${campaignId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((campaign) => {
+                if (cancelled || !campaign) return;
+                setStrategies(strategiesFromConfig(campaign.aiConfig));
+                setObjective(typeof campaign.aiConfig?.goal === "string" ? campaign.aiConfig.goal : "");
+                if (typeof campaign.icpId === "string") {
+                    fetch("/api/proxy/icp-builder/list")
+                        .then((res) => (res.ok ? res.json() : null))
+                        .then((data) => {
+                            const found = (data?.icps || []).find((i: { id: string }) => i.id === campaign.icpId);
+                            if (!cancelled && found) setIcp({ name: found.name, criteria: found.criteria });
+                        })
+                        .catch(() => {});
+                }
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [campaignId]);
+
+    async function saveStrategy() {
+        setSavingStrategy(true);
+        try {
+            const res = await fetch(`/api/campaigns/${campaignId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ strategies, objective }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Failed to save the strategy");
+            toast.success("Strategy saved");
+            setStrategyOpen(false);
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to save the strategy");
+        } finally {
+            setSavingStrategy(false);
+        }
+    }
 
     useEffect(() => {
         let cancelled = false;
@@ -175,6 +225,13 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 <div className="flex items-center justify-end gap-2 border-b border-border bg-card p-3">
                     <button
                         type="button"
+                        onClick={() => setStrategyOpen((open) => !open)}
+                        className="mr-auto inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                        Strategy{strategies.length > 0 ? ` (${strategies.length})` : ""}
+                    </button>
+                    <button
+                        type="button"
                         onClick={handleEnroll}
                         disabled={saving || enrolling || steps.length === 0}
                         className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
@@ -192,6 +249,29 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         {saving ? "Saving..." : "Save sequence"}
                     </button>
                 </div>
+                {strategyOpen && (
+                    <div className="max-h-80 space-y-3 overflow-auto border-b border-border bg-card p-4">
+                        <StrategyPicker
+                            value={strategies}
+                            objective={objective}
+                            icp={icp}
+                            onChange={(next, nextObjective) => {
+                                setStrategies(next);
+                                setObjective(nextObjective);
+                            }}
+                            disabled={savingStrategy}
+                        />
+                        <button
+                            type="button"
+                            onClick={saveStrategy}
+                            disabled={savingStrategy}
+                            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+                        >
+                            {savingStrategy && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {savingStrategy ? "Saving..." : "Save strategy"}
+                        </button>
+                    </div>
+                )}
                 <div className="flex-1">
                     <SequenceCanvas
                         steps={steps}
@@ -201,6 +281,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         timezone={timezone}
                         onSenderScheduleChange={handleSenderScheduleChange}
                         linkedinLocked={linkedinLocked}
+                        strategies={strategies}
                         disabled={saving || enrolling}
                     />
                 </div>
