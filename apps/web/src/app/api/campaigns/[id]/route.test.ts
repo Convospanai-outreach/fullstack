@@ -22,7 +22,7 @@ vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
     hasSendingChannel: vi.fn().mockResolvedValue(true),
 }));
-vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/db", () => ({ prisma: mockPrisma, DbNull: Symbol("DbNull") }));
 vi.mock("@/lib/campaignService", () => ({ CampaignService: { getCampaignStats: vi.fn().mockResolvedValue({}), startCampaign: mockStartCampaign, pauseCampaign: mockPauseCampaign, addLeadsToCampaign: mockAddLeads } }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 
@@ -30,6 +30,39 @@ import { GET, PATCH } from "./route";
 
 const ctx = { params: Promise.resolve({ id: "campaign-1" }) };
 const patch = (body: unknown) => new Request("http://localhost/api/campaigns/campaign-1", { method: "PATCH", body: JSON.stringify(body) }) as any;
+
+describe("campaign strategies", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-a", status: "active", aiConfig: { tone: "Direct" }, leadList: [] });
+        mockPrisma.campaign.findUnique.mockResolvedValue({ id: "campaign-1", leadList: [] });
+    });
+
+    it("PATCH stores the strategies and objective in aiConfig, keeping the other settings, even after the campaign started", async () => {
+        const res = await PATCH(patch({ strategies: ["S3"], objective: "Build trust" }), ctx);
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.campaign.update).toHaveBeenCalledWith({
+            where: { id: "campaign-1" },
+            data: { aiConfig: { tone: "Direct", strategies: ["S3"], goal: "Build trust" } },
+        });
+    });
+
+    it("PATCH refuses a strategy that is not available, without writing", async () => {
+        const res = await PATCH(patch({ strategies: ["S4"] }), ctx);
+
+        expect(res.status).toBe(400);
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("PATCH leaves aiConfig alone when the request does not mention strategies", async () => {
+        await PATCH(patch({ name: "Renamed" }), ctx);
+
+        expect(mockPrisma.campaign.update).toHaveBeenCalledWith({ where: { id: "campaign-1" }, data: { name: "Renamed" } });
+    });
+});
 
 describe("campaign draftGenerationMode", () => {
     beforeEach(() => {

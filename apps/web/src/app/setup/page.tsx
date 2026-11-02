@@ -39,6 +39,7 @@ import NotificationSettings from "@/components/dashboard/settings/NotificationSe
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
 import { STORE_URL } from "@/lib/extensionIds";
+import DomainsStep from "@/components/setup/DomainsStep";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -108,6 +109,7 @@ const STEPS = [
   { id: 11, title: "Handoffs", icon: LayoutGrid, description: "Review optional infrastructure and handoff integrations." },
   { id: 12, title: "Notifications", icon: Bell, description: "Choose which email and in-app alerts your team receives." },
   { id: 13, title: "Invite Your Team", icon: UserPlus, description: "Add teammates now so they can start working the moment their invite lands." },
+  { id: 14, title: "Test Your Domains", icon: ShieldCheck, description: "Check your email and landing page DNS now, so problems show up before your first send." },
 ];
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
@@ -150,6 +152,7 @@ export default function SetupWizardPage() {
       if (stepId === 11) return PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
       if (stepId === 12) return true;
       if (stepId === 13) return true;
+      if (stepId === 14) return true;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -555,6 +558,7 @@ export default function SetupWizardPage() {
             {active.id === 11 && <Handoffs status={status} />}
             {active.id === 12 && <NotificationsStep />}
             {active.id === 13 && <InviteTeamStep />}
+            {active.id === 14 && <DomainsStep />}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
@@ -1575,7 +1579,7 @@ function StatusPill({ ready }: { ready: boolean }) {
 function continueLabel(stepId: number, provider?: string) {
   if (stepId === 3) return provider === "RESEND" ? "Save Resend and continue" : provider === "SMTP" ? "Save SMTP and continue" : "Continue";
   if (stepId === 7) return "Continue to campaign plan";
-  if (stepId === 13) return "Open dashboard";
+  if (stepId === 14) return "Open dashboard";
   return "Save and continue";
 }
 
