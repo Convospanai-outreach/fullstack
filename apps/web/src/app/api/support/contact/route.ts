@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { clientIpFromRequest, verifyTurnstile } from "@/lib/botCheck";
 import { randomUUID } from "crypto";
 
@@ -99,6 +100,10 @@ function generateTicketId(): string {
 }
 
 export async function POST(req: Request) {
+    // One bucket for both public contact endpoints: every accepted submission emails the team inbox.
+    const limited = await applyRateLimit(req as NextRequest, RATE_LIMITS.CONTACT_FORM, "contact-form");
+    if (limited) return limited;
+
     let payload: SupportPayload;
 
     try {
