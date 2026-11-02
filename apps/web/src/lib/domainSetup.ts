@@ -25,3 +25,15 @@ export function emailDomainsReady(domains: readonly DomainSignals[]): boolean {
     const active = domains.filter((d) => d.active !== false);
     return active.length > 0 && active.every((d) => fixesFor(d).length === 0);
 }
+
+// What the dashboard banner says about the sending domains, or null when there is nothing to say
+// (no sending domain yet, or every check passes).
+export function domainBannerFor(domains: readonly DomainSignals[]): { domains: string[]; text: string } | null {
+    const failing = domains.filter((d) => d.active !== false && fixesFor(d).length > 0);
+    if (failing.length === 0) return null;
+    const names = failing.map((d) => d.domain);
+    return {
+        domains: names,
+        text: `${names.join(", ")} ${names.length === 1 ? "is" : "are"} not fully verified yet, so mail may land in spam. ${DNS_PROPAGATION_NOTE}`,
+    };
+}
