@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAskAI, mockLoadContext, mockLoadBrief } = vi.hoisted(() => ({ mockAskAI: vi.fn(), mockLoadContext: vi.fn(), mockLoadBrief: vi.fn().mockResolvedValue("") }));
 
@@ -13,6 +13,8 @@ vi.mock("../rubricCritic", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../rubricCritic")>()),
     loadCriticRubric: () => null,
 }));
+const { mockScreenOn, mockScreen } = vi.hoisted(() => ({ mockScreenOn: vi.fn().mockReturnValue(false), mockScreen: vi.fn() }));
+vi.mock("../draftScreen", () => ({ jevScreenEnabled: mockScreenOn, screenDraft: mockScreen }));
 vi.mock("../copyContext", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../copyContext")>()),
     loadCopyContext: mockLoadContext,
@@ -79,6 +81,41 @@ describe("Node A campaign brief", () => {
         mockLoadBrief.mockResolvedValue("");
         await composeNodeA({ ...inputA }, "team", "camp-1", undefined);
         expect(mockAskAI.mock.calls[0][0]).not.toContain("CAMPAIGN BRIEF");
+    });
+});
+
+describe("Node A Jev screen", () => {
+    beforeEach(() => {
+        mockLoadContext.mockResolvedValue(null);
+        mockLoadBrief.mockResolvedValue("");
+        mockScreenOn.mockReturnValue(true);
+    });
+    afterEach(() => {
+        mockScreenOn.mockReturnValue(false);
+        mockScreen.mockReset();
+    });
+
+    it("skips the critic for a draft judged clean, and records it as screened", async () => {
+        mockScreen.mockResolvedValue(true);
+        const out = await composeNodeA({ ...inputA }, "team", "camp-1");
+        expect(mockAskAI).toHaveBeenCalledTimes(1);
+        expect(out.provenance).toMatchObject({ critique: "screened", prompts: { critique: "jev.screen@v1" } });
+        expect(out.unreviewed).toBeUndefined();
+        expect(mockScreen).toHaveBeenCalledWith(expect.objectContaining({ title: "VP Sales", company: "Acme Corp", signal: "signal-x" }), expect.objectContaining({ subject: "Draft subject" }), "team");
+    });
+
+    it("runs the critic as before when the draft is not judged clean", async () => {
+        mockScreen.mockResolvedValue(false);
+        const out = await composeNodeA({ ...inputA }, "team", "camp-1");
+        expect(mockAskAI).toHaveBeenCalledTimes(2);
+        expect(out.provenance?.critique).toBe("passed");
+    });
+
+    it("does not consult Jev when the switch is off", async () => {
+        mockScreenOn.mockReturnValue(false);
+        await composeNodeA({ ...inputA }, "team", "camp-1");
+        expect(mockScreen).not.toHaveBeenCalled();
+        expect(mockAskAI).toHaveBeenCalledTimes(2);
     });
 });
 

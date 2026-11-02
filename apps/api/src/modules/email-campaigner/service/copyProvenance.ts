@@ -4,6 +4,10 @@ import { promptRef } from "@/lib/promptRegistry";
 // positive outcome can be tied back to what produced it. Ids, versions, switches and counts only:
 // never text, so nothing about a prospect or the private playbook ends up here.
 
+// Provenance name for the Jev draft screen (draftScreen.ts). Bump the version when its questions or
+// thresholds change.
+export const JEV_SCREEN_REF = "jev.screen@v1";
+
 export interface CopyProvenance {
     v: 1;
     // "A" is the composer; "legacy" is the older single-prompt email draft path; "linkedin" is a LinkedIn
@@ -14,7 +18,8 @@ export interface CopyProvenance {
     // How much extra context the draft prompt actually received.
     context: { playbook: number; examples: number; brief: boolean };
     // passed: the critic accepted it. corrected: the critic's rewrite was used. unreviewed: no usable verdict.
-    critique: "passed" | "corrected" | "unreviewed";
+    // screened: Jev judged it clean and the critic call was skipped (draftScreen.ts).
+    critique: "passed" | "corrected" | "unreviewed" | "screened";
 }
 
 export function buildProvenance(input: {
@@ -32,7 +37,7 @@ export function buildProvenance(input: {
         prompts: {
             draft: promptRef("email.nodeA"),
             system: promptRef("email.nodeA.system"),
-            critique: promptRef(input.rubricCritic ? "email.critique.rubric" : "email.critique"),
+            critique: input.critique === "screened" ? JEV_SCREEN_REF : promptRef(input.rubricCritic ? "email.critique.rubric" : "email.critique"),
         },
         flags: { retrieval: input.retrievalOn, brief: input.briefOn, rubricCritic: input.rubricCritic },
         context: { playbook: input.playbook, examples: input.examples, brief: input.briefUsed },
@@ -50,7 +55,7 @@ export function legacyProvenance(batch: boolean, review?: { critique: CopyProven
         prompts: {
             draft: promptRef(batch ? "email.legacyBatch" : "email.legacyDraft"),
             system: "none",
-            critique: review ? promptRef(review.rubricCritic ? "email.critique.rubric" : "email.critique") : "none",
+            critique: review?.critique === "screened" ? JEV_SCREEN_REF : review ? promptRef(review.rubricCritic ? "email.critique.rubric" : "email.critique") : "none",
         },
         flags: { retrieval: false, brief: false, rubricCritic: review?.rubricCritic ?? false },
         context: { playbook: 0, examples: 0, brief: false },

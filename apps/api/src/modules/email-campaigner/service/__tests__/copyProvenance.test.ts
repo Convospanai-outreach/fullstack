@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProvenance, legacyProvenance, linkedinProvenance, readProvenance } from "../copyProvenance";
+import { buildProvenance, JEV_SCREEN_REF, legacyProvenance, linkedinProvenance, readProvenance } from "../copyProvenance";
 
 const base = { retrievalOn: true, briefOn: false, rubricCritic: false, playbook: 2, examples: 1, briefUsed: false, critique: "passed" as const };
 
@@ -67,5 +67,13 @@ describe("linkedinProvenance", () => {
 describe("linkedinProvenance with a critic", () => {
     it("names the LinkedIn critic prompt and the outcome", () => {
         expect(linkedinProvenance("connect", { critique: "passed" })).toMatchObject({ critique: "passed", prompts: { draft: "linkedin.connect@v1", critique: "linkedin.critique@v1" } });
+    });
+});
+
+describe("screened drafts", () => {
+    it("name the Jev screen instead of a critic prompt, for both email paths", () => {
+        expect(JEV_SCREEN_REF).toBe("jev.screen@v1");
+        expect(buildProvenance({ ...base, critique: "screened", rubricCritic: true })).toMatchObject({ critique: "screened", prompts: { critique: JEV_SCREEN_REF } });
+        expect(legacyProvenance(false, { critique: "screened", rubricCritic: false })).toMatchObject({ critique: "screened", prompts: { critique: JEV_SCREEN_REF } });
     });
 });
