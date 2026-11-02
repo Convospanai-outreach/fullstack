@@ -45,25 +45,27 @@ export async function runDomainWatch(now = new Date()): Promise<{ domainsChecked
     const db = prisma as any;
     const mailboxes = await prisma.connectedMailbox.findMany({
         where: { status: "CONNECTED" },
-        select: { teamId: true, email: true },
+        select: { teamId: true, email: true, provider: true },
     });
 
-    const domainsByTeam = new Map<string, Set<string>>();
+    // domain -> provider of the first mailbox on it, per team
+    const domainsByTeam = new Map<string, Map<string, string>>();
     for (const mailbox of mailboxes) {
         const domain = mailbox.email.split("@")[1]?.toLowerCase();
         if (!domain) continue;
-        if (!domainsByTeam.has(mailbox.teamId)) domainsByTeam.set(mailbox.teamId, new Set());
-        domainsByTeam.get(mailbox.teamId)!.add(domain);
+        if (!domainsByTeam.has(mailbox.teamId)) domainsByTeam.set(mailbox.teamId, new Map());
+        const byDomain = domainsByTeam.get(mailbox.teamId)!;
+        if (!byDomain.has(domain)) byDomain.set(domain, mailbox.provider);
     }
 
     let domainsChecked = 0;
     let alarms = 0;
 
     for (const [teamId, domains] of domainsByTeam) {
-        for (const domain of domains) {
+        for (const [domain, provider] of domains) {
             let signals: Signals;
             try {
-                signals = await checkDomainDeliverabilitySignals(domain);
+                signals = await checkDomainDeliverabilitySignals(domain, provider);
             } catch {
                 // A lookup that could not run says nothing about the domain; try again tomorrow.
                 continue;
