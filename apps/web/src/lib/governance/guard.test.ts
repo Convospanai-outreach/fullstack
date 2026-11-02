@@ -38,7 +38,7 @@ describe("enforcePolicy - CAMPAIGN_RUN approval scoping", () => {
         ).rejects.toThrow("VALID_APPROVAL_REQUIRED");
 
         expect(mockPrisma.approvalRequest.findFirst).toHaveBeenCalledWith({
-            where: { id: "approval-from-team-2", teamId: "team-1", entityType: "Campaign", entityId: "campaign-1" },
+            where: { id: "approval-from-team-2", teamId: "team-1", entityType: "Campaign", actionType: "CAMPAIGN_START", entityId: "campaign-1" },
         });
     });
 
