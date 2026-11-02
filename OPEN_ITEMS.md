@@ -7215,6 +7215,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
     recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
   - **Deploy:** api only. No migration, no env change.
+- **OPEN-358 (Resolved (pending merge) — data scoping and logic fixes across jobs, overseer, invites, approvals, policy and INR pricing):** 2026-10-29.
+  - **Why:** follow-ups from review of the PRs listed below. Each was confirmed against the code on main; all are
+    low impact in practice.
+  - **Change:** (#719) `POST /jobs` namespaces a caller-supplied idempotency key with the session team, so a key
+    used by another team neither returns nor blocks this team's job. (#722) the Overseer counts a reply as inside
+    an enrollment only when the inbound message also arrived after the enrollment started, since the reply row's
+    timestamp is set when classification finishes. (#718) `admin/invites` defaults to the workspace the user has
+    selected when they may invite into it, and finds an existing seat regardless of email case. (#678) the
+    scheduler's approval check lets the latest CAMPAIGN_START request decide, as the web start routes do. (#673)
+    `enforcePolicy` accepts only a CAMPAIGN_START approval for a campaign run, and the web start gate uses the
+    extended auto-deny window while the team's breaker is not closed. (#686) the default policy row is created
+    with an upsert, so two first requests for one team no longer collide. (#704) the INR plan prices are written
+    in one transaction.
+  - **Deploy:** none beyond the normal merge; no schema change and no new env.
 
 - **OPEN-357 (Resolved (pending merge) — the public contact forms share a lower rate limit):** 2026-10-28.
   - **Why:** `/api/contact` and `/api/support/contact` are public and each accepted message sends an email to the team

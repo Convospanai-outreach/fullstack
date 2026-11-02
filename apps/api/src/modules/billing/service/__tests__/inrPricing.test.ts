@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
-    mockPrisma: { plan: { updateMany: vi.fn() } },
+    mockPrisma: { plan: { updateMany: vi.fn() }, $transaction: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -36,6 +36,7 @@ describe("refreshInrPlanPrices", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         mockPrisma.plan.updateMany.mockReset().mockResolvedValue({ count: 1 });
+        mockPrisma.$transaction.mockReset().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops));
     });
 
     it("writes each paid plan's INR price from the day's USD rate", async () => {
@@ -49,6 +50,15 @@ describe("refreshInrPlanPrices", () => {
         expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "PRO" }, data: { monthlyPrice: 559900 } });
         expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "GROWTH" }, data: { monthlyPrice: 1129900 } });
         expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "ENTERPRISE" }, data: { monthlyPrice: 5659900 } });
+    });
+
+    it("writes all plan prices in one transaction", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(rateResponse({ rates: { INR: 94.47 } }));
+
+        await refreshInrPlanPrices();
+
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.$transaction.mock.calls[0][0]).toHaveLength(3);
     });
 
     it("keeps the current prices when the rate source fails", async () => {
