@@ -541,6 +541,13 @@ async function appProxy(req: NextRequest) {
         cspValues[5] += " https://api.github.com";
     }
 
+    // The WhatsApp page can open Meta's Embedded Signup popup, which loads Meta's SDK and talks to Meta.
+    if (cleanPath === "/whatsapp" || cleanPath.startsWith("/whatsapp/")) {
+        cspValues[1] += " https://connect.facebook.net";
+        cspValues[5] += " https://graph.facebook.com https://www.facebook.com";
+        cspValues[6] += " https://www.facebook.com https://web.facebook.com";
+    }
+
     if (process.env['NODE_ENV'] === 'production') {
         cspValues.push("upgrade-insecure-requests");
     }
