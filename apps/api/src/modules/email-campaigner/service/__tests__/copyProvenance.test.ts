@@ -16,7 +16,7 @@ describe("buildProvenance", () => {
     });
 
     it("names the rubric critique prompt when the rubric critic ran", () => {
-        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v1");
+        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v2");
     });
 });
 
@@ -52,7 +52,7 @@ describe("legacyProvenance", () => {
 describe("legacyProvenance with a critic", () => {
     it("names the critic prompt and the outcome", () => {
         const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
-        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v1" }, flags: { rubricCritic: true } });
+        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v2" }, flags: { rubricCritic: true } });
     });
 });
 
