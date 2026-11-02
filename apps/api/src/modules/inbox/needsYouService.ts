@@ -156,7 +156,7 @@ export async function collectNeedsYou(teamIds: string[], now = new Date()): Prom
                 id: nudge.id,
                 title: nudge.suggestion,
                 detail: null,
-                href: nudge.leadId ? `/leads/${encodeURIComponent(nudge.leadId)}` : nudge.nudgeType === "DOMAIN_HEALTH" ? "/settings/domain-health" : "/inbox?tab=approvals",
+                href: nudge.leadId ? `/leads/${encodeURIComponent(nudge.leadId)}` : nudge.nudgeType === "DOMAIN_HEALTH" ? "/settings/domain-health" : nudge.nudgeType === "CAMPAIGN_HEALTH" ? "/campaigns" : "/inbox?tab=approvals",
                 at: nudge.createdAt.toISOString(),
             })),
         },

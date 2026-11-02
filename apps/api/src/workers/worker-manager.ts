@@ -52,6 +52,8 @@ export class WorkerManager {
     private overseerInterval: number = parseInt(process.env['OVERSEER_TICK_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastDomainWatchTick: number = 0;
     private domainWatchInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastCampaignHealthTick: number = 0;
+    private campaignHealthInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastFacebookLeadsTick: number = 0;
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
@@ -319,6 +321,13 @@ export class WorkerManager {
                 const result = await runDomainWatch();
                 if (result.alarms > 0) {
                     console.log(`[Worker] DomainWatch raised ${result.alarms} alarm(s) across ${result.domainsChecked} sending domain(s).`);
+        if (now - this.lastCampaignHealthTick >= this.campaignHealthInterval) {
+            this.lastCampaignHealthTick = now;
+            await this.runSweep("CampaignHealth", async () => {
+                const { runCampaignHealth } = await import("@/modules/overseer/campaignHealth");
+                const result = await runCampaignHealth();
+                if (result.nudgesCreated > 0) {
+                    console.log(`[Worker] CampaignHealth raised ${result.nudgesCreated} nudge(s) across ${result.sequencesChecked} live sequence(s).`);
                 }
             });
         }
