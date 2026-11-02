@@ -32,6 +32,34 @@ export function classifyReply(reply: TrackedReply): string {
     return (reply.humanCorrection || reply.aiClassification).toUpperCase();
 }
 
+export interface LinkedInSent {
+    leadId: string;
+    createdAt: Date;
+    copyProvenance: unknown;
+}
+
+export interface LinkedInReply {
+    id: string;
+    leadId: string;
+    createdAt: Date;
+}
+
+// LinkedIn has no per-message link between a send and its reply, so the reply to a message is the
+// lead's first inbound LinkedIn message after it and before the next one we sent them. Opens are not
+// known for LinkedIn.
+export function linkedinOutcomeRows(sent: LinkedInSent[], replies: LinkedInReply[], classifications: Map<string, string>): OutcomeRow[] {
+    const sentByLead = new Map<string, Date[]>();
+    for (const s of sent) sentByLead.set(s.leadId, [...(sentByLead.get(s.leadId) ?? []), s.createdAt]);
+    for (const times of sentByLead.values()) times.sort((a, b) => a.getTime() - b.getTime());
+    return sent.map((s) => {
+        const next = (sentByLead.get(s.leadId) ?? []).find((t) => t.getTime() > s.createdAt.getTime());
+        const reply = replies
+            .filter((r) => r.leadId === s.leadId && r.createdAt.getTime() > s.createdAt.getTime() && (!next || r.createdAt.getTime() < next.getTime()))
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+        return { copyProvenance: s.copyProvenance, openedAt: null, repliedAt: reply?.createdAt ?? null, classification: reply ? classifications.get(reply.id) ?? null : null };
+    });
+}
+
 const NEGATIVE = new Set(["NOT_INTERESTED", "DNC"]);
 
 export function provenanceKey(p: NonNullable<ReturnType<typeof readProvenance>>): string {

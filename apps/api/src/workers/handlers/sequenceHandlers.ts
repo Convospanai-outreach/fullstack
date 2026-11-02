@@ -4,7 +4,8 @@ import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
-import type { CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
+import { linkedinProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
+import { buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
 import { emailService } from "@/modules/email-campaigner";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
@@ -51,6 +52,8 @@ export async function handleSequenceAction(payload: JobPayload) {
     // outcome can be written back to it.
     const approvedMessageId = typeof payload["approvedMessageId"] === "string" ? payload["approvedMessageId"] : undefined;
     let approvedClaim: { id: string; teamId: string } | undefined;
+    // The LinkedIn text this run sent, kept so it can be recorded once the send succeeds.
+    let linkedinSent: { content: string; provenance?: CopyProvenance } | undefined;
 
     try {
     switch (action as SequenceStep) {
@@ -101,6 +104,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                 if (approved.state !== "ready") return { ok: false, skipped: approved.state };
                 approvedClaim = { id: approvedMessageId, teamId: connectTeamId || "" };
                 message = approved.body;
+                linkedinSent = { content: message, provenance: approved.copyProvenance };
             } else {
                 message = await generateWithRetry(() => aiService.generateConnectionMessage(connectContext, connectTeamId));
                 if (!message) {
@@ -109,9 +113,10 @@ export async function handleSequenceAction(payload: JobPayload) {
                 }
                 const gate = await gateAiMessage({
                     teamId: connectTeamId, leadId, channel: "CONNECT", jobType: "SEQUENCE_ACTION", jobPayload: payload,
-                    body: message, requesterHint: connectLead?.campaign?.ownerId,
+                    body: message, requesterHint: connectLead?.campaign?.ownerId, copyProvenance: linkedinProvenance("connect"),
                 });
                 if (!gate.send) return { ok: false, held: gate.held };
+                linkedinSent = { content: message, provenance: linkedinProvenance("connect") };
             }
 
             // Connect with note
@@ -141,9 +146,10 @@ export async function handleSequenceAction(payload: JobPayload) {
                 if (approved.state !== "ready") return { ok: false, skipped: approved.state };
                 approvedClaim = { id: approvedMessageId, teamId: followUpTeamId || "" };
                 followUpMessage = approved.body;
+                linkedinSent = { content: followUpMessage, provenance: approved.copyProvenance };
             } else {
                 followUpMessage = await generateWithRetry(() => aiService.askAI(
-                    `Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`,
+                    buildFollowUpPrompt(followUpContext),
                     followUpTeamId,
                     { surface: "HELPER", taskType: "LINKEDIN_FOLLOW_UP" }
                 ));
@@ -153,9 +159,10 @@ export async function handleSequenceAction(payload: JobPayload) {
                 }
                 const gate = await gateAiMessage({
                     teamId: followUpTeamId, leadId, channel: "MESSAGE", jobType: "SEQUENCE_ACTION", jobPayload: payload,
-                    body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId,
+                    body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId, copyProvenance: linkedinProvenance("followUp"),
                 });
                 if (!gate.send) return { ok: false, held: gate.held };
+                linkedinSent = { content: followUpMessage, provenance: linkedinProvenance("followUp") };
             }
 
             result = await runLinkedInAction({
@@ -309,6 +316,18 @@ export async function handleSequenceAction(payload: JobPayload) {
             where: updateWhere,
             data: { status: action } // e.g., "VISIT", "CONNECT"
         }).catch(e => console.error("Failed to update lead status", e));
+
+        // Record what was sent, so a reply can be tied back to the prompt that wrote it. Best effort:
+        // the message is already out, so a failed write must not fail the step.
+        if (linkedinSent) {
+            await prisma.message.create({
+                data: {
+                    leadId, content: linkedinSent.content, direction: "OUTBOUND", platform: "LINKEDIN", sender: "AI",
+                    status: "sent", isRead: true,
+                    ...(linkedinSent.provenance ? { copyProvenance: linkedinSent.provenance } : {}),
+                },
+            }).catch(e => console.error("Failed to record the LinkedIn message", e));
+        }
 
         // Schedule next step
         await SequenceService.scheduleNextStep(leadId, url, action as SequenceStep, resolvedTeamId, variantId);
