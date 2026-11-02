@@ -109,6 +109,9 @@ export default function AboutPage() {
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
                         CraftMyFunnel was born from a simple frustration: B2B service companies see buying signals every week, but too few turn into approved outreach, timely follow-ups, and qualified meetings.
                     </p>
+                    <p className="text-sm text-gray-500">
+                        CraftMyFunnel is operated by <span className="font-semibold text-gray-300">Sudhisha Digital Private Limited</span>.
+                    </p>
 
                     {/* Architecture Visual Preview */}
                     <div className="pt-6 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
