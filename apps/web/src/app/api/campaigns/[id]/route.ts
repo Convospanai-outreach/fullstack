@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
+import { applyStrategyInput, parseStrategyInput } from "@/lib/campaigns/strategies";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                     return NextResponse.json({ error: "Draft generation mode can only be changed before the campaign starts" }, { status: 409 });
                 }
                 allowedUpdates["draftGenerationMode"] = body.draftGenerationMode;
+            }
+
+            const strategyInput = parseStrategyInput(body);
+            if (!strategyInput.ok) {
+                return NextResponse.json({ error: strategyInput.error }, { status: 400 });
+            }
+            if (strategyInput.value.strategies !== undefined || strategyInput.value.objective !== undefined) {
+                allowedUpdates["aiConfig"] = applyStrategyInput(campaign.aiConfig, strategyInput.value) ?? Prisma.DbNull;
             }
 
             if (Object.keys(allowedUpdates).length > 0) {

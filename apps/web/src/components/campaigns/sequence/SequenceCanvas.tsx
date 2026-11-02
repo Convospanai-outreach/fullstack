@@ -5,6 +5,7 @@ import ReactFlow, { Background, Controls, Node, Edge, NodeTypes, Handle, Positio
 import "reactflow/dist/style.css";
 import { X, Pencil, AlertTriangle, Info } from "lucide-react";
 import { evaluatePace, findingsForStep, type PaceFinding } from "@/lib/campaigns/paceRules";
+import { findStrategy, paceLimitsFor } from "@/lib/campaigns/strategies";
 import SenderScheduleNode, { SenderScheduleNodeData, SequenceMailbox } from "./SenderScheduleNode";
 import AddStepButton from "./AddStepButton";
 import StepEditorDialog from "./StepEditorDialog";
@@ -125,6 +126,7 @@ export default function SequenceCanvas({
     timezone,
     onSenderScheduleChange,
     linkedinLocked,
+    strategies = [],
     disabled = false,
 }: {
     steps: SequenceStepItem[];
@@ -134,6 +136,7 @@ export default function SequenceCanvas({
     timezone: string;
     onSenderScheduleChange: (update: { senderMailboxIds?: string[]; timezone?: string }) => void;
     linkedinLocked: boolean;
+    strategies?: string[];
     disabled?: boolean;
 }) {
     const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -164,7 +167,8 @@ export default function SequenceCanvas({
     const editingStep = steps.find((s) => s.id === editingStepId) || null;
 
     // Pace guidance only: it never blocks saving or launching.
-    const paceFindings = useMemo(() => evaluatePace(steps), [steps]);
+    const paceFindings = useMemo(() => evaluatePace(steps, paceLimitsFor(strategies)), [steps, strategies]);
+    const strategyChips = strategies.map((id) => findStrategy(id)).filter((s): s is NonNullable<typeof s> => Boolean(s));
 
     const nodes: Node[] = useMemo(() => {
         const startNode: Node<SenderScheduleNodeData> = {
@@ -219,6 +223,15 @@ export default function SequenceCanvas({
 
     return (
         <div className="relative h-full w-full">
+            {strategyChips.length > 0 && (
+                <div className="absolute right-3 top-3 z-10 flex max-w-[50%] flex-wrap justify-end gap-1.5" aria-label="Strategies on this campaign">
+                    {strategyChips.map((strategy) => (
+                        <span key={strategy.id} title={strategy.summary} className="rounded-full border border-indigo-500/50 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                            {strategy.name}
+                        </span>
+                    ))}
+                </div>
+            )}
             {paceFindings.length > 0 && (
                 <div className="absolute left-3 top-3 z-10 max-w-xs rounded-lg border border-border bg-card/95 p-3 text-xs shadow-sm backdrop-blur" role="status">
                     <p className="flex items-center gap-1.5 font-medium">

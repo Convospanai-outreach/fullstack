@@ -32,6 +32,9 @@ export const PACE_LIMITS = {
     maxSpanDays: 90,
 } as const;
 
+// The limits in force for a campaign. A strategy can loosen or tighten the defaults (strategies.ts).
+export type PaceLimits = { [K in keyof typeof PACE_LIMITS]: number };
+
 const HOURS_PER_DAY = 24;
 
 function delayHours(step: PaceStep): number {
@@ -63,40 +66,40 @@ function emailTouches(steps: PaceStep[]): EmailTouch[] {
 
 const days = (hours: number) => (hours / HOURS_PER_DAY).toFixed(hours % HOURS_PER_DAY === 0 ? 0 : 1);
 
-export function evaluatePace(steps: PaceStep[]): PaceFinding[] {
+export function evaluatePace(steps: PaceStep[], limits: PaceLimits = PACE_LIMITS): PaceFinding[] {
     const touches = emailTouches(steps);
     const findings: PaceFinding[] = [];
 
     for (const touch of touches) {
-        if (touch.gapHours !== null && touch.gapHours < PACE_LIMITS.minGapHours) {
+        if (touch.gapHours !== null && touch.gapHours < limits.minGapHours) {
             findings.push({
                 ruleId: "email-gap",
                 severity: "warning",
                 stepIds: [touch.id],
                 message: `This email follows the last one after only ${days(touch.gapHours)} day${touch.gapHours === HOURS_PER_DAY ? "" : "s"}.`,
-                why: "Emails closer than 2 days apart tend to read as pressure and raise unsubscribes and spam complaints. Leave at least 2 days between emails.",
+                why: `Emails closer than ${days(limits.minGapHours)} day${limits.minGapHours === HOURS_PER_DAY ? "" : "s"} apart tend to read as pressure and raise unsubscribes and spam complaints. Leave at least that long between emails.`,
             });
         }
     }
 
-    const firstWeek = touches.filter((t) => t.atHours < PACE_LIMITS.firstWeekDays * HOURS_PER_DAY);
-    if (firstWeek.length > PACE_LIMITS.maxFirstWeekEmails) {
+    const firstWeek = touches.filter((t) => t.atHours < limits.firstWeekDays * HOURS_PER_DAY);
+    if (firstWeek.length > limits.maxFirstWeekEmails) {
         findings.push({
             ruleId: "first-week-load",
             severity: "warning",
-            stepIds: firstWeek.slice(PACE_LIMITS.maxFirstWeekEmails).map((t) => t.id),
+            stepIds: firstWeek.slice(limits.maxFirstWeekEmails).map((t) => t.id),
             message: `${firstWeek.length} emails go out in the first week.`,
-            why: `More than ${PACE_LIMITS.maxFirstWeekEmails} emails in the first week is a heavy opening for a contact who has not replied. Spread them out.`,
+            why: `More than ${limits.maxFirstWeekEmails} emails in the first week is a heavy opening for a contact who has not replied. Spread them out.`,
         });
     }
 
-    if (touches.length > PACE_LIMITS.maxEmails) {
+    if (touches.length > limits.maxEmails) {
         findings.push({
             ruleId: "email-count",
             severity: "warning",
-            stepIds: touches.slice(PACE_LIMITS.maxEmails).map((t) => t.id),
+            stepIds: touches.slice(limits.maxEmails).map((t) => t.id),
             message: `This drip has ${touches.length} emails.`,
-            why: `Replies drop off after the first few follow-ups while complaints keep rising. More than ${PACE_LIMITS.maxEmails} emails to a silent contact rarely pays.`,
+            why: `Replies drop off after the first few follow-ups while complaints keep rising. More than ${limits.maxEmails} emails to a silent contact rarely pays.`,
         });
     }
 
@@ -105,7 +108,7 @@ export function evaluatePace(steps: PaceStep[]): PaceFinding[] {
         const previous = gaps[i - 1]!.gapHours as number;
         const current = gaps[i]!.gapHours as number;
         // A shrinking gap that is already past the minimum; shorter-than-minimum is reported above.
-        if (current >= PACE_LIMITS.minGapHours && current < previous) {
+        if (current >= limits.minGapHours && current < previous) {
             findings.push({
                 ruleId: "shrinking-gaps",
                 severity: "info",
@@ -117,13 +120,13 @@ export function evaluatePace(steps: PaceStep[]): PaceFinding[] {
     }
 
     const last = touches[touches.length - 1];
-    if (last && last.atHours > PACE_LIMITS.maxSpanDays * HOURS_PER_DAY) {
+    if (last && last.atHours > limits.maxSpanDays * HOURS_PER_DAY) {
         findings.push({
             ruleId: "sequence-length",
             severity: "warning",
             stepIds: [last.id],
             message: `The last email goes out ${days(last.atHours)} days after the start.`,
-            why: `A contact who has not engaged in ${PACE_LIMITS.maxSpanDays} days should be sunset rather than emailed again; it protects your sender reputation.`,
+            why: `A contact who has not engaged in ${limits.maxSpanDays} days should be sunset rather than emailed again; it protects your sender reputation.`,
         });
     }
 
