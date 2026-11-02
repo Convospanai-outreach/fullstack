@@ -13,8 +13,11 @@ export const PROMPT_REGISTRY = {
     "email.nodeC": { version: 2, fingerprint: "188534d7f14d" },
     "email.legacyDraft": { version: 1, fingerprint: "9b37c1a1c58b" },
     "email.legacyBatch": { version: 1, fingerprint: "ff173ae4ec8c" },
+    "linkedin.connect": { version: 1, fingerprint: "8b9a221db6fb" },
+    "linkedin.followUp": { version: 1, fingerprint: "d61c09234756" },
+    "linkedin.critique": { version: 1, fingerprint: "ac320cc33049" },
     "email.critique": { version: 1, fingerprint: "bb39618e430e" },
-    "email.critique.rubric": { version: 1, fingerprint: "b3f1ea072e06" },
+    "email.critique.rubric": { version: 2, fingerprint: "84861b7fec57" },
 } as const satisfies Record<string, { version: number; fingerprint: string }>;
 
 export type PromptId = keyof typeof PROMPT_REGISTRY;

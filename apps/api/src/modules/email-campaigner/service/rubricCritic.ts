@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { TOON } from "@/lib/ai/TOON";
 import path from "node:path";
 import { assertOutsideRepo, parseRubric, type Rubric } from "@/evals/copy/evalData";
 import { parseJudgeReply, weightedScore } from "@/evals/copy/runCopyEval";
@@ -61,8 +62,8 @@ ${criteria}
 Separately from the scores, list the ones that apply:
 ${BLOCKERS.map((b) => `- ${b}`).join("\n")}
 
-## SITUATION AND CONTEXT (JSON)
-${JSON.stringify(input)}
+## SITUATION AND CONTEXT (compact key:value form)
+${TOON.serializeTabular(input)}
 
 ## STYLE REQUIREMENTS
 ${styleGuidance}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyReply, summarizeOutcomes } from "../copyOutcomes";
+import { classifyReply, linkedinOutcomeRows, summarizeOutcomes } from "../copyOutcomes";
 import { buildProvenance } from "../copyProvenance";
 
 const base = { retrievalOn: false, briefOn: false, rubricCritic: false, playbook: 0, examples: 0, briefUsed: false, critique: "passed" as const };
@@ -42,5 +42,25 @@ describe("reply classification", () => {
             })),
         );
         expect(group).toMatchObject({ sent: 7, replied: 6, interested: 2, negative: 2 });
+    });
+});
+
+describe("linkedinOutcomeRows", () => {
+    const at = (h: number) => new Date(Date.UTC(2026, 0, 1, h));
+    const p = { v: 1 };
+
+    it("pairs a send with the lead's first reply before the next send, and carries the classification", () => {
+        const rows = linkedinOutcomeRows(
+            [{ leadId: "a", createdAt: at(1), copyProvenance: p }, { leadId: "a", createdAt: at(5), copyProvenance: p }, { leadId: "b", createdAt: at(1), copyProvenance: p }],
+            [{ id: "r1", leadId: "a", createdAt: at(3) }, { id: "r2", leadId: "a", createdAt: at(4) }, { id: "r3", leadId: "a", createdAt: at(6) }],
+            new Map([["r1", "INTERESTED"], ["r3", "DNC"]]),
+        );
+        expect(rows.map((r) => [r.repliedAt?.getUTCHours() ?? null, r.classification])).toEqual([[3, "INTERESTED"], [6, "DNC"], [null, null]]);
+        expect(rows.every((r) => r.openedAt === null)).toBe(true);
+    });
+
+    it("ignores a reply that came before the send, or from another lead", () => {
+        const [row] = linkedinOutcomeRows([{ leadId: "a", createdAt: at(5), copyProvenance: p }], [{ id: "r1", leadId: "a", createdAt: at(2) }, { id: "r2", leadId: "b", createdAt: at(6) }], new Map());
+        expect(row.repliedAt).toBeNull();
     });
 });

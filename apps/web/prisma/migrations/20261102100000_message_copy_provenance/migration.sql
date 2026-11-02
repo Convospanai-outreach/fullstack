@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS "Message" ADD COLUMN IF NOT EXISTS "copyProvenance" JSONB;
