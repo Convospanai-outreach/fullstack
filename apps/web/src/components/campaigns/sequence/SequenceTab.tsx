@@ -46,6 +46,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [strategies, setStrategies] = useState<string[]>([]);
     const [objective, setObjective] = useState("");
     const [strategyOpen, setStrategyOpen] = useState(false);
+    const [icp, setIcp] = useState<{ name: string; criteria: unknown } | null>(null);
     const [savingStrategy, setSavingStrategy] = useState(false);
 
     useEffect(() => {
@@ -56,6 +57,15 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 if (cancelled || !campaign) return;
                 setStrategies(strategiesFromConfig(campaign.aiConfig));
                 setObjective(typeof campaign.aiConfig?.goal === "string" ? campaign.aiConfig.goal : "");
+                if (typeof campaign.icpId === "string") {
+                    fetch("/api/proxy/icp-builder/list")
+                        .then((res) => (res.ok ? res.json() : null))
+                        .then((data) => {
+                            const found = (data?.icps || []).find((i: { id: string }) => i.id === campaign.icpId);
+                            if (!cancelled && found) setIcp({ name: found.name, criteria: found.criteria });
+                        })
+                        .catch(() => {});
+                }
             })
             .catch(() => {});
         return () => {
@@ -244,6 +254,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         <StrategyPicker
                             value={strategies}
                             objective={objective}
+                            icp={icp}
                             onChange={(next, nextObjective) => {
                                 setStrategies(next);
                                 setObjective(nextObjective);
