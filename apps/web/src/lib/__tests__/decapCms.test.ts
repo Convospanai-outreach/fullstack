@@ -60,9 +60,16 @@ describe("canonicalOrigin", () => {
         expect(canonicalOrigin("http://localhost:10000/cms")).toBe("https://www.example.com");
     });
 
+    it("prefers CMS_ORIGIN over the site address", () => {
+        vi.stubEnv("NEXTAUTH_URL", "https://www.example.com");
+        vi.stubEnv("CMS_ORIGIN", "https://example.com/");
+        expect(canonicalOrigin("http://localhost:10000/cms")).toBe("https://example.com");
+    });
+
     it("falls back to the request's own origin when no address is configured", () => {
         vi.stubEnv("NEXTAUTH_URL", "");
         vi.stubEnv("APP_URL", "");
+        vi.stubEnv("CMS_ORIGIN", "");
         expect(canonicalOrigin("http://localhost:3000/cms")).toBe("http://localhost:3000");
     });
 });
