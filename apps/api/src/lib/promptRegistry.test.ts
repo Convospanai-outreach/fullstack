@@ -11,6 +11,7 @@ import {
     buildNodeCPrompt,
 } from "@/modules/email-campaigner/service/emailComposer";
 import { buildLegacyBatchPrompt, buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
+import { buildConnectionPrompt, buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
 import { buildRubricCritiquePrompt } from "@/modules/email-campaigner/service/rubricCritic";
 import { allPromptRefs, fingerprintPrompt, PROMPT_REGISTRY, promptRef, type PromptId } from "./promptRegistry";
 
@@ -36,6 +37,8 @@ const RENDERED: Record<PromptId, string> = {
     "email.nodeC": buildNodeCPrompt(followUp, context),
     "email.legacyDraft": buildLegacyDraftPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, knowledgeContext: "kb-x", personalityGuidance: "disc-x" }),
     "email.legacyBatch": buildLegacyBatchPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, personalityGuidance: "disc-x" }),
+    "linkedin.connect": buildConnectionPrompt("profile-x"),
+    "linkedin.followUp": buildFollowUpPrompt("context-x"),
     "email.critique": buildCritiquePrompt(nodeA, draft),
     "email.critique.rubric": buildRubricCritiquePrompt(nodeA, draft, { criteria: [{ id: "crit-x", description: "desc-x", weight: 1 }], passScore: 4 }, "style-x"),
 };

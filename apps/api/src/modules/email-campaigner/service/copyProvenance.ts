@@ -6,8 +6,9 @@ import { promptRef } from "@/lib/promptRegistry";
 
 export interface CopyProvenance {
     v: 1;
-    // "A" is the composer; "legacy" is the older single-prompt draft path, which has no critic or context.
-    node: "A" | "legacy";
+    // "A" is the composer; "legacy" is the older single-prompt email draft path; "linkedin" is a LinkedIn
+    // connection note or follow-up. Only the composer has context; a critic runs only where noted.
+    node: "A" | "legacy" | "linkedin";
     prompts: { draft: string; system: string; critique: string };
     flags: { retrieval: boolean; brief: boolean; rubricCritic: boolean };
     // How much extra context the draft prompt actually received.
@@ -57,9 +58,21 @@ export function legacyProvenance(batch: boolean, review?: { critique: CopyProven
     };
 }
 
+// A LinkedIn connection note or follow-up: one prompt, no critic, retrieval or brief.
+export function linkedinProvenance(kind: "connect" | "followUp"): CopyProvenance {
+    return {
+        v: 1,
+        node: "linkedin",
+        prompts: { draft: promptRef(kind === "connect" ? "linkedin.connect" : "linkedin.followUp"), system: "none", critique: "none" },
+        flags: { retrieval: false, brief: false, rubricCritic: false },
+        context: { playbook: 0, examples: 0, brief: false },
+        critique: "unreviewed",
+    };
+}
+
 // Reads provenance back from a JSON column or a held approval, ignoring anything that is not ours.
 export function readProvenance(value: unknown): CopyProvenance | null {
     if (typeof value !== "object" || value === null) return null;
     const p = value as Partial<CopyProvenance>;
-    return p.v === 1 && (p.node === "A" || p.node === "legacy") && p.prompts && p.flags && p.context && typeof p.critique === "string" ? (p as CopyProvenance) : null;
+    return p.v === 1 && (p.node === "A" || p.node === "legacy" || p.node === "linkedin") && p.prompts && p.flags && p.context && typeof p.critique === "string" ? (p as CopyProvenance) : null;
 }
