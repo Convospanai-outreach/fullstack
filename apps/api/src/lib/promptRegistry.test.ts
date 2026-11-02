@@ -10,6 +10,7 @@ import {
     buildNodeBPrompt,
     buildNodeCPrompt,
 } from "@/modules/email-campaigner/service/emailComposer";
+import { buildLegacyBatchPrompt, buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
 import { buildRubricCritiquePrompt } from "@/modules/email-campaigner/service/rubricCritic";
 import { allPromptRefs, fingerprintPrompt, PROMPT_REGISTRY, promptRef, type PromptId } from "./promptRegistry";
 
@@ -33,6 +34,8 @@ const RENDERED: Record<PromptId, string> = {
     "email.nodeA": buildNodeAPrompt({ ...nodeA, campaign_brief: "brief-x" }, context),
     "email.nodeB": buildNodeBPrompt(followUp, context),
     "email.nodeC": buildNodeCPrompt(followUp, context),
+    "email.legacyDraft": buildLegacyDraftPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, knowledgeContext: "kb-x", personalityGuidance: "disc-x" }),
+    "email.legacyBatch": buildLegacyBatchPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, personalityGuidance: "disc-x" }),
     "email.critique": buildCritiquePrompt(nodeA, draft),
     "email.critique.rubric": buildRubricCritiquePrompt(nodeA, draft, { criteria: [{ id: "crit-x", description: "desc-x", weight: 1 }], passScore: 4 }, "style-x"),
 };

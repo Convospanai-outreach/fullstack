@@ -35,13 +35,19 @@ describe("campaignStartNeedsApproval", () => {
     });
 
     it("is satisfied by an approved CAMPAIGN_START request for that campaign", async () => {
-        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "a1" });
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "a1", status: "APPROVED" });
         expect(await campaignStartNeedsApproval("team-1", "campaign-1")).toBe(false);
         expect(mockPrisma.approvalRequest.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: { teamId: "team-1", entityType: "Campaign", entityId: "campaign-1", actionType: "CAMPAIGN_START", status: "APPROVED" },
+                where: { teamId: "team-1", entityType: "Campaign", entityId: "campaign-1", actionType: "CAMPAIGN_START" },
+                orderBy: { createdAt: "desc" },
             }),
         );
+    });
+
+    it("still requires approval when the latest request is not approved, even if an older one was", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "a2", status: "PENDING" });
+        expect(await campaignStartNeedsApproval("team-1", "campaign-1")).toBe(true);
     });
 
     it("fails closed when the policy is on and there is no usable campaignId", async () => {

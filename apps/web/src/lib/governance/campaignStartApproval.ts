@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { computeAutoDenyAt, resolveApprovalTier } from "@/modules/governance/approvalPolicy";
+import { getBreakerState } from "@/modules/governance/breakerState";
 
 export type CampaignStartGate =
     | { allowed: true }
@@ -42,6 +43,7 @@ export async function checkCampaignStartApproval({
     }
 
     const tier = resolveApprovalTier(ACTION_TYPE);
+    const breakerState = await getBreakerState(teamId);
     const created = await prisma.approvalRequest.create({
         data: {
             teamId,
@@ -51,7 +53,7 @@ export async function checkCampaignStartApproval({
             actionType: ACTION_TYPE,
             status: "PENDING",
             tier,
-            autoDenyAt: computeAutoDenyAt(tier),
+            autoDenyAt: computeAutoDenyAt(tier, new Date(), breakerState !== "CLOSED"),
             reason: "Campaign start requires approval under this team's policy",
             payload: { campaignId },
         },

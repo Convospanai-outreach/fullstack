@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
 // rescores the caller's own team only (its handler reads payload.teamId, forced below).
 const CLIENT_ENQUEUEABLE_TYPES = new Set(["lead_scoring"]);
 
+// Job.idempotencyKey is unique across teams, so a caller-supplied key is namespaced by the caller's team:
+// the same key from another team can then neither return nor block this team's job.
+function teamScopedKey(teamId: string, key: string | undefined) {
+    return key ? `${teamId}:${key}` : undefined;
+}
+
 function cannotEnqueue() {
     return NextResponse.json({ error: "Job type cannot be enqueued directly" }, { status: 403 });
 }
@@ -74,7 +80,7 @@ export async function POST(req: NextRequest) {
             job = await JobQueue.enqueue(envelope.task_type as any, scopedPayload, {
                 priority: body.priority ?? 0,
                 teamId: ctx.teamId,
-                idempotencyKey: envelope.idempotency_key,
+                idempotencyKey: teamScopedKey(ctx.teamId, envelope.idempotency_key),
                 version: envelope.version,
                 executionMode: envelope.execution_mode,
                 targetRuntime: envelope.target_runtime,
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest) {
             job = await JobQueue.enqueue(legacy.type as any, scopedPayload, {
                 priority: legacy.priority ?? 0,
                 teamId: ctx.teamId,
-                idempotencyKey: legacy.idempotencyKey
+                idempotencyKey: teamScopedKey(ctx.teamId, legacy.idempotencyKey)
             });
         }
 
