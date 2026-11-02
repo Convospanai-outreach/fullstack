@@ -6,6 +6,7 @@ import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
 import { linkedinProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
+import { linkedinCriticEnabled, reviewLinkedinDraft } from "@/modules/email-campaigner/service/linkedinCritic";
 import { emailService } from "@/modules/email-campaigner";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
@@ -111,12 +112,18 @@ export async function handleSequenceAction(payload: JobPayload) {
                     await flagNeedsAttention({ teamId: connectTeamId, leadId, channel: "CONNECT", reason: "The connection message could not be written after 3 attempts.", requesterHint: connectLead?.campaign?.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
                     return { ok: false, held: "needs_attention" };
                 }
+                let connectProvenance = linkedinProvenance("connect");
+                if (linkedinCriticEnabled()) {
+                    const review = await reviewLinkedinDraft("connect", connectContext, message, connectTeamId || "");
+                    message = review.text;
+                    connectProvenance = linkedinProvenance("connect", review);
+                }
                 const gate = await gateAiMessage({
                     teamId: connectTeamId, leadId, channel: "CONNECT", jobType: "SEQUENCE_ACTION", jobPayload: payload,
-                    body: message, requesterHint: connectLead?.campaign?.ownerId, copyProvenance: linkedinProvenance("connect"),
+                    body: message, requesterHint: connectLead?.campaign?.ownerId, copyProvenance: connectProvenance,
                 });
                 if (!gate.send) return { ok: false, held: gate.held };
-                linkedinSent = { content: message, provenance: linkedinProvenance("connect") };
+                linkedinSent = { content: message, provenance: connectProvenance };
             }
 
             // Connect with note
@@ -157,12 +164,18 @@ export async function handleSequenceAction(payload: JobPayload) {
                     await flagNeedsAttention({ teamId: followUpTeamId, leadId, channel: "MESSAGE", reason: "The follow-up message could not be written after 3 attempts.", requesterHint: followUpLead?.campaign?.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
                     return { ok: false, held: "needs_attention" };
                 }
+                let followUpProvenance = linkedinProvenance("followUp");
+                if (linkedinCriticEnabled()) {
+                    const review = await reviewLinkedinDraft("followUp", followUpContext, followUpMessage, followUpTeamId || "");
+                    followUpMessage = review.text;
+                    followUpProvenance = linkedinProvenance("followUp", review);
+                }
                 const gate = await gateAiMessage({
                     teamId: followUpTeamId, leadId, channel: "MESSAGE", jobType: "SEQUENCE_ACTION", jobPayload: payload,
-                    body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId, copyProvenance: linkedinProvenance("followUp"),
+                    body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId, copyProvenance: followUpProvenance,
                 });
                 if (!gate.send) return { ok: false, held: gate.held };
-                linkedinSent = { content: followUpMessage, provenance: linkedinProvenance("followUp") };
+                linkedinSent = { content: followUpMessage, provenance: followUpProvenance };
             }
 
             result = await runLinkedInAction({

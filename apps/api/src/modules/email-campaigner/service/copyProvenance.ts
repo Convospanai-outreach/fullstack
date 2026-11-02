@@ -58,15 +58,20 @@ export function legacyProvenance(batch: boolean, review?: { critique: CopyProven
     };
 }
 
-// A LinkedIn connection note or follow-up: one prompt, no critic, retrieval or brief.
-export function linkedinProvenance(kind: "connect" | "followUp"): CopyProvenance {
+// A LinkedIn connection note or follow-up: one prompt, no retrieval or brief, and a critic only when
+// LINKEDIN_CRITIC is on.
+export function linkedinProvenance(kind: "connect" | "followUp", review?: { critique: CopyProvenance["critique"] }): CopyProvenance {
     return {
         v: 1,
         node: "linkedin",
-        prompts: { draft: promptRef(kind === "connect" ? "linkedin.connect" : "linkedin.followUp"), system: "none", critique: "none" },
+        prompts: {
+            draft: promptRef(kind === "connect" ? "linkedin.connect" : "linkedin.followUp"),
+            system: "none",
+            critique: review ? promptRef("linkedin.critique") : "none",
+        },
         flags: { retrieval: false, brief: false, rubricCritic: false },
         context: { playbook: 0, examples: 0, brief: false },
-        critique: "unreviewed",
+        critique: review?.critique ?? "unreviewed",
     };
 }
 
