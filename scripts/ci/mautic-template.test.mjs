@@ -160,3 +160,8 @@ test("idle auto-stop is switchable, stops on low outbound traffic, and matches m
     assert.match(script, new RegExp(`resource ${id}[ )]|LogicalResourceId=='${id}'`), `mautic-power.sh looks up ${id}`);
   }
 });
+
+test("the Mautic image is pinned by digest", () => {
+  const compose = yaml.load(initFile(loadTemplate(), "/opt/mautic/compose.yaml"));
+  assert.match(compose["x-mautic"].image, /^mautic\/mautic:[\w.-]+@sha256:[0-9a-f]{64}$/);
+});

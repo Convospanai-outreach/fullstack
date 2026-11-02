@@ -477,7 +477,7 @@ Resources:
                 name: mautic
 
                 x-mautic: &mautic
-                  image: mautic/mautic:7.2.2-20261026-apache
+                  image: mautic/mautic:7.2.2-20261026-apache@sha256:83461b9ec7c109413281490180e1f96c379aa935bd92f80c68294f98487a9015
                   restart: unless-stopped
                   volumes:
                     - /opt/mautic/php-php2shell.ini:/usr/local/etc/php/conf.d/zz-php2shell.ini:ro
