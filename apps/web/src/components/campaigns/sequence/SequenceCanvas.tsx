@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import ReactFlow, { Background, Controls, Node, Edge, NodeTypes, Handle, Position, NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, AlertTriangle, Info } from "lucide-react";
+import { evaluatePace, findingsForStep, type PaceFinding } from "@/lib/campaigns/paceRules";
 import SenderScheduleNode, { SenderScheduleNodeData, SequenceMailbox } from "./SenderScheduleNode";
 import AddStepButton from "./AddStepButton";
 import StepEditorDialog from "./StepEditorDialog";
@@ -29,6 +30,7 @@ interface SequenceStepNodeData {
     onRemove: () => void;
     onEdit: () => void;
     disabled: boolean;
+    pace: PaceFinding[];
 }
 
 function stepSummary(data: SequenceStepNodeData, isCondition: boolean): string | null {
@@ -77,6 +79,16 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
                 </button>
             </div>
             {summary && <p className="mt-1.5 truncate text-xs text-muted-foreground">{summary}</p>}
+            {data.pace.map((finding) => (
+                <p
+                    key={finding.ruleId}
+                    title={finding.why}
+                    className={`mt-1.5 flex items-start gap-1.5 text-xs ${finding.severity === "warning" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+                >
+                    {finding.severity === "warning" ? <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> : <Info className="mt-0.5 h-3 w-3 shrink-0" />}
+                    <span>{finding.message}</span>
+                </p>
+            ))}
             <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
         </div>
     );
@@ -151,6 +163,9 @@ export default function SequenceCanvas({
 
     const editingStep = steps.find((s) => s.id === editingStepId) || null;
 
+    // Pace guidance only: it never blocks saving or launching.
+    const paceFindings = useMemo(() => evaluatePace(steps), [steps]);
+
     const nodes: Node[] = useMemo(() => {
         const startNode: Node<SenderScheduleNodeData> = {
             id: "start",
@@ -174,6 +189,7 @@ export default function SequenceCanvas({
                 onRemove: () => removeStep(step.id),
                 onEdit: () => setEditingStepId(step.id),
                 disabled,
+                pace: findingsForStep(paceFindings, step.id),
             },
             draggable: false,
             selectable: false,
@@ -189,7 +205,7 @@ export default function SequenceCanvas({
         };
 
         return [startNode, ...stepNodes, addNode];
-    }, [steps, senderMailboxIds, mailboxes, timezone, onSenderScheduleChange, removeStep, linkedinLocked, addStep, disabled]);
+    }, [steps, senderMailboxIds, mailboxes, timezone, onSenderScheduleChange, removeStep, linkedinLocked, addStep, disabled, paceFindings]);
 
     const edges: Edge[] = useMemo(() => {
         const chain = ["start", ...steps.map((s) => s.id), "add-step"];
@@ -202,7 +218,24 @@ export default function SequenceCanvas({
     }, [steps]);
 
     return (
-        <div className="h-full w-full">
+        <div className="relative h-full w-full">
+            {paceFindings.length > 0 && (
+                <div className="absolute left-3 top-3 z-10 max-w-xs rounded-lg border border-border bg-card/95 p-3 text-xs shadow-sm backdrop-blur" role="status">
+                    <p className="flex items-center gap-1.5 font-medium">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        Pace check: {paceFindings.length} {paceFindings.length === 1 ? "note" : "notes"}
+                    </p>
+                    <ul className="mt-2 space-y-2">
+                        {paceFindings.map((finding, index) => (
+                            <li key={`${finding.ruleId}-${index}`}>
+                                <p>{finding.message}</p>
+                                <p className="text-muted-foreground">{finding.why}</p>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="mt-2 text-muted-foreground">Guidance only. You can save and launch as is.</p>
+                </div>
+            )}
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
