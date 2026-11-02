@@ -7215,6 +7215,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
     recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
   - **Deploy:** api only. No migration, no env change.
+- **OPEN-360 (Resolved (pending merge) — CI guards, browser sandbox docs and generic scraper navigation tightened):** 2026-10-29.
+  - **Why:** review follow-ups on #675, #676, #680, #697 and #707. Two CI guards could pass without checking what
+    they exist to check, the sandbox runbook was incomplete and pointed at an unusable seccomp example, the generic
+    scraper failed on pages that never go network-idle, and the Mautic image was pinned by tag only.
+  - **Change:** (1) `prod-secrets-environment.test.mjs` counts indexed `secrets[...]`, `toJSON(secrets)` and
+    `secrets: inherit` as using every production secret, with a unit check of the detector (#680).
+    (2) `compose-port-binding.test.mjs` fails when a guarded service publishes no ports (#675).
+    (3) `docs/BROWSER_SANDBOX.md`: step 1 also checks `kernel.unprivileged_userns_clone` and
+    `kernel.apparmor_restrict_unprivileged_userns`; the three-syscall example is labelled as an addition to a full
+    profile, not a profile on its own (#676). (4) `GenericAdapter` navigates with the `load` event and then a
+    bounded network-idle wait (500 ms idle, 5 s cap) that cannot fail the scrape, with a unit test (#697).
+    (5) `mautic.yaml` pins the Mautic image by its multi-arch index digest, with a template test (#707); the
+    MySQL and Caddy images stay tag-only.
+  - **Deploy:** none for the docs and CI changes. The API change deploys with the normal Oracle VM release. The
+    Mautic template change reaches the host only when its stack is updated or rebuilt; a version bump now means
+    updating both the tag and the digest.
 - **OPEN-359 (Resolved (pending merge) — review follow-ups: failed-login log id, sign-out audit, India pricing display, CRM token storage, Resend reply status):** 2026-10-29.
   - **Why:** five low-severity review comments on merged PRs (#693, #691, #704, #671, #727) were still present on main.
   - **Change:**
