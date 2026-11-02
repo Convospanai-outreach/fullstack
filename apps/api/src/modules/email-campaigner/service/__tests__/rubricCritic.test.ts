@@ -25,7 +25,7 @@ describe("buildRubricCritiquePrompt", () => {
         expect(prompt).toContain('"crit-b": <1-5>');
         expect(prompt).toContain("hallucination");
         expect(prompt).toContain("masking");
-        expect(prompt).toContain('{"extracted_signal":"signal-x"}');
+        expect(prompt).toContain("{extracted_signal:signal-x}");
         expect(prompt).toContain("below 4");
         expect(prompt).toContain("Subject: subj");
     });

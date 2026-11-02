@@ -18,7 +18,7 @@ vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction, judgeStalledThread } from "../jev";
+import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction, judgeOutreachDraft, judgeStalledThread } from "../jev";
 
 function replyAnswers({ stop = 0.05, away = 0.05, choice = "interested", p = 0.8 }: { stop?: number; away?: number; choice?: string; p?: number }) {
     return {
@@ -113,6 +113,34 @@ describe("jev", () => {
             expect(mockSystemOne.mock.calls[0][0].state).toEqual({ content: "You people again? Stop." });
             expect(mockSystemOne.mock.calls[0][1]).toEqual({ timeout: 5000, retry: { maxRetries: 0 } });
             expect(mockPrisma.lLMUsageLog.create).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("judgeOutreachDraft", () => {
+        const state = { prospect: { title: "VP Sales", company: "Acme Corp" }, draft: { subject: "Hi", body: "Saw the news." } };
+
+        it("asks three atomic questions about the draft, with named state and no retry", async () => {
+            mockSystemOne.mockResolvedValue({
+                model: "jev-1.14.0",
+                usage: { input_tokens: 90, output_tokens: 0 },
+                answers: { inventsFact: { type: "noul", noul: 0.1 }, readsAsPitch: { type: "noul", noul: 0.2 }, hardAsk: { type: "noul", noul: 0.05 } },
+            });
+            await expect(judgeOutreachDraft(state, "team-1")).resolves.toEqual({ inventsFact: 0.1, readsAsPitch: 0.2, hardAsk: 0.05 });
+            const request = mockSystemOne.mock.calls[0][0];
+            expect(request.state).toMatchObject({ prospect: state.prospect, draft: state.draft });
+            expect(Object.keys(request.questions)).toEqual(["inventsFact", "readsAsPitch", "hardAsk"]);
+            expect(mockSystemOne.mock.calls[0][1]).toEqual({ retry: { maxRetries: 0 } });
+        });
+
+        it("throws, rather than answering no, when Jev has no key", async () => {
+            vi.stubEnv("JEV_API_KEY", "");
+            await expect(judgeOutreachDraft(state, "team-1")).rejects.toBeInstanceOf(JevUnavailableError);
+        });
+
+        it("logs team usage under OUTREACH_DRAFT_SCREEN", async () => {
+            mockSystemOne.mockResolvedValue({ model: "jev-1.14.0", usage: { input_tokens: 90, output_tokens: 0 }, answers: { inventsFact: { type: "noul", noul: 0 }, readsAsPitch: { type: "noul", noul: 0 }, hardAsk: { type: "noul", noul: 0 } } });
+            await judgeOutreachDraft(state, "team-1");
+            expect(mockPrisma.lLMUsageLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ taskType: "OUTREACH_DRAFT_SCREEN", success: true }) });
         });
     });
 
