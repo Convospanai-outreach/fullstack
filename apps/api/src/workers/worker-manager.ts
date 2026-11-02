@@ -50,6 +50,8 @@ export class WorkerManager {
     private approvalSweepInterval: number = parseInt(process.env['APPROVAL_SWEEP_INTERVAL_MS'] || '900000'); // 15 minutes
     private lastOverseerTick: number = 0;
     private overseerInterval: number = parseInt(process.env['OVERSEER_TICK_INTERVAL_MS'] || '1800000'); // 30 minutes
+    private lastDomainWatchTick: number = 0;
+    private domainWatchInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastFacebookLeadsTick: number = 0;
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
@@ -307,6 +309,17 @@ export class WorkerManager {
                     console.log(`[Worker] OverseerSignal opened ${shadowResult.signalsOpened} provider-degradation signal(s).`);
                 }
 
+            });
+        }
+
+        if (now - this.lastDomainWatchTick >= this.domainWatchInterval) {
+            this.lastDomainWatchTick = now;
+            await this.runSweep("DomainWatch", async () => {
+                const { runDomainWatch } = await import("@/modules/overseer/domainWatch");
+                const result = await runDomainWatch();
+                if (result.alarms > 0) {
+                    console.log(`[Worker] DomainWatch raised ${result.alarms} alarm(s) across ${result.domainsChecked} sending domain(s).`);
+                }
             });
         }
 
