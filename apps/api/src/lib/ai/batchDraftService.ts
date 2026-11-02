@@ -2,31 +2,16 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { aiService, extractJsonBlock } from "@/lib/aiService";
 import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
+import { buildLegacyBatchPrompt } from "@/lib/ai/legacyDraftPrompt";
 import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
 const GUIDANCE_CONCURRENCY = 10;
 const BATCH_TASK_TYPE = "EMAIL_DRAFT_BATCH";
 
 function buildDraftPrompt(lead: unknown, icp: unknown, personalityGuidance: string): string {
-    // Mirrors aiService.generateEmailDraft's prompt shape exactly, so a
-    // BATCH-mode campaign produces the same style of draft a REALTIME
-    // campaign would - this is a cheaper delivery path, not a different
-    // prompt.
-    const prompt = `
-You are a B2B outreach expert. Draft a cold email.
-
-Lead:
-${JSON.stringify(lead)}
-
-ICP:
-${JSON.stringify(icp)}
-
-Personality guidance (DISC):
-${personalityGuidance || "None"}
-
-Return JSON with keys: subject, body.
-        `.trim();
-    return enforceAIPromptPolicy(prompt, { surface: "EMAIL", label: "Email generation prompt" });
+    // Close to aiService.generateEmailDraft's prompt, so a BATCH-mode campaign produces the same style
+    // of draft a REALTIME campaign would - this is a cheaper delivery path, not a different prompt.
+    return enforceAIPromptPolicy(buildLegacyBatchPrompt({ lead, icp, personalityGuidance }), { surface: "EMAIL", label: "Email generation prompt" });
 }
 
 export async function submitBatch(campaignId: string, teamId: string): Promise<{ batchId: string; itemCount: number }> {

@@ -18,7 +18,7 @@ import {
     resolveSurfaceFromTaskType
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
-import { TOON } from "@/lib/ai/TOON";
+import { buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
 
 export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -1125,26 +1125,7 @@ export class AIService {
             // Best-effort - a draft without personality guidance is still better than no draft.
         }
 
-        // TOON's compact tabular serialization instead of JSON.stringify -
-        // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
-        // cutting prompt tokens on every email-draft call.
-        const prompt = `
-You are a B2B outreach expert. Draft a cold email.
-
-Lead:
-${TOON.serializeTabular(lead)}
-
-ICP:
-${TOON.serializeTabular(icp)}
-
-Relevant knowledge base context:
-${knowledgeContext || "None"}
-
-Personality guidance (DISC):
-${personalityGuidance || "None"}
-
-Return JSON with keys: subject, body.
-        `.trim();
+        const prompt = buildLegacyDraftPrompt({ lead, icp, knowledgeContext, personalityGuidance });
         const safePrompt = enforceAIPromptPolicy(prompt, { surface: "EMAIL", label: "Email generation prompt" });
         const result = await callLLM(safePrompt, {
             teamId,

@@ -4,6 +4,8 @@ import { aiService } from "@/lib/aiService";
 import { logger, logWorker } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
+import { legacyCriticEnabled, reviewLegacyDraft } from "@/modules/email-campaigner/service/emailComposer";
+import { legacyProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
 
 /**
@@ -68,6 +70,7 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     const resolvedTeamId = campaign.teamId || teamId;
     const approvedMessageId = typeof payload["approvedMessageId"] === "string" ? payload["approvedMessageId"] : undefined;
     let emailContent: { subject: string; body: string };
+    let copyProvenance: CopyProvenance | undefined;
     if (approvedMessageId) {
         // A person approved this exact text; send it as approved, once.
         const approved = await resolveApprovedMessage(approvedMessageId, resolvedTeamId || "");
@@ -76,6 +79,7 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
             return { leadId, campaignId, sent: false, skipped: approved.state };
         }
         emailContent = { subject: approved.subject, body: approved.body };
+        copyProvenance = approved.copyProvenance;
     } else {
         let draft: { subject: string; body: string } | null;
         if (precomputedDraft?.subject && precomputedDraft?.body) {
@@ -94,6 +98,15 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
             return { leadId, campaignId, sent: false, held: "needs_attention" };
         }
         emailContent = draft;
+        const batchDraft = Boolean(precomputedDraft?.subject && precomputedDraft?.body);
+        // Live drafts only: a batch draft was written ahead of time and is sent as it was written.
+        if (legacyCriticEnabled() && !batchDraft) {
+            const review = await reviewLegacyDraft(lead, campaign.icp?.criteria ?? null, draft, resolvedTeamId || "");
+            emailContent = review.draft;
+            copyProvenance = legacyProvenance(false, review);
+        } else {
+            copyProvenance = legacyProvenance(batchDraft);
+        }
 
         const gate = await gateAiMessage({
             teamId: resolvedTeamId,
@@ -104,6 +117,7 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
             subject: emailContent.subject,
             body: emailContent.body,
             requesterHint: campaign.ownerId,
+            copyProvenance,
         });
         if (!gate.send) {
             logger.info(`[Worker] Email to lead ${leadId} held: ${gate.held}`, { leadId, campaignId });
@@ -113,9 +127,10 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
 
     // Send email via Email Service
     try {
-    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; idempotencyKey?: string } = { leadId, campaignId };
+    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; idempotencyKey?: string; copyProvenance?: unknown } = { leadId, campaignId };
     if (resolvedTeamId) metadata.teamId = resolvedTeamId;
     if (campaign.ownerId) metadata.userId = campaign.ownerId;
+    if (copyProvenance) metadata.copyProvenance = copyProvenance;
     if (approvedMessageId) metadata.idempotencyKey = `approved_message_${approvedMessageId}`;
     else if (jobId) metadata.idempotencyKey = jobId;
 

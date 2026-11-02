@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeOutcomes } from "../copyOutcomes";
+import { classifyReply, summarizeOutcomes } from "../copyOutcomes";
 import { buildProvenance } from "../copyProvenance";
 
 const base = { retrievalOn: false, briefOn: false, rubricCritic: false, playbook: 0, examples: 0, briefUsed: false, critique: "passed" as const };
@@ -25,5 +25,22 @@ describe("summarizeOutcomes", () => {
 
     it("skips rows with no readable provenance", () => {
         expect(summarizeOutcomes([{ copyProvenance: null, openedAt: null, repliedAt: null }, { copyProvenance: { v: 2 }, openedAt: null, repliedAt: null }])).toEqual([]);
+    });
+});
+
+describe("reply classification", () => {
+    it("lets a rep's correction win over the AI's suggestion", () => {
+        expect(classifyReply({ aiClassification: "interested", humanCorrection: null })).toBe("INTERESTED");
+        expect(classifyReply({ aiClassification: "INTERESTED", humanCorrection: "NOT_INTERESTED" })).toBe("NOT_INTERESTED");
+    });
+
+    it("counts interested and negative replies, and leaves questions and out-of-office as replies only", () => {
+        const p = buildProvenance(base);
+        const [group] = summarizeOutcomes(
+            ["INTERESTED", "INTERESTED", "NOT_INTERESTED", "DNC", "QUESTION", "OOO", null].map((classification) => ({
+                copyProvenance: p, openedAt: null, repliedAt: classification ? day : null, classification,
+            })),
+        );
+        expect(group).toMatchObject({ sent: 7, replied: 6, interested: 2, negative: 2 });
     });
 });

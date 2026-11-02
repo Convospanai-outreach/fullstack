@@ -1,15 +1,17 @@
 import { prisma } from "@/lib/db";
 
 /**
- * The APPROVED CAMPAIGN_START request for a campaign, if any. The request itself is filed by
- * the web app's campaign start routes (apps/web/src/lib/governance/campaignStartApproval.ts).
+ * The approved CAMPAIGN_START request for a campaign, if the latest request is approved. The
+ * latest one decides, as in the web app's campaign start routes, which also file the request
+ * (apps/web/src/lib/governance/campaignStartApproval.ts).
  */
 export async function findApprovedCampaignStartId(teamId: string, campaignId: string): Promise<string | null> {
-    const approval = await prisma.approvalRequest.findFirst({
-        where: { teamId, entityType: "Campaign", entityId: campaignId, actionType: "CAMPAIGN_START", status: "APPROVED" },
-        select: { id: true },
+    const latest = await prisma.approvalRequest.findFirst({
+        where: { teamId, entityType: "Campaign", entityId: campaignId, actionType: "CAMPAIGN_START" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, status: true },
     });
-    return approval?.id ?? null;
+    return latest?.status === "APPROVED" ? latest.id : null;
 }
 
 /**
