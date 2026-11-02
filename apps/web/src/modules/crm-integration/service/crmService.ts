@@ -73,7 +73,7 @@ class CRMService {
                     where: { teamId_provider: { teamId, provider: "HUBSPOT" } },
                     data: {
                         accessToken: encryptCrmToken(nextAccessToken),
-                        refreshToken: nextRefreshToken ? encryptCrmToken(nextRefreshToken) : config.refreshToken,
+                        refreshToken: encryptCrmToken(nextRefreshToken ?? refreshToken),
                         expiresAt: nextExpiry
                     }
                 });

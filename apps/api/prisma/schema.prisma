@@ -2116,6 +2116,7 @@ model Message {
   sentimentScore Float? // -1.0 to 1.0
   emailEventId    String?         @unique
   externalId     String?         @unique // "<socialAccountId>:<Meta message id>" for Instagram/Facebook DMs; dedupes webhook retries
+  copyProvenance Json? // { v, node, prompts, ... }: which prompt version wrote an outbound LinkedIn message; null = not AI-written (copyProvenance.ts)
   createdAt      DateTime        @default(now())
   lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   emailEvent     EmailEvent?     @relation(fields: [emailEventId], references: [id], onDelete: SetNull)

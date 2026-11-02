@@ -19,6 +19,7 @@ import {
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
 import { buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
+import { buildConnectionPrompt } from "@/lib/ai/linkedinDraftPrompt";
 
 export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -1165,7 +1166,7 @@ export class AIService {
     }
 
     async generateConnectionMessage(profileContext: string, teamId?: string): Promise<string> {
-        const prompt = `Write a concise LinkedIn connection message (max 300 characters) based on this profile context:\n${profileContext}`;
+        const prompt = buildConnectionPrompt(profileContext);
         const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Connection message prompt" });
         const result = await callLLM(safePrompt, {
             teamId,
