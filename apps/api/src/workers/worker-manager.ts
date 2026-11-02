@@ -321,6 +321,10 @@ export class WorkerManager {
                 const result = await runDomainWatch();
                 if (result.alarms > 0) {
                     console.log(`[Worker] DomainWatch raised ${result.alarms} alarm(s) across ${result.domainsChecked} sending domain(s).`);
+                }
+            });
+        }
+
         if (now - this.lastCampaignHealthTick >= this.campaignHealthInterval) {
             this.lastCampaignHealthTick = now;
             await this.runSweep("CampaignHealth", async () => {
