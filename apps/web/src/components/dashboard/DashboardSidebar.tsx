@@ -115,7 +115,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     .join('')
     .toUpperCase() || 'U';
 
-  const planLabel = PRODUCT_FLAGS.emailFirstBeta ? 'Enterprise · Beta' : 'Pro plan';
+  const planLabel = PRODUCT_FLAGS.emailFirstBeta ? 'Enterprise' : 'Pro plan';
 
   return (
     <>

@@ -30,6 +30,11 @@ vi.mock("@/modules/email-campaigner/service/emailComposer", () => ({
     composeNodeA: vi.fn(),
 }));
 
+vi.mock("@/modules/email-campaigner/service/linkedinCritic", () => ({
+    linkedinCriticEnabled: vi.fn().mockReturnValue(false),
+    reviewLinkedinDraft: vi.fn(),
+}));
+
 vi.mock("@/modules/email-campaigner", () => ({
     emailService: { sendEmail: vi.fn() },
 }));
@@ -42,6 +47,7 @@ vi.mock("@/modules/governance/messageApproval", async (importActual) => ({
     settleMessageApproval: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { linkedinCriticEnabled, reviewLinkedinDraft } from "@/modules/email-campaigner/service/linkedinCritic";
 import { handleSequenceAction } from "../sequenceHandlers";
 import { SequenceService } from "@/lib/sequenceService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
@@ -360,6 +366,40 @@ describe("handleSequenceAction approval gate", () => {
         const result = await handleSequenceAction({ ...linkedInPayload, action: "CONNECT", approvedMessageId: "appr-11" } as any);
         expect(result).toMatchObject({ ok: true });
         expect(SequenceService.scheduleNextStep).toHaveBeenCalled();
+    });
+
+    describe("LinkedIn critic", () => {
+        beforeEach(() => {
+            vi.mocked(linkedinCriticEnabled).mockReturnValue(true);
+            vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+            vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: true } as any);
+        });
+
+        it("reviews a connection note, sends the reviewed text and records the critic", async () => {
+            vi.mocked(aiService.generateConnectionMessage).mockResolvedValueOnce("Draft note" as any);
+            vi.mocked(reviewLinkedinDraft).mockResolvedValueOnce({ text: "Better note", critique: "corrected" });
+            await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
+            expect(reviewLinkedinDraft).toHaveBeenCalledWith("connect", expect.any(String), "Draft note", "team-1");
+            const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "linkedin.critique@v1" }) });
+            expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ body: "Better note", copyProvenance: provenance }));
+            expect(prisma.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ content: "Better note", copyProvenance: provenance }) });
+        });
+
+        it("reviews a follow-up the same way", async () => {
+            vi.mocked(aiService.askAI).mockResolvedValueOnce("Draft follow-up" as any);
+            vi.mocked(reviewLinkedinDraft).mockResolvedValueOnce({ text: "Draft follow-up", critique: "passed" });
+            await handleSequenceAction({ ...linkedInPayload, action: "MESSAGE" });
+            expect(reviewLinkedinDraft).toHaveBeenCalledWith("followUp", expect.any(String), "Draft follow-up", "team-1");
+            expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: expect.objectContaining({ critique: "passed" }) }));
+        });
+
+        it("does nothing when the switch is off", async () => {
+            vi.mocked(linkedinCriticEnabled).mockReturnValue(false);
+            vi.mocked(aiService.generateConnectionMessage).mockResolvedValueOnce("Draft note" as any);
+            vi.mocked(reviewLinkedinDraft).mockClear();
+            await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
+            expect(reviewLinkedinDraft).not.toHaveBeenCalled();
+        });
     });
 
     it("does not send when the approval was already handled or has expired", async () => {

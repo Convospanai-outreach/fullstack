@@ -88,4 +88,24 @@ describe("crmService.syncLead - token encryption", () => {
         expect(Client).toHaveBeenCalledWith({ accessToken: "new-access" });
         vi.unstubAllGlobals();
     });
+
+    it("re-stores a legacy plaintext refresh token encrypted when HubSpot omits a new one", async () => {
+        mockPrisma.crmIntegration.findUnique.mockResolvedValue({
+            isActive: true,
+            accessToken: encryptCrmToken("old-access"),
+            refreshToken: "legacy-plain-refresh",
+            expiresAt: new Date(Date.now() - 60_000),
+        });
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ access_token: "new-access", expires_in: 1800 }),
+        }));
+
+        await crmService.syncLead("lead-1", "team-a");
+
+        const written = mockPrisma.crmIntegration.update.mock.calls[0][0].data;
+        expect(written.refreshToken).not.toContain("legacy-plain-refresh");
+        expect(decryptCrmToken(written.refreshToken)).toBe("legacy-plain-refresh");
+        vi.unstubAllGlobals();
+    });
 });

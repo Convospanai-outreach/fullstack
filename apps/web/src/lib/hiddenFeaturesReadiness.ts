@@ -1,6 +1,7 @@
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 import { loadPlatformDisabledFeatures } from "@/lib/hiddenFeatureSwitches";
 import {
+    DEFAULT_ON_HIDDEN_FEATURES,
     getDefaultEnabledHiddenFeatureKeys,
     HiddenFeatureKey,
     HIDDEN_FEATURES,
@@ -304,7 +305,8 @@ export function resolveReadiness(featureKey: HiddenFeatureKey, context: Awaited<
  * The per-team enabled hidden-feature set, resolved from an already-loaded context.
  * - `team.enabledFeatures` is a JSON string[] -> that explicit choice (validated).
  * - `team.enabledFeatures` is null -> the team never customized, so the defaults
- *   are readiness-gated: every feature whose backend is configured/ready.
+ *   are the outreach/automation surfaces (DEFAULT_ON_HIDDEN_FEATURES) plus every
+ *   feature whose backend is configured/ready.
  * The env override (NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES) is always unioned in.
  */
 export function resolveEnabledFeatureKeysFromContext(
@@ -317,6 +319,7 @@ export function resolveEnabledFeatureKeysFromContext(
         ? mergeEnabledHiddenFeatureKeys(envDefaults, parseEnabledHiddenFeatureKeys(stored.map((value) => String(value)).join(",")))
         : mergeEnabledHiddenFeatureKeys(
               envDefaults,
+              DEFAULT_ON_HIDDEN_FEATURES,
               Object.values(HIDDEN_FEATURES)
                   .filter((feature) => resolveReadiness(feature.key, context).ready)
                   .map((feature) => feature.key)

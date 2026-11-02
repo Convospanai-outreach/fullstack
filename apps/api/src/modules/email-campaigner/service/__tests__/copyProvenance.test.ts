@@ -63,3 +63,9 @@ describe("linkedinProvenance", () => {
         expect(readProvenance(JSON.parse(JSON.stringify(linkedinProvenance("connect"))))).toEqual(linkedinProvenance("connect"));
     });
 });
+
+describe("linkedinProvenance with a critic", () => {
+    it("names the LinkedIn critic prompt and the outcome", () => {
+        expect(linkedinProvenance("connect", { critique: "passed" })).toMatchObject({ critique: "passed", prompts: { draft: "linkedin.connect@v1", critique: "linkedin.critique@v1" } });
+    });
+});
