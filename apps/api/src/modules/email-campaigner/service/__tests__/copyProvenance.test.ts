@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildProvenance, legacyProvenance, readProvenance } from "../copyProvenance";
+import { buildProvenance, legacyProvenance, linkedinProvenance, readProvenance } from "../copyProvenance";
 
 const base = { retrievalOn: true, briefOn: false, rubricCritic: false, playbook: 2, examples: 1, briefUsed: false, critique: "passed" as const };
 
@@ -53,5 +53,13 @@ describe("legacyProvenance with a critic", () => {
     it("names the critic prompt and the outcome", () => {
         const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
         expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v1" }, flags: { rubricCritic: true } });
+    });
+});
+
+describe("linkedinProvenance", () => {
+    it("names the connection or follow-up prompt, with no critic or context", () => {
+        expect(linkedinProvenance("connect")).toMatchObject({ node: "linkedin", prompts: { draft: "linkedin.connect@v1", critique: "none" }, critique: "unreviewed" });
+        expect(linkedinProvenance("followUp").prompts.draft).toBe("linkedin.followUp@v1");
+        expect(readProvenance(JSON.parse(JSON.stringify(linkedinProvenance("connect"))))).toEqual(linkedinProvenance("connect"));
     });
 });

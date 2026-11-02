@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
             findUnique: vi.fn(),
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
+        message: { create: vi.fn().mockResolvedValue({}) },
         campaignVariant: {
             findFirst: vi.fn().mockResolvedValue(null),
             update: vi.fn().mockResolvedValue({}),
@@ -310,6 +311,55 @@ describe("handleSequenceAction approval gate", () => {
         expect(gateAiMessage).not.toHaveBeenCalled();
         expect(runLinkedInAction).toHaveBeenCalledWith({ action: "INMAIL", profileUrl: "https://linkedin.com/in/x", message: "The approved note" });
         expect(settleMessageApproval).toHaveBeenCalledWith("appr-2", "team-1", "SENT", undefined);
+    });
+
+    it("records a sent connection note with the prompt that wrote it, and holds it with the same provenance", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(aiService.generateConnectionMessage).mockResolvedValueOnce("Hi there" as any);
+        vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: true } as any);
+
+        await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
+
+        const provenance = expect.objectContaining({ node: "linkedin", prompts: expect.objectContaining({ draft: "linkedin.connect@v1" }) });
+        expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: provenance }));
+        expect(prisma.message.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ leadId: "lead-1", content: "Hi there", direction: "OUTBOUND", platform: "LINKEDIN", status: "sent", copyProvenance: provenance }),
+        });
+    });
+
+    it("records a sent follow-up, naming the follow-up prompt", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(aiService.askAI).mockResolvedValueOnce("Following up" as any);
+        vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: true } as any);
+
+        await handleSequenceAction({ ...linkedInPayload, action: "MESSAGE" });
+
+        expect(prisma.message.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ content: "Following up", copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "linkedin.followUp@v1" }) }) }),
+        });
+    });
+
+    it("records an approved message with the provenance it was held with, and none when it had none", async () => {
+        const copyProvenance = { v: 1, node: "linkedin" };
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(resolveApprovedMessage).mockResolvedValueOnce({ state: "ready", body: "Approved", copyProvenance } as any);
+        await handleSequenceAction({ ...linkedInPayload, action: "CONNECT", approvedMessageId: "appr-9" } as any);
+        expect(prisma.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ content: "Approved", copyProvenance }) });
+
+        vi.mocked(prisma.message.create).mockClear();
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(resolveApprovedMessage).mockResolvedValueOnce({ state: "ready", body: "Older hold" } as any);
+        await handleSequenceAction({ ...linkedInPayload, action: "CONNECT", approvedMessageId: "appr-10" } as any);
+        expect(vi.mocked(prisma.message.create).mock.calls[0][0].data).not.toHaveProperty("copyProvenance");
+    });
+
+    it("still finishes the step when recording the message fails", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(resolveApprovedMessage).mockResolvedValueOnce({ state: "ready", body: "Approved" } as any);
+        vi.mocked(prisma.message.create).mockRejectedValueOnce(new Error("db down"));
+        const result = await handleSequenceAction({ ...linkedInPayload, action: "CONNECT", approvedMessageId: "appr-11" } as any);
+        expect(result).toMatchObject({ ok: true });
+        expect(SequenceService.scheduleNextStep).toHaveBeenCalled();
     });
 
     it("does not send when the approval was already handled or has expired", async () => {
