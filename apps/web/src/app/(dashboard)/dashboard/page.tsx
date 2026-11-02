@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SetupBanner } from "@/components/dashboard/SetupBanner";
+import { DomainHealthBanner } from "@/components/dashboard/DomainHealthBanner";
 import { NeedsYou } from "@/components/dashboard/NeedsYou";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { KPIRow } from "@/components/dashboard/KPIRow";
@@ -118,6 +119,8 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
+
+      <DomainHealthBanner />
 
       {/* Needs you — what's waiting on the user, one click from acting */}
       <NeedsYou hasLeads={(data?.kpis.activeLeads ?? 0) > 0} />

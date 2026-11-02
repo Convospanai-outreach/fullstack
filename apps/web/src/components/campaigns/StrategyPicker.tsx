@@ -1,7 +1,9 @@
 "use client";
 
-import { Target, Users, Timer } from "lucide-react";
+import { AlertTriangle, Info, Lightbulb, Target, Users, Timer } from "lucide-react";
+import { icpFit } from "@/lib/campaigns/icpFit";
 import {
+    findStrategy,
     guidanceFor,
     MAX_OBJECTIVE_CHARS,
     MAX_STRATEGIES,
@@ -22,15 +24,19 @@ export default function StrategyPicker({
     value,
     objective,
     onChange,
+    icp = null,
     disabled = false,
 }: {
     value: string[];
     objective: string;
+    // The campaign's saved ICP, when one is chosen: used to check the strategies against it.
+    icp?: { name: string; criteria: unknown } | null;
     onChange: (value: string[], objective: string) => void;
     disabled?: boolean;
 }) {
     const guidance = guidanceFor(value);
     const limits = paceLimitsFor(value);
+    const fit = icp ? icpFit(icp.criteria, value) : null;
     const paceChanges = (Object.keys(PACE_LIMITS) as (keyof typeof PACE_LIMITS)[]).filter((key) => limits[key] !== PACE_LIMITS[key]);
 
     const toggle = (id: string) => {
@@ -42,6 +48,28 @@ export default function StrategyPicker({
 
     return (
         <div className="space-y-4">
+            {fit && (fit.notes.length > 0 || fit.suggestions.length > 0) && (
+                <div className="space-y-2 rounded-lg border border-border p-3 text-xs" aria-label="ICP fit">
+                    <p className="font-semibold">Fit with {icp!.name}</p>
+                    {fit.notes.map((note) => (
+                        <p key={`${note.strategyId}-${note.level}`} className={`flex items-start gap-1.5 ${note.level === "warning" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                            {note.level === "warning" ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+                            <span><strong>{findStrategy(note.strategyId)?.name}:</strong> {note.text}</span>
+                        </p>
+                    ))}
+                    {fit.suggestions.map((suggestion) => (
+                        <p key={suggestion.strategyId} className="flex items-start gap-1.5 text-muted-foreground">
+                            <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <span>
+                                {suggestion.reason}{" "}
+                                <button type="button" disabled={disabled || value.length >= MAX_STRATEGIES} onClick={() => toggle(suggestion.strategyId)} className="font-semibold text-foreground underline disabled:opacity-50">
+                                    Add {findStrategy(suggestion.strategyId)?.name}
+                                </button>
+                            </span>
+                        </p>
+                    ))}
+                </div>
+            )}
             {GROUPS.map((group) => {
                 const items = STRATEGIES.filter((s) => s.group === group);
                 return (
