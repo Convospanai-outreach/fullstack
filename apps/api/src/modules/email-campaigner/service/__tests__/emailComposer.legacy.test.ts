@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAskAI } = vi.hoisted(() => ({ mockAskAI: vi.fn() }));
 
+const { mockScreenOn, mockScreen } = vi.hoisted(() => ({ mockScreenOn: vi.fn().mockReturnValue(false), mockScreen: vi.fn() }));
+vi.mock("../draftScreen", () => ({ jevScreenEnabled: mockScreenOn, screenDraft: mockScreen }));
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI: mockAskAI } }));
 vi.mock("@/modules/learning/learningService", () => ({ LearningService: { getMemories: vi.fn().mockResolvedValue([]) } }));
 vi.mock("../rubricCritic", async (importOriginal) => ({
@@ -26,6 +28,28 @@ describe("legacyCriticEnabled", () => {
         expect(legacyCriticEnabled()).toBe(false);
         process.env["LEGACY_CRITIC"] = "on";
         expect(legacyCriticEnabled()).toBe(true);
+    });
+});
+
+describe("reviewLegacyDraft with the Jev screen", () => {
+    afterEach(() => {
+        mockScreenOn.mockReturnValue(false);
+        mockScreen.mockReset();
+    });
+
+    it("skips the critic for a draft judged clean", async () => {
+        mockScreenOn.mockReturnValue(true);
+        mockScreen.mockResolvedValue(true);
+        expect(await reviewLegacyDraft(lead, null, draft, "team")).toEqual({ draft, critique: "screened", rubricCritic: false });
+        expect(mockAskAI).not.toHaveBeenCalled();
+    });
+
+    it("runs the critic when the draft is not judged clean", async () => {
+        mockScreenOn.mockReturnValue(true);
+        mockScreen.mockResolvedValue(false);
+        mockAskAI.mockResolvedValue(JSON.stringify({ status: "PASS", critique: "ok" }));
+        expect((await reviewLegacyDraft(lead, null, draft, "team")).critique).toBe("passed");
+        expect(mockAskAI).toHaveBeenCalledTimes(1);
     });
 });
 

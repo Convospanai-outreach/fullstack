@@ -242,3 +242,44 @@ export async function judgeStalledThread(input: { thread: StallThreadMessage[]; 
         nextMove: { choice: answers.nextMove.choice, probabilities: answers.nextMove.probabilities }
     };
 }
+
+
+// --- Cold outreach draft screen (copy engine, before the critic) ---
+
+export type OutreachDraftJudgment = { inventsFact: number; readsAsPitch: number; hardAsk: number };
+
+/**
+ * Judges a cold outreach draft against what is known about the prospect. Send it already masked:
+ * the text goes to TypeSafe. Judgments only: draftScreen.ts decides what they change. Throws when
+ * Jev can't answer (no key, error, timeout); callers treat that as "no answer", never as "no".
+ */
+export async function judgeOutreachDraft(
+    state: { prospect: Record<string, string>; draft: { subject?: string; body: string } },
+    teamId: string
+): Promise<OutreachDraftJudgment> {
+    const answers = await ask(
+        "OUTREACH_DRAFT_SCREEN",
+        teamId,
+        {
+            context: "`draft` is a cold outreach message we are about to send. `prospect` is everything we know about the person it is for. Names and contact details are masked.",
+            prospect: state.prospect,
+            draft: state.draft
+        },
+        {
+            inventsFact: noul("Does `draft` state a fact, number or claim about the prospect or their company that `prospect` does not support?", {
+                true: "It names a result, figure, event, product or relationship that is not in `prospect`.",
+                false: "Everything it says about the prospect or their company is in `prospect`, or is a general statement that claims nothing about them."
+            }),
+            readsAsPitch: noul("Does `draft` read as a sales pitch rather than a message from one professional to another?", {
+                true: "It leads with what we sell, lists features or benefits, or uses sales language.",
+                false: "It opens on something about the prospect and keeps a conversational, peer tone."
+            }),
+            hardAsk: noul("Does `draft` ask the reader for a high-effort action?", {
+                true: "It asks them to book a call or demo, open a link, open an attachment, or reply with details.",
+                false: "It asks nothing, or asks a light question that can be answered in a few words."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return { inventsFact: answers.inventsFact.noul, readsAsPitch: answers.readsAsPitch.noul, hardAsk: answers.hardAsk.noul };
+}
