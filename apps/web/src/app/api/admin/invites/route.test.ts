@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockSendInviteEmail } = vi.hoisted(() => ({
+const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockSendInviteEmail, mockCookieGet } = vi.hoisted(() => ({
+    mockCookieGet: vi.fn(),
     mockGetServerSession: vi.fn(),
     mockSendInviteEmail: vi.fn().mockResolvedValue(false),
     mockAudit: vi.fn(),
@@ -16,6 +17,7 @@ const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockS
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: mockCookieGet }) }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
     canInviteUsers: () => true,
@@ -296,6 +298,37 @@ describe("/api/admin/invites - the actor's role in the target team", () => {
         );
     });
 
+    it("defaults to the workspace the user has selected when they administer it", async () => {
+        mockCookieGet.mockReturnValue({ value: "team-a" });
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "org-admin-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [
+                { teamId: "team-c", status: "active", role: "admin" },
+                { teamId: "team-a", status: "active", role: "admin" },
+            ],
+        });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(201);
+        expect(mockPrisma.userInvitation.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-a" }) })
+        );
+        mockCookieGet.mockReset();
+    });
+
+    it("finds an existing seat regardless of email case", async () => {
+        const { POST } = await import("./route");
+
+        await POST(postRequest({ email: "Mixed@Example.com", teamId: "team-a" }));
+
+        expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
+            where: { teamId: "team-a", email: { equals: "mixed@example.com", mode: "insensitive" } },
+        });
+    });
+
     it("lists only invitations for teams the actor administers", async () => {
         const { GET } = await import("./route");
 
@@ -334,7 +367,7 @@ describe("/api/admin/invites - the actor's role in the target team", () => {
 
     it("reports an existing member as a per-email failure in a bulk invite and leaves them alone", async () => {
         mockPrisma.teamMember.findFirst.mockImplementation(({ where }: any) =>
-            Promise.resolve(where.email === "taken@example.com"
+            Promise.resolve(where.email.equals === "taken@example.com"
                 ? { id: "m-1", status: "active", userId: "user-2", role: "owner" }
                 : null)
         );
