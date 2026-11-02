@@ -10,7 +10,7 @@ import StrategyPicker from "@/components/campaigns/StrategyPicker";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
 
-type ICP = { id: string; name: string };
+type ICP = { id: string; name: string; criteria?: unknown };
 
 function buildLeadsQuery(stage: string, domain: string) {
     const params = new URLSearchParams({ pipelineState: stage, unassignedOnly: "true", limit: "500" });
@@ -210,6 +210,7 @@ export default function NewCampaignPage() {
                             <StrategyPicker
                                 value={strategies}
                                 objective={objective}
+                                icp={icps.find((i) => i.id === icpId) ? { name: icps.find((i) => i.id === icpId)!.name, criteria: icps.find((i) => i.id === icpId)!.criteria } : null}
                                 onChange={(next, nextObjective) => {
                                     setStrategies(next);
                                     setObjective(nextObjective);
