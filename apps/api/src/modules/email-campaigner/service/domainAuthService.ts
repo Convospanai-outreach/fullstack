@@ -117,16 +117,28 @@ async function findDmarc(domain: string): Promise<string | null> {
 // DKIM is checked at the provider's own selectors, or at common ones when the provider is unknown
 // (an SMTP host's selector cannot be known from here). It proves a key is published, not that mail
 // is being signed with it; only a real message's Authentication-Results header shows that.
+const SELECTOR_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/i;
+
+// The DKIM selector a user gave for a mailbox, kept in its metadata. Anything that is not a valid
+// selector is ignored so a bad value can never reach a DNS query.
+export function dkimSelectorFromMetadata(metadata: unknown): string | undefined {
+    const value = typeof metadata === "object" && metadata !== null ? (metadata as Record<string, unknown>)["dkimSelector"] : undefined;
+    return typeof value === "string" && SELECTOR_PATTERN.test(value.trim()) ? value.trim().toLowerCase() : undefined;
+}
+
 export async function checkDomainDeliverabilitySignals(
     domainInput: string,
-    provider?: string | null
+    provider?: string | null,
+    // A selector the user gave for this domain; it replaces the provider's or the guessed ones.
+    dkimSelector?: string | null
 ): Promise<GenericDomainAuthResult> {
     const domain = normalizeDomain(domainInput);
     const profile = profileFor(provider);
     const notes: string[] = [];
 
     const spfHosts = [domain, ...(profile.spfSubdomains || []).map((sub) => `${sub}.${domain}`)];
-    const selectors = profile.selectors || COMMON_DKIM_SELECTORS;
+    const chosen = dkimSelector && SELECTOR_PATTERN.test(dkimSelector) ? [dkimSelector.toLowerCase()] : null;
+    const selectors = chosen || profile.selectors || COMMON_DKIM_SELECTORS;
 
     const [mxValues, spfTxt, dmarcRecord, dkimTxt] = await Promise.all([
         lookupMx(domain),

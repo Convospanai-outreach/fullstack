@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { checkDomainDeliverabilitySignals } from "@/modules/email-campaigner/service/domainAuthService";
+import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "@/modules/email-campaigner/service/domainAuthService";
 
 // Daily check of every sending domain (the domain of each connected mailbox). It remembers the last
 // result per domain in a DomainAuthenticationCheck row of its own, so it can tell a domain that went
@@ -45,27 +45,30 @@ export async function runDomainWatch(now = new Date()): Promise<{ domainsChecked
     const db = prisma as any;
     const mailboxes = await prisma.connectedMailbox.findMany({
         where: { status: "CONNECTED" },
-        select: { teamId: true, email: true, provider: true },
+        select: { teamId: true, email: true, provider: true, metadata: true },
     });
 
-    // domain -> provider of the first mailbox on it, per team
-    const domainsByTeam = new Map<string, Map<string, string>>();
+    // domain -> provider (and DKIM selector, if the user gave one) of the first mailbox on it, per team
+    const domainsByTeam = new Map<string, Map<string, { provider: string; selector: string | undefined }>>();
     for (const mailbox of mailboxes) {
         const domain = mailbox.email.split("@")[1]?.toLowerCase();
         if (!domain) continue;
         if (!domainsByTeam.has(mailbox.teamId)) domainsByTeam.set(mailbox.teamId, new Map());
         const byDomain = domainsByTeam.get(mailbox.teamId)!;
-        if (!byDomain.has(domain)) byDomain.set(domain, mailbox.provider);
+        const selector = dkimSelectorFromMetadata(mailbox.metadata);
+        const known = byDomain.get(domain);
+        if (!known) byDomain.set(domain, { provider: mailbox.provider, selector });
+        else if (!known.selector && selector) known.selector = selector;
     }
 
     let domainsChecked = 0;
     let alarms = 0;
 
     for (const [teamId, domains] of domainsByTeam) {
-        for (const [domain, provider] of domains) {
+        for (const [domain, { provider, selector }] of domains) {
             let signals: Signals;
             try {
-                signals = await checkDomainDeliverabilitySignals(domain, provider);
+                signals = await checkDomainDeliverabilitySignals(domain, provider, selector);
             } catch {
                 // A lookup that could not run says nothing about the domain; try again tomorrow.
                 continue;

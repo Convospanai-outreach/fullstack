@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockEncryptCredential, mockVerifySmtpConfig } = vi.hoisted(() => ({
     mockPrisma: {
-        connectedMailbox: { upsert: vi.fn() },
+        connectedMailbox: { upsert: vi.fn(), findUnique: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
@@ -34,6 +34,7 @@ describe("POST /api/integrations/smtp/connect", () => {
         mockCheckTeamPermission.mockResolvedValue(true);
         mockEncryptCredential.mockImplementation(async (value: string) => `encrypted:${value}`);
         mockVerifySmtpConfig.mockResolvedValue({ ok: true });
+        mockPrisma.connectedMailbox.findUnique.mockResolvedValue(null);
     });
 
     it("rejects an unauthenticated caller before touching the database", async () => {
@@ -58,6 +59,26 @@ describe("POST /api/integrations/smtp/connect", () => {
         expect(res.status).toBe(403);
         expect(mockVerifySmtpConfig).not.toHaveBeenCalled();
         expect(mockPrisma.connectedMailbox.upsert).not.toHaveBeenCalled();
+    });
+
+    it("saves the DKIM selector in the mailbox metadata, lower-cased, and keeps a saved one when a reconnect leaves it out", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockPrisma.connectedMailbox.upsert.mockResolvedValue({ id: "mailbox-1", email: "me@example.com" });
+        const base = { host: "smtp.example.com", port: 587, user: "u", password: "p", email: "me@example.com" };
+
+        await POST(postRequest({ ...base, dkimSelector: " S1 " }));
+        expect(mockPrisma.connectedMailbox.upsert.mock.calls[0][0].create.metadata).toMatchObject({ dkimSelector: "s1" });
+
+        mockPrisma.connectedMailbox.findUnique.mockResolvedValue({ metadata: { host: "x", dkimSelector: "mail" } });
+        await POST(postRequest(base));
+        expect(mockPrisma.connectedMailbox.upsert.mock.calls[1][0].update.metadata).toMatchObject({ dkimSelector: "mail" });
+    });
+
+    it("refuses a selector with characters a DNS name should not carry, before verifying SMTP", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        const res = await POST(postRequest({ host: "h", port: 587, user: "u", password: "p", email: "me@example.com", dkimSelector: "bad selector;x" }));
+        expect(res.status).toBe(400);
+        expect(mockVerifySmtpConfig).not.toHaveBeenCalled();
     });
 
     it("scopes the upsert to the caller's own team, not an arbitrary team", async () => {
