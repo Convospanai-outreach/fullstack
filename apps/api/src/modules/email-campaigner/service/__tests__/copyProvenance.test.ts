@@ -70,6 +70,12 @@ describe("linkedinProvenance with a critic", () => {
     });
 });
 
+describe("screened LinkedIn drafts", () => {
+    it("name the Jev screen instead of the LinkedIn critic prompt", () => {
+        expect(linkedinProvenance("followUp", { critique: "screened" })).toMatchObject({ critique: "screened", prompts: { draft: "linkedin.followUp@v1", critique: JEV_SCREEN_REF } });
+    });
+});
+
 describe("screened drafts", () => {
     it("name the Jev screen instead of a critic prompt, for both email paths", () => {
         expect(JEV_SCREEN_REF).toBe("jev.screen@v1");

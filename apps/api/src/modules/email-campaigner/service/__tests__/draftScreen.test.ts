@@ -21,6 +21,18 @@ afterEach(() => {
     process.env = { ...saved };
 });
 
+describe("screenDraft without a subject (a LinkedIn note)", () => {
+    it("sends only the body to Jev and decides the same way", async () => {
+        judged(0.1, 0.1, 0.1);
+        expect(await screenDraft(prospect, { body: draft.body }, "team")).toBe(true);
+        const sent = JSON.parse(mockMask.mock.calls[0]![0]);
+        expect(sent.draft).toEqual({ body: draft.body });
+
+        judged(0.1, 0.9, 0.1);
+        expect(await screenDraft(prospect, { body: draft.body }, "team")).toBe(false);
+    });
+});
+
 describe("jevScreenEnabled", () => {
     it("is off unless JEV_SCREEN=on", () => {
         delete process.env["JEV_SCREEN"];
