@@ -8,6 +8,7 @@ import {
     MAX_STRATEGIES,
     paceLimitsFor,
     parseStrategyInput,
+    preflightFromConfig,
     sanitizeStrategies,
     STRATEGIES,
     strategiesFromConfig,
@@ -19,11 +20,11 @@ describe("the registry", () => {
         expect(new Set(ids).size).toBe(ids.length);
         expect(ids).not.toContain("S2");
         expect(ids).toHaveLength(16);
-        for (const s of STRATEGIES.filter((x) => x.live)) {
-            expect(s.group).toBe("approach");
+        for (const s of STRATEGIES.filter((x) => x.live && x.group === "approach")) {
             expect(s.objective).toBeTruthy();
             expect(s.icp).toBeTruthy();
         }
+        for (const s of STRATEGIES.filter((x) => x.live && x.group !== "approach")) expect(s.effect).toBeTruthy();
         for (const s of STRATEGIES.filter((x) => !x.live)) expect(s.group).not.toBe("approach");
     });
 });
@@ -32,12 +33,27 @@ describe("sanitizeStrategies", () => {
     it("keeps live ids, drops repeats, and refuses anything else", () => {
         expect(sanitizeStrategies(["S1", "S3", "S1"])).toEqual(["S1", "S3"]);
         expect(sanitizeStrategies([])).toEqual([]);
-        expect(sanitizeStrategies(["S4"])).toBeNull();
+        expect(sanitizeStrategies(["S1", "S4"])).toEqual(["S1", "S4"]);
+        expect(sanitizeStrategies(["S5"])).toBeNull();
         expect(sanitizeStrategies(["S2"])).toBeNull();
         expect(sanitizeStrategies(["nope"])).toBeNull();
         expect(sanitizeStrategies([1])).toBeNull();
         expect(sanitizeStrategies("S1")).toBeNull();
         expect(sanitizeStrategies(["S1", "S3", "S6", "S10", "S11", "S1"].concat(["S1"]).slice(0, MAX_STRATEGIES + 1))).toBeNull();
+    });
+});
+
+describe("pre-flight brief", () => {
+    it("parses and stores the brief, and removes it when emptied", () => {
+        const parsed = parseStrategyInput({ preflight: { urgentPainPoint: " slow replies " } });
+        expect(parsed).toEqual({ ok: true, value: { preflight: { urgentPainPoint: "slow replies" } } });
+        expect(parseStrategyInput({ preflight: 5 }).ok).toBe(false);
+
+        const stored = applyStrategyInput({ tone: "x" }, { preflight: { urgentPainPoint: "slow replies" } });
+        expect(stored).toEqual({ tone: "x", preflight: { urgentPainPoint: "slow replies" } });
+        expect(applyStrategyInput(stored, { preflight: {} })).toEqual({ tone: "x" });
+        expect(preflightFromConfig(stored)).toEqual({ urgentPainPoint: "slow replies" });
+        expect(preflightFromConfig(null)).toEqual({});
     });
 });
 
@@ -82,7 +98,7 @@ describe("parseStrategyInput", () => {
     it("clips a long objective and refuses bad input", () => {
         const parsed = parseStrategyInput({ objective: "x".repeat(MAX_OBJECTIVE_CHARS + 50) });
         expect(parsed.ok && parsed.value.objective).toHaveLength(MAX_OBJECTIVE_CHARS);
-        expect(parseStrategyInput({ strategies: ["S4"] }).ok).toBe(false);
+        expect(parseStrategyInput({ strategies: ["S5"] }).ok).toBe(false);
         expect(parseStrategyInput({ objective: 5 }).ok).toBe(false);
     });
 });
