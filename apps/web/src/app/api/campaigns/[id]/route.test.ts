@@ -57,6 +57,17 @@ describe("campaign strategies", () => {
         expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
     });
 
+    it("PATCH stores the pre-flight brief in aiConfig, and clears it when every answer is blank", async () => {
+        await PATCH(patch({ preflight: { idealReaderPersona: "  a founder " } }), ctx);
+        expect(mockPrisma.campaign.update).toHaveBeenLastCalledWith({
+            where: { id: "campaign-1" },
+            data: { aiConfig: { tone: "Direct", preflight: { idealReaderPersona: "a founder" } } },
+        });
+
+        const bad = await PATCH(patch({ preflight: "text" }), ctx);
+        expect(bad.status).toBe(400);
+    });
+
     it("PATCH leaves aiConfig alone when the request does not mention strategies", async () => {
         await PATCH(patch({ name: "Renamed" }), ctx);
 

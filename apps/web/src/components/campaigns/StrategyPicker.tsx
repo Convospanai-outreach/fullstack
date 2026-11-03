@@ -13,6 +13,7 @@ import {
     type StrategyGroup,
 } from "@/lib/campaigns/strategies";
 import { PACE_LIMITS } from "@/lib/campaigns/paceRules";
+import { MAX_PREFLIGHT_ANSWER_CHARS, PREFLIGHT_QUESTIONS, preflightStatus, type PreflightBrief, type PreflightKey } from "@/lib/campaigns/preflight";
 
 const GROUPS: StrategyGroup[] = ["approach", "check", "lens"];
 
@@ -25,6 +26,8 @@ export default function StrategyPicker({
     objective,
     onChange,
     icp = null,
+    brief = {},
+    onBriefChange,
     disabled = false,
 }: {
     value: string[];
@@ -32,11 +35,15 @@ export default function StrategyPicker({
     // The campaign's saved ICP, when one is chosen: used to check the strategies against it.
     icp?: { name: string; criteria: unknown } | null;
     onChange: (value: string[], objective: string) => void;
+    // The pre-flight brief, asked for while the seven-question pre-flight (S14) is chosen.
+    brief?: PreflightBrief;
+    onBriefChange?: (brief: PreflightBrief) => void;
     disabled?: boolean;
 }) {
     const guidance = guidanceFor(value);
     const limits = paceLimitsFor(value);
     const fit = icp ? icpFit(icp.criteria, value) : null;
+    const preflight = preflightStatus(brief);
     const paceChanges = (Object.keys(PACE_LIMITS) as (keyof typeof PACE_LIMITS)[]).filter((key) => limits[key] !== PACE_LIMITS[key]);
 
     const toggle = (id: string) => {
@@ -46,8 +53,32 @@ export default function StrategyPicker({
         onChange(next, wasSuggested ? (guidanceFor(next).objective ?? "") : objective);
     };
 
+    const answer = (key: PreflightKey, text: string) => onBriefChange?.({ ...brief, [key]: text });
+
     return (
         <div className="space-y-4">
+            {value.includes("S14") && onBriefChange && (
+                <div className="space-y-3 rounded-lg border border-border p-3 text-xs" aria-label="Pre-flight brief">
+                    <p className="font-semibold">
+                        Pre-flight brief: {preflight.answered} of {PREFLIGHT_QUESTIONS.length} answered
+                        {preflight.ready ? "" : " - the rest are worth answering before you write"}
+                    </p>
+                    {PREFLIGHT_QUESTIONS.map((q) => (
+                        <label key={q.key} className="block">
+                            <span className="font-medium">{q.label}</span>
+                            <span className="ml-1 text-muted-foreground">{q.hint}</span>
+                            <textarea
+                                value={brief[q.key] ?? ""}
+                                onChange={(e) => answer(q.key, e.target.value)}
+                                maxLength={MAX_PREFLIGHT_ANSWER_CHARS}
+                                rows={2}
+                                disabled={disabled}
+                                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                            />
+                        </label>
+                    ))}
+                </div>
+            )}
             {fit && (fit.notes.length > 0 || fit.suggestions.length > 0) && (
                 <div className="space-y-2 rounded-lg border border-border p-3 text-xs" aria-label="ICP fit">
                     <p className="font-semibold">Fit with {icp!.name}</p>
