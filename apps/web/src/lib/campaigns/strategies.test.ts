@@ -8,6 +8,7 @@ import {
     MAX_STRATEGIES,
     paceLimitsFor,
     parseStrategyInput,
+    preflightFromConfig,
     sanitizeStrategies,
     STRATEGIES,
     strategiesFromConfig,
@@ -39,6 +40,20 @@ describe("sanitizeStrategies", () => {
         expect(sanitizeStrategies([1])).toBeNull();
         expect(sanitizeStrategies("S1")).toBeNull();
         expect(sanitizeStrategies(["S1", "S3", "S6", "S10", "S11", "S1"].concat(["S1"]).slice(0, MAX_STRATEGIES + 1))).toBeNull();
+    });
+});
+
+describe("pre-flight brief", () => {
+    it("parses and stores the brief, and removes it when emptied", () => {
+        const parsed = parseStrategyInput({ preflight: { urgentPainPoint: " slow replies " } });
+        expect(parsed).toEqual({ ok: true, value: { preflight: { urgentPainPoint: "slow replies" } } });
+        expect(parseStrategyInput({ preflight: 5 }).ok).toBe(false);
+
+        const stored = applyStrategyInput({ tone: "x" }, { preflight: { urgentPainPoint: "slow replies" } });
+        expect(stored).toEqual({ tone: "x", preflight: { urgentPainPoint: "slow replies" } });
+        expect(applyStrategyInput(stored, { preflight: {} })).toEqual({ tone: "x" });
+        expect(preflightFromConfig(stored)).toEqual({ urgentPainPoint: "slow replies" });
+        expect(preflightFromConfig(null)).toEqual({});
     });
 });
 
