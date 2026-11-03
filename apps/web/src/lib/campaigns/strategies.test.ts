@@ -10,6 +10,7 @@ import {
     parseStrategyInput,
     preflightFromConfig,
     sanitizeStrategies,
+    SCORING_STRATEGY_IDS,
     STRATEGIES,
     strategiesFromConfig,
 } from "./strategies";
@@ -54,6 +55,16 @@ describe("pre-flight brief", () => {
         expect(applyStrategyInput(stored, { preflight: {} })).toEqual({ tone: "x" });
         expect(preflightFromConfig(stored)).toEqual({ urgentPainPoint: "slow replies" });
         expect(preflightFromConfig(null)).toEqual({});
+    });
+});
+
+describe("scoring strategies", () => {
+    it("are live, can be stored on a campaign, and each says what it adds", () => {
+        for (const id of SCORING_STRATEGY_IDS) {
+            expect(findStrategy(id)).toMatchObject({ live: true, group: "check" });
+            expect(findStrategy(id)?.effect).toBeTruthy();
+        }
+        expect(sanitizeStrategies([...SCORING_STRATEGY_IDS])).toEqual([...SCORING_STRATEGY_IDS]);
     });
 });
 

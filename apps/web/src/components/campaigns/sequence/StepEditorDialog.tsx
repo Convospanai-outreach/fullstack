@@ -16,6 +16,8 @@ import { findStepDefinition } from "./stepDefinitions";
 import { PIPELINE_STAGES, PIPELINE_LABELS } from "@/lib/crm/leadStageTransitions";
 import type { SequenceStepItem } from "./SequenceCanvas";
 import { lintEmail } from "@/lib/campaigns/editorialLinter";
+import { SCORING_STRATEGY_IDS } from "@/lib/campaigns/strategies";
+import DraftScorePanel from "./DraftScorePanel";
 
 type ConditionConfig = {
     leadStatusIn?: string[];
@@ -138,6 +140,7 @@ export default function StepEditorDialog({
     onOpenChange,
     onSave,
     strategies = [],
+    campaignId,
 }: {
     step: SequenceStepItem | null;
     open: boolean;
@@ -145,6 +148,8 @@ export default function StepEditorDialog({
     onSave: (updated: SequenceStepItem) => void;
     // The campaign's strategies; the editorial linter (S4) reviews email text while it is on.
     strategies?: string[];
+    // Needed to score a draft; without it the score button is not shown.
+    campaignId?: string | undefined;
 }) {
     const def = step ? findStepDefinition(step.stepType) : undefined;
 
@@ -265,6 +270,9 @@ export default function StepEditorDialog({
                                 rows={def.hasSubject ? 8 : 4}
                                 placeholder={def.hasSubject ? "Email body" : "Message content"}
                             />
+                            {def.hasSubject && campaignId && strategies.some((id) => (SCORING_STRATEGY_IDS as readonly string[]).includes(id)) && (
+                                <DraftScorePanel campaignId={campaignId} subject={subject} body={body} />
+                            )}
                             {def.hasSubject && strategies.includes("S4") && body.trim() && (() => {
                                 const lint = lintEmail(body);
                                 return (
