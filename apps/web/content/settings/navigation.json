@@ -1,0 +1,122 @@
+{
+  "groups": [
+    {
+      "label": "Product",
+      "items": [
+        {
+          "label": "Fluid Funnel Engine",
+          "href": "/products/fluid-funnel-engine",
+          "badge": "New"
+        },
+        {
+          "label": "Buyer Signals — NetJana",
+          "href": "/products/buyer-signals"
+        },
+        {
+          "label": "AI Outreach — CMF Core",
+          "href": "/products/ai-outreach"
+        },
+        {
+          "label": "Human Layer",
+          "href": "/products/human-layer"
+        },
+        {
+          "label": "Covospan EDGE",
+          "href": "/products/covospan-edge"
+        }
+      ]
+    },
+    {
+      "label": "Use Cases",
+      "items": [
+        {
+          "label": "All Use Cases",
+          "href": "/use-cases"
+        },
+        {
+          "label": "Cybersecurity",
+          "href": "/use-cases/cybersecurity"
+        },
+        {
+          "label": "Managed IT & Cloud",
+          "href": "/use-cases/managed-it-cloud"
+        },
+        {
+          "label": "AI, Data & ERP",
+          "href": "/use-cases/ai-data-erp"
+        },
+        {
+          "label": "Europe",
+          "href": "/use-cases/regions/europe"
+        },
+        {
+          "label": "UAE",
+          "href": "/use-cases/regions/uae"
+        },
+        {
+          "label": "Canada",
+          "href": "/use-cases/regions/canada"
+        }
+      ]
+    },
+    {
+      "label": "Platform",
+      "items": [
+        {
+          "label": "How it works",
+          "href": "/#workflow"
+        },
+        {
+          "label": "Pilot programme",
+          "href": "/#pilot"
+        },
+        {
+          "label": "Pricing",
+          "href": "/pricing",
+          "badge": "Popular"
+        },
+        {
+          "label": "About",
+          "href": "/about"
+        },
+        {
+          "label": "Regional Hubs",
+          "href": "/locations"
+        }
+      ]
+    },
+    {
+      "label": "Resources",
+      "items": [
+        {
+          "label": "Blog",
+          "href": "/blog"
+        },
+        {
+          "label": "Help Center",
+          "href": "/help"
+        },
+        {
+          "label": "FAQ",
+          "href": "/faq"
+        },
+        {
+          "label": "Contact",
+          "href": "/contact"
+        },
+        {
+          "label": "Support",
+          "href": "/support"
+        },
+        {
+          "label": "Security",
+          "href": "/security"
+        },
+        {
+          "label": "Google API Disclosure",
+          "href": "/google-api-disclosure"
+        }
+      ]
+    }
+  ]
+}
