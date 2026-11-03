@@ -1,6 +1,7 @@
 import { aiService } from "@/lib/aiService";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import type { CopyProvenance } from "./copyProvenance";
+import { jevScreenEnabled, screenDraft } from "./draftScreen";
 
 // An optional critic for LinkedIn connection notes and follow-ups. Off unless LINKEDIN_CRITIC=on.
 // One critique call per draft; a usable rewrite replaces the draft after the same grounding guard
@@ -66,12 +67,16 @@ function guardRewrite(correction: unknown, kind: LinkedinKind, context: string, 
 }
 
 // Never throws: a critic that fails or answers badly leaves the draft as written and unreviewed.
+// With JEV_SCREEN=on, a draft within the length limit that Jev judges clean skips the critic call.
 export async function reviewLinkedinDraft(
     kind: LinkedinKind,
     context: string,
     text: string,
     teamId: string,
 ): Promise<{ text: string; critique: CopyProvenance["critique"] }> {
+    if (jevScreenEnabled() && text.length <= LINKEDIN_LIMITS[kind] && await screenDraft({ profile: context.slice(0, CONTEXT_CHARS) }, { body: text }, teamId)) {
+        return { text, critique: "screened" };
+    }
     try {
         const raw = await aiService.askAI(buildLinkedinCritiquePrompt(kind, context, text), teamId, { taskType: "CRITIQUE", surface: "HELPER", expectsJson: true, disableGuardrails: true });
         const verdict = readVerdict(raw);
