@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
 
-const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent } = vi.hoisted(() => ({
+const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWindow } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn() },
@@ -10,12 +10,13 @@ const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent } = vi.hoisted(
     },
     mockAdvanceLeadAfterReply: vi.fn(),
     mockRevokeConsent: vi.fn(),
+    mockRecordWindow: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterReply: mockAdvanceLeadAfterReply }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent } }));
+vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent, recordInboundReplyWindow: mockRecordWindow } }));
 
 const VERIFY_TOKEN = "test-verify-token";
 const APP_SECRET = "test-app-secret";
@@ -209,6 +210,17 @@ describe("/webhooks/whatsapp", () => {
                 data: { leadId: "lead-new", body: "Do you do SEO?", direction: "INBOUND", status: "received" },
             });
             expect(mockAdvanceLeadAfterReply).toHaveBeenCalledWith(mockPrisma, { leadId: "lead-new", teamId: "team-1" });
+            expect(mockRecordWindow).toHaveBeenCalledWith("lead-new");
+        });
+
+        it("still records the message and advances the lead if opening the reply window fails", async () => {
+            mockRecordWindow.mockRejectedValue(new Error("db"));
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload()) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockAdvanceLeadAfterReply).toHaveBeenCalled();
         });
 
         it("creates the lead without a name when WhatsApp sends none, and without any consent", async () => {
@@ -287,6 +299,7 @@ describe("/webhooks/whatsapp", () => {
             expect(res.status).toBe(200);
             expect(mockRevokeConsent).toHaveBeenCalledWith("lead-1", undefined, "WhatsApp inbound opt-out keyword", "WHATSAPP");
             expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+            expect(mockRecordWindow).not.toHaveBeenCalled();
         });
 
         it("matches opt-out keywords case-insensitively with surrounding whitespace", async () => {

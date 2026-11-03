@@ -72,8 +72,8 @@ async function resolveLeadForInboundMessage(
 
     // Someone we don't have yet wrote to the team's number: they become a lead so the reply lands in
     // the inbox and the pipeline. An opt-out from a stranger is not worth a record. No WhatsApp
-    // consent is recorded: messaging us first doesn't opt them in to outreach, so sequence sends and
-    // replies through the send route stay blocked until consent is granted.
+    // outreach consent is recorded: messaging us first doesn't opt them in, so sequence sends stay
+    // blocked. Replies through the send route are allowed for 24 hours (recordInboundReplyWindow).
     if (OPT_OUT_KEYWORDS.has(options.text.trim().toLowerCase())) return null;
     return prisma.lead.create({
         data: {
@@ -152,6 +152,12 @@ export async function POST(req: NextRequest) {
                             logger.error("[WhatsApp Webhook] Failed to revoke consent after opt-out keyword", consentError);
                         }
                         continue;
+                    }
+
+                    try {
+                        await ConsentService.recordInboundReplyWindow(lead.id);
+                    } catch (consentError) {
+                        logger.error("[WhatsApp Webhook] Failed to record the reply window", consentError);
                     }
 
                     try {
