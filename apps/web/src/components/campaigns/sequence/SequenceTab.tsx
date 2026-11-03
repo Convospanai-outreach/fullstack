@@ -287,6 +287,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         onSenderScheduleChange={handleSenderScheduleChange}
                         linkedinLocked={linkedinLocked}
                         strategies={strategies}
+                        campaignId={campaignId}
                         disabled={saving || enrolling}
                     />
                 </div>
