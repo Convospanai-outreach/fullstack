@@ -1,4 +1,5 @@
 import { PACE_LIMITS, type PaceLimits } from "./paceRules";
+import { sanitizePreflight, type PreflightBrief } from "./preflight";
 
 // The strategies a campaign can follow. This file holds only what the app shows and uses: an id, a
 // name, a one-line summary, and the guidance a strategy gives for the campaign's objective, ICP and
@@ -65,12 +66,32 @@ export const STRATEGIES: Strategy[] = [
         icp: "One audience that follows you for the topics, not for a single product.",
         pace: { maxEmails: 10 },
     },
-    { id: "S4", name: "Editorial linter", group: "check", live: false, summary: "Flags jargon, a low you-to-we ratio and too many links." },
+    {
+        id: "S4", name: "Editorial linter", group: "check", live: true,
+        summary: "Flags jargon, a low you-to-we ratio and too many links.",
+        effect: "Scores each email step as you write it and lists what to fix. It only advises.",
+    },
     { id: "S5", name: "Deliverability and sunset", group: "check", live: false, summary: "Checks SPF and DMARC, and sunsets contacts silent for 90 days." },
-    { id: "S7", name: "Conversion probability", group: "check", live: false, summary: "Scores motivation, clarity, incentive, friction and anxiety." },
-    { id: "S8", name: "Six-factor diagnostic", group: "check", live: false, summary: "Scores value, relevance, clarity, urgency, anxiety and distraction." },
-    { id: "S12", name: "Value equation", group: "check", live: false, summary: "Scores the offer on dream outcome, likelihood, delay and effort." },
-    { id: "S14", name: "Seven-question pre-flight", group: "check", live: false, summary: "Confirms the brief answers the seven questions before drafting." },
+    {
+        id: "S7", name: "Conversion probability", group: "check", live: true,
+        summary: "Scores motivation, clarity, incentive, friction and anxiety.",
+        effect: "Adds a Score this draft button to each email step. It only advises.",
+    },
+    {
+        id: "S8", name: "Six-factor diagnostic", group: "check", live: true,
+        summary: "Scores value, relevance, clarity, urgency, anxiety and distraction.",
+        effect: "Adds a Score this draft button to each email step. It only advises.",
+    },
+    {
+        id: "S12", name: "Value equation", group: "check", live: true,
+        summary: "Scores the offer on dream outcome, likelihood, delay and effort.",
+        effect: "Adds a Score this draft button to each email step. It only advises.",
+    },
+    {
+        id: "S14", name: "Seven-question pre-flight", group: "check", live: true,
+        summary: "Confirms the brief answers the seven questions before drafting.",
+        effect: "Adds seven questions about the reader, problem, proof and offer, and lists any left unanswered. It only advises.",
+    },
     { id: "S9", name: "Three-part hook", group: "lens", live: false, summary: "Intercept, stakes, payoff in the opening." },
     { id: "S13", name: "Ten angles", group: "lens", live: false, summary: "Ten different angles on one core idea." },
     { id: "S15", name: "Top three criteria", group: "lens", live: false, summary: "Keeps an email to the three criteria that matter most." },
@@ -120,9 +141,12 @@ export function guidanceFor(ids: readonly string[] | null | undefined): { object
     };
 }
 
+// Strategies that score a draft on request (the step editor shows a Score this draft button).
+export const SCORING_STRATEGY_IDS = ["S7", "S8", "S12"] as const;
+
 export const MAX_OBJECTIVE_CHARS = 300;
 
-export type StrategyInput = { strategies?: string[]; objective?: string };
+export type StrategyInput = { strategies?: string[]; objective?: string; preflight?: PreflightBrief };
 
 // Reads the strategy fields of a create or update request. Absent fields are left out so an update
 // that does not mention them changes nothing.
@@ -137,6 +161,11 @@ export function parseStrategyInput(body: Record<string, unknown>): { ok: true; v
         if (typeof body["objective"] !== "string") return { ok: false, error: "objective must be text" };
         value.objective = body["objective"].trim().slice(0, MAX_OBJECTIVE_CHARS);
     }
+    if (body["preflight"] !== undefined) {
+        const preflight = sanitizePreflight(body["preflight"]);
+        if (!preflight) return { ok: false, error: "preflight must be an object of text answers" };
+        value.preflight = preflight;
+    }
     return { ok: true, value };
 }
 
@@ -149,7 +178,17 @@ export function applyStrategyInput(existing: unknown, input: StrategyInput): Rec
         if (input.objective) base["goal"] = input.objective;
         else delete base["goal"];
     }
+    if (input.preflight !== undefined) {
+        if (Object.keys(input.preflight).length > 0) base["preflight"] = input.preflight;
+        else delete base["preflight"];
+    }
     return Object.keys(base).length > 0 ? base : null;
+}
+
+// The pre-flight brief a campaign stores, read back from its aiConfig.
+export function preflightFromConfig(aiConfig: unknown): PreflightBrief {
+    const raw = typeof aiConfig === "object" && aiConfig !== null ? (aiConfig as Record<string, unknown>)["preflight"] : undefined;
+    return sanitizePreflight(raw) ?? {};
 }
 
 // What a campaign stores, read back from its aiConfig.
