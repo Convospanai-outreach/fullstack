@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from
 import { ArrowDown, ArrowUpRight, Check, CalendarCheck, Radar, ShieldCheck } from "lucide-react";
 import styles from "./ScrollFunnelHero.module.css";
 import FunnelMesh, { Universe, radiusAt } from "./FunnelMesh";
+import { mergeHeroText } from "@/lib/siteContent";
+import heroContent from "../../../content/settings/hero.json";
 
 // Five transitions and a final reading hold. Native document scrolling only.
 const SCROLL = { stepVh: 65, holdVh: 35 };
@@ -14,6 +16,9 @@ const STAGES = [
   { id: "follow-up", label: "Follow-up", title: "Keep the conversation", accent: "moving.", detail: "A clear owner. A human next step." },
   { id: "meeting", label: "Meeting", title: "A signal becomes", accent: "a meeting.", detail: "A qualified conversation. A new opportunity to explore." },
 ] as const;
+const DEFAULT_TEXT = { topLine: "CRAFT YOUR NEXT OPPORTUNITY", startButton: "Explore the journey", finalButton: "Build your first funnel", stages: STAGES.map(({ label, title, accent, detail }) => ({ label, title, accent, detail })) };
+// Words come from the CMS (content/settings/hero.json); ids and order stay here because the scroll anchors depend on them.
+const TEXT = mergeHeroText(heroContent, DEFAULT_TEXT);
 const BANDS = ["Signals", "Relevant accounts", "Approved outreach", "Human follow-up", "Qualified meeting"];
 const POSITIONS = [35, 116, 207, 298, 389, 506];
 const LEGACY = [["act-intake", "act-leak", "act-shift"], ["act-signal"], [], ["act-outreach", "act-edge"], ["act-human"], ["act-revenue"]];
@@ -100,14 +105,14 @@ function Approval() {
 }
 
 function Panel({ stage, navigate }: { stage: number; navigate: Navigate }) {
-  if (stage === 0) return <a className={styles["primary"]} href="#journey-signal" onClick={e => navigate(e, 1)}>Explore the journey <ArrowDown size={18}/></a>;
+  if (stage === 0) return <a className={styles["primary"]} href="#journey-signal" onClick={e => navigate(e, 1)}>{TEXT.startButton} <ArrowDown size={18}/></a>;
   return <div key={stage} className={styles["panel"]} data-panel={stage}>
     <div className={styles["panelHeading"]}><span className={styles["icon"]}>{stage === 1 ? <Radar/> : stage === 5 ? <CalendarCheck/> : <Check/>}</span><div><span className={styles["kicker"]}>{["", "Buying signal", "Account fit", "Outreach approval", "Human follow-up", "Qualified meeting"][stage]}</span><h3>Acme Logistics</h3></div></div>
     {stage === 1 && <p>New location detected</p>}
     {stage === 2 && <ul>{["Relevant sector", "Target location", "Active requirement"].map(item => <li key={item}><Check size={15}/>{item}</li>)}</ul>}
     {stage === 3 && <Approval/>}
     {stage === 4 && <><p>Follow-up assigned <span className={styles["owner"]}>Owner: Priya</span></p><blockquote>“Let us discuss the requirement.”</blockquote></>}
-    {stage === 5 && <a className={styles["primary"]} href="#pilot" onClick={e => { e.preventDefault(); const pilot = document.getElementById("pilot"); pilot?.scrollIntoView({ behavior: "instant" }); pilot?.focus({ preventScroll: true }); }}>Build your first funnel <ArrowUpRight size={18}/></a>}
+    {stage === 5 && <a className={styles["primary"]} href="#pilot" onClick={e => { e.preventDefault(); const pilot = document.getElementById("pilot"); pilot?.scrollIntoView({ behavior: "instant" }); pilot?.focus({ preventScroll: true }); }}>{TEXT.finalButton} <ArrowUpRight size={18}/></a>}
   </div>;
 }
 
@@ -198,15 +203,15 @@ export default function ScrollFunnelHero() {
     event.preventDefault(); const target = document.getElementById("workflow");
     target?.scrollIntoView({ behavior: "instant" }); target?.focus({ preventScroll: true });
   }
-  const chapters = <nav className={styles["chapters"]} aria-label="Funnel chapters">{STAGES.map((item, i) => <a key={item.id} href={"#journey-" + item.id} onClick={e => navigate(e, i)} aria-current={stage === i ? "step" : undefined}><span>0{i}</span>{item.label}</a>)}</nav>;
+  const chapters = <nav className={styles["chapters"]} aria-label="Funnel chapters">{STAGES.map((item, i) => <a key={item.id} href={"#journey-" + item.id} onClick={e => navigate(e, i)} aria-current={stage === i ? "step" : undefined}><span>0{i}</span>{TEXT.stages[i]!.label}</a>)}</nav>;
   return <section id="platform" ref={section} className={styles["hero"]} style={{ "--journey-travel": (SCROLL.stepVh * 5 + SCROLL.holdVh) + "svh" } as CSSProperties} aria-label="From signal to meeting: an illustrative prospect journey">
     <div className={styles["scene"]} ref={scene} data-stage={stage}>
       <div className={styles["universe"]}><Universe progress={progress}/></div>
-      <div className={styles["topline"]}><span>CRAFT YOUR NEXT OPPORTUNITY</span><a href="#workflow" onClick={skip}>Skip walkthrough <ArrowDown size={14}/></a></div>
+      <div className={styles["topline"]}><span>{TEXT.topLine}</span><a href="#workflow" onClick={skip}>Skip walkthrough <ArrowDown size={14}/></a></div>
       <div className={styles["composition"]}>
         <svg className={styles["connection"]} aria-hidden="true"><path data-connector fill="none" stroke={stage === 3 ? "#b599ff" : "#67e8f9"} strokeWidth="1.2"/></svg>
         <div className={styles["story"]}>
-          <div className={styles["copy"]} key={stage}><p className={styles["kicker"]}>0{stage} / {STAGES[stage]!.label}</p><h1>{STAGES[stage]!.title} <em>{STAGES[stage]!.accent}</em></h1><p className={styles["detail"]}>{STAGES[stage]!.detail}</p></div>
+          <div className={styles["copy"]} key={stage}><p className={styles["kicker"]}>0{stage} / {TEXT.stages[stage]!.label}</p><h1>{TEXT.stages[stage]!.title} <em>{TEXT.stages[stage]!.accent}</em></h1><p className={styles["detail"]}>{TEXT.stages[stage]!.detail}</p></div>
           <div className={styles["panelZone"]}><Panel stage={stage} navigate={navigate}/></div>
         </div>
         <div className={styles["visual"]}><Funnel stage={stage} moving/><FunnelMesh progress={progress}/><span className={styles["collectorLabel"]} data-collector-label>Your pipeline</span></div>
