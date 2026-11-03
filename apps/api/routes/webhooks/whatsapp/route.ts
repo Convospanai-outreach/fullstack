@@ -42,7 +42,19 @@ function phoneSuffix(value: string | null | undefined): string {
     return value.replace(/\D/g, "").slice(-10);
 }
 
-async function resolveLeadForInboundMessage(phoneNumberId: string, fromPhone: string) {
+// WhatsApp's own display name for the sender, from the payload's contacts list.
+function senderProfileName(value: any, fromPhone: string): string | null {
+    const contacts = Array.isArray(value?.contacts) ? value.contacts : [];
+    const contact = contacts.find((c: any) => c?.wa_id === fromPhone) ?? contacts[0];
+    const name = contact?.profile?.name;
+    return typeof name === "string" && name.trim() ? name.trim().slice(0, 120) : null;
+}
+
+async function resolveLeadForInboundMessage(
+    phoneNumberId: string,
+    fromPhone: string,
+    options: { text: string; profileName: string | null },
+) {
     const team = await prisma.team.findFirst({
         where: { whatsappPhoneNumberId: phoneNumberId },
         select: { id: true },
@@ -52,8 +64,25 @@ async function resolveLeadForInboundMessage(phoneNumberId: string, fromPhone: st
     const suffix = phoneSuffix(fromPhone);
     if (!suffix) return null;
 
-    return prisma.lead.findFirst({
+    const existing = await prisma.lead.findFirst({
         where: { teamId: team.id, phone: { endsWith: suffix } },
+        select: { id: true, teamId: true },
+    });
+    if (existing) return existing;
+
+    // Someone we don't have yet wrote to the team's number: they become a lead so the reply lands in
+    // the inbox and the pipeline. An opt-out from a stranger is not worth a record. No WhatsApp
+    // outreach consent is recorded: messaging us first doesn't opt them in, so sequence sends stay
+    // blocked. Replies through the send route are allowed for 24 hours (recordInboundReplyWindow).
+    if (OPT_OUT_KEYWORDS.has(options.text.trim().toLowerCase())) return null;
+    return prisma.lead.create({
+        data: {
+            teamId: team.id,
+            phone: `+${fromPhone.replace(/\D/g, "")}`,
+            fullName: options.profileName,
+            source: "WHATSAPP_INBOUND",
+            status: "NEW",
+        },
         select: { id: true, teamId: true },
     });
 }
@@ -102,13 +131,16 @@ export async function POST(req: NextRequest) {
                     const fromPhone = message?.from;
                     if (!fromPhone) continue;
 
-                    const lead = await resolveLeadForInboundMessage(phoneNumberId, fromPhone);
+                    const text = typeof message?.text?.body === "string" ? message.text.body : `[${message?.type || "unknown"} message]`;
+                    const lead = await resolveLeadForInboundMessage(phoneNumberId, fromPhone, {
+                        text,
+                        profileName: senderProfileName(value, fromPhone),
+                    });
                     if (!lead) {
-                        logger.warn(`[WhatsApp Webhook] No matching lead for inbound message from ${fromPhone}`);
+                        logger.warn(`[WhatsApp Webhook] No lead for inbound message from ${fromPhone}`);
                         continue;
                     }
 
-                    const text = typeof message?.text?.body === "string" ? message.text.body : `[${message?.type || "unknown"} message]`;
                     await prisma.whatsAppMessage.create({
                         data: { leadId: lead.id, body: text, direction: "INBOUND", status: "received" },
                     });
@@ -120,6 +152,12 @@ export async function POST(req: NextRequest) {
                             logger.error("[WhatsApp Webhook] Failed to revoke consent after opt-out keyword", consentError);
                         }
                         continue;
+                    }
+
+                    try {
+                        await ConsentService.recordInboundReplyWindow(lead.id);
+                    } catch (consentError) {
+                        logger.error("[WhatsApp Webhook] Failed to record the reply window", consentError);
                     }
 
                     try {
