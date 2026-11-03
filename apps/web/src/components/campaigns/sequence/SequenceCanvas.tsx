@@ -268,6 +268,7 @@ export default function SequenceCanvas({
                 open={Boolean(editingStepId)}
                 onOpenChange={(open) => !open && setEditingStepId(null)}
                 onSave={updateStep}
+                strategies={strategies}
             />
         </div>
     );
