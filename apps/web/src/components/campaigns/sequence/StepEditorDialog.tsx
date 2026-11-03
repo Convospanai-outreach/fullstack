@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { findStepDefinition } from "./stepDefinitions";
 import { PIPELINE_STAGES, PIPELINE_LABELS } from "@/lib/crm/leadStageTransitions";
 import type { SequenceStepItem } from "./SequenceCanvas";
+import { lintEmail } from "@/lib/campaigns/editorialLinter";
 
 type ConditionConfig = {
     leadStatusIn?: string[];
@@ -136,11 +137,14 @@ export default function StepEditorDialog({
     open,
     onOpenChange,
     onSave,
+    strategies = [],
 }: {
     step: SequenceStepItem | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSave: (updated: SequenceStepItem) => void;
+    // The campaign's strategies; the editorial linter (S4) reviews email text while it is on.
+    strategies?: string[];
 }) {
     const def = step ? findStepDefinition(step.stepType) : undefined;
 
@@ -261,6 +265,17 @@ export default function StepEditorDialog({
                                 rows={def.hasSubject ? 8 : 4}
                                 placeholder={def.hasSubject ? "Email body" : "Message content"}
                             />
+                            {def.hasSubject && strategies.includes("S4") && body.trim() && (() => {
+                                const lint = lintEmail(body);
+                                return (
+                                    <div className="rounded-md border border-border p-2.5 text-xs" aria-label="Editorial linter">
+                                        <p className={`font-semibold ${lint.passed ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                            Editorial score {lint.score}/100{lint.passed ? "" : " - worth a second look"}
+                                        </p>
+                                        {lint.findings.map((finding) => <p key={finding} className="mt-1 text-muted-foreground">{finding}</p>)}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
 

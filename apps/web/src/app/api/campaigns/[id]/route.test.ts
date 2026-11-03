@@ -51,7 +51,7 @@ describe("campaign strategies", () => {
     });
 
     it("PATCH refuses a strategy that is not available, without writing", async () => {
-        const res = await PATCH(patch({ strategies: ["S4"] }), ctx);
+        const res = await PATCH(patch({ strategies: ["S5"] }), ctx);
 
         expect(res.status).toBe(400);
         expect(mockPrisma.campaign.update).not.toHaveBeenCalled();

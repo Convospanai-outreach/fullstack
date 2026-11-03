@@ -66,7 +66,11 @@ export const STRATEGIES: Strategy[] = [
         icp: "One audience that follows you for the topics, not for a single product.",
         pace: { maxEmails: 10 },
     },
-    { id: "S4", name: "Editorial linter", group: "check", live: false, summary: "Flags jargon, a low you-to-we ratio and too many links." },
+    {
+        id: "S4", name: "Editorial linter", group: "check", live: true,
+        summary: "Flags jargon, a low you-to-we ratio and too many links.",
+        effect: "Scores each email step as you write it and lists what to fix. It only advises.",
+    },
     { id: "S5", name: "Deliverability and sunset", group: "check", live: false, summary: "Checks SPF and DMARC, and sunsets contacts silent for 90 days." },
     { id: "S7", name: "Conversion probability", group: "check", live: false, summary: "Scores motivation, clarity, incentive, friction and anxiety." },
     { id: "S8", name: "Six-factor diagnostic", group: "check", live: false, summary: "Scores value, relevance, clarity, urgency, anxiety and distraction." },
