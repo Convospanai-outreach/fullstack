@@ -8,7 +8,8 @@ import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import AIPanel from "./AIPanel";
 import SequenceCanvas, { SequenceStepItem } from "./SequenceCanvas";
 import StrategyPicker from "@/components/campaigns/StrategyPicker";
-import { strategiesFromConfig } from "@/lib/campaigns/strategies";
+import { preflightFromConfig, strategiesFromConfig } from "@/lib/campaigns/strategies";
+import type { PreflightBrief } from "@/lib/campaigns/preflight";
 import { SequenceMailbox } from "./SenderScheduleNode";
 
 interface SequenceStepFromApi {
@@ -45,6 +46,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [linkedinLocked, setLinkedinLocked] = useState(true);
     const [strategies, setStrategies] = useState<string[]>([]);
     const [objective, setObjective] = useState("");
+    const [brief, setBrief] = useState<PreflightBrief>({});
     const [strategyOpen, setStrategyOpen] = useState(false);
     const [icp, setIcp] = useState<{ name: string; criteria: unknown } | null>(null);
     const [savingStrategy, setSavingStrategy] = useState(false);
@@ -56,6 +58,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             .then((campaign) => {
                 if (cancelled || !campaign) return;
                 setStrategies(strategiesFromConfig(campaign.aiConfig));
+                setBrief(preflightFromConfig(campaign.aiConfig));
                 setObjective(typeof campaign.aiConfig?.goal === "string" ? campaign.aiConfig.goal : "");
                 if (typeof campaign.icpId === "string") {
                     fetch("/api/proxy/icp-builder/list")
@@ -79,7 +82,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             const res = await fetch(`/api/campaigns/${campaignId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ strategies, objective }),
+                body: JSON.stringify({ strategies, objective, preflight: brief }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.error || "Failed to save the strategy");
@@ -255,6 +258,8 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                             value={strategies}
                             objective={objective}
                             icp={icp}
+                            brief={brief}
+                            onBriefChange={setBrief}
                             onChange={(next, nextObjective) => {
                                 setStrategies(next);
                                 setObjective(nextObjective);
