@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
-// One shared Mautic instance (not per-team credentials) - see HANDOVER_CLAUDE_CODE.md
-// §5/I6 decision: a single Mautic serves top-of-funnel capture/segmentation/funnel
+// One shared Mautic instance (not per-team credentials): a single Mautic serves top-of-funnel capture/segmentation/funnel
 // visualization for all teams, segmented by a per-team tag rather than a dedicated
 // per-tenant stack. Mautic's own API is disabled by default (config/local.php must
 // set api_enabled/api_enable_basic_auth - see docker/mautic/config/local.php) and
