@@ -71,7 +71,11 @@ export const STRATEGIES: Strategy[] = [
         summary: "Flags jargon, a low you-to-we ratio and too many links.",
         effect: "Scores each email step as you write it and lists what to fix. It only advises.",
     },
-    { id: "S5", name: "Deliverability and sunset", group: "check", live: false, summary: "Checks SPF and DMARC, and sunsets contacts silent for 90 days." },
+    {
+        id: "S5", name: "Deliverability and sunset", group: "check", live: true,
+        summary: "Warns when SPF, DKIM or DMARC fail, and when a drip runs past 90 days.",
+        effect: "Sending domains are checked every day and the team owner is told if one stops passing; the pace check flags a drip that runs past 90 days. This already applies to every campaign.",
+    },
     {
         id: "S7", name: "Conversion probability", group: "check", live: true,
         summary: "Scores motivation, clarity, incentive, friction and anxiety.",
