@@ -155,6 +155,23 @@ describe('EmailService', () => {
             expect(options.html).toContain('expires in 24 hours');
         });
 
+        it('sends from contact.us@craftmyfunnel.live, not the SMTP login, unless SMTP_FROM_EMAIL is set', async () => {
+            const { sendViaSMTP } = await import('@/lib/email/smtpClient');
+            const originalEnv = { ...process.env };
+            (process.env as Record<string, string | undefined>)["SMTP_USER"] = "login@mail.example";
+            delete (process.env as Record<string, string | undefined>)["SMTP_FROM_EMAIL"];
+            try {
+                await EmailService.sendVerificationEmail('test@example.com', 'Test', 'tok');
+                expect(vi.mocked(sendViaSMTP).mock.calls.at(-1)![0]).toMatchObject({ user: "login@mail.example", fromEmail: "contact.us@craftmyfunnel.live" });
+
+                (process.env as Record<string, string | undefined>)["SMTP_FROM_EMAIL"] = "other@craftmyfunnel.live";
+                await EmailService.sendVerificationEmail('test@example.com', 'Test', 'tok');
+                expect(vi.mocked(sendViaSMTP).mock.calls.at(-1)![0]).toMatchObject({ fromEmail: "other@craftmyfunnel.live" });
+            } finally {
+                process.env = originalEnv;
+            }
+        });
+
         it('throws when the SMTP send fails, so callers do not report it as sent', async () => {
             const { sendViaSMTP } = await import('@/lib/email/smtpClient');
             vi.mocked(sendViaSMTP).mockResolvedValueOnce({ success: false, error: 'connect ECONNREFUSED 127.0.0.1:587' });
