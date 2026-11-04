@@ -1,7 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/db';
 import { RequestContext } from '@/lib/requestContext';
 
 export const runtime = 'nodejs';
@@ -45,6 +44,7 @@ export async function POST(req: NextRequest) {
   if (timestamp > Date.now() + 5000 || Date.now() - timestamp > 30_000) return fail(401);
   if (args['id'] !== undefined && (typeof args['id'] !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(args['id']))) return fail(400);
   try {
+    const { prisma } = await import('@/lib/db');
     const grant = await prisma.mcpOAuthGrant.findUnique({ where: { id: grantId } });
     if (!grant || grant.revokedAt || grant.expiresAt <= new Date() || grant.accessExpiresAt <= new Date()) return fail(401);
     const resource = process.env['MCP_PUBLIC_URL'];

@@ -14,6 +14,7 @@ Implementation base: GitHub `main` at `994111a0`, isolated branch `codex/mcp-int
 | Exact migration SQL applied to isolated local schema | Five tables and associated indexes created successfully |
 | Actual SDK + full Fastify API + web + local Postgres | Passed; see [machine-readable smoke evidence](MCP_LOCAL_SMOKE.json) |
 | Change whitespace validation | Passed |
+| Web Prisma-import, route database-import and auth-mode guards | Passed; relay loads the database client at request time |
 
 The real database smoke verifies registration, workspace consent, PKCE exchange, one-use codes, digest storage, discovery of all 31 tools, API-owned tasks/templates, blocked AI prompts, signed web-owned lead/campaign creation, draft status, foreign-workspace rejection, current-role enforcement and refresh-token-family revocation. No external outreach or production data was used. Test fixtures live only in the disposable `cmf-mcp-review-db` container on loopback port 55432.
 
