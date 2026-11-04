@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { checkDomainDeliverabilitySignals } from "@/modules/email-campaigner/service/domainAuthService";
+import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "@/modules/email-campaigner/service/domainAuthService";
 
 const WINDOW_DAYS = 30;
 const GENERIC_CHECK_PROVIDER = "GENERIC";
@@ -68,10 +68,10 @@ function labelFor(score: number): DomainHealthLabel {
     return "Poor";
 }
 
-async function checkAndRecordDomain(teamId: string, domain: string, active: boolean, provider?: string | null) {
+async function checkAndRecordDomain(teamId: string, domain: string, active: boolean, provider?: string | null, dkimSelector?: string) {
     let signals: { mx: boolean; spf: boolean; dkim: boolean; dmarc: boolean; notes?: string[] };
     try {
-        signals = await checkDomainDeliverabilitySignals(domain, provider);
+        signals = await checkDomainDeliverabilitySignals(domain, provider, dkimSelector);
     } catch {
         // DNS could not answer. Hold the last recorded result rather than reporting every record missing.
         let prior: any = null;
@@ -136,7 +136,7 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, openedAt: { not: null } } }),
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, unsubscribedAt: { not: null } } }),
         prisma.emailEvent.count({ where: { teamId, createdAt: { gte: windowStart }, type: "COMPLAINED" } }),
-        prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { email: true, provider: true } }),
+        prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { email: true, provider: true, metadata: true } }),
         prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }),
     ]);
 
@@ -150,14 +150,18 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
     );
 
     const providerByDomain = new Map<string, string>();
+    const selectorByDomain = new Map<string, string>();
     for (const m of mailboxes) {
         const d = m.email.split("@")[1]?.toLowerCase();
-        if (d && !providerByDomain.has(d)) providerByDomain.set(d, m.provider);
+        if (!d) continue;
+        if (!providerByDomain.has(d)) providerByDomain.set(d, m.provider);
+        const selector = dkimSelectorFromMetadata(m.metadata);
+        if (selector && !selectorByDomain.has(d)) selectorByDomain.set(d, selector);
     }
 
     const activeEntries: DomainHealthEntry[] = await Promise.all(
         activeDomains.map(async (domain) => {
-            const signals = await checkAndRecordDomain(teamId, domain, true, providerByDomain.get(domain));
+            const signals = await checkAndRecordDomain(teamId, domain, true, providerByDomain.get(domain), selectorByDomain.get(domain));
             const score = domainScore(signals, true, bounceRate, complaintRate);
             return { domain, ...signals, active: true, score, label: labelFor(score), lastActiveAt: new Date().toISOString() };
         })
