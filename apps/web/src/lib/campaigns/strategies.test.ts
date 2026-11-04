@@ -35,7 +35,7 @@ describe("sanitizeStrategies", () => {
         expect(sanitizeStrategies(["S1", "S3", "S1"])).toEqual(["S1", "S3"]);
         expect(sanitizeStrategies([])).toEqual([]);
         expect(sanitizeStrategies(["S1", "S4"])).toEqual(["S1", "S4"]);
-        expect(sanitizeStrategies(["S5"])).toBeNull();
+        expect(sanitizeStrategies(["S9"])).toBeNull();
         expect(sanitizeStrategies(["S2"])).toBeNull();
         expect(sanitizeStrategies(["nope"])).toBeNull();
         expect(sanitizeStrategies([1])).toBeNull();
@@ -109,7 +109,7 @@ describe("parseStrategyInput", () => {
     it("clips a long objective and refuses bad input", () => {
         const parsed = parseStrategyInput({ objective: "x".repeat(MAX_OBJECTIVE_CHARS + 50) });
         expect(parsed.ok && parsed.value.objective).toHaveLength(MAX_OBJECTIVE_CHARS);
-        expect(parseStrategyInput({ strategies: ["S5"] }).ok).toBe(false);
+        expect(parseStrategyInput({ strategies: ["S9"] }).ok).toBe(false);
         expect(parseStrategyInput({ objective: 5 }).ok).toBe(false);
     });
 });

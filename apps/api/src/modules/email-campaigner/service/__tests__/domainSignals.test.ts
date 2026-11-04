@@ -9,7 +9,7 @@ vi.mock("../dnsLookup", () => ({
 }));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 
-import { checkDomainDeliverabilitySignals } from "../domainAuthService";
+import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "../domainAuthService";
 
 // DNS as a map of host -> TXT values; anything else is "no such record".
 function dns(records: Record<string, string[]>, mx: string[] = ["mx.example.com"]) {
@@ -74,6 +74,26 @@ describe("checkDomainDeliverabilitySignals", () => {
         dns({ "example.com": ["v=spf1 include:smtp.example ~all"], "k1._domainkey.example.com": [GOOD_KEY] });
         const result = await checkDomainDeliverabilitySignals("example.com", "SMTP");
         expect(result).toMatchObject({ spf: true, dkim: true });
+    });
+
+    it("looks only at a selector the user gave, whatever the provider", async () => {
+        dns({ "mail._domainkey.example.com": [GOOD_KEY], "google._domainkey.example.com": [GOOD_KEY] });
+        expect((await checkDomainDeliverabilitySignals("example.com", "SMTP", "Mail")).dkim).toBe(true);
+        dns({ "google._domainkey.example.com": [GOOD_KEY] });
+        expect((await checkDomainDeliverabilitySignals("example.com", "GOOGLE_WORKSPACE", "custom1")).dkim).toBe(false);
+    });
+
+    it("ignores a selector that is not a valid DNS label", async () => {
+        dns({ "google._domainkey.example.com": [GOOD_KEY] });
+        expect((await checkDomainDeliverabilitySignals("example.com", "GOOGLE_WORKSPACE", "bad selector")).dkim).toBe(true);
+        expect(mockTxt).not.toHaveBeenCalledWith(expect.stringContaining("bad selector"));
+    });
+
+    it("reads a selector back from mailbox metadata only when it is valid", () => {
+        expect(dkimSelectorFromMetadata({ dkimSelector: " S1 " })).toBe("s1");
+        expect(dkimSelectorFromMetadata({ dkimSelector: "a b" })).toBeUndefined();
+        expect(dkimSelectorFromMetadata({ dkimSelector: 5 })).toBeUndefined();
+        expect(dkimSelectorFromMetadata(null)).toBeUndefined();
     });
 
     it("does not count a revoked DKIM key (empty p=) and notes it", async () => {

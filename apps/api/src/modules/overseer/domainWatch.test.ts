@@ -13,7 +13,7 @@ const { mockPrisma, mockCheck, mockSend } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
-vi.mock("@/modules/email-campaigner/service/domainAuthService", () => ({ checkDomainDeliverabilitySignals: mockCheck }));
+vi.mock("@/modules/email-campaigner/service/domainAuthService", () => ({ checkDomainDeliverabilitySignals: mockCheck, dkimSelectorFromMetadata: () => undefined }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: mockSend } }));
 
 import { failingRecords, runDomainWatch } from "./domainWatch";
