@@ -1,5 +1,7 @@
 # Oracle Cloud VM Deployment: Render Main API + Render Worker
 
+> Historical migration plan: references below to web on Vercel and Postgres on Neon reflect the earlier migration design. Current hosting is recorded in the [README](../../README.md): web on Render and Postgres on Supabase, with API/worker on Oracle. Retain the infrastructure procedures only where current deployment files confirm them. Inbound MCP rollout is documented in [MCP_INTEGRATION.md](../MCP_INTEGRATION.md).
+
 This guide replaces two Render services with two self-managed Oracle Cloud (OCI) VMs:
 
 | Today (Render) | Becomes (Oracle) |

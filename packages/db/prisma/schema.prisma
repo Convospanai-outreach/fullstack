@@ -7,6 +7,64 @@ datasource db {
   provider = "postgresql"
 }
 
+// Inbound remote MCP OAuth. Tokens are opaque; only SHA-256 digests are stored.
+model McpOAuthClient {
+  id           String   @id @default(uuid())
+  name         String
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+  grants       McpOAuthGrant[]
+}
+
+model McpOAuthGrant {
+  id               String   @id @default(uuid())
+  clientId         String
+  client           McpOAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId           String
+  teamId           String
+  sessionVersion   Int
+  scopes           String[]
+  resource         String
+  accessTokenHash  String?  @unique
+  refreshTokenHash String?  @unique
+  accessExpiresAt  DateTime
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  codes            McpOAuthCode[]
+  refreshUses      McpOAuthRefreshUse[]
+
+  @@index([userId, teamId])
+  @@index([expiresAt])
+}
+
+model McpOAuthCode {
+  hash          String   @id
+  grantId       String
+  grant         McpOAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  redirectUri   String
+  codeChallenge String
+  expiresAt     DateTime
+}
+
+// One-use API-to-web capabilities, claimed in Postgres across web replicas.
+model McpRelayClaim {
+  nonce     String   @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// Retain spent refresh digests to detect reuse and revoke the token family.
+model McpOAuthRefreshUse {
+  hash      String @id
+  grantId   String
+  grant     McpOAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 enum Region {
   GLOBAL
   UAE

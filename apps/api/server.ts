@@ -22,6 +22,7 @@ import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 import { httpRequestDuration } from '@/lib/metrics';
 import { authenticateInternalRequest, internalAuthPath, INTERNAL_AUTH_HEADER_NAMES, verifyInternalAuthHeaders } from '@/lib/internalAuth';
 import { createSharedReplayCache } from '@/lib/sharedReplayCache';
+import { registerMcp } from '@/mcp/server';
 import { isInternalOnlyRoute } from '@/lib/internalOnlyRoutes';
 import { isPublicRoutePath } from '@/lib/publicRoutes';
 import { serializeRequestForLog } from '@/lib/requestLogSerializer';
@@ -495,6 +496,8 @@ const start = async () => {
     // Awaited before loadRoutes: the plugin attaches its limit to each route
     // from an onRoute hook, so routes registered before it loads get none.
     await fastify.register(rateLimit, rateLimitBackstopOptions(verifiedUserId));
+
+    if (process.env.MCP_ENABLED === 'true') registerMcp(fastify);
 
     // Auto-load routes
     const routesDir = path.join(__dirname, 'routes');
