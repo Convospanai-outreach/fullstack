@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
+import rateLimit from '@fastify/rate-limit';
 import { createHash } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -95,6 +96,7 @@ describe('remote MCP protocol and authorization', () => {
   });
   it('uses the existing API path with a verified identity and a pinned workspace', async () => {
     const instance = Fastify(); apps.push(instance);
+    await instance.register(rateLimit, { max: 60, timeWindow: '1 minute' });
     instance.get('/pipeline/tasks', async req => ({ identity: verifyInternalAuthHeaders(req.headers, { method: 'GET', path: '/pipeline/tasks' })?.sub, cookie: req.headers.cookie }));
     const result = await executeMcpTool(instance, config, principal, 'list_tasks', {});
     expect(result.structuredContent).toMatchObject({ status: 200, data: { identity: 'user-1', cookie: 'convo-workspace-id=team-1' } });
