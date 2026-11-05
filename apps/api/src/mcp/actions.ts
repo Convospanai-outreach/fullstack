@@ -34,11 +34,11 @@ export async function executeReviewedAction(config: McpConfig, principal: McpPri
   if (action.argumentsHash !== argumentsHash || action.operation !== operation) return message(409, 'This requestId belongs to a different change. Reuse it only with the original arguments.');
   if (action.result) return action.result as unknown as McpOutcome;
   const reviewUrl = `${config.webOrigin}/mcp/connect?action=${encodeURIComponent(action.id)}`;
-  const state = { actionId: action.id, requestId, reviewUrl, actionStatus: action.status };
+  const state = { actionId: action.id, requestId, reviewUrl, actionStatus: action.status, expiresAt: action.expiresAt.toISOString() };
   if (action.status === 'REJECTED') return message(403, 'The user rejected this change.', state);
   if (['RUNNING', 'UNKNOWN'].includes(action.status)) return message(202, 'This request is already running or its outcome is uncertain. Inspect CraftMyFunnel; do not create a replacement request.', state);
-  if (action.expiresAt <= now) return message(410, 'The approval request expired. Start a new request only after checking that no change occurred.', state);
-  if (action.status !== 'APPROVED') return message(202, `No change has been made. Ask the user to open ${reviewUrl} and review the exact arguments in CraftMyFunnel. After approval, repeat this tool with the same requestId and arguments.`, state);
+  if (action.expiresAt <= now) return message(410, 'The review window closed before this change was approved, so nothing was changed. To try again, create a new request with a NEW requestId and ask the user to approve it promptly.', state);
+  if (action.status !== 'APPROVED') return message(202, `No change has been made. Ask the user to open ${reviewUrl} and review the exact arguments in CraftMyFunnel. They must approve before ${action.expiresAt.toISOString()} (a ${REVIEW_MS / 60_000}-minute window). After approval, repeat this tool with the same requestId and arguments.`, state);
   const claimed = await prisma.mcpToolAction.updateMany({ where: { id: action.id, status: 'APPROVED', expiresAt: { gt: now } },
     data: { status: 'RUNNING', startedAt: now } });
   if (claimed.count !== 1) return message(202, 'Another request changed this action. Inspect its state before retrying.', state);
