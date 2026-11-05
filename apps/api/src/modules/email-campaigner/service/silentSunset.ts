@@ -56,7 +56,7 @@ export async function runSilentSunset(now = new Date()): Promise<{ campaignsChec
         const ids = silent.map((e) => e.id);
         const exited = await prisma.sequenceEnrollment.updateMany({
             where: { id: { in: ids }, teamId: campaign.teamId, status: { in: LIVE_STATUSES } },
-            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: "silent_90d" },
         });
         await prisma.sequenceStepRun.updateMany({
             where: { enrollmentId: { in: ids }, teamId: campaign.teamId, status: { in: RUN_DUE_STATUSES } },

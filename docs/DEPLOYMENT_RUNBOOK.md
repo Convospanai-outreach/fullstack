@@ -1,5 +1,7 @@
 # Deployment Runbook
 
+> Historical provider-specific instructions below include an earlier Vercel/DigitalOcean deployment. The current topology and release owners are in [README.md](../README.md) and `.github/workflows/deploy-render.yml` / `deploy-oracle.yml`. Do not use the old hosting assumptions to roll out MCP; use [MCP_INTEGRATION.md](MCP_INTEGRATION.md) and the current migration/release gates.
+
 This runbook assumes the repository root is `D:\Convo\fullstack` and app roots are:
 
 - `apps/web` (Next.js frontend)

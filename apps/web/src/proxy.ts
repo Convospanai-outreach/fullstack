@@ -18,6 +18,7 @@ import {
 } from './lib/markdownNegotiator';
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER, getBaseSiteUrl } from './lib/apiCatalog';
 import { isValidInternalRelay } from './lib/internalRelay';
+import { mcpAdmissionGrant } from './lib/mcpAdmission';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
 import {
@@ -256,9 +257,13 @@ async function appProxy(req: NextRequest) {
         && (await isValidInternalRelay(req, process.env['NEXTAUTH_SECRET'] || ''));
     if (path.startsWith("/api") && !isInternalRelay) {
         let rateLimitResponse: NextResponse | null = null;
+        const mcpGrant = path === '/api/mcp/execute' ? await mcpAdmissionGrant(req) : null;
 
         // 1. Passive session-check endpoints (polled far more often than real sign-ins)
-        if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
+        if (mcpGrant) {
+            rateLimitResponse = await applyRateLimit(req, { windowMs: 60_000, maxRequests: 60 }, 'mcp-relay', `mcp:${mcpGrant}`);
+        }
+        else if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
         }
         // 2. NextAuth's own OAuth round-trip endpoints - not brute-forceable
@@ -372,6 +377,8 @@ async function appProxy(req: NextRequest) {
 
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
+        // This exact route verifies a one-use signed API capability itself.
+        (path === "/api/mcp/execute" && req.method === "POST") || path === "/mcp/connect" ||
         path.startsWith("/p/") ||
         authApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         cleanPath.startsWith("/_next") ||

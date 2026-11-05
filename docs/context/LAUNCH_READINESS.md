@@ -1,5 +1,7 @@
 # Launch Readiness Wiki
 
+> 2026-11-04 MCP update: the scores and test counts below describe an earlier reassessment. They do not approve the new MCP interface. MCP stays disabled until the additive migration, both service releases, HTTPS discovery, OAuth/client verification and target-branch CI are reviewed. See [current MCP evidence and limits](../MCP_INTEGRATION.md) and [runtime findings](../MCP_RUNTIME_REVIEW.md).
+
 ## Current Launch Recommendation
 
 The platform is now locally suitable for launch validation. It is **very close to broad public production readiness**, but the final claim still depends on remote GitHub Actions proof and reproducible Docker image confirmation.
