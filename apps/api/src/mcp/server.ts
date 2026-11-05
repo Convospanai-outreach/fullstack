@@ -156,7 +156,7 @@ export function registerMcp(app: FastifyInstance, config: McpConfig = getMcpConf
         if (!limit.allowed) return reply.code(429).header('Retry-After', Math.max(1, Math.ceil((limit.resetTime - Date.now()) / 1000))).send({ error: 'Too many requests' });
       }
       const method = (req.body as { method?: string } | undefined)?.method;
-      const discovery = req.method === 'POST' && ['initialize', 'tools/list', 'ping', 'notifications/initialized'].includes(method || '');
+      const discovery = req.method === 'POST' && ['initialize', 'ping', 'notifications/initialized'].includes(method || '');
       if ((authorization && !principal) || (!principal && !discovery)) {
         const authChallenge = `${challenge}, error="invalid_token", error_description="Connect your CraftMyFunnel account to continue"`;
         const id = (req.body as { id?: unknown } | undefined)?.id;
