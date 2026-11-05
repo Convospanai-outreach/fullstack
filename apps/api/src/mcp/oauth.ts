@@ -216,10 +216,15 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
         return result.count === 1;
       });
       if (!updated) {
+        // Reuse revokes the family even when detected by a lost concurrent
+        // rotation: we cannot distinguish a client retry from a stolen token.
         if (data.grant_type === 'refresh_token') await prisma.mcpOAuthGrant.updateMany({ where: { id: grant.id },
           data: { revokedAt: new Date(), accessTokenHash: null, refreshTokenHash: null } });
         return reply.code(400).send({ error: 'invalid_grant' });
       }
+      // Keep live replay evidence until the grant expires; prune expired rows
+      // opportunistically without making token issuance depend on cleanup.
+      void prisma.mcpOAuthRefreshUse.deleteMany({ where: { expiresAt: { lte: now } } }).catch(() => {});
       return { access_token: access, refresh_token: refresh, token_type: 'Bearer', expires_in: ACCESS_MS / 1000, scope: grant.scopes.join(' ') };
     });
 

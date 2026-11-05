@@ -72,6 +72,8 @@ Mutations record an intent before execution and a result afterward, without logg
 
 Creating a campaign requires an existing workspace-owned ICP and creates a draft. This phase does not create ICPs, configure strategies/preflight briefs, attach sequences or start campaigns. Recording channel activity does not contact anyone. Recording a meeting does not create an external calendar booking. Empty knowledge-base creation does not ingest documents or charge embeddings. Completing a sequence task is not exposed because it can advance an automated sequence.
 
+`update_lead` accepts only `fullName`, `email`, `linkedIn` and `company`, matching the current web PATCH handler. Other update fields and `consentObtained` on lead creation are rejected instead of silently discarded. Channel consent management remains outside this phase.
+
 ## Remaining workflow coverage and phase 2
 
 | Product surface | Phase 2 work before exposure |
@@ -89,7 +91,7 @@ Creating a campaign requires an existing workspace-owned ICP and creates a draft
 
 ## Verification
 
-See the [verification summary and limits](MCP_VERIFICATION.md) for the recorded results: 88 focused/regression tests on Node 22 plus a real database-backed smoke check.
+See the [verification summary and limits](MCP_VERIFICATION.md) for the recorded results: 106 focused/regression tests on Node 22 plus a real database-backed smoke check.
 
 - `npm test --workspace apps/api -- src/mcp/mcp.test.ts`: protocol/auth/permission tests, including actual SDK HTTP initialization.
 - `npm exec --workspace apps/web -- vitest run --config vitest.config.ts src/app/api/mcp/execute/route.test.ts`: signed web relay boundary tests.

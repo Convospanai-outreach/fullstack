@@ -11,7 +11,7 @@ const leadFields = z.object({
   linkedIn: z.string().url().max(500).optional(), phone: z.string().max(50).optional(),
   company: z.string().max(200).optional(), jobTitle: z.string().max(200).optional(),
   location: z.string().max(200).optional(), tags: z.array(z.string().max(100)).max(30).optional(),
-  campaignId: id.optional(), consentObtained: z.boolean().optional(),
+  campaignId: id.optional(),
 }).strict();
 // Keep updates aligned with the web lead PATCH handler's contact-field allowlist.
 const leadPatch = leadFields.pick({ fullName: true, email: true, linkedIn: true, company: true });

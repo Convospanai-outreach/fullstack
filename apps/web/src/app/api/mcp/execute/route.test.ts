@@ -47,6 +47,47 @@ describe('API-to-web MCP delegation', () => {
     expect(RequestContext.get()?.mcpIdentity).toBeUndefined();
     expect(db.teamMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-1', teamId: 'team-1', status: 'active' } }));
   });
+  it.each([undefined, '1'])('stops oversized streams with Content-Length %s before buffering the entire body', async contentLength => {
+    let chunks = 0;
+    const cancel = vi.fn();
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (chunks++ < 8) controller.enqueue(new Uint8Array(16_384).fill(97));
+        else controller.close();
+      }, cancel,
+    });
+    const headers = new Headers({ 'x-cmf-mcp-signature': '0'.repeat(64) });
+    if (contentLength) headers.set('content-length', contentLength);
+    const req = new Request('http://localhost/api/mcp/execute', { method: 'POST', headers, body: stream, duplex: 'half' } as RequestInit) as NextRequest;
+    expect((await POST(req)).status).toBe(413);
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(chunks).toBeLessThan(8);
+    expect(db.mcpOAuthGrant.findUnique).not.toHaveBeenCalled();
+    expect(invoked).not.toHaveBeenCalled();
+  });
+  it('rejects a declared oversized body before accessing data', async () => {
+    const req = request(raw()); req.headers.set('content-length', '65537');
+    expect((await POST(req)).status).toBe(413);
+    expect(db.mcpOAuthGrant.findUnique).not.toHaveBeenCalled();
+  });
+  it('verifies signatures over streamed UTF-8 bytes even when a character spans chunks', async () => {
+    const body = raw({ args: { name: 'Café', icpId: 'icp-1' } });
+    const bytes = Buffer.from(body);
+    const split = bytes.indexOf(Buffer.from('é')) + 1;
+    const stream = new ReadableStream({ start(controller) {
+      controller.enqueue(bytes.subarray(0, split)); controller.enqueue(bytes.subarray(split)); controller.close();
+    } });
+    const req = new Request('http://localhost/api/mcp/execute', {
+      method: 'POST', headers: request(body).headers, body: stream, duplex: 'half',
+    } as RequestInit) as NextRequest;
+    expect((await POST(req)).status).toBe(200);
+    expect(invoked).toHaveBeenCalledOnce();
+  });
+  it.each(['https://API.Example/mcp', 'https://api.example:443/mcp'])('accepts the canonical equivalent resource %s', async resource => {
+    process.env['MCP_PUBLIC_URL'] = resource;
+    expect((await POST(request(raw()))).status).toBe(200);
+    expect(invoked).toHaveBeenCalledOnce();
+  });
   it('rejects an expired capability and an arbitrary operation', async () => {
     expect((await POST(request(raw({ timestamp: Date.now() - 60000 })))).status).toBe(401);
     expect((await POST(request(raw({ operation: 'send_email' })))).status).toBe(403);

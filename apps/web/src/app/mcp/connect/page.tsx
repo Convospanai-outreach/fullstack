@@ -82,7 +82,8 @@ export default function McpConnectPage() {
       <ul className="list-disc space-y-3 pl-5 text-slate-300">{consent.scopes.map(scope => <li key={scope}>{permissions[scope] || scope}</li>)}</ul>
       <p className="text-sm text-slate-400">Your password is never shared. Access lasts up to 30 days; you can revoke it here at any time. Connect each workspace separately.</p>
       <div className="flex gap-4"><button type="button" disabled={busy || !teamId} onClick={connect} className="rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-slate-950 disabled:opacity-50">{busy ? 'Connecting…' : 'Allow connection'}</button>
-        <Link href="/mcp/connect" className="rounded-lg border border-slate-600 px-5 py-3">Cancel</Link></div>
+        {/* Full navigation clears the consent state preserved by client routing. */}
+        <a href="/mcp/connect" className="rounded-lg border border-slate-600 px-5 py-3">Cancel</a></div>
     </section>}
     {!authorization && !loading && !signedOut && <section className="mt-8 space-y-6">
       {serverUrl && <div className="rounded-xl border border-slate-700 p-5"><h2 className="font-medium">Server URL</h2><code className="mt-2 block break-all text-cyan-200">{serverUrl}</code>

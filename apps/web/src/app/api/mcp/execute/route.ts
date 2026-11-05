@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 const envelope = z.object({ operation: z.string().max(80), args: z.record(z.string(), z.unknown()),
   grantId: z.string().min(1).max(128), timestamp: z.number().int(), nonce: z.string().uuid() }).strict();
 const ranks: Record<string, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
+const MAX_BODY_BYTES = 65_536;
 
 // Match the web-owned customer paths in /api/proxy. Dynamic imports preserve
 // each existing handler's validation and business logic. No arbitrary imports.
@@ -33,12 +34,28 @@ export async function POST(req: NextRequest) {
   const secret = process.env['NEXTAUTH_SECRET'];
   const signature = req.headers.get('x-cmf-mcp-signature');
   if (!secret || !signature || !/^[a-f0-9]{64}$/.test(signature)) return fail(401);
-  const raw = await req.text();
-  if (Buffer.byteLength(raw) > 65_536) return fail(413);
+  if (Number(req.headers.get('content-length')) > MAX_BODY_BYTES) return fail(413);
+  const reader = req.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    if (reader) for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => {});
+        return fail(413);
+      }
+      chunks.push(value);
+    }
+  } catch { return fail(400); }
+  finally { reader?.releaseLock(); }
+  const raw = Buffer.concat(chunks, bytes);
   const expected = createHmac('sha256', secret).update(raw).digest();
   if (!timingSafeEqual(expected, Buffer.from(signature, 'hex'))) return fail(401);
   let parsed;
-  try { parsed = envelope.safeParse(JSON.parse(raw)); } catch { return fail(400); }
+  try { parsed = envelope.safeParse(JSON.parse(raw.toString('utf8'))); } catch { return fail(400); }
   if (!parsed.success) return fail(400);
   const { operation: name, args, grantId, timestamp, nonce } = parsed.data;
   if (timestamp > Date.now() + 5000 || Date.now() - timestamp > 30_000) return fail(401);
@@ -48,7 +65,7 @@ export async function POST(req: NextRequest) {
     const grant = await prisma.mcpOAuthGrant.findUnique({ where: { id: grantId } });
     if (!grant || grant.revokedAt || grant.expiresAt <= new Date() || grant.accessExpiresAt <= new Date()) return fail(401);
     const resource = process.env['MCP_PUBLIC_URL'];
-    if (!resource || grant.resource !== resource) return fail(401);
+    if (!resource || grant.resource !== new URL(resource).href) return fail(401);
     const [user, membership] = await Promise.all([
       prisma.user.findUnique({ where: { id: grant.userId }, select: { suspendedAt: true, sessionVersion: true } }),
       prisma.teamMember.findFirst({ where: { userId: grant.userId, teamId: grant.teamId, status: 'active' }, select: { role: true } }),

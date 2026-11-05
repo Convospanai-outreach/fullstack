@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
     mcpOAuthClient: { create: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
     mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
     mcpOAuthCode: { findUnique: vi.fn(), deleteMany: vi.fn() },
-    mcpOAuthRefreshUse: { create: vi.fn(), findUnique: vi.fn() },
+    mcpOAuthRefreshUse: { create: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn() },
     team: { findMany: vi.fn() },
     teamMember: { findFirst: vi.fn(), findMany: vi.fn() }, user: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() }, $transaction: vi.fn(),
@@ -57,6 +57,7 @@ beforeEach(() => {
   mocks.db.auditLog.create.mockResolvedValue({});
   mocks.db.mcpOAuthRefreshUse.create.mockResolvedValue({});
   mocks.db.mcpOAuthRefreshUse.findUnique.mockResolvedValue(null);
+  mocks.db.mcpOAuthRefreshUse.deleteMany.mockResolvedValue({ count: 0 });
   mocks.db.$transaction.mockImplementation(fn => fn(mocks.db));
   mocks.db.mcpOAuthGrant.updateMany.mockImplementation(async ({ where, data }: any) => {
     if (where.refreshTokenHash && where.refreshTokenHash !== grant.refreshTokenHash) return { count: 0 };
@@ -137,6 +138,14 @@ describe('remote MCP protocol and authorization', () => {
     const instance = await app();
     await expect(executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes: {} }))
       .rejects.toThrow('Invalid tool arguments');
+  });
+  it.each([true, false])('rejects unsupported consentObtained=%s when creating a lead', async consentObtained => {
+    const instance = await app();
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    await expect(executeMcpTool(instance, config, principal, 'create_lead', { email: 'lead@example.com', consentObtained }))
+      .rejects.toThrow('Invalid tool arguments');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(describeTools().find(item => item.name === 'create_lead')!.inputSchema.properties).not.toHaveProperty('consentObtained');
   });
   it('advertises and relays the lead contact fields supported by the web PATCH handler', async () => {
     const instance = await app();
@@ -242,6 +251,43 @@ describe('OAuth connection lifecycle', () => {
     expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: input })).statusCode).toBe(400);
     expect(grant.revokedAt).toBeInstanceOf(Date);
     expect(grant.accessTokenHash).toBeNull();
+  });
+  it('retains replay evidence for the grant lifetime and cleans up only expired digests', async () => {
+    const instance = await app();
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: {
+      grant_type: 'refresh_token', client_id: 'client-1', resource: config.resource, refresh_token: 'refresh',
+    } });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.db.mcpOAuthRefreshUse.create).toHaveBeenCalledWith({ data: {
+      hash: digest('refresh'), grantId: grant.id, expiresAt: grant.expiresAt,
+    } });
+    expect(mocks.db.mcpOAuthRefreshUse.deleteMany).toHaveBeenCalledWith({ where: { expiresAt: { lte: expect.any(Date) } } });
+    const cutoff = mocks.db.mcpOAuthRefreshUse.deleteMany.mock.calls[0][0].where.expiresAt.lte;
+    expect(cutoff.getTime()).toBeLessThan(grant.expiresAt.getTime());
+  });
+  it('does not fail token issuance if expired-digest cleanup is unavailable', async () => {
+    const instance = await app();
+    mocks.db.mcpOAuthRefreshUse.deleteMany.mockRejectedValue(new Error('Cleanup unavailable'));
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: {
+      grant_type: 'refresh_token', client_id: 'client-1', resource: config.resource, refresh_token: 'refresh',
+    } });
+    expect(response.statusCode).toBe(200);
+  });
+  it('revokes the token family when a concurrent refresh has already consumed the credential', async () => {
+    const instance = await app();
+    const winningAccess = 'w'.repeat(43);
+    mocks.db.mcpOAuthGrant.updateMany.mockImplementationOnce(async () => {
+      grant.accessTokenHash = digest(winningAccess); grant.refreshTokenHash = digest('winning-refresh');
+      return { count: 0 };
+    });
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: {
+      grant_type: 'refresh_token', client_id: 'client-1', resource: config.resource, refresh_token: 'refresh',
+    } });
+    expect(response.statusCode).toBe(400);
+    expect(grant.revokedAt).toBeInstanceOf(Date);
+    expect(grant.accessTokenHash).toBeNull();
+    expect(grant.refreshTokenHash).toBeNull();
+    expect(await authenticateMcpToken(winningAccess, config)).toBeNull();
   });
   it('revokes both credentials and limits browser disconnect to its owner', async () => {
     const instance = await app();
