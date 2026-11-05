@@ -22,7 +22,7 @@ export function SetupBanner({ percent, onDismiss }: SetupBannerProps) {
             Launch readiness · {percent}% complete
           </p>
           {/* Progress bar */}
-          <div className="h-0.5 bg-muted rounded-full mt-2">
+          <div className="h-1 bg-primary/15 rounded-full mt-2">
             <div
               className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${percent}%` }}

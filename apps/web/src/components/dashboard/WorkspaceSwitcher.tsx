@@ -84,7 +84,7 @@ export function WorkspaceSwitcher() {
                         </div>
                         <div className="text-left">
                             <p className="text-sm font-medium text-foreground line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
-                            <p className="text-xs text-muted-foreground">Free Plan</p>
+                            <p className="text-xs text-muted-foreground">Workspace</p>
                         </div>
                     </div>
                     <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />

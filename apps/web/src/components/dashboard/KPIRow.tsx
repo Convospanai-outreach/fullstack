@@ -17,10 +17,10 @@ interface KPIData {
 const transitionCurve = { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.8 } as const;
 
 function DeltaBadge({ value, unit = '' }: { value: number; unit?: string }) {
-  // A zero delta is the real value, not missing data — render it as 0, muted and
-  // without a POS/NEG direction (the summary API does not yet compute a
-  // period-over-period baseline, so no trend can be asserted).
-  if (value === 0) return <span className="text-muted-foreground font-mono text-[10px] tracking-widest">0{unit}</span>;
+  // The summary API does not yet compute a period-over-period baseline, so a zero
+  // delta means "nothing to compare", not a real 0 change. Show nothing rather than
+  // repeating the headline number under itself.
+  if (value === 0) return null;
   const isPos = value > 0;
   return (
     <div className={cn(
@@ -86,7 +86,7 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
       tooltip: "Leads currently in active outreach sequences",
       value: data.activeLeads,
       href: "/leads",
-      renderDelta: () => <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">Live State</span>
+      renderDelta: () => <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">In outreach</span>
     },
     {
       id: "drafts",
@@ -97,7 +97,7 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
       renderDelta: () => (
         data.draftsPendingSend > 0
           ? <span className="text-warning font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-warning/20 px-1.5 bg-warning/5">Needs approval</span>
-          : <span className="text-success font-mono text-[9px] uppercase tracking-widest">Optimized</span>
+          : <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">Nothing waiting</span>
       )
     },
     {
@@ -137,10 +137,8 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
             <h3 title={kpi.tooltip} className="text-[9px] text-muted-foreground uppercase tracking-[0.25em] font-medium cursor-help hover:text-foreground transition-colors">
               {kpi.label}
             </h3>
-            {kpi.href ? (
+            {kpi.href && (
               <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">›</span>
-            ) : (
-              <span className="text-[7px] text-muted-foreground font-mono tracking-widest">0{idx + 1}</span>
             )}
           </div>
 
