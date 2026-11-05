@@ -39,7 +39,7 @@ describe("runSilentSunset", () => {
 
         const where = mockPrisma.sequenceEnrollment.findMany.mock.calls[0][0].where;
         expect(where.startedAt.lte).toEqual(new Date("2026-08-07T12:00:00Z"));
-        expect(mockPrisma.sequenceEnrollment.updateMany.mock.calls[0][0].data).toMatchObject({ status: "EXITED", nextRunAt: null });
+        expect(mockPrisma.sequenceEnrollment.updateMany.mock.calls[0][0].data).toMatchObject({ status: "EXITED", nextRunAt: null, exitReason: "silent_90d" });
         expect(mockPrisma.sequenceStepRun.updateMany.mock.calls[0][0].data).toMatchObject({
             status: "SKIPPED_EXITED",
             errorCode: SUNSET_ERROR_CODE,

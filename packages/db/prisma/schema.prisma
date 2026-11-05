@@ -1179,6 +1179,7 @@ model SequenceEnrollment {
   startedAt        DateTime  @default(now())
   completedAt      DateTime?
   cancelledAt      DateTime?
+  exitReason       String? // Why a EXITED enrollment ended: replied, bounced, unsubscribed, suppressed, silent_90d, ...
   lastRunAt        DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
