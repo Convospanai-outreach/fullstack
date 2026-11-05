@@ -10,26 +10,82 @@ This is the repo-level source of truth for the system that actually exists today
 
 CraftMyFunnel is a monorepo with **three deployable apps**:
 
-1. `apps/web` - public Next.js application
-2. `apps/api` - public Fastify API and worker runtime
+1. `apps/web` - public Next.js application, hosted on Render
+2. `apps/api` - public Fastify API and worker runtime, run as two Docker containers (`api-main`, `api-worker`) on Oracle Cloud VMs
 3. `apps/edge-fastapi` - optional private FastAPI edge runtime
 
-Shared code lives in `packages/*`, currently including `packages/toon-core`.
+Also deployed from this repo: the Mautic server on AWS (`deploy/aws/mautic`) and the Chrome extension (`apps/api/src/extension`, published through the Chrome Web Store).
+
+Shared code lives in `packages/*`: `packages/db` and `packages/toon-core`.
 
 ## Production Topology
 
 ```mermaid
-flowchart LR
-    Browser[Authenticated browser] --> Web[apps/web]
-    Visitor[Public landing visitor] --> Web
-    Web --> API[apps/api]
-    Signals[Netjana and webhooks] --> API
-    API --> DB[(Postgres)]
-    API -. optional .-> Cache[(Redis)]
-    API --> Jobs[Workers and async handlers]
-    API --> Providers[LLM, SMTP, CRM, billing providers]
-    API -. optional private .-> Edge[apps/edge-fastapi]
+flowchart TB
+    subgraph People
+        User[Signed-in users]
+        Visitor[Landing page visitors]
+        Ext[Chrome extension on LinkedIn]
+    end
+
+    CF[Cloudflare: DNS, CDN, bot protection]
+
+    subgraph Render[Render]
+        Web[apps/web: Next.js]
+    end
+
+    subgraph Oracle[Oracle Cloud: two VMs running Docker images from GHCR]
+        API[api-main: apps/api Fastify]
+        Worker[api-worker: background workers and Chromium]
+    end
+
+    DB[(Supabase Postgres)]
+    Redis[(Redis, optional)]
+    Edge[apps/edge-fastapi, optional and private]
+
+    subgraph AWS[AWS]
+        Mautic[Mautic marketing automation]
+    end
+
+    subgraph External[External services]
+        AI[AI providers and Jev]
+        Mail[Resend and SMTP]
+        Pay[Razorpay]
+        Meta[WhatsApp and Instagram webhooks]
+        Obs[Sentry and PostHog]
+        GH[GitHub: CMS content pull requests]
+    end
+
+    User --> CF
+    Visitor --> CF
+    Ext --> CF
+    CF --> Web
+    Web -->|"/api/proxy"| API
+    Web --> DB
+    API --> DB
+    Worker --> DB
+    API -.-> Redis
+    Worker -.-> Redis
+    API --> Worker
+    API --> AI
+    Worker --> AI
+    API --> Mail
+    API --> Pay
+    Meta --> API
+    API --> Mautic
+    API -.-> Edge
+    Web --> Obs
+    API --> Obs
+    Web --> GH
 ```
+
+How a change reaches production:
+
+| Service | Built by | Deployed by |
+| --- | --- | --- |
+| `apps/web` | `Web Build` in CI | `deploy-render.yml` (manual or six-hourly; Render auto-deploy is off) |
+| `apps/api` | `docker-ghcr.yml` pushes an image to GHCR | `deploy-oracle.yml` on merge to `main` |
+| Database schema | not built | `web-prisma-migrate.yml`, behind the `production-migrate` approval gate. Run it before a web deploy that needs a new migration. |
 
 ### Public surfaces
 
@@ -38,8 +94,9 @@ flowchart LR
 
 ### Private or internal surfaces
 
-- Postgres
-- Redis
+- Supabase Postgres
+- Redis (optional)
+- the `api-worker` container
 - `apps/edge-fastapi`
 - provider secrets and signing keys
 
@@ -143,19 +200,7 @@ It should remain optional for the main web/API launch path.
 
 ## Current Readiness View
 
-### Strong
-
-- API readiness audit is currently `100/100`
-- web/API/edge service boundaries are understandable and documentable
-- local Docker-backed Postgres and Redis support realistic beta flows
-- launch-path docs now reflect the current monorepo topology
-
-### Not Yet Broad-Launch Ready
-
-- web unit coverage is currently non-deterministic in this tree, with timeouts observed in health, metrics, and worker-dispatch tests
-- latest local fixes still need a confirmed green GitHub Actions run
-- dependency security debt remains in the npm dependency graph
-- edge runtime remains optional and should not be considered part of the required launch path
+Open work, owner-side setup and known risks are tracked in [OPEN_ITEMS.md](./OPEN_ITEMS.md). Use that file, CI results on `main` and each service's `/health` endpoint rather than dated snapshots.
 
 ## Documentation Contract
 
