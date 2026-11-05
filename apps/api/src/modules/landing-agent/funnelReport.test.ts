@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FUNNEL_MAX_RANGE_DAYS, assembleFunnelReport, buildFunnelSteps, parseFunnelRange } from "./funnelReport";
+import { FUNNEL_MAX_RANGE_DAYS, assembleFunnelReport, buildFunnelSteps, foldSources, parseFunnelRange, parseSourceDimension } from "./funnelReport";
 
 const NOW = new Date("2026-11-01T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -137,5 +137,28 @@ describe("assembleFunnelReport", () => {
     it("passes the Instagram reply count through only when given (team-wide, unfiltered)", () => {
         expect(assembleFunnelReport(row, { repliesSent: 42 }).instagram).toEqual({ repliesSent: 42 });
         expect(assembleFunnelReport(row, null).instagram).toBeNull();
+    });
+});
+
+describe("parseSourceDimension", () => {
+    it("defaults to utm_source and accepts only the four UTM fields", () => {
+        expect(parseSourceDimension(null)).toBe("utm_source");
+        expect(parseSourceDimension("utm_content")).toBe("utm_content");
+        expect(parseSourceDimension("email")).toBeNull();
+    });
+});
+
+describe("foldSources", () => {
+    const row = (source: string, leads: number) => ({ source, leads, contacted: leads, replied: 1, meetings: 1, won: 1 });
+
+    it("sorts by leads and leaves a short list as it is", () => {
+        expect(foldSources([row("b", 2), row("a", 5)]).map((r) => r.source)).toEqual(["a", "b"]);
+    });
+
+    it("keeps the busiest rows and adds the rest up as Other", () => {
+        const rows = Array.from({ length: 12 }, (_, i) => row(`s${i}`, 20 - i));
+        const folded = foldSources(rows, 10);
+        expect(folded).toHaveLength(11);
+        expect(folded[10]).toEqual({ source: "Other", leads: 10 + 9, contacted: 19, replied: 2, meetings: 2, won: 2 });
     });
 });

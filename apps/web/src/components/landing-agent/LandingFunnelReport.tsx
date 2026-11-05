@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
 import { landingExperimentApi } from "@/modules/landing-agent/service/landingExperimentApi";
-import { landingFunnelApi, type FunnelReportResponse } from "@/modules/landing-agent/service/landingFunnelApi";
+import { landingFunnelApi, type FunnelReportResponse, type FunnelSourceDimension } from "@/modules/landing-agent/service/landingFunnelApi";
 import { dropOffText, durationText, presetRange } from "./landingFunnelCopy";
 
 const PRESET_DAYS = [7, 30, 90] as const;
+
+const SOURCE_OPTIONS: Array<{ value: FunnelSourceDimension; label: string }> = [
+    { value: "utm_source", label: "Source" },
+    { value: "utm_medium", label: "Medium" },
+    { value: "utm_campaign", label: "Campaign" },
+    { value: "utm_content", label: "Content" },
+];
 
 interface PageOption {
     id: string;
@@ -25,6 +32,7 @@ export default function LandingFunnelReport() {
     const [days, setDays] = useState<(typeof PRESET_DAYS)[number]>(30);
     const [pageId, setPageId] = useState("");
     const [variantId, setVariantId] = useState("");
+    const [groupBy, setGroupBy] = useState<FunnelSourceDimension>("utm_source");
     const [pages, setPages] = useState<PageOption[]>([]);
     const [variants, setVariants] = useState<VariantOption[]>([]);
     const [report, setReport] = useState<FunnelReportResponse | null>(null);
@@ -44,7 +52,7 @@ export default function LandingFunnelReport() {
         let cancelled = false;
         setLoading(true);
         landingFunnelApi
-            .get({ ...presetRange(days, new Date()), landingPageId: pageId || undefined, variantId: variantId || undefined })
+            .get({ ...presetRange(days, new Date()), landingPageId: pageId || undefined, variantId: variantId || undefined, groupBy })
             .then((next) => {
                 if (cancelled) return;
                 setReport(next);
@@ -60,7 +68,7 @@ export default function LandingFunnelReport() {
         return () => {
             cancelled = true;
         };
-    }, [days, pageId, variantId]);
+    }, [days, pageId, variantId, groupBy]);
 
     // A lead can come in without a tracked visit, so the table shows whenever any step has people in it.
     const hasAnyCount = report !== null && report.steps.some((s) => s.count > 0);
@@ -139,6 +147,46 @@ export default function LandingFunnelReport() {
                         </li>
                         {report.instagram && <li>Instagram keyword replies sent (all pages, this range): {report.instagram.repliesSent.toLocaleString()}</li>}
                     </ul>
+                    {report.sources && report.sources.rows.length > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <h3 className="text-sm font-semibold text-text-primary">Where sign-ups came from</h3>
+                                <select aria-label="Group sign-ups by" value={groupBy} onChange={(e) => setGroupBy(e.target.value as FunnelSourceDimension)} className="rounded-md border px-2 py-1 text-sm">
+                                    {SOURCE_OPTIONS.map((o) => (
+                                        <option key={o.value} value={o.value}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table aria-label="Sign-ups by source" className="w-full text-left text-sm">
+                                    <thead>
+                                        <tr className="text-muted-foreground">
+                                            <th className="py-2 pr-4 font-medium">{SOURCE_OPTIONS.find((o) => o.value === groupBy)?.label}</th>
+                                            <th className="py-2 pr-4 font-medium">Leads</th>
+                                            <th className="py-2 pr-4 font-medium">Contacted</th>
+                                            <th className="py-2 pr-4 font-medium">Replied</th>
+                                            <th className="py-2 pr-4 font-medium">Meetings</th>
+                                            <th className="py-2 pr-4 font-medium">Won</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {report.sources.rows.map((row) => (
+                                            <tr key={row.source} className="border-t border-white/10">
+                                                <td className="py-2 pr-4">{row.source}</td>
+                                                <td className="py-2 pr-4">{row.leads.toLocaleString()}</td>
+                                                <td className="py-2 pr-4">{row.contacted.toLocaleString()}</td>
+                                                <td className="py-2 pr-4">{row.replied.toLocaleString()}</td>
+                                                <td className="py-2 pr-4">{row.meetings.toLocaleString()}</td>
+                                                <td className="py-2 pr-4">{row.won.toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                     <p className="text-xs text-muted-foreground">
                         A step can be larger than the one before it when a lead came in without a tracked visit; the drop-off then shows as a gain.
                     </p>

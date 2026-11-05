@@ -43,7 +43,7 @@ async function flush() {
 }
 
 function rowTexts(): string[] {
-    return Array.from(container.querySelectorAll("tbody tr")).map((tr) => tr.textContent ?? "");
+    return Array.from(container.querySelectorAll("table:not([aria-label]) tbody tr")).map((tr) => tr.textContent ?? "");
 }
 
 describe("LandingFunnelReport", () => {
@@ -82,6 +82,37 @@ describe("LandingFunnelReport", () => {
         expect(rows[1]).toContain("2 min");
         expect(rows[3]).toContain("25% drop-off");
         expect(rows[3]).toContain("1 h");
+    });
+
+    it("shows where sign-ups came from, and asks again when the grouping changes", async () => {
+        mockReport.mockResolvedValue({
+            ...report,
+            sources: {
+                dimension: "utm_source",
+                rows: [
+                    { source: "google", leads: 9, contacted: 8, replied: 3, meetings: 2, won: 1 },
+                    { source: "(none)", leads: 4, contacted: 2, replied: 0, meetings: 0, won: 0 },
+                ],
+            },
+        });
+        await act(async () => {
+            root.render(<LandingFunnelReport />);
+        });
+        await flush();
+
+        const sourceRows = Array.from(container.querySelectorAll("table[aria-label='Sign-ups by source'] tbody tr")).map((tr) => tr.textContent ?? "");
+        expect(sourceRows).toHaveLength(2);
+        expect(sourceRows[0]).toContain("google");
+        expect(sourceRows[1]).toContain("(none)");
+        expect(rowTexts()).toHaveLength(4);
+
+        const select = container.querySelector("select[aria-label='Group sign-ups by']") as HTMLSelectElement;
+        await act(async () => {
+            select.value = "utm_campaign";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        await flush();
+        expect(mockReport).toHaveBeenLastCalledWith(expect.objectContaining({ groupBy: "utm_campaign" }));
     });
 
     it("shows the side metrics and the team-wide Instagram count", async () => {
