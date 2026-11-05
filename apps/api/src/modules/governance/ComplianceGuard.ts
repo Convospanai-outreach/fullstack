@@ -44,7 +44,7 @@ export class ComplianceGuard {
             if (lead?.email) {
                 // Campaign sends check the suppression list, so an opt-out has to be on it too.
                 const email = lead.email.toLowerCase();
-                await prisma.suppressionEntry.upsert({
+                if (lead.teamId) await prisma.suppressionEntry.upsert({
                     where: { teamId_email: { teamId: lead.teamId, email } },
                     create: { teamId: lead.teamId, email, reason: "OPT_OUT", source: "COMPLIANCE_GUARD", leadId },
                     update: { reason: "OPT_OUT", source: "COMPLIANCE_GUARD", leadId },
