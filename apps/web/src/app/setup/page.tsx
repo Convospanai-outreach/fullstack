@@ -40,6 +40,7 @@ import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetu
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
 import { STORE_URL } from "@/lib/extensionIds";
 import DomainsStep from "@/components/setup/DomainsStep";
+import { HourglassBuddy } from "@/components/setup/HourglassBuddy";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -467,6 +468,7 @@ export default function SetupWizardPage() {
                   <div className="h-full rounded-full bg-cyan-400 transition-all duration-500" style={{ width: `${completion}%` }} />
                 </div>
               </div>
+              <HourglassBuddy stepId={active.id} completion={completion} completedCount={visibleSteps.filter((step) => stepComplete(step.id)).length} saving={saving} errorMessage={actionMessage} />
             </div>
 
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
