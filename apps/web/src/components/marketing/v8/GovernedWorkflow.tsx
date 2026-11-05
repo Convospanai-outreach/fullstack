@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { WORKFLOW } from "./homeV8Content";
+import { HOME } from "./homeV8Content";
+
+const WORKFLOW = HOME.workflow.steps;
 
 const LAST = WORKFLOW.length - 1;
 
@@ -33,10 +35,10 @@ export function GovernedWorkflow() {
     <section className="workflow-core" aria-labelledby="workflow-heading">
       <div className="workflow-head">
         <div>
-          <div className="workflow-kicker">THE CORE / GOVERNED WORKFLOW</div>
-          <h3 id="workflow-heading">Six steps. No loose ends.</h3>
+          <div className="workflow-kicker">{HOME.workflow.kicker}</div>
+          <h3 id="workflow-heading">{HOME.workflow.heading}</h3>
         </div>
-        <p>Every signal gets a route. Every move gets a reason. Inspect the workflow that turns scattered attention into a governed next step.</p>
+        <p>{HOME.workflow.intro}</p>
       </div>
       <div className="workflow-shell">
         <div className="workflow-nav" role="tablist" aria-label="Six-step governed workflow" aria-orientation="vertical" onKeyDown={onKeyDown}>
@@ -81,7 +83,7 @@ export function GovernedWorkflow() {
             <aside className="workflow-mini" aria-live="polite" aria-label="Operational view">
               <div className="mini-label">Operational view</div>
               <div className="signal-ladder">
-                {current.mini.map(([k, v]) => <div key={k}><span>{k}</span><small>{v}</small></div>)}
+                {current.mini.map((m) => <div key={m.label}><span>{m.label}</span><small>{m.text}</small></div>)}
               </div>
             </aside>
           </div>

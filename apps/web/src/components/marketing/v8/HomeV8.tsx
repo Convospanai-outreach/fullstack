@@ -5,7 +5,7 @@ import { DM_Sans, Space_Grotesk } from "next/font/google";
 import { OpportunityEngineSvg } from "./OpportunityEngineSvg";
 import { GovernedWorkflow } from "./GovernedWorkflow";
 import { FinalSignup } from "./FinalSignup";
-import { AUDIENCES, CHANNELS, JOURNEY, PLAN_ITEMS, STORY_NAMES, type AudienceKey } from "./homeV8Content";
+import { CHANNELS, HOME, STORY_NAMES, type AudienceKey } from "./homeV8Content";
 import "./v8.css";
 
 const display = Space_Grotesk({ subsets: ["latin"], display: "swap", variable: "--v8-display" });
@@ -103,133 +103,94 @@ export default function HomeV8() {
             <OpportunityEngineSvg />
           </div>
           <div className="story arc-story">
-            <section className={`panel align-left${active === 0 ? " active" : ""}`} id="begin" aria-labelledby="begin-title">
-              <div className="copy">
-                <div className="eyebrow">01 / THE OPENING</div>
-                <h1 id="begin-title">Someone is ready to buy. <span className="highlight">Are you in the picture?</span></h1>
-                <p>A scroll. A search. A referral. Your next customer is already somewhere in the crowd.</p>
-                <p className="punch"><strong>Make the shortlist. Not the sidelines.</strong></p>
-                <div className="actions">
-                  <button type="button" className="primary" onClick={openSignup}>Build my funnel ↗</button>
-                  <a className="secondary" href="#problem">Follow the signal ↓</a>
-                </div>
-                <div className="hint"><span className="scroll-icon" aria-hidden="true" />Scroll to activate the engine</div>
-              </div>
-            </section>
-            <section className={`panel align-right${active === 1 ? " active" : ""}`} id="problem" aria-labelledby="problem-title">
-              <div className="copy">
-                <div className="eyebrow">02 / THE BREAK</div>
-                <h2 id="problem-title">The lead came in. <span className="highlight">Then went missing.</span></h2>
-                <p>An Instagram DM here. A LinkedIn reply there. A form filled. A WhatsApp unread.</p>
-                <p className="punch"><strong>Plenty of interest. Precious little follow-through.</strong></p>
-                <span className="tiny-tag">The problem isn&rsquo;t traffic. It&rsquo;s the handoff.</span>
-              </div>
-            </section>
-            <section className={`panel align-left${active === 2 ? " active" : ""}`} id="guide" aria-labelledby="guide-title">
-              <div className="copy">
-                <div className="eyebrow">03 / THE GUIDE</div>
-                <h2 id="guide-title">A hundred touchpoints. <span className="highlight">One firm grip.</span></h2>
-                <p>Bring social, forms, email and outreach into one organised journey. Let AI assist. Keep people in charge.</p>
-                <p className="punch"><strong>Connected channels. Clear ownership. No lead left to guesswork.</strong></p>
-                <span className="tiny-tag">Automation with brakes, not blinders.</span>
-              </div>
-            </section>
-            <section className={`panel align-right${active === 3 ? " active" : ""}`} id="plan" aria-labelledby="plan-title">
-              <div className="copy">
-                <div className="eyebrow">04 / THE PLAN</div>
-                <h2 id="plan-title">Catch the signal. <span className="highlight">Keep the momentum.</span></h2>
-                <p>Three moves. One moving pipeline.</p>
-                <div className="planlist">
-                  {PLAN_ITEMS.map((item) => (
-                    <div className="planitem" key={item.n}><b>{item.n}</b><div>{item.title}<small>{item.body}</small></div></div>
-                  ))}
-                </div>
-                <p className="punch"><strong>No channel should be a dead end.</strong></p>
-              </div>
-            </section>
-            <section className={`panel align-left${active === 4 ? " active" : ""}`} id="action" aria-labelledby="action-title">
-              <div className="copy">
-                <div className="eyebrow">05 / THE DECISION</div>
-                <h2 id="action-title">Your audience showed interest. <span className="highlight">Make your move.</span></h2>
-                <p>One campaign. One landing page. One clear next step.</p>
-                <p className="punch"><strong>Turn the click into a conversation.</strong></p>
-                <div className="actions"><button type="button" className="primary" onClick={openSignup}>Start my funnel ↗</button></div>
-                <div className="phase">Start with the people you actually want to reach.</div>
-              </div>
-            </section>
-            <section className={`panel align-right${active === 5 ? " active" : ""}`} id="stakes" aria-labelledby="stakes-title">
-              <div className="copy">
-                <div className="eyebrow">06 / WHAT SLIPS AWAY</div>
-                <h2 id="stakes-title">An unread message <span className="highlight">doesn&rsquo;t send a warning.</span></h2>
-                <p>The DM cools. The form goes stale. The buyer finds someone faster.</p>
-                <p className="punch"><strong>Silence isn&rsquo;t a sales strategy.</strong></p>
-              </div>
-            </section>
-            <section className={`panel align-left${active === 6 ? " active" : ""}`} id="success" aria-labelledby="success-title">
-              <div className="copy">
-                <div className="eyebrow">07 / WHAT MOVES FORWARD</div>
-                <h2 id="success-title">From &ldquo;seen&rdquo; <span className="highlight">to &ldquo;let&rsquo;s talk.&rdquo;</span></h2>
-                <p>A captured enquiry. A relevant reply. A meeting with a name and a next step.</p>
-                <p className="punch"><strong>Less chasing ghosts. More genuine conversations.</strong></p>
-              </div>
-            </section>
+            {HOME.story.map((p, i) => {
+              const id = PANEL_IDS[i]!;
+              const Heading = i === 0 ? "h1" : "h2";
+              return (
+                <section key={id} className={`panel ${i % 2 === 0 ? "align-left" : "align-right"}${active === i ? " active" : ""}`} id={id} aria-labelledby={`${id}-title`}>
+                  <div className="copy">
+                    <div className="eyebrow">{p.eyebrow}</div>
+                    <Heading id={`${id}-title`}>{p.title} <span className="highlight">{p.accent}</span></Heading>
+                    <p>{p.body}</p>
+                    {i === 3 && (
+                      <div className="planlist">
+                        {HOME.plan.map((item) => (
+                          <div className="planitem" key={item.n}><b>{item.n}</b><div>{item.title}<small>{item.body}</small></div></div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="punch"><strong>{p.punch}</strong></p>
+                    {(i === 1 || i === 2) && <span className="tiny-tag">{p.note}</span>}
+                    {(i === 0 || i === 4) && (
+                      <div className="actions">
+                        <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>
+                        {i === 0 && <a className="secondary" href="#problem">{p.secondary}</a>}
+                      </div>
+                    )}
+                    {i === 0 && <div className="hint"><span className="scroll-icon" aria-hidden="true" />{p.note}</div>}
+                    {i === 4 && <div className="phase">{p.note}</div>}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
 
         <section className="final-context" aria-label="Closing line">
           <div className="context-heading">
-            <div className="eyebrow">THE TURNING POINT</div>
-            <h2>Same attention. <span className="highlight">Different ending.</span></h2>
+            <div className="eyebrow">{HOME.closing.eyebrow}</div>
+            <h2>{HOME.closing.title} <span className="highlight">{HOME.closing.accent}</span></h2>
           </div>
-          <p className="context-bridge">Interest has a short shelf life. <strong>Give it somewhere to go.</strong></p>
+          <p className="context-bridge">{HOME.closing.bridge} <strong>{HOME.closing.bridgeBold}</strong></p>
         </section>
 
         <section className="addons" id="audiences" aria-labelledby="audience-heading">
-          <div className="addon-kicker">BEYOND THE FIRST CLICK / THE ADDENDUM</div>
+          <div className="addon-kicker">{HOME.audiences.intro.kicker}</div>
           <div className="addon-intro">
-            <h2 id="audience-heading">Different hustles.<br /><span className="highlight">Same missed chances.</span></h2>
-            <p>From a one-person practice to a sales floor, a better follow-up changes the story.</p>
+            <h2 id="audience-heading">{HOME.audiences.intro.title}<br /><span className="highlight">{HOME.audiences.intro.accent}</span></h2>
+            <p>{HOME.audiences.intro.body}</p>
           </div>
           <div className="audience-switch" role="group" aria-label="Choose an audience">
-            {(Object.keys(AUDIENCES) as AudienceKey[]).map((key) => (
+            {(["solo", "teams"] as AudienceKey[]).map((key) => (
               <button key={key} type="button" className={`aud-tab${audience === key ? " active" : ""}`} aria-pressed={audience === key} onClick={() => setAudience(key)}>
-                {AUDIENCES[key].label}
+                {HOME.audiences[key].label}
               </button>
             ))}
           </div>
           <div className="audience-cards" aria-live="polite">
-            {AUDIENCES[audience].cards.map((card) => (
+            {HOME.audiences[audience].cards.map((card) => (
               <article className="aud-card" key={card.tag}><span>{card.tag}</span><h3>{card.title}</h3><p>{card.body}</p></article>
             ))}
           </div>
         </section>
 
         <section className="addons funnel-journey" id="channels" aria-labelledby="channels-heading">
-          <div className="addon-kicker">ONE JOURNEY / MANY ENTRY POINTS</div>
+          <div className="addon-kicker">{HOME.channels.intro.kicker}</div>
           <div className="addon-intro">
-            <h2 id="channels-heading">A click is a beginning.<br /><span className="highlight">Not a business result.</span></h2>
-            <p>Put your channels to work together. From first interest to a clear next step.</p>
+            <h2 id="channels-heading">{HOME.channels.intro.title}<br /><span className="highlight">{HOME.channels.intro.accent}</span></h2>
+            <p>{HOME.channels.intro.body}</p>
           </div>
           <div className="channel-bar" role="list" aria-label="Channel choices">
             {CHANNELS.map((c) => <span role="listitem" key={c.id}><ChannelIcon id={c.id} />{c.label}</span>)}
           </div>
           <div className="journey-steps" role="list" aria-label="Illustrative funnel journey">
-            {JOURNEY.map((s) => (
+            {HOME.channels.journey.map((s) => (
               <article role="listitem" key={s.tag}><span>{s.tag}</span><h3>{s.title}</h3><p>{s.body}</p></article>
             ))}
           </div>
-          <p className="capability-note">Channels shown are the intended product journey. Availability, permissions, calling consent and supported automation depend on the live integration and account configuration.</p>
+          <p className="capability-note">{HOME.channels.note}</p>
         </section>
 
         <section className="addons crm-addon" id="crm" aria-labelledby="crm-heading">
-          <div className="addon-kicker">FOR TEAMS WITH A CRM</div>
+          <div className="addon-kicker">{HOME.crm.intro.kicker}</div>
           <div className="addon-intro">
-            <h2 id="crm-heading">Your CRM records the past.<br /><span className="highlight">Who owns the next move?</span></h2>
-            <p>Keep the system of record. Make follow-through the system of action.</p>
+            <h2 id="crm-heading">{HOME.crm.intro.title}<br /><span className="highlight">{HOME.crm.intro.accent}</span></h2>
+            <p>{HOME.crm.intro.body}</p>
           </div>
           <div className="crm-grid">
-            <article className="crm-card"><span>YOUR CRM</span><h3>What happened.</h3><p>Contacts, activities, deal history and pipeline stages.</p></article>
-            <article className="crm-card emphasis"><span>CRAFTMYFUNNEL</span><h3>What happens next.</h3><p>Relevant signals, coordinated outreach, approvals and follow-up.</p></article>
+            {HOME.crm.cards.map((c, i) => (
+              <article key={c.tag} className={`crm-card${i === 1 ? " emphasis" : ""}`}><span>{c.tag}</span><h3>{c.title}</h3><p>{c.body}</p></article>
+            ))}
           </div>
           <GovernedWorkflow />
         </section>
