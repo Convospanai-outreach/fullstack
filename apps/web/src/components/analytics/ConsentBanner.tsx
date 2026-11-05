@@ -90,7 +90,7 @@ export function ConsentBanner({ measurementId }: { measurementId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-2 left-2 z-[90] flex min-h-8 items-center rounded-md bg-slate-900/80 px-3 py-1.5 text-xs text-slate-300 underline hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+        className="fixed bottom-2 left-1/2 z-[90] flex min-h-8 -translate-x-1/2 items-center rounded-md bg-slate-900/80 px-3 py-1.5 text-xs text-slate-300 underline hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
       >
         Cookie settings
       </button>
