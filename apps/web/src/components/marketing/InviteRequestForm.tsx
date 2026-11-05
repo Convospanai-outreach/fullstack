@@ -12,8 +12,8 @@ const initialForm = {
     use_case: "",
 };
 
-export function InviteRequestForm() {
-    const [form, setForm] = useState(initialForm);
+export function InviteRequestForm({ showOutcomePreview = true, initialEmail = "" }: { showOutcomePreview?: boolean; initialEmail?: string } = {}) {
+    const [form, setForm] = useState({ ...initialForm, email: initialEmail });
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function InviteRequestForm() {
 
     return (
         <form onSubmit={submitInviteRequest} className="mx-auto grid max-w-3xl gap-4 text-left sm:grid-cols-2">
-            <div className="sm:col-span-2 rounded-[28px] border border-amber-200/30 bg-gradient-to-br from-amber-200/16 via-slate-950/80 to-cyan-300/12 p-5 shadow-[0_20px_80px_rgba(251,191,36,0.18)] backdrop-blur-xl">
+            {showOutcomePreview && <div className="sm:col-span-2 rounded-[28px] border border-amber-200/30 bg-gradient-to-br from-amber-200/16 via-slate-950/80 to-cyan-300/12 p-5 shadow-[0_20px_80px_rgba(251,191,36,0.18)] backdrop-blur-xl">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-amber-200/80">Pilot outcome preview</p>
@@ -65,7 +65,7 @@ export function InviteRequestForm() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div>}
             <input
                 required
                 value={form.name}
