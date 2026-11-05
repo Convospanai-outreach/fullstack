@@ -1,5 +1,7 @@
 # System Readiness Assessment & Audit Consolidation
 
+> 2026-11-04 inbound MCP: implementation and local protocol/database evidence are tracked in [MCP_INTEGRATION.md](MCP_INTEGRATION.md) and [MCP_RUNTIME_REVIEW.md](MCP_RUNTIME_REVIEW.md). Public MCP enablement, production migration and actual ChatGPT/Claude cloud connection remain separate rollout gates. This work adds no new service and does not recertify overall launch readiness.
+
 > **Single Source of Truth**: All open items, audit findings, and production gaps are actively tracked in [`OPEN_ITEMS.md`](../OPEN_ITEMS.md). Legacy audit files (`HARDENING_IMPLEMENTATION_STATUS_*.md`, `PRODUCTION_READINESS_ASSESSMENT_*.md`, `repo-normalization-audit-*.md`) are historical context.
 
 ---

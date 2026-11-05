@@ -109,6 +109,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { label: "Webhooks", href: "/settings/webhooks" },
             { label: "Personality insights", href: "/settings/crystal-knows" },
             { label: "API docs", href: "/docs/api" },
+            { label: "Agent connections", href: "/mcp/connect" },
         ],
     },
     {

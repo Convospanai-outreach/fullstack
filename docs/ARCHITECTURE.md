@@ -1,5 +1,7 @@
 # CraftMyFunnel Architecture
 
+> 2026-11-04: current hosting is Render web + Oracle API/worker + Supabase, with AWS Mautic and Cloudflare landing delivery. Optional inbound MCP runs at the existing API `/mcp`; it preserves actual route ownership through a signed one-use web relay. See [MCP integration](MCP_INTEGRATION.md), [review](MCP_RUNTIME_REVIEW.md), and the current [runtime topology](../README.md). Readiness figures later in this document are historical snapshots.
+
 ## Executive Summary
 
 CraftMyFunnel is a monorepo with a public web app, a public API, and an optional private edge runtime. The current launch path is **web + API + Postgres**, with Redis recommended and edge optional.

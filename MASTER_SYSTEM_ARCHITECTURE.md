@@ -1,5 +1,7 @@
 # CraftMyFunnel Master System Architecture
 
+> 2026-11-04 boundary update: the current hosting topology is recorded in [README.md](README.md) (Render web, Oracle API/worker, Supabase, separate AWS Mautic and Cloudflare landing delivery). The optional inbound MCP endpoint lives in the API; web-owned campaign/lead operations use a signed, one-use relay to current web handlers. This adds no new deployable service. See [MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md). Older readiness snapshots below are historical, not evidence for enabling MCP.
+
 ## Purpose
 
 This is the repo-level source of truth for the system that actually exists today. It replaces older descriptions that referred to a separate "managed runtime" control-plane topology that is no longer the primary shape of this repository.

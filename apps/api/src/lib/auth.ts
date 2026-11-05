@@ -276,6 +276,19 @@ export async function getCurrentContextFromRequest(req: Request) {
 
     const workspaceId = getCookieValue(cookieHeader, "convo-workspace-id");
 
+    // MCP grants pin one workspace. If membership changes between token
+    // verification and handler execution, never fall back to another team.
+    // This marker only restricts resolution; it never authenticates a caller.
+    const pinnedWorkspace = req.headers.get("x-cmf-mcp-workspace");
+    if (pinnedWorkspace) {
+        if (workspaceId !== pinnedWorkspace) return { userId, teamId: null };
+        const membership = await prisma.teamMember.findFirst({
+            where: { userId, teamId: pinnedWorkspace, status: "active" },
+        });
+        if (!membership) return { userId, teamId: null };
+        return { userId, teamId: pinnedWorkspace };
+    }
+
     if (workspaceId) {
         const membership = await prisma.teamMember.findFirst({
             where: {
