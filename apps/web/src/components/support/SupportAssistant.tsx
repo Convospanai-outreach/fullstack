@@ -96,7 +96,7 @@ export function SupportAssistant() {
                 type="button"
                 aria-label="Open help assistant"
                 onClick={() => setIsOpen((current) => !current)}
-                className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-full border border-white/15 bg-slate-950/90 px-3.5 py-2.5 text-xs font-semibold text-white shadow-2xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-slate-900"
+                className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 rounded-full border border-white/15 bg-slate-950/90 p-1.5 sm:bottom-6 sm:right-6 sm:px-3.5 sm:py-2.5 text-xs font-semibold text-white shadow-2xl backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-slate-900"
             >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-300 via-orange-400 to-rose-500 text-slate-950">
                     <LifeBuoy className="h-4 w-4" />
@@ -105,7 +105,7 @@ export function SupportAssistant() {
             </button>
 
             {isOpen && (
-                <div className="fixed bottom-20 right-6 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-[24px] border border-white/10 bg-[#0b1220]/95 text-slate-100 shadow-2xl backdrop-blur-2xl">
+                <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-[24px] border border-white/10 bg-[#0b1220]/95 text-slate-100 shadow-2xl backdrop-blur-2xl">
                     <div className="border-b border-white/10 bg-gradient-to-r from-amber-300/15 via-orange-400/10 to-transparent px-5 py-4">
                         <div className="flex items-start justify-between gap-4">
                             <div>

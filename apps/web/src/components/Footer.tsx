@@ -14,7 +14,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                                 <LogoMark className="h-7 w-7" />
                                 <span className="text-lg font-black font-outfit text-white">CraftMyFunnel AI</span>
                             </Link>
-                            <p className="text-sm text-gray-500 leading-relaxed">
+                            <p className="text-sm text-gray-400 leading-relaxed">
                                 Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.
                             </p>
                             <a className="text-sm text-cyan-300 underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>
@@ -22,10 +22,10 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
 
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Product</h4>
-                            <ul className="space-y-2 text-sm text-gray-500">
+                            <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/products/fluid-funnel-engine" className="hover:text-white transition-colors">Fluid Funnel Engine</Link></li>
-                                <li><Link href="/products/buyer-signals" className="hover:text-white transition-colors">Buyer Signals (NetJana)</Link></li>
-                                <li><Link href="/products/ai-outreach" className="hover:text-white transition-colors">AI Outreach (CMF Core)</Link></li>
+                                <li><Link href="/products/buyer-signals" className="hover:text-white transition-colors">Buyer Signals</Link></li>
+                                <li><Link href="/products/ai-outreach" className="hover:text-white transition-colors">AI Outreach</Link></li>
                                 <li><Link href="/products/human-layer" className="hover:text-white transition-colors">Human Layer</Link></li>
                                 <li><Link href="/products/covospan-edge" className="hover:text-white transition-colors">Covospan EDGE</Link></li>
                                 <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
@@ -36,7 +36,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
 
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Resources</h4>
-                            <ul className="space-y-2 text-sm text-gray-500">
+                            <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/docs" className="hover:text-white transition-colors">Documentation</Link></li>
                                 <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
                                 <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
@@ -46,7 +46,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
 
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Legal</h4>
-                            <ul className="space-y-2 text-sm text-gray-500">
+                            <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
                                 <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link></li>
                                 <li><Link href="/data-deletion" className="hover:text-white transition-colors">Data Deletion</Link></li>
@@ -55,7 +55,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
 
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Trust</h4>
-                            <ul className="space-y-2 text-sm text-gray-500">
+                            <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/security" className="hover:text-white transition-colors">Security</Link></li>
                                 <li><Link href="/google-api-disclosure" className="hover:text-white transition-colors">Google API Disclosure</Link></li>
                                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
@@ -66,10 +66,10 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                     <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Governed Funnel Infrastructure</p>
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Governed Funnel Infrastructure</p>
                         </div>
-                        <p className="text-xs font-medium text-slate-600">
-                            © {new Date().getFullYear()} <span className="text-slate-400">CraftMyFunnel</span>. Built for operators, not demos.
+                        <p className="text-xs font-medium text-slate-400">
+                            © {new Date().getFullYear()} <span className="text-slate-200">CraftMyFunnel</span>. Built for operators, not demos.
                         </p>
                     </div>
                 </div>
