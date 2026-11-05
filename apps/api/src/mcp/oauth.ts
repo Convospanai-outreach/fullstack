@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { authenticateInternalRequest, internalAuthPath } from '@/lib/internalAuth';
 import { getRoleRank, TeamRole } from '@/lib/permissions';
 import { MCP_SCOPES, parseScopes, redirectUriSchema, type McpConfig } from './config';
+import { MCP_OPERATIONS } from './catalog';
 
 const ACCESS_MS = 60 * 60 * 1000;
 const GRANT_MS = 30 * 24 * 60 * 60 * 1000;
@@ -21,7 +22,7 @@ const authorizationSchema = z.object({
   resource: z.string().max(2048),
   scope: z.string().max(200).optional(),
   state: z.string().min(1).max(2048),
-}).strict();
+});
 type Authorization = z.infer<typeof authorizationSchema>;
 export type McpPrincipal = {
   grantId: string; userId: string; teamId: string; scopes: string[];
@@ -107,9 +108,13 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
         response_types: z.array(z.literal('code')).optional(),
       }).safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: 'invalid_client_metadata' });
-      const client = await prisma.mcpOAuthClient.create({ data: {
-        name: parsed.data.client_name, redirectUris: parsed.data.redirect_uris,
-      } });
+      const client = await prisma.$transaction(async tx => {
+        // A database lock makes the public registration capacity limit hold across replicas.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(7401, 0)`;
+        if (await tx.mcpOAuthClient.count() >= 10_000) return null;
+        return tx.mcpOAuthClient.create({ data: { name: parsed.data.client_name, redirectUris: parsed.data.redirect_uris } });
+      });
+      if (!client) return reply.code(503).header('Retry-After', '1800').send({ error: 'registration_temporarily_unavailable' });
       return reply.code(201).send({ client_id: client.id, client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
         client_name: client.name, redirect_uris: client.redirectUris, token_endpoint_auth_method: 'none',
         grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] });
@@ -140,18 +145,23 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
       if (req.headers.origin !== config.webOrigin) return reply.code(403).send({ error: 'Invalid origin' });
       const userId = await browserUser(req);
       if (!userId) return reply.code(401).send({ error: 'Unauthorized' });
-      const parsed = z.object({ authorization: authorizationSchema, teamId: z.string().min(1).max(100) }).strict().safeParse(req.body);
+      const parsed = z.object({ authorization: authorizationSchema, teamId: z.string().min(1).max(100),
+        scopes: z.array(z.enum(MCP_SCOPES)).min(1).max(3) }).strict().safeParse(req.body);
       if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
       try {
         const auth = await validateAuthorization(parsed.data.authorization, config);
         const current = await account(userId, parsed.data.teamId);
         if (!current) return reply.code(403).send({ error: 'Active workspace membership required' });
-        const scopes = parseScopes(auth.scope);
+        const requestedScopes = parseScopes(auth.scope);
+        const scopes = [...new Set(parsed.data.scopes)];
+        if (scopes.some(scope => !requestedScopes.includes(scope))) return reply.code(400).send({ error: 'invalid_scope' });
         if (scopes.some(scope => scope !== 'cmf:read') && getRoleRank(current.role) < getRoleRank(TeamRole.MEMBER)) {
           return reply.code(403).send({ error: 'This role can authorize read access only' });
         }
         const code = secret();
         const grant = await prisma.$transaction(async tx => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(7401, hashtext(${userId}))`;
+          if (await tx.mcpOAuthGrant.count({ where: { userId, revokedAt: null, expiresAt: { gt: new Date() } } }) >= 100) return null;
           const created = await tx.mcpOAuthGrant.create({ data: {
             clientId: auth.client_id, userId, teamId: parsed.data.teamId, sessionVersion: current.user.sessionVersion,
             scopes, resource: config.resource, accessExpiresAt: new Date(0), expiresAt: new Date(Date.now() + GRANT_MS),
@@ -162,6 +172,7 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
             entity: 'McpOAuthGrant', entityId: created.id, metadata: { clientId: created.clientId, scopes } } });
           return created;
         });
+        if (!grant) return reply.code(429).send({ error: 'Disconnect an existing agent before adding more connections' });
         const redirect = new URL(auth.redirect_uri);
         redirect.searchParams.set('code', code);
         redirect.searchParams.set('state', auth.state);
@@ -244,8 +255,37 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
         select: { id: true, teamId: true, scopes: true, createdAt: true, expiresAt: true, client: { select: { name: true } } },
         orderBy: { createdAt: 'desc' }, take: 100 });
       const teams = await prisma.team.findMany({ where: { id: { in: connections.map(connection => connection.teamId) } }, select: { id: true, name: true } });
+      const actions = await prisma.mcpToolAction.findMany({ where: { grant: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+        status: { in: ['PENDING', 'APPROVED', 'RUNNING', 'UNKNOWN'] }, retainUntil: { gt: new Date() } },
+        select: { id: true, grantId: true, operation: true, argumentsJson: true, status: true, expiresAt: true,
+          grant: { select: { teamId: true, client: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, take: 50 });
       return { serverUrl: config.resource, connections: connections.map(connection => ({ ...connection,
-        teamName: teams.find(team => team.id === connection.teamId)?.name || 'Workspace' })) };
+        teamName: teams.find(team => team.id === connection.teamId)?.name || 'Workspace' })), actions };
+    });
+    oauth.post('/mcp/actions/:id', limits, async (req, reply) => {
+      if (req.headers.origin !== config.webOrigin) return reply.code(403).send({ error: 'Invalid origin' });
+      const userId = await browserUser(req);
+      if (!userId) return reply.code(401).send({ error: 'Browser sign-in required' });
+      const parsed = z.object({ decision: z.enum(['approve', 'reject']) }).strict().safeParse(req.body);
+      if (!parsed.success) return reply.code(400).send({ error: 'Invalid decision' });
+      const { id } = req.params as { id: string };
+      const action = await prisma.mcpToolAction.findUnique({ where: { id }, include: { grant: true } });
+      if (!action || action.grant.userId !== userId) return reply.code(404).send({ error: 'Request not found' });
+      const grant = action.grant;
+      const op = MCP_OPERATIONS.find(item => item.name === action.operation);
+      const current = await account(userId, grant.teamId, grant.sessionVersion);
+      if (!op || op.method === 'GET' || !current || grant.revokedAt || grant.expiresAt <= new Date() ||
+        !grant.scopes.includes(op.scope) || getRoleRank(current.role) < getRoleRank(op.role)) return reply.code(403).send({ error: 'This connection no longer permits the change' });
+      if (action.expiresAt <= new Date()) return reply.code(410).send({ error: 'Request expired' });
+      const approved = parsed.data.decision === 'approve';
+      const result = await prisma.$transaction(async tx => {
+        const updated = await tx.mcpToolAction.updateMany({ where: { id, status: { in: approved ? ['PENDING'] : ['PENDING', 'APPROVED'] }, expiresAt: { gt: new Date() } },
+          data: { status: approved ? 'APPROVED' : 'REJECTED', ...(approved ? { approvedAt: new Date() } : {}) } });
+        if (updated.count) await tx.auditLog.create({ data: { actorId: userId, orgId: grant.teamId, entity: 'McpToolAction', entityId: id,
+          action: approved ? 'MCP_ACTION_APPROVED' : 'MCP_ACTION_REJECTED', metadata: { tool: action.operation, argumentsHash: action.argumentsHash } } });
+        return updated;
+      });
+      return result.count ? { status: approved ? 'APPROVED' : 'REJECTED' } : reply.code(409).send({ error: 'Request state changed; reload before proceeding' });
     });
     oauth.delete('/mcp/connections/:id', limits, async (req, reply) => {
       if (req.headers.origin !== config.webOrigin) return reply.code(403).send({ error: 'Invalid origin' });

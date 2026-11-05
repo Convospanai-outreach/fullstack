@@ -45,3 +45,23 @@ The earlier CodeQL test-fixture rate-limit finding was already fixed in `ab0dd0f
 - MCP is disabled by default. Production migration, both service deployments, reverse-proxy accessibility and final client verification require rollout review.
 
 The setup and remaining phase 2 surface are documented in [MCP_INTEGRATION.md](MCP_INTEGRATION.md). This is local feature evidence, not an overall platform launch assessment or a claim that every product flow is exposed through MCP.
+
+## Hardening follow-up — 2026-11-05
+
+Addressed the second CodeRabbit round and an independent review: user-keyed rate limits (including a grant-bound admission credential for the web relay), bounded database reads and response streaming, registration/grant caps with a cleanup job, enforced browser approval with `requestId` idempotency, unknown OAuth parameters ignored, and a separate `MCP_RELAY_SECRET`. Documentation corrections: rollout now enables MCP before verifying endpoints, and logout wording states that ordinary sign-out leaves agent connections active.
+
+| Check | Result |
+| --- | --- |
+| `apps/api` MCP tests | 47 passed (Node 26.13.0 host runtime) |
+| `apps/web` relay tests | 21 passed (Node 26.13.0) |
+| Web type check | Passed |
+| API type check | One error, `services/browser/browser-engine.ts` (`Browser.isConnected`), in a file this change does not touch |
+| Prisma schema/migration mirrors (`scripts/db/compare-prisma-schemas.mjs`) | All match, including `20261105130000_mcp_reviewed_actions` |
+| Deliberate failure | Changing the registration-cap assertion from 503 to 201 made the suite exit 1 (1 failed, 46 passed); the original assertion was restored and the suite passes |
+
+Not done:
+
+- `scripts/verify-inbound-mcp.ts` was updated (approval flow, independent relay key, and an existing foreign-workspace ICP checked separately from a missing one) but **not re-run**; the disposable Postgres container needs Docker, which was not running. [MCP_LOCAL_SMOKE.json](MCP_LOCAL_SMOKE.json) is the earlier run and only shows that a missing ICP is rejected. The foreign-ICP and deliberate-failure claims for the smoke script remain unproven until it runs.
+- The Node 22 record in [MCP_NODE22_CHECKS.json](MCP_NODE22_CHECKS.json) predates this follow-up. The numbers above were produced on Node 26.13.0 and should be repeated on Node 22 and in CI.
+- Behaviour that is deliberately unchanged: a concurrent refresh loser still revokes the token family.
+- Documentation-comment coverage across the new MCP files is below CodeRabbit's threshold. That is a maintainability note, not a defect, and was left alone.

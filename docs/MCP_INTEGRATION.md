@@ -10,10 +10,10 @@ API-owned tools call existing handlers through Fastify's request adapter. Web-ow
 
 ## Connect a customer agent
 
-1. Deploy the additive migration `20261104120000_inbound_mcp_oauth` using the existing reviewed migration process. Do not run a production `db push`.
-2. Deploy both services with the following values, keeping `MCP_ENABLED=false` until both releases and the migration are ready.
-3. Verify that the public API hostname serves the metadata and `/mcp` endpoints over HTTPS, without an interactive Cloudflare challenge. Use a trusted private origin for API-to-web traffic where available.
-4. Enable MCP on both services. In CraftMyFunnel, open **Settings → Agent connections** to see the server URL and revoke connections.
+1. Deploy the additive migrations `20261104120000_inbound_mcp_oauth` and `20261105130000_mcp_reviewed_actions` using the existing reviewed migration process. Do not run a production `db push`.
+2. Deploy both services with the following values, keeping `MCP_ENABLED=false` until both releases and the migrations are ready. While disabled, the API does not register MCP or its OAuth metadata routes and the web relay returns 404, so those endpoints cannot be checked yet. Confirm only that the 404 gate holds and that `/health` is unaffected.
+3. Enable MCP on both services, with the public client still unannounced. Then verify that the public API hostname serves `/.well-known/oauth-protected-resource/mcp`, `/.well-known/oauth-authorization-server` and `/mcp` over HTTPS, without an interactive Cloudflare challenge, and that an unauthenticated `tools/call` returns 401. Use a trusted private origin for API-to-web traffic where available. If a check fails, set `MCP_ENABLED=false` again on both services.
+4. Share the server URL only after step 3 passes. In CraftMyFunnel, open **Settings → Agent connections** to see the server URL, review pending changes and disconnect agents.
 5. Add that URL as a remote MCP server in the client, choose OAuth, sign in to CraftMyFunnel, select one workspace, and review requested permissions. Connect additional workspaces separately.
 
 | Variable | API | Web |
@@ -22,7 +22,8 @@ API-owned tools call existing handlers through Fastify's request adapter. Web-ow
 | `MCP_PUBLIC_URL` | canonical public API URL ending in `/mcp` | exactly the same URL |
 | `MCP_WEB_ORIGIN` | public web origin used for consent | not required |
 | `MCP_WEB_INTERNAL_ORIGIN` | optional trusted web service origin for relay traffic | not required |
-| `NEXTAUTH_SECRET` | existing shared signing secret | same existing secret |
+| `MCP_RELAY_SECRET` | new random secret, at least 32 characters, different from `NEXTAUTH_SECRET`; startup fails with MCP enabled if missing | the same value; signs and verifies relay and admission credentials only |
+| `NEXTAUTH_SECRET` | existing shared signing secret (still used for API-internal identity headers) | existing secret; no longer signs MCP relay traffic |
 | `DATABASE_URL` | shared database with migration applied | same database |
 | `API_INTERNAL_ORIGIN` | existing web origin setting not needed here | existing API upstream origin |
 
@@ -48,9 +49,13 @@ Use Streamable HTTP, OAuth discovery and a public client with authorization code
 | `cmf:write` | Curated preparation and tracking changes; minimum member role |
 | `cmf:generate` | Guarded AI message preview using existing credits; minimum member role |
 
-OAuth never grants more than the user's current team role. Access tokens last one hour; connections expire after 30 days. Codes expire after five minutes. Only token/code digests are stored. Account suspension, session termination, membership removal, role demotion, expiry and revocation are checked during use. Web execution capabilities expire after 30 seconds and are single-use across replicas.
+OAuth never grants more than the user's current team role. Access tokens last one hour; connections expire after 30 days. Codes expire after five minutes. Only token/code digests are stored. Account suspension, membership removal, role demotion, expiry and revocation are checked during use. A session-version change (for example, sign out everywhere or a forced session reset) also invalidates agent connections. Ordinary browser sign-out does not: the agent stays connected until the user disconnects it in **Settings → Agent connections**, the connection expires, or the session version changes. Web execution capabilities expire after 30 seconds and are single-use across replicas.
 
-Mutations record an intent before execution and a result afterward, without logging arguments, lead data or prompts. Connect/disconnect audit records are transactional. A timeout may mean an operation already ran: inspect state before retrying. Tool annotations describe effects to clients; annotations alone are not authorization. The current surface deliberately excludes sends, campaign activation, publishing, human approval decisions, credential changes, payment changes and superadmin actions.
+Every changing tool requires a `requestId` (UUID) and is enforced, not merely advised, to wait for browser approval. The first call stores the exact arguments and returns `reviewUrl` with status 202 and makes no change. The user approves or rejects the exact arguments in CraftMyFunnel; only then does repeating the call with the same `requestId` and arguments execute it. The action is claimed once across API replicas, and the web relay accepts a change only for an action in the running state that it can claim once. The same `requestId` returns the stored result instead of repeating the change, a different payload under that `requestId` is rejected, requests expire after 10 minutes, and a user can hold at most 50 pending requests. If an outcome is uncertain it is marked unknown and is never re-run automatically. Reviewed arguments and results are deleted after seven days.
+
+Mutations record an intent before execution and a result afterward, without logging arguments, lead data or prompts. Connect/disconnect audit records are transactional. A timeout may mean an operation already ran: inspect state and reuse the original `requestId` rather than creating a new one. Read tools return at most 25 items per page (`limit`, `offset`) with bounded text excerpts computed in Postgres, and downstream responses over 128 KB are cancelled before being buffered. Treat record text as untrusted data. Rate limits are keyed on the verified user and workspace for MCP and on the signed grant for relay traffic, never on a shared IP address alone; an IP-based backstop remains for unauthenticated traffic. Public client registration is capped at 10,000 stored clients, each user may hold 100 active connections, and a 30-minute job removes expired codes, grants, spent-token digests, relay claims, reviewed actions and unused clients older than seven days. Unrecognised OAuth authorization parameters are ignored rather than rejected, while redirect URI, resource, S256 PKCE and scopes are still enforced. Consent can grant fewer scopes than the agent requested, never more.
+
+Tool annotations describe effects to clients; annotations alone are not authorization. The current surface deliberately excludes sends, campaign activation, publishing, human approval decisions, credential changes, payment changes and superadmin actions.
 
 ## Tool inventory
 
@@ -91,12 +96,12 @@ Creating a campaign requires an existing workspace-owned ICP and creates a draft
 
 ## Verification
 
-See the [verification summary and limits](MCP_VERIFICATION.md) for the recorded results: 106 focused/regression tests on Node 22 plus a real database-backed smoke check.
+See the [verification summary and limits](MCP_VERIFICATION.md) for what was run, what was not re-run, and the limits.
 
 - `npm test --workspace apps/api -- src/mcp/mcp.test.ts`: protocol/auth/permission tests, including actual SDK HTTP initialization.
 - `npm exec --workspace apps/web -- vitest run --config vitest.config.ts src/app/api/mcp/execute/route.test.ts`: signed web relay boundary tests.
 - API and web type checks; lint changed web surfaces; schema/migration mirror verification.
-- `apps/api/scripts/verify-inbound-mcp.ts`: real local Postgres + full API + web smoke. It refuses any database other than `127.0.0.1:55432/cmf_mcp_review`, creates test-only fixtures, and sends no outreach. See [MCP_LOCAL_SMOKE.json](./MCP_LOCAL_SMOKE.json).
+- `apps/api/scripts/verify-inbound-mcp.ts`: real local Postgres + full API + web smoke. It refuses any database other than `127.0.0.1:55432/cmf_mcp_review`, creates test-only fixtures (including a second workspace with its own ICP and lead), approves each change as the signed-in user, and sends no outreach. It also needs an independent `MCP_RELAY_SECRET`. See [MCP_LOCAL_SMOKE.json](./MCP_LOCAL_SMOKE.json) for the last recorded run and [MCP_VERIFICATION.md](MCP_VERIFICATION.md) for whether it matches the current script.
 - Apply the actual migration SQL in an isolated schema as well as testing the schema-generated database.
 
 Cloud ChatGPT/Claude sign-in has not been verified until the reviewed build is deployed to a reachable HTTPS endpoint. Local evidence is not production launch approval or target-branch CI evidence.

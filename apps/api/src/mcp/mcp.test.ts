@@ -13,17 +13,19 @@ import { verifyInternalAuthHeaders } from '@/lib/internalAuth';
 
 const mocks = vi.hoisted(() => ({
   db: {
-    mcpOAuthClient: { create: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
+    mcpOAuthClient: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
     mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
     mcpOAuthCode: { findUnique: vi.fn(), deleteMany: vi.fn() },
     mcpOAuthRefreshUse: { create: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn() },
     team: { findMany: vi.fn() },
     teamMember: { findFirst: vi.fn(), findMany: vi.fn() }, user: { findUnique: vi.fn() },
-    auditLog: { create: vi.fn() }, $transaction: vi.fn(),
-  }, getToken: vi.fn(),
+    mcpToolAction: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    auditLog: { create: vi.fn() }, $transaction: vi.fn(), $executeRaw: vi.fn(),
+  }, getToken: vi.fn(), rate: vi.fn(),
 }));
 vi.mock('@/lib/db', () => ({ prisma: mocks.db }));
 vi.mock('next-auth/jwt', () => ({ getToken: mocks.getToken }));
+vi.mock('@/lib/rateLimit', () => ({ checkRateLimit: mocks.rate }));
 
 const config = { resource: 'http://localhost:3001/mcp', issuer: 'http://localhost:3001', webOrigin: 'http://localhost:3000' };
 const verifier = 'v'.repeat(43);
@@ -33,14 +35,17 @@ const auth = { client_id: 'client-1', redirect_uri: 'https://agent.example/callb
 const principal = { grantId: 'grant-1', userId: 'user-1', teamId: 'team-1', scopes: ['cmf:read','cmf:write','cmf:generate'],
   role: TeamRole.MEMBER, email: 'test@example.com', enterpriseRole: 'SALES_USER' };
 const token = 't'.repeat(43);
+const requestId = '11111111-1111-4111-8111-111111111111';
 let grant: any;
 let apps: ReturnType<typeof Fastify>[] = [];
 async function app() {
-  const instance = Fastify(); apps.push(instance); registerMcp(instance, config); await instance.ready(); return instance;
+  const instance = Fastify(); apps.push(instance); await instance.register(rateLimit, { global: false }); registerMcp(instance, config); await instance.ready(); return instance;
 }
 beforeEach(() => {
   vi.resetAllMocks();
   process.env.NEXTAUTH_SECRET = 'test-secret-for-mcp-tests';
+  process.env.MCP_RELAY_SECRET = 'independent-test-relay-key-32-characters';
+  mocks.rate.mockResolvedValue({ allowed: true, remaining: 60, resetTime: Date.now() + 60000 });
   grant = { id: 'grant-1', clientId: 'client-1', userId: 'user-1', teamId: 'team-1', sessionVersion: 0,
     scopes: [...principal.scopes], resource: config.resource, accessTokenHash: digest(token), refreshTokenHash: digest('refresh'),
     revokedAt: null, expiresAt: new Date(Date.now() + 86400000), accessExpiresAt: new Date(Date.now() + 3600000) };
@@ -59,6 +64,14 @@ beforeEach(() => {
   mocks.db.mcpOAuthRefreshUse.findUnique.mockResolvedValue(null);
   mocks.db.mcpOAuthRefreshUse.deleteMany.mockResolvedValue({ count: 0 });
   mocks.db.$transaction.mockImplementation(fn => fn(mocks.db));
+  mocks.db.$executeRaw.mockResolvedValue(1);
+  mocks.db.mcpOAuthClient.count.mockResolvedValue(0);
+  mocks.db.mcpOAuthGrant.count = vi.fn().mockResolvedValue(0);
+  mocks.db.mcpToolAction.findUnique.mockResolvedValue(null);
+  mocks.db.mcpToolAction.count.mockResolvedValue(0);
+  mocks.db.mcpToolAction.findMany.mockResolvedValue([]);
+  mocks.db.mcpToolAction.updateMany.mockResolvedValue({ count: 1 });
+  mocks.db.mcpToolAction.create.mockImplementation(async ({ data }: any) => ({ id: 'action-1', status: 'APPROVED', result: null, ...data }));
   mocks.db.mcpOAuthGrant.updateMany.mockImplementation(async ({ where, data }: any) => {
     if (where.refreshTokenHash && where.refreshTokenHash !== grant.refreshTokenHash) return { count: 0 };
     Object.assign(grant, data); return { count: 1 };
@@ -95,29 +108,45 @@ describe('remote MCP protocol and authorization', () => {
     const instance = await app();
     expect((await instance.inject({ method: 'POST', url: '/mcp', headers: { origin: 'https://evil.example' }, payload: { method: 'initialize' } })).statusCode).toBe(403);
   });
+  it('isolates verified MCP users behind the same IP without trusting arbitrary bearer strings', async () => {
+    const instance = await app();
+    const secondToken = 'u'.repeat(43);
+    const second = { ...grant, id: 'grant-2', userId: 'user-2', accessTokenHash: digest(secondToken) };
+    mocks.db.mcpOAuthGrant.findUnique.mockImplementation(async ({ where }: any) =>
+      where.accessTokenHash === grant.accessTokenHash ? grant : where.accessTokenHash === second.accessTokenHash ? second : null);
+    const ping = (bearer: string) => instance.inject({ method: 'POST', url: '/mcp',
+      headers: { authorization: `Bearer ${bearer}`, accept: 'application/json, text/event-stream' },
+      payload: { jsonrpc: '2.0', id: 1, method: 'ping' } });
+    for (let index = 0; index < 60; index++) expect((await ping(token)).statusCode).toBe(200);
+    expect((await ping(token)).statusCode).toBe(429);
+    expect((await ping(secondToken)).statusCode).toBe(200);
+    expect((await ping('z'.repeat(43))).statusCode).toBe(401);
+    const keys = mocks.rate.mock.calls.filter(call => call[2] === 'mcp-tools').map(call => call[0]);
+    expect(keys).toContain('user:user-1:team:team-1'); expect(keys).toContain('user:user-2:team:team-1');
+  });
   it('uses the existing API path with a verified identity and a pinned workspace', async () => {
     const instance = Fastify(); apps.push(instance);
     await instance.register(rateLimit, { max: 60, timeWindow: '1 minute' });
-    instance.get('/pipeline/tasks', async req => ({ identity: verifyInternalAuthHeaders(req.headers, { method: 'GET', path: '/pipeline/tasks' })?.sub, cookie: req.headers.cookie }));
-    const result = await executeMcpTool(instance, config, principal, 'list_tasks', {});
+    instance.get('/pipeline/stats', async req => ({ identity: verifyInternalAuthHeaders(req.headers, { method: 'GET', path: '/pipeline/stats' })?.sub, cookie: req.headers.cookie }));
+    const result = await executeMcpTool(instance, config, principal, 'get_pipeline_stats', {});
     expect(result.structuredContent).toMatchObject({ status: 200, data: { identity: 'user-1', cookie: 'convo-workspace-id=team-1' } });
   });
   it('rejects privilege escalation and caller-supplied team IDs', async () => {
     const instance = await app();
-    await expect(executeMcpTool(instance, config, principal, 'create_task', { title: 'task', teamId: 'other-team' })).rejects.toThrow('Invalid tool arguments');
-    const result = await executeMcpTool(instance, config, { ...principal, scopes: ['cmf:read'] }, 'create_task', { title: 'task' });
+    await expect(executeMcpTool(instance, config, principal, 'create_task', { requestId, title: 'task', teamId: 'other-team' })).rejects.toThrow('Invalid tool arguments');
+    const result = await executeMcpTool(instance, config, { ...principal, scopes: ['cmf:read'] }, 'create_task', { requestId, title: 'task' });
     expect(result.structuredContent.status).toBe(403);
     expect(result._meta?.['mcp/www_authenticate'][0]).toContain('scope="cmf:write"');
     expect(mocks.db.auditLog.create).not.toHaveBeenCalled();
   });
   it('rechecks current role independently of OAuth scopes', async () => {
     const instance = await app();
-    const result = await executeMcpTool(instance, config, { ...principal, role: TeamRole.VIEWER }, 'create_task', { title: 'task' });
+    const result = await executeMcpTool(instance, config, { ...principal, role: TeamRole.VIEWER }, 'create_task', { requestId, title: 'task' });
     expect(result.structuredContent.status).toBe(403);
   });
   it('forbids status activation and arbitrary targets', async () => {
     const instance = await app();
-    await expect(executeMcpTool(instance, config, principal, 'update_campaign_details', { id: 'campaign', status: 'active' })).rejects.toThrow();
+    await expect(executeMcpTool(instance, config, principal, 'update_campaign_details', { requestId, id: 'campaign', status: 'active' })).rejects.toThrow();
     await expect(executeMcpTool(instance, config, principal, 'get_campaign', { id: '../other' })).rejects.toThrow();
     await expect(executeMcpTool(instance, config, principal, 'request', { url: 'https://evil.example' })).rejects.toThrow('Unknown tool');
   });
@@ -128,7 +157,7 @@ describe('remote MCP protocol and authorization', () => {
     const instance = await app();
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
     for (const changes of [{ [field as string]: value }, { fullName: 'Updated', [field as string]: value }]) {
-      await expect(executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes }))
+      await expect(executeMcpTool(instance, config, principal, 'update_lead', { requestId, id: 'lead-1', changes }))
         .rejects.toThrow('Invalid tool arguments');
     }
     expect(fetchMock).not.toHaveBeenCalled();
@@ -136,13 +165,13 @@ describe('remote MCP protocol and authorization', () => {
   });
   it('rejects an empty lead update', async () => {
     const instance = await app();
-    await expect(executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes: {} }))
+    await expect(executeMcpTool(instance, config, principal, 'update_lead', { requestId, id: 'lead-1', changes: {} }))
       .rejects.toThrow('Invalid tool arguments');
   });
   it.each([true, false])('rejects unsupported consentObtained=%s when creating a lead', async consentObtained => {
     const instance = await app();
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
-    await expect(executeMcpTool(instance, config, principal, 'create_lead', { email: 'lead@example.com', consentObtained }))
+    await expect(executeMcpTool(instance, config, principal, 'create_lead', { requestId, email: 'lead@example.com', consentObtained }))
       .rejects.toThrow('Invalid tool arguments');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(describeTools().find(item => item.name === 'create_lead')!.inputSchema.properties).not.toHaveProperty('consentObtained');
@@ -155,14 +184,14 @@ describe('remote MCP protocol and authorization', () => {
     expect(tool.inputSchema.properties.changes.additionalProperties).toBe(false);
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'lead-1', ...changes }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    const result = await executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes });
+    const result = await executeMcpTool(instance, config, principal, 'update_lead', { requestId, id: 'lead-1', changes });
     expect(result.structuredContent.status).toBe(200);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).args).toEqual({ id: 'lead-1', changes });
   });
   it('preserves insufficient-credit status without exposing prompts in audit rows', async () => {
     const instance = Fastify(); apps.push(instance);
     instance.post('/ai/preview', async (_req, reply) => reply.code(402).send({ error: 'Insufficient credits' }));
-    const result = await executeMcpTool(instance, config, principal, 'generate_message_preview', { goal: 'private customer goal' });
+    const result = await executeMcpTool(instance, config, principal, 'generate_message_preview', { requestId, goal: 'private customer goal' });
     expect(result.isError).toBe(true); expect(result.structuredContent.status).toBe(402);
     expect(JSON.stringify(mocks.db.auditLog.create.mock.calls)).not.toContain('private customer goal');
   });
@@ -170,12 +199,47 @@ describe('remote MCP protocol and authorization', () => {
     const instance = await app();
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'campaign' }), { status: 201 }));
     vi.stubGlobal('fetch', fetchMock);
-    await executeMcpTool(instance, config, principal, 'create_campaign', { name: 'Draft', icpId: 'icp-1' });
+    await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, name: 'Draft', icpId: 'icp-1' });
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe('http://localhost:3000/api/mcp/execute');
     expect(init.headers.authorization).toBeUndefined();
     expect(init.headers['x-cmf-mcp-signature']).toMatch(/^[a-f0-9]{64}$/);
     expect(JSON.parse(init.body)).toMatchObject({ operation: 'create_campaign', grantId: 'grant-1', args: { icpId: 'icp-1' } });
+  });
+  it('stages a change for browser review and runs nothing until the user approves it', async () => {
+    const instance = await app();
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    mocks.db.mcpToolAction.create.mockImplementation(async ({ data }: any) => ({ id: 'action-1', status: 'PENDING', result: null, ...data }));
+    const result = await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, name: 'Draft', icpId: 'icp-1' });
+    expect(result.structuredContent).toMatchObject({ status: 202, actionStatus: 'PENDING' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.db.mcpToolAction.updateMany).not.toHaveBeenCalled();
+  });
+  it('reuses a stored result and rejects a requestId reused with different arguments', async () => {
+    const instance = await app();
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const { actionHash } = await import('./actions');
+    const args = { name: 'Draft', icpId: 'icp-1' };
+    const stored = { id: 'action-1', status: 'SUCCEEDED', operation: 'create_campaign', argumentsHash: actionHash('create_campaign', JSON.stringify(args)),
+      expiresAt: new Date(Date.now() + 60000), result: { isError: false, content: [], structuredContent: { status: 201 } } };
+    mocks.db.mcpToolAction.findUnique.mockResolvedValue(stored);
+    expect((await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, ...args })).structuredContent.status).toBe(201);
+    expect((await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, name: 'Other', icpId: 'icp-1' })).structuredContent.status).toBe(409);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it('refuses new reviewed requests beyond the pending queue limit', async () => {
+    const instance = await app();
+    mocks.db.mcpToolAction.count.mockResolvedValue(50);
+    const result = await executeMcpTool(instance, config, principal, 'create_task', { requestId, title: 'task' });
+    expect(result.structuredContent.status).toBe(429);
+    expect(mocks.db.mcpToolAction.create).not.toHaveBeenCalled();
+  });
+  it('requires an independent relay secret', async () => {
+    const { getMcpRelaySecret } = await import('./config');
+    process.env.MCP_RELAY_SECRET = process.env.NEXTAUTH_SECRET;
+    expect(getMcpRelaySecret).toThrow('independent');
+    delete process.env.MCP_RELAY_SECRET;
+    expect(getMcpRelaySecret).toThrow('independent');
   });
   it('has unique tools and strict discovery schemas', () => {
     const tools = describeTools();
@@ -185,6 +249,15 @@ describe('remote MCP protocol and authorization', () => {
 });
 
 describe('OAuth connection lifecycle', () => {
+  it('strips unsupported OAuth extensions while retaining recognized authorization checks', async () => {
+    const instance = await app();
+    const response = await instance.inject(`/mcp/oauth/authorize?${new URLSearchParams({ ...auth, prompt: 'consent', nonce: 'client-nonce', teamId: 'other-team' })}`);
+    expect(response.statusCode).toBe(302);
+    const redirect = new URL(String(response.headers.location));
+    expect(redirect.pathname).toBe('/mcp/connect');
+    expect(redirect.searchParams.get('client_id')).toBe(auth.client_id);
+    for (const key of ['prompt', 'nonce', 'teamId']) expect(redirect.searchParams.has(key)).toBe(false);
+  });
   it.each(['revoked', 'expired', 'wrong-resource', 'removed-member', 'suspended', 'session-ended'])('rejects %s connections', async reason => {
     if (reason === 'revoked') grant.revokedAt = new Date();
     if (reason === 'expired') grant.accessExpiresAt = new Date(0);
@@ -193,6 +266,20 @@ describe('OAuth connection lifecycle', () => {
     if (reason === 'suspended') mocks.db.user.findUnique.mockResolvedValue({ suspendedAt: new Date(), sessionVersion: 0 });
     if (reason === 'session-ended') mocks.db.user.findUnique.mockResolvedValue({ suspendedAt: null, sessionVersion: 1 });
     expect(await authenticateMcpToken(token, config)).toBeNull();
+  });
+  it('caps public client registrations across the whole service', async () => {
+    const instance = await app();
+    mocks.db.mcpOAuthClient.count.mockResolvedValue(10_000);
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/register', payload: { redirect_uris: [auth.redirect_uri] } });
+    expect(response.statusCode).toBe(503);
+    expect(mocks.db.mcpOAuthClient.create).not.toHaveBeenCalled();
+  });
+  it('rejects consent scopes the client did not request', async () => {
+    const instance = await app();
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/consent', headers: { origin: config.webOrigin },
+      payload: { authorization: { ...auth, scope: 'cmf:read' }, teamId: 'team-1', scopes: ['cmf:read', 'cmf:write'] } });
+    expect(response.statusCode).toBe(400);
+    expect(mocks.db.mcpOAuthGrant.create).not.toHaveBeenCalled();
   });
   it('discovers PKCE and rejects unsafe redirect metadata', async () => {
     const instance = await app();
@@ -212,7 +299,7 @@ describe('OAuth connection lifecycle', () => {
   });
   it('requires authenticated consent, a valid origin and active membership of the selected team', async () => {
     const instance = await app();
-    const request = { method: 'POST' as const, url: '/mcp/oauth/consent', payload: { authorization: auth, teamId: 'other-team' } };
+    const request = { method: 'POST' as const, url: '/mcp/oauth/consent', payload: { authorization: auth, teamId: 'other-team', scopes: ['cmf:read'] } };
     expect((await instance.inject(request)).statusCode).toBe(403);
     mocks.db.teamMember.findFirst.mockResolvedValue(null);
     expect((await instance.inject({ ...request, headers: { origin: config.webOrigin } })).statusCode).toBe(403);
@@ -221,7 +308,7 @@ describe('OAuth connection lifecycle', () => {
   });
   it('creates a workspace-bound grant and stores only the code digest after explicit consent', async () => {
     const instance = await app(); mocks.db.mcpOAuthGrant.create.mockResolvedValue(grant);
-    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/consent', headers: { origin: config.webOrigin }, payload: { authorization: auth, teamId: 'team-1' } });
+    const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/consent', headers: { origin: config.webOrigin }, payload: { authorization: auth, teamId: 'team-1', scopes: ['cmf:read', 'cmf:write'] } });
     expect(response.statusCode).toBe(200);
     const redirect = new URL(response.json().redirectUrl);
     expect(redirect.origin).toBe('https://agent.example'); expect(redirect.searchParams.get('state')).toBe('user-state');

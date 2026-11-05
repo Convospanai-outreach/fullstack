@@ -10,10 +10,11 @@
     "API-owned task and template handlers persist real workspace data",
     "Existing AI prompt guardrails reject blocked input before any provider call",
     "Signed API-to-web relay uses real lead/campaign handlers and keeps campaign in draft",
-    "Cross-team lead access and foreign/missing campaign ICP are rejected by existing handlers",
+    "Cross-team lead access and a missing campaign ICP are rejected by existing handlers",
     "A role demotion takes effect on the next MCP request",
     "Refresh replay revokes the entire persisted token family"
   ],
   "externalMessagesSent": 0,
-  "productionTouched": false
+  "productionTouched": false,
+  "note": "Recorded before the review-approval flow and the foreign-workspace ICP fixture were added. It does not show that an existing foreign-workspace ICP is rejected. Re-run the updated apps/api/scripts/verify-inbound-mcp.ts against the disposable database to replace this report."
 }

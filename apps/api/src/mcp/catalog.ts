@@ -19,21 +19,23 @@ type Args = Record<string, any>;
 export type McpOperation = {
   name: string; description: string; scope: McpScope; role: TeamRole;
   owner: 'api' | 'web'; method: 'GET' | 'POST' | 'PATCH' | 'PUT';
-  path: (args: Args) => string; schema: z.ZodType; body?: (args: Args) => unknown;
+  path: (args: Args) => string; schema: z.ZodObject; body?: (args: Args) => unknown;
 };
 function query(path: string, args: Args) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(args)) if (value !== undefined) params.set(key, String(value));
   return `${path}${params.size ? `?${params}` : ''}`;
 }
-function read(name: string, description: string, path: string | ((args: Args) => string), schema: z.ZodType = empty,
+function read(name: string, description: string, path: string | ((args: Args) => string), schema: z.ZodObject = empty,
   owner: 'api' | 'web' = 'api', role: TeamRole = TeamRole.MEMBER): McpOperation {
-  return { name, description, scope: 'cmf:read', role, owner, method: 'GET', schema,
+  return { name, description, scope: 'cmf:read', role, owner, method: 'GET',
+    schema: schema.safeExtend({ limit: z.number().int().min(1).max(25).default(10), offset: z.number().int().min(0).max(100_000).default(0) }),
     path: typeof path === 'string' ? args => query(path, args) : path };
 }
 function write(name: string, description: string, method: McpOperation['method'], path: string | ((args: Args) => string),
-  schema: z.ZodType, owner: 'api' | 'web' = 'api', body: (args: Args) => unknown = args => args): McpOperation {
-  return { name, description, scope: 'cmf:write', role: TeamRole.MEMBER, owner, method, schema, body,
+  schema: z.ZodObject, owner: 'api' | 'web' = 'api', body: (args: Args) => unknown = args => args): McpOperation {
+  return { name, description: `${description} Requires browser review before execution.`, scope: 'cmf:write', role: TeamRole.MEMBER, owner, method,
+    schema: schema.safeExtend({ requestId: z.string().uuid().describe('Stable UUID for this intended change. Reuse it after browser approval or a retry; never replace it to bypass a pending or uncertain request.') }), body,
     path: typeof path === 'string' ? () => path : path };
 }
 

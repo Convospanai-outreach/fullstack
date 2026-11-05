@@ -14,6 +14,8 @@ model McpOAuthClient {
   redirectUris String[]
   createdAt    DateTime @default(now())
   grants       McpOAuthGrant[]
+
+  @@index([createdAt])
 }
 
 model McpOAuthGrant {
@@ -33,6 +35,7 @@ model McpOAuthGrant {
   createdAt        DateTime @default(now())
   codes            McpOAuthCode[]
   refreshUses      McpOAuthRefreshUse[]
+  actions          McpToolAction[]
 
   @@index([userId, teamId])
   @@index([expiresAt])
@@ -45,6 +48,8 @@ model McpOAuthCode {
   redirectUri   String
   codeChallenge String
   expiresAt     DateTime
+
+  @@index([expiresAt])
 }
 
 // One-use API-to-web capabilities, claimed in Postgres across web replicas.
@@ -63,6 +68,30 @@ model McpOAuthRefreshUse {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+// Exact tool requests reviewed in the browser; request IDs prevent repeat execution.
+model McpToolAction {
+  id            String   @id @default(uuid())
+  grantId       String
+  grant         McpOAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  requestId     String
+  operation     String
+  argumentsJson String   @db.Text
+  argumentsHash String
+  status        String   @default("PENDING")
+  expiresAt     DateTime
+  retainUntil   DateTime
+  approvedAt    DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  webClaimedAt  DateTime?
+  result        Json?
+  createdAt     DateTime @default(now())
+
+  @@unique([grantId, requestId])
+  @@index([grantId, status])
+  @@index([retainUntil])
 }
 
 enum Region {

@@ -5,7 +5,7 @@ import { RequestContext } from '@/lib/requestContext';
 
 const { db, invoked } = vi.hoisted(() => ({ db: {
   mcpOAuthGrant: { findUnique: vi.fn() }, user: { findUnique: vi.fn() }, teamMember: { findFirst: vi.fn() },
-  mcpRelayClaim: { create: vi.fn(), deleteMany: vi.fn() },
+  mcpRelayClaim: { create: vi.fn(), deleteMany: vi.fn() }, mcpToolAction: { updateMany: vi.fn() },
 }, invoked: vi.fn() }));
 vi.mock('@/lib/db', () => ({ prisma: db }));
 vi.mock('@/app/api/campaigns/route', () => ({
@@ -13,23 +13,27 @@ vi.mock('@/app/api/campaigns/route', () => ({
   POST: async (req: Request) => { invoked(); return NextResponse.json({ context: RequestContext.get()?.mcpIdentity, body: await req.json() }); },
 }));
 import { POST } from './route';
-const signingSecret = 'unit-test-mcp-relay-secret';
+const signingSecret = 'independent-unit-test-mcp-relay-secret';
 let grant: any;
 const raw = (changes: Record<string, unknown> = {}) => JSON.stringify({ operation: 'create_campaign', args: { name: 'Draft', icpId: 'icp-1' },
-  grantId: 'grant-1', timestamp: Date.now(), nonce: randomUUID(), ...changes });
+  grantId: 'grant-1', timestamp: Date.now(), nonce: randomUUID(), actionId: randomUUID(), ...changes });
 function request(body: string, signature = createHmac('sha256', signingSecret).update(body).digest('hex')) {
+  const { timestamp, grantId } = JSON.parse(body);
+  const admission = createHmac('sha256', signingSecret).update(JSON.stringify(['mcp-admission-v1', timestamp, grantId, 'POST', '/api/mcp/execute'])).digest('hex');
   return new Request('http://localhost/api/mcp/execute', { method: 'POST', headers: {
     'content-type': 'application/json', 'x-cmf-mcp-signature': signature,
+    'x-cmf-mcp-admission': `${timestamp}.${grantId}.${admission}`,
   }, body }) as NextRequest;
 }
 beforeEach(() => {
-  vi.clearAllMocks(); process.env['MCP_ENABLED'] = 'true'; process.env['NEXTAUTH_SECRET'] = signingSecret;
+  vi.clearAllMocks(); process.env['MCP_ENABLED'] = 'true'; process.env['NEXTAUTH_SECRET'] = 'separate-web-login-secret'; process.env['MCP_RELAY_SECRET'] = signingSecret;
   process.env['MCP_PUBLIC_URL'] = 'https://api.example/mcp';
   grant = { userId: 'user-1', teamId: 'team-1', scopes: ['cmf:read','cmf:write'], resource: 'https://api.example/mcp',
     sessionVersion: 2, revokedAt: null, accessExpiresAt: new Date(Date.now() + 60000), expiresAt: new Date(Date.now() + 60000) };
   db.mcpOAuthGrant.findUnique.mockImplementation(async () => grant);
   db.user.findUnique.mockResolvedValue({ suspendedAt: null, sessionVersion: 2 });
   db.teamMember.findFirst.mockResolvedValue({ role: 'member' });
+  db.mcpToolAction.updateMany.mockResolvedValue({ count: 1 });
   db.mcpRelayClaim.create.mockResolvedValue({}); db.mcpRelayClaim.deleteMany.mockResolvedValue({ count: 0 });
 });
 
@@ -39,6 +43,24 @@ describe('API-to-web MCP delegation', () => {
     const body = raw(); const signature = createHmac('sha256', signingSecret).update(body).digest('hex');
     expect((await POST(request(body.replace('Draft', 'Injected'), signature))).status).toBe(401);
     expect(db.mcpOAuthGrant.findUnique).not.toHaveBeenCalled();
+  });
+  it('requires a valid admission credential bound to the body grant and a separate relay key', async () => {
+    const absent = request(raw()); absent.headers.delete('x-cmf-mcp-admission');
+    expect((await POST(absent)).status).toBe(401);
+    const altered = request(raw()); altered.headers.set('x-cmf-mcp-admission', altered.headers.get('x-cmf-mcp-admission')!.replace('grant-1', 'grant-2'));
+    expect((await POST(altered)).status).toBe(401);
+    process.env['NEXTAUTH_SECRET'] = signingSecret;
+    expect((await POST(request(raw()))).status).toBe(401);
+    expect(invoked).not.toHaveBeenCalled();
+  });
+  it('refuses a change without an approved, running action that this relay call can claim once', async () => {
+    const { actionId, ...withoutAction } = JSON.parse(raw());
+    expect((await POST(request(JSON.stringify(withoutAction)))).status).toBe(403);
+    db.mcpToolAction.updateMany.mockResolvedValue({ count: 0 });
+    expect((await POST(request(raw()))).status).toBe(403);
+    expect(db.mcpToolAction.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
+      grantId: 'grant-1', operation: 'create_campaign', status: 'RUNNING', webClaimedAt: null }) }));
+    expect(invoked).not.toHaveBeenCalled();
   });
   it('invokes the current web handler under an isolated, grant-derived workspace context', async () => {
     const response = await POST(request(raw()));
