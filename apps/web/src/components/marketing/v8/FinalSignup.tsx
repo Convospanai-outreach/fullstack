@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { InviteRequestForm } from "../InviteRequestForm";
-import { SIGNUP_PATHS, type SignupPath } from "./homeV8Content";
+import { HOME, type SignupPath } from "./homeV8Content";
+
+const SIGNUP_PATHS = { individual: HOME.signup.individual, team: HOME.signup.team };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,15 +48,15 @@ export function FinalSignup() {
     <section className="closing" id="start">
       <div className="final-signup">
         <div className="final-pitch">
-          <div className="eyebrow">CRAFTMYFUNNEL / GET STARTED</div>
-          <h2>The next enquiry<br /><span className="highlight">is your move.</span></h2>
-          <p>Social, landing pages, outreach, follow-up and calls&mdash;one clear path from first signal to next action.</p>
-          <div className="phase">CAPTURE · CONNECT · CONVERT</div>
+          <div className="eyebrow">{HOME.signup.eyebrow}</div>
+          <h2>{HOME.signup.title}<br /><span className="highlight">{HOME.signup.accent}</span></h2>
+          <p>{HOME.signup.body}</p>
+          <div className="phase">{HOME.signup.phase}</div>
         </div>
         <form className="signup-form" onSubmit={submit} noValidate>
-          <div className="form-topline"><span className="form-dot" />YOUR NEXT MOVE STARTS HERE</div>
-          <h3>One good lead deserves a next move.</h3>
-          <p>Choose your path. Then get started.</p>
+          <div className="form-topline"><span className="form-dot" />{HOME.signup.formEyebrow}</div>
+          <h3>{HOME.signup.formTitle}</h3>
+          <p>{HOME.signup.formIntro}</p>
           <div className="signup-choice" role="group" aria-label="Account type">
             {(Object.keys(SIGNUP_PATHS) as SignupPath[]).map((key) => (
               <button key={key} type="button" className={`choice-btn${path === key ? " selected" : ""}`} aria-pressed={path === key} onClick={() => choose(key)}>
