@@ -16,7 +16,16 @@ const statusLabels: Record<string, string> = {
   CONVERTED: "Converted",
   LOST: "Lost",
   STOPPED: "Stopped",
+  LINKEDIN_CAPTURED: "From LinkedIn",
 };
+
+// Unknown codes read as words ("SOME_STATUS" -> "Some status") instead of raw enum text.
+function statusLabel(status: string) {
+  const known = statusLabels[status];
+  if (known) return known;
+  const words = status.replace(/_/g, " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 function formatRelative(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -54,7 +63,7 @@ export function RecentLeadsCard({ leads, totalLeads, loading, onSelect }: Recent
       ) : (
         <div className="flex-1">
           <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr] gap-2 text-[9px] uppercase tracking-wide text-muted-foreground pb-1.5 border-b border-border">
-            <span>Company</span>
+            <span>Lead</span>
             <span>Status</span>
             <span className="text-right">Activity</span>
           </div>
@@ -65,7 +74,7 @@ export function RecentLeadsCard({ leads, totalLeads, loading, onSelect }: Recent
               className="w-full grid grid-cols-[1.4fr_0.8fr_0.7fr] gap-2 items-center text-left py-1.5 border-b border-border last:border-0 hover:bg-accent transition-colors rounded-sm px-0.5"
             >
               <span className="text-xs text-foreground truncate">{lead.company !== "—" ? lead.company : lead.name}</span>
-              <span className="text-[10px] text-muted-foreground truncate">{statusLabels[lead.status] ?? lead.status}</span>
+              <span className="text-[10px] text-muted-foreground truncate">{statusLabel(lead.status)}</span>
               <span className="text-[10px] text-muted-foreground text-right">{formatRelative(lead.lastActivityAt)}</span>
             </button>
           ))}
