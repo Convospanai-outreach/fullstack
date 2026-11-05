@@ -44,17 +44,17 @@
       "eyebrow": "05 / THE DECISION",
       "title": "Your audience showed interest.",
       "accent": "Make your move.",
-      "body": "One campaign. One landing page. One clear next step.",
+      "body": "Pick one audience, one offer and one landing page. Start there.",
       "punch": "Turn the click into a conversation.",
       "note": "Start with the people you actually want to reach.",
-      "primary": "Start my funnel ↗",
+      "primary": "Build my funnel ↗",
       "secondary": ""
     },
     {
-      "eyebrow": "06 / WHAT SLIPS AWAY",
-      "title": "An unread message",
-      "accent": "doesn’t send a warning.",
-      "body": "The DM cools. The form goes stale. The buyer finds someone faster.",
+      "eyebrow": "06 / THE COST OF WAITING",
+      "title": "Every hour of silence",
+      "accent": "is a decision.",
+      "body": "Buyers rarely announce they’ve moved on. They just stop replying.",
       "punch": "Silence isn’t a sales strategy.",
       "note": "",
       "primary": "",
@@ -94,6 +94,13 @@
     "accent": "Different ending.",
     "bridge": "Interest has a short shelf life.",
     "bridgeBold": "Give it somewhere to go."
+  },
+  "preview": {
+    "kicker": "WHAT IT LOOKS LIKE",
+    "title": "Every next move,",
+    "accent": "ready for your say.",
+    "body": "Drafts, replies and follow-ups wait in one queue. You approve, edit or pause before anything goes out.",
+    "note": "Illustrative preview with invented sample data. Not a live account."
   },
   "audiences": {
     "intro": {

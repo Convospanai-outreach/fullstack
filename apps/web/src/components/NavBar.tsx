@@ -90,6 +90,12 @@ export function NavBar() {
 
         {/* Desktop CTAs */}
         <div className="hidden items-center gap-3 md:flex">
+          <Link
+            href="/pricing"
+            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+          >
+            Pricing
+          </Link>
           <div className="h-5 w-px bg-white/15" />
           <Link
             href="/login"
@@ -102,7 +108,7 @@ export function NavBar() {
             className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
           >
             <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-            <span className="relative z-10">Get Started</span>
+            <span className="relative z-10">Build my funnel</span>
           </Link>
         </div>
 
@@ -154,6 +160,13 @@ export function NavBar() {
             ))}
             <div className="flex flex-col gap-3 pt-2">
               <Link
+                href="/pricing"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                onClick={() => setMobileOpen(false)}
+              >
+                Pricing
+              </Link>
+              <Link
                 href="/login"
                 className="rounded-full border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-white"
                 onClick={() => setMobileOpen(false)}
@@ -166,7 +179,7 @@ export function NavBar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-                <span className="relative z-10">Get Started</span>
+                <span className="relative z-10">Build my funnel</span>
               </Link>
             </div>
           </div>
