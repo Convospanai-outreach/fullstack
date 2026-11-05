@@ -10,17 +10,28 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
-import { assembleFunnelReport, type FunnelQueryRow, type FunnelReport } from "./funnelReport";
+import { FUNNEL_DEFAULT_SOURCE_DIMENSION, FUNNEL_SOURCE_NONE, assembleFunnelReport, foldSources, type FunnelQueryRow, type FunnelReport, type FunnelSourceBreakdown, type FunnelSourceDimension, type FunnelSourceRow } from "./funnelReport";
 
 export interface FunnelReportInput {
     teamId: string;
     range: { from: Date; to: Date };
     landingPageId?: string;
     variantId?: string;
+    // Which UTM field the sources section groups by. Defaults to utm_source.
+    sourceDimension?: FunnelSourceDimension;
 }
 
-export async function getFunnelReport(input: FunnelReportInput): Promise<FunnelReport & { range: { from: Date; to: Date }; filters: { landingPageId: string | null; variantId: string | null } }> {
+// Column names come from this map only (FunnelSourceDimension is a closed list), never from request text.
+const SOURCE_COLUMNS: Record<FunnelSourceDimension, Prisma.Sql> = {
+    utm_source: Prisma.raw('ll."utmSource"'),
+    utm_medium: Prisma.raw('ll."utmMedium"'),
+    utm_campaign: Prisma.raw('ll."utmCampaign"'),
+    utm_content: Prisma.raw('ll."utmContent"'),
+};
+
+export async function getFunnelReport(input: FunnelReportInput): Promise<FunnelReport & { sources: FunnelSourceBreakdown; range: { from: Date; to: Date }; filters: { landingPageId: string | null; variantId: string | null } }> {
     const { teamId, range, landingPageId, variantId } = input;
+    const sourceDimension = input.sourceDimension ?? FUNNEL_DEFAULT_SOURCE_DIMENSION;
 
     if (landingPageId) {
         const page = await prisma.landingPage.findFirst({ where: { id: landingPageId, teamId }, select: { id: true } });
@@ -102,6 +113,42 @@ export async function getFunnelReport(input: FunnelReportInput): Promise<FunnelR
                FROM leads WHERE qualified_at IS NOT NULL) AS median_lead_to_qualified
     `);
 
+    // Same sign-ups and the same later-step rules as above, grouped by one UTM value (lower-cased, so Google and google
+    // are one source). A sign-up with no value is counted under "(none)". At most 200 groups come back; the rest
+    // of the work (top 10 plus Other) is done in foldSources.
+    const sourceRows = await prisma.$queryRaw<FunnelSourceRow[]>(Prisma.sql`
+        SELECT COALESCE(NULLIF(lower(trim(${SOURCE_COLUMNS[sourceDimension]})), ''), ${FUNNEL_SOURCE_NONE}) AS source,
+               COUNT(*)::int AS leads,
+               COUNT(mail.contact_at)::int AS contacted,
+               COUNT(mail.reply_at)::int AS replied,
+               COUNT(meet.meeting_at)::int AS meetings,
+               COUNT(hl.won_at)::int AS won
+        FROM "LandingLead" ll
+        LEFT JOIN LATERAL (
+            SELECT MIN(em."createdAt") AS contact_at, MIN(em."repliedAt") AS reply_at
+            FROM "Email" em
+            JOIN "Lead" l ON l.id = em."leadId"
+            WHERE l."teamId" = ll."teamId" AND l.email = lower(trim(ll.email)) AND em."createdAt" >= ll."createdAt"
+        ) mail ON true
+        LEFT JOIN LATERAL (
+            SELECT MIN(m."createdAt") AS meeting_at
+            FROM "Meeting" m
+            JOIN "Lead" l ON l.id = m."leadId"
+            WHERE m."teamId" = ll."teamId" AND l.email = lower(trim(ll.email)) AND m."createdAt" >= ll."createdAt"
+        ) meet ON true
+        LEFT JOIN LATERAL (
+            SELECT MIN(l."wonAt") FILTER (WHERE l."wonAt" >= ll."createdAt") AS won_at
+            FROM "Lead" l
+            WHERE l."teamId" = ll."teamId" AND l.email = lower(trim(ll.email))
+        ) hl ON true
+        WHERE ll."teamId" = ${teamId}
+          AND ll."createdAt" >= ${range.from} AND ll."createdAt" < ${range.to}
+          ${leadPageFilter} ${leadVariantFilter}
+        GROUP BY 1
+        ORDER BY leads DESC, source
+        LIMIT 200
+    `);
+
     // The Instagram step is team-wide: a keyword reply has no link to a page or variant that a query could use.
     const instagramRepliesSent = landingPageId || variantId
         ? null
@@ -109,6 +156,7 @@ export async function getFunnelReport(input: FunnelReportInput): Promise<FunnelR
 
     return {
         ...assembleFunnelReport(row, instagramRepliesSent === null ? null : { repliesSent: instagramRepliesSent }),
+        sources: { dimension: sourceDimension, rows: foldSources(sourceRows) },
         range,
         filters: { landingPageId: landingPageId ?? null, variantId: variantId ?? null },
     };

@@ -32,7 +32,17 @@ describe("getFunnelReportHandler", () => {
             range: { from: new Date("2026-10-01T00:00:00.000Z"), to: new Date("2026-10-31T00:00:00.000Z") },
             landingPageId: "page-1",
             variantId: "var-1",
+            sourceDimension: "utm_source",
         });
+    });
+
+    it("passes a chosen groupBy through, and answers 400 for one that is not a UTM field", async () => {
+        await getFunnelReportHandler(request("?groupBy=utm_campaign"));
+        expect(mockFunnel.getFunnelReport).toHaveBeenCalledWith(expect.objectContaining({ sourceDimension: "utm_campaign" }));
+        mockFunnel.getFunnelReport.mockClear();
+        const res = await getFunnelReportHandler(request("?groupBy=email%3B%20drop"));
+        expect(res.status).toBe(400);
+        expect(mockFunnel.getFunnelReport).not.toHaveBeenCalled();
     });
 
     it("answers 400 for a range over 90 days without running the query", async () => {
