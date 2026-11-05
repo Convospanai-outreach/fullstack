@@ -492,3 +492,96 @@ h3{font-size:20px}
 .v8:is([data-active="4"],[data-active="5"],[data-active="6"]) .scene :is(.orbit-shell,.outer-collar,.network-shell,.conduits,.drive-left,.drive-right,.voice-node .signal-track){opacity:0}
 .v8 .arc-story .panel .context-num{display:none}
 .v8:is([data-active="4"],[data-active="5"],[data-active="6"]) .scene :is(.rotation,.leak,.escape){opacity:0;transition:opacity .8s}
+
+/* ---- Polish v2: the whole engine fits the screen at 100% zoom; cards pin and swap with the engine; glass + depth ---- */
+@media(min-width:761px){.v8 .transformation-arc .scene{width:min(96vw,1500px);max-width:none;height:calc(100svh - var(--v8-nav))}}
+.v8 .transformation-arc .scene:before{filter:none;inset:4% 12%;background:
+  radial-gradient(ellipse 30% 40% at 50% 50%,rgba(76,186,255,.30),transparent 72%),
+  radial-gradient(ellipse 52% 46% at 50% 56%,rgba(27,95,161,.28),transparent 74%)}
+.v8 .transformation-arc .engine-svg{transform:none;height:100%;width:100%;max-height:100%}
+.v8 .scene .floor-ring{opacity:.6}
+
+/* Glass hourglass: edge-lit body, specular streaks, rim bolts, scale ticks, spinning neck ring, lead "sand" level. */
+.v8 .jig-glass{fill:url(#v8-glassBody);fill-opacity:1;stroke:#a6ebff;stroke-opacity:.9;stroke-width:2.5}
+.v8 .glints{opacity:.9}
+.v8 .caps{opacity:.9}
+.v8 .hud{opacity:0;transition:opacity .9s}
+.v8:is([data-active="2"],[data-active="3"]) .hud{opacity:.55}
+.v8:is([data-active="4"],[data-active="5"],[data-active="6"]) .hud{opacity:.85}
+.v8 .neck-ring{transform-origin:350px 353px;animation:v8-orbit 9s linear infinite;opacity:0;transition:opacity .8s}
+.v8:is([data-active="3"],[data-active="4"],[data-active="5"],[data-active="6"]) .neck-ring{opacity:.85}
+.v8 .sand{opacity:0;transition:opacity 1s}
+.v8:is([data-active="4"],[data-active="5"],[data-active="6"]) .sand{opacity:.55}
+.v8 .sand-top{transform-origin:350px 360px;transition:transform 1.8s ease}
+.v8 .sand-bottom{transform:translateY(90px);transition:transform 1.8s ease}
+.v8[data-active="4"] .sand-top{transform:scaleY(.9)}
+.v8[data-active="5"] .sand-top{transform:scaleY(.62)}
+.v8[data-active="6"] .sand-top{transform:scaleY(.4)}
+.v8[data-active="4"] .sand-bottom{transform:translateY(72px)}
+.v8[data-active="5"] .sand-bottom{transform:translateY(34px)}
+.v8[data-active="6"] .sand-bottom{transform:translateY(0)}
+
+/* Desktop: cards are pinned on the stage and cross-fade with the engine step (one scroll state drives both). */
+@media(min-width:761px){
+  .v8 .arc-story{padding-bottom:calc((100svh - var(--v8-nav)) * .8)}
+  .v8 .arc-story .panel{position:sticky;top:var(--v8-nav);height:calc(100svh - var(--v8-nav));min-height:0;padding:0 clamp(24px,4.2vw,80px);pointer-events:none}
+  .v8 .arc-story .copy{
+    width:min(30vw,470px);padding:clamp(22px,2.4vw,38px);border-radius:22px;
+    opacity:0;transform:translateX(-26px) scale(.985);pointer-events:none;
+    transition:opacity .5s ease,transform .7s cubic-bezier(.2,.8,.2,1);
+    background:linear-gradient(150deg,rgba(16,42,76,.74),rgba(6,18,36,.82));
+    border:1px solid rgba(140,215,255,.3);
+    backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);
+    box-shadow:0 30px 70px -22px rgba(0,8,24,.85),0 1px 0 rgba(200,240,255,.28) inset,0 0 0 1px rgba(255,255,255,.04) inset,0 0 46px -12px rgba(60,160,255,.3);
+  }
+  .v8 .arc-story .panel.align-right .copy{transform:translateX(26px) scale(.985)}
+  .v8 .arc-story .panel.active .copy{opacity:1;transform:none;pointer-events:auto;border-color:rgba(128,220,248,.55)}
+  .v8 .arc-story .panel:not(.active) :is(a,button){visibility:hidden}
+  .v8 .arc-story h1{font-size:clamp(34px,3.2vw,56px);line-height:1.04}
+  .v8 .arc-story h2{font-size:clamp(30px,2.8vw,50px);line-height:1.06}
+  .v8 .arc-story .copy p{font-size:clamp(14px,1.05vw,17px);line-height:1.5;margin:14px 0}
+  /* A thin lead from the card toward the hourglass ties each card to the engine. */
+  .v8 .arc-story .copy:after{content:"";position:absolute;top:50%;left:100%;width:clamp(26px,5.5vw,110px);height:8px;margin-top:-4px;pointer-events:none;
+    background:radial-gradient(circle at 3px 50%,#9aeaff 0 3px,transparent 4px),linear-gradient(90deg,transparent 0,rgba(120,220,255,.75) 1px,rgba(120,220,255,.75) 2px,transparent 3px) 0 50%/100% 1px no-repeat,linear-gradient(90deg,rgba(120,220,255,.65),transparent) 0 50%/100% 1px no-repeat}
+  .v8 .arc-story .panel.align-right .copy:after{left:auto;right:100%;transform:scaleX(-1)}
+}
+@media(prefers-reduced-motion:reduce) and (min-width:761px){
+  .v8 .arc-story .panel:not(.active) .copy{opacity:0}
+}
+
+/* The engine leans away from the active card so the two never fight for the same space. */
+@media(min-width:761px) and (prefers-reduced-motion:no-preference){
+  .v8 .transformation-arc .engine-svg{transition:transform 1s cubic-bezier(.2,.8,.2,1)}
+  .v8:is([data-active="0"],[data-active="2"],[data-active="4"],[data-active="6"]) .transformation-arc .engine-svg{transform:translateX(2.4vw)}
+  .v8:is([data-active="1"],[data-active="3"],[data-active="5"]) .transformation-arc .engine-svg{transform:translateX(-2.4vw)}
+}
+
+/* Tidy-ups: badges duplicated the caption pill and covered the channel icons; keep cards clear of the chapter dots. */
+.v8 .mechanical-badges{display:none}
+@media(min-width:761px){
+  .v8 .arc-story .copy{width:min(28vw,450px)}
+  .v8 .arc-story .panel.align-right{padding-right:calc(clamp(24px,4.2vw,80px) + 76px)}
+}
+@media(min-width:761px) and (prefers-reduced-motion:no-preference){
+  .v8:is([data-active="0"],[data-active="2"],[data-active="4"],[data-active="6"]) .transformation-arc .engine-svg{transform:translateX(3vw)}
+  .v8:is([data-active="1"],[data-active="3"],[data-active="5"]) .transformation-arc .engine-svg{transform:translateX(-3vw)}
+}
+
+@media(max-width:760px){.v8 .transformation-arc .engine-svg{transform:scale(1.08)}}
+
+/* Portrait tablets: engine on top, card underneath, so nothing covers the hourglass. */
+@media(min-width:761px) and (max-aspect-ratio:1/1){
+  .v8 .transformation-arc .scene{height:calc((100svh - var(--v8-nav)) * .58);align-items:flex-start}
+  .v8 .arc-story{margin-top:calc((100svh - var(--v8-nav)) * -.58)}
+  .v8 .transformation-arc .engine-svg,
+  .v8:is([data-active="0"],[data-active="1"],[data-active="2"],[data-active="3"],[data-active="4"],[data-active="5"],[data-active="6"]) .transformation-arc .engine-svg{transform:none}
+  .v8 .arc-story .panel,.v8 .arc-story .panel.align-right{align-items:flex-end;justify-content:center;padding:0 clamp(20px,5vw,48px) 3svh}
+  .v8 .arc-story .copy{width:min(100%,680px);transform:translateY(24px)}
+  .v8 .arc-story .panel.align-right .copy{transform:translateY(24px)}
+  .v8 .arc-story .panel.active .copy{transform:none}
+  .v8 .arc-story .copy:after{display:none}
+  .v8 .arc-story h1{font-size:clamp(30px,4.6vw,44px)}
+  .v8 .arc-story h2{font-size:clamp(28px,4.2vw,40px)}
+  .v8 .arc-story .planlist{gap:6px;margin:10px 0}
+  .v8 .arc-story .copy p{margin:10px 0}
+}
