@@ -5,7 +5,7 @@ const { mockPrisma, mockWriteKv } = vi.hoisted(() => ({
         landingPage: { findMany: vi.fn(), findUnique: vi.fn() },
         landingExperiment: { create: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
         landingExperimentVariant: { findFirst: vi.fn() },
-        landingEvent: { findMany: vi.fn() },
+        $queryRaw: vi.fn(),
         landingLead: { count: vi.fn() },
         auditLog: { findFirst: vi.fn() },
     },
@@ -218,14 +218,9 @@ describe("getExperimentResults", () => {
 
     it("counts unique sessions as visitors and form starts, and leads per variant", async () => {
         mockPrisma.landingExperiment.findFirst.mockResolvedValue(experiment({ status: "running", startedAt: new Date("2026-11-01T00:00:00Z") }));
-        mockPrisma.landingEvent.findMany
-            .mockResolvedValueOnce([
-                { id: "e1", sessionId: "s1", eventName: "page_view" },
-                { id: "e2", sessionId: "s1", eventName: "page_view" },
-                { id: "e3", sessionId: "s2", eventName: "page_view" },
-                { id: "e4", sessionId: "s2", eventName: "form_start" },
-            ])
-            .mockResolvedValueOnce([{ id: "e5", sessionId: "s9", eventName: "page_view" }]);
+        mockPrisma.$queryRaw
+            .mockResolvedValueOnce([{ visitors: BigInt(2), starters: BigInt(1) }])
+            .mockResolvedValueOnce([{ visitors: BigInt(1), starters: BigInt(0) }]);
         mockPrisma.landingLead.count.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
 
         const r = await getExperimentResults({ teamId: TEAM, experimentId: "exp-1", now });
@@ -238,14 +233,15 @@ describe("getExperimentResults", () => {
 
     it("scopes every lookup to the team", async () => {
         mockPrisma.landingExperiment.findFirst.mockResolvedValue(experiment({ status: "running", startedAt: new Date("2026-11-01T00:00:00Z") }));
-        mockPrisma.landingEvent.findMany.mockResolvedValue([]);
+        mockPrisma.$queryRaw.mockResolvedValue([{ visitors: BigInt(0), starters: BigInt(0) }]);
         mockPrisma.landingLead.count.mockResolvedValue(0);
 
         await getExperimentResults({ teamId: TEAM, experimentId: "exp-1", now });
 
         expect(mockPrisma.landingExperiment.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "exp-1", teamId: TEAM } }));
-        for (const call of mockPrisma.landingEvent.findMany.mock.calls) {
-            expect(call[0].where).toMatchObject({ teamId: TEAM });
+        expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(2);
+        for (const call of mockPrisma.$queryRaw.mock.calls) {
+            expect(call[0].values).toContain(TEAM);
         }
         for (const call of mockPrisma.landingLead.count.mock.calls) {
             expect(call[0].where).toMatchObject({ teamId: TEAM });
@@ -254,7 +250,7 @@ describe("getExperimentResults", () => {
 
     it("reports when each arm's page was last edited while the test ran, from this team's notes", async () => {
         mockPrisma.landingExperiment.findFirst.mockResolvedValue(experiment({ status: "running", startedAt: new Date("2026-11-01T00:00:00Z") }));
-        mockPrisma.landingEvent.findMany.mockResolvedValue([]);
+        mockPrisma.$queryRaw.mockResolvedValue([{ visitors: BigInt(0), starters: BigInt(0) }]);
         mockPrisma.landingLead.count.mockResolvedValue(0);
         mockPrisma.auditLog.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ createdAt: new Date("2026-11-05T10:00:00Z") });
 
