@@ -15,7 +15,8 @@ const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // well under 24 attempts to leave margin for scheduling/processing drift.
 const MAX_EMAIL_SEND_ATTEMPTS = 20;
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
-const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "meeting_booked"]);
+// "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
+const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
 const STOP_PIPELINE_STATES = new Set(["MEETING_BOOKED", "MEETING_CONFIRMED", "BOUNCED", "UNSUBSCRIBED"]);
 
 type SequencePrisma = {
