@@ -4,6 +4,8 @@ CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landi
 
 ## Current Status
 
+Remote customer MCP support is being added behind `MCP_ENABLED=false` by default. It runs in the existing API and delegates web-owned operations to the existing web service. See [the setup/tool inventory](docs/MCP_INTEGRATION.md) and [the runtime review](docs/MCP_RUNTIME_REVIEW.md). Local MCP verification does not establish public rollout readiness.
+
 The platform is live and in controlled beta. Open work, owner-side setup and known risks are tracked in [OPEN_ITEMS.md](./OPEN_ITEMS.md). Treat that file, the CI results on `main` and each service's `/health` endpoint as the source of truth, not dated snapshots in older documents.
 
 ## Monorepo Layout
