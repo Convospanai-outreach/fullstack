@@ -328,7 +328,7 @@ export class SequenceService {
             if (reason) {
                 await client.sequenceEnrollment.update({
                     where: { id: enrollment.id },
-                    data: { status: "EXITED", completedAt: options.now, cancelledAt: options.now },
+                    data: { status: "EXITED", completedAt: options.now, cancelledAt: options.now, exitReason: reason },
                 });
                 continue;
             }
@@ -417,7 +417,7 @@ export class SequenceService {
             });
             await client.sequenceEnrollment.update({
                 where: { id: run.enrollmentId },
-                data: { status: "EXITED", completedAt: now, cancelledAt: now },
+                data: { status: "EXITED", completedAt: now, cancelledAt: now, exitReason: "suppressed" },
             });
             return { runId: run.id, status: "SKIPPED_SUPPRESSED" };
         }
@@ -770,7 +770,7 @@ export class SequenceService {
         });
         await client.sequenceEnrollment.update({
             where: { id: run.enrollmentId },
-            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: errorCode.replace(/^EXIT_/, "").toLowerCase() },
         });
     }
 
@@ -782,7 +782,7 @@ export class SequenceService {
         const client = db();
         const stopped = await client.sequenceEnrollment.updateMany({
             where: { teamId, leadId, status: { in: ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"] } },
-            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: errorCode.replace(/^EXIT_/, "").toLowerCase() },
         });
         await client.sequenceStepRun.updateMany({
             where: { teamId, leadId, status: { in: RUN_DUE_STATUSES } },
@@ -803,11 +803,12 @@ export class SequenceService {
         });
         if (!run) return { resumed: false };
 
-        const exiting = Boolean(exitReason(run.enrollment?.lead));
+        const leaveReason = exitReason(run.enrollment?.lead);
+        const exiting = Boolean(leaveReason);
         const taken = await client.sequenceEnrollment.updateMany({
             where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
             data: exiting
-                ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null }
+                ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: leaveReason }
                 : { status: "SCHEDULING" },
         });
         const resuming = taken.count === 1 && !exiting;

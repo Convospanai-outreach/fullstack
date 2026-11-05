@@ -119,7 +119,7 @@ describe("SequenceService.stopEnrollmentsForLead", () => {
         expect(result).toEqual({ stopped: 1 });
         expect(emailService.sendEmail).not.toHaveBeenCalled();
         expect(tables["sequenceStepRun"][0]).toMatchObject({ status: "SKIPPED_EXITED", errorCode: "EXIT_REPLY_NOT_INTERESTED" });
-        expect(tables["sequenceEnrollment"][0]).toMatchObject({ status: "EXITED", nextRunAt: null });
+        expect(tables["sequenceEnrollment"][0]).toMatchObject({ status: "EXITED", nextRunAt: null, exitReason: "reply_not_interested" });
     });
 
     it("only touches the given team's enrollments", async () => {
