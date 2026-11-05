@@ -81,16 +81,14 @@ beforeEach(() => {
 afterEach(async () => { await Promise.all(apps.map(instance => instance.close())); apps = []; vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe('remote MCP protocol and authorization', () => {
-  it('supports real SDK initialize and discovery over HTTP without exposing account data', async () => {
-    const instance = await app(); await instance.listen({ port: 0, host: '127.0.0.1' });
-    const address = instance.server.address() as { port: number };
-    const client = new Client({ name: 'test-client', version: '1' });
-    await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${address.port}/mcp`)));
-    const tools = await client.listTools();
-    expect(tools.tools.length).toBe(MCP_OPERATIONS.length);
-    expect(tools.tools.some(tool => tool.name === 'create_campaign')).toBe(true);
+  it('allows initialize anonymously but requires a token for tools/list', async () => {
+    const instance = await app();
+    const init = await instance.inject({ method: 'POST', url: '/mcp', headers: { accept: 'application/json, text/event-stream' }, payload: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1' } } } });
+    expect(init.statusCode).toBe(200);
+    const list = await instance.inject({ method: 'POST', url: '/mcp', headers: { accept: 'application/json, text/event-stream' }, payload: { jsonrpc: '2.0', id: 2, method: 'tools/list' } });
+    expect(list.statusCode).toBe(401);
+    expect(list.headers['www-authenticate']).toContain('/.well-known/oauth-protected-resource/mcp');
     expect(mocks.db.user.findUnique).not.toHaveBeenCalled();
-    await client.close();
   });
   it('challenges unauthenticated calls with resource discovery metadata', async () => {
     const instance = await app();
