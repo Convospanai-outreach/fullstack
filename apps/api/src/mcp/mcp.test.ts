@@ -210,6 +210,7 @@ describe('remote MCP protocol and authorization', () => {
     mocks.db.mcpToolAction.create.mockImplementation(async ({ data }: any) => ({ id: 'action-1', status: 'PENDING', result: null, ...data }));
     const result = await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, name: 'Draft', icpId: 'icp-1' });
     expect(result.structuredContent).toMatchObject({ status: 202, actionStatus: 'PENDING' });
+    expect(result.content[0]).toMatchObject({ text: expect.stringContaining('/mcp/connect?action=action-1') });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(mocks.db.mcpToolAction.updateMany).not.toHaveBeenCalled();
   });
