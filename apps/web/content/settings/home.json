@@ -171,7 +171,7 @@
       {
         "tag": "03 / ENGAGE",
         "title": "Make contact count.",
-        "body": "Supported WhatsApp, email, LinkedIn, AI voice or human calls."
+        "body": "Supported WhatsApp, email, LinkedIn or human calls."
       },
       {
         "tag": "04 / ADVANCE",
@@ -240,7 +240,7 @@
       {
         "node": "Drafts",
         "meta": "STEP 2 / DRAFTS",
-        "short": "AI writes the first draft. Humans keep the final say.",
+        "short": "AI drafts. You review before outreach goes out.",
         "title": "Prepare AI-assisted outreach drafts",
         "text": "Turn raw interest into a usable first move. Draft messages faster, keep context intact and avoid starting from a blank page every time.",
         "bullets": [
@@ -291,11 +291,11 @@
           },
           {
             "label": "CHANNEL STATUS",
-            "text": "Email, social and voice view"
+            "text": "Email, social and call view"
           },
           {
-            "label": "AI VOICE",
-            "text": "Call path available where enabled"
+            "label": "CALL HANDOFF",
+            "text": "Leads queued for your team to call"
           }
         ]
       },
@@ -337,12 +337,12 @@
         "title": "Review and approve appropriate next actions",
         "text": "Put control where it matters. Review drafts, approve the right next move and keep the workflow governed instead of guess-driven.",
         "bullets": [
-          "Add human approvals before sensitive or high-value actions.",
-          "Route uncertain cases to the right reviewer instead of auto-sending noise.",
+          "Review recipients and messages before outreach.",
+          "Hold uncertain drafts back for a person to check.",
           "Maintain oversight without slowing everything to a crawl."
         ],
         "badges": [
-          "Human approval",
+          "Review step",
           "Governance",
           "Quality control"
         ],
