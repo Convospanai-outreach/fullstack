@@ -38,6 +38,7 @@ export async function checkCampaignTokens(teamId: string, campaignId: string): P
 
     const sequence = await prisma.campaignSequence.findFirst({
         where: { campaignId, teamId },
+        orderBy: { createdAt: "asc" },
         include: { steps: { where: { status: "ACTIVE" }, orderBy: { stepOrder: "asc" } } },
     });
     const emailSteps = (sequence?.steps ?? []).filter((s: any) => String(s.stepType ?? "").toLowerCase() === "email" && s.body?.trim());

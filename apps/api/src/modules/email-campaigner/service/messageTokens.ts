@@ -52,7 +52,8 @@ const TOKEN =/\{\{\s*([^{}|]+?)\s*(?:\|([^{}]*))?\}\}/g;
 function propertyValue(lead: TokenLead, key: string): string {
     const fields = lead.customFields;
     if (!fields || typeof fields !== "object" || Array.isArray(fields)) return "";
-    const value = (fields as Record<string, unknown>)[key];
+    // Property keys are stored lowercase, so {{property.PLAN}} finds the value saved under "plan".
+    const value = (fields as Record<string, unknown>)[key.toLowerCase()];
     if (typeof value === "string") return value.trim();
     if (typeof value === "number" || typeof value === "boolean") return String(value);
     return "";
@@ -66,7 +67,7 @@ function closestBuiltin(name: string): string | null {
     return hit ?? null;
 }
 
-const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 export interface ResolveOptions {
     // Send missing tokens with the suggested fallback (the sender approved it). Never applies to unknown tokens

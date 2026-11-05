@@ -7,6 +7,7 @@ const tables: Record<string, any[]> = vi.hoisted(() => ({}));
 function matches(where: any = {}, row: any): boolean {
     return Object.entries(where).every(([key, condition]: [string, any]) => {
         if (key === "OR" || key === "AND") return true;
+        if (key === "enrollment") return matches(condition, tables["sequenceEnrollment"].find((e) => e.id === row.enrollmentId) ?? {});
         if (condition && typeof condition === "object" && !(condition instanceof Date)) {
             if ("in" in condition) return condition.in.includes(row[key]);
             if ("lte" in condition) return row[key] != null && row[key] <= condition.lte;
@@ -163,6 +164,30 @@ describe("email steps with merge fields", () => {
     it("only approves a run that belongs to the team and is waiting", async () => {
         await SequenceService.processDue({ now });
         expect(await SequenceService.approveTokenFallbacks("team-2", "run-1", now)).toEqual({ approved: false, reason: "NOT_WAITING" });
+    });
+
+    it("keeps the approval when the first send fails for a temporary reason, so the retry sends instead of holding again", async () => {
+        await SequenceService.processDue({ now });
+        await SequenceService.approveTokenFallbacks("team-1", "run-1", now);
+        (emailService.sendEmail as any).mockResolvedValueOnce({ success: false, error: "Temporary failure, try again" });
+        await SequenceService.processDue({ now });
+        expect(tables["sequenceStepRun"][0]).toMatchObject({ status: "RETRY_SCHEDULED" });
+
+        const later = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        await SequenceService.processDue({ now: later });
+
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(2);
+        expect((emailService.sendEmail as any).mock.calls[1][2]).toBe("Hi there, just checking in");
+        expect(tables["sequenceStepRun"][0]).toMatchObject({ status: "SENT" });
+    });
+
+    it("does not approve or re-check a held email whose sequence has since stopped", async () => {
+        await SequenceService.processDue({ now });
+        tables["sequenceEnrollment"][0].status = "EXITED";
+
+        expect(await SequenceService.approveTokenFallbacks("team-1", "run-1", now)).toEqual({ approved: false, reason: "NOT_WAITING" });
+        expect(await SequenceService.retryHeldTokens("team-1", "run-1", now)).toEqual({ retried: false });
+        expect(tables["sequenceStepRun"][0].status).toBe("AWAITING_TOKEN_APPROVAL");
     });
 
     it("sends straight away when every field has a value or a fallback written in the step", async () => {
