@@ -19,6 +19,22 @@ function ChannelIcon({ id }: { id: string }) {
 
 const PANEL_IDS = ["begin", "problem", "guide", "plan", "action", "stakes", "success"] as const;
 
+const DESKTOP = "(min-width: 761px)";
+
+/**
+ * On desktop the story cards are pinned in place and swap as you scroll, so the step comes from
+ * scroll progress through the story (1 = one card height scrolled). Returns null on mobile,
+ * where cards scroll past normally.
+ */
+function storyProgress(): number | null {
+  if (!window.matchMedia(DESKTOP).matches) return null;
+  const story = document.querySelector(".arc-story");
+  const first = document.getElementById(PANEL_IDS[0]);
+  if (!story || !first) return null;
+  const nav = parseFloat(getComputedStyle(story.closest(".v8") ?? document.body).getPropertyValue("--v8-nav")) || 66;
+  return (nav - story.getBoundingClientRect().top) / first.offsetHeight;
+}
+
 export default function HomeV8() {
   const rootRef = useRef<HTMLDivElement>(null);
   const arcRef = useRef<HTMLDivElement>(null);
@@ -33,15 +49,21 @@ export default function HomeV8() {
     let frame = 0;
     const update = () => {
       frame = 0;
-      const center = window.innerHeight * 0.53;
-      let best = 0, dist = Infinity;
-      PANEL_IDS.forEach((id, i) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        const d = Math.abs((r.top + r.bottom) / 2 - center);
-        if (d < dist) { dist = d; best = i; }
-      });
+      let best = 0;
+      const progress = storyProgress();
+      if (progress !== null) {
+        best = Math.min(STORY_PANELS - 1, Math.max(0, Math.floor(progress + 0.45)));
+      } else {
+        const center = window.innerHeight * 0.53;
+        let dist = Infinity;
+        PANEL_IDS.forEach((id, i) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const d = Math.abs((r.top + r.bottom) / 2 - center);
+          if (d < dist) { dist = d; best = i; }
+        });
+      }
       setActive((prev) => (prev === best ? prev : best));
       const doc = document.documentElement;
       if (progressRef.current) {
@@ -72,7 +94,14 @@ export default function HomeV8() {
 
   const goTo = useCallback((i: number) => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document.getElementById(PANEL_IDS[i]!)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+    const behavior = reduce ? "auto" : "smooth";
+    const progress = storyProgress();
+    const first = document.getElementById(PANEL_IDS[0]);
+    if (progress === null || !first) {
+      document.getElementById(PANEL_IDS[i]!)?.scrollIntoView({ behavior, block: "center" });
+      return;
+    }
+    window.scrollTo({ top: window.scrollY + (i - progress) * first.offsetHeight, behavior });
   }, []);
 
   const openSignup = useCallback(() => {
@@ -124,7 +153,7 @@ export default function HomeV8() {
                     {(i === 0 || i === 4) && (
                       <div className="actions">
                         <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>
-                        {i === 0 && <a className="secondary" href="#problem">{p.secondary}</a>}
+                        {i === 0 && <a className="secondary" href="#problem" onClick={(e) => { e.preventDefault(); goTo(1); }}>{p.secondary}</a>}
                       </div>
                     )}
                     {i === 0 && <div className="hint"><span className="scroll-icon" aria-hidden="true" />{p.note}</div>}
