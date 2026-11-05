@@ -5,6 +5,7 @@ import { DM_Sans, Space_Grotesk } from "next/font/google";
 import { OpportunityEngineSvg } from "./OpportunityEngineSvg";
 import { GovernedWorkflow } from "./GovernedWorkflow";
 import { FinalSignup } from "./FinalSignup";
+import { ProductPreview } from "./ProductPreview";
 import { CHANNELS, HOME, STORY_NAMES, type AudienceKey } from "./homeV8Content";
 import "./v8.css";
 
@@ -172,6 +173,8 @@ export default function HomeV8() {
           </div>
           <p className="context-bridge">{HOME.closing.bridge} <strong>{HOME.closing.bridgeBold}</strong></p>
         </section>
+
+        <ProductPreview />
 
         <section className="addons" id="audiences" aria-labelledby="audience-heading">
           <div className="addon-kicker">{HOME.audiences.intro.kicker}</div>

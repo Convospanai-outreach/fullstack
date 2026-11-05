@@ -29,6 +29,7 @@ export type HomeText = {
   story: Story[];
   plan: { n: string; title: string; body: string }[];
   closing: { eyebrow: string; title: string; accent: string; bridge: string; bridgeBold: string };
+  preview: Block & { note: string };
   audiences: { intro: Block; solo: { label: string; cards: Card[] }; teams: { label: string; cards: Card[] } };
   channels: { intro: Block; journey: Card[]; note: string };
   crm: { intro: Block; cards: Card[] };
@@ -42,8 +43,8 @@ export const HOME_DEFAULTS: HomeText = {
     { eyebrow: "02 / THE BREAK", title: "The lead came in.", accent: "Then went missing.", body: "An Instagram DM here. A LinkedIn reply there. A form filled. A WhatsApp unread.", punch: "Plenty of interest. Precious little follow-through.", note: "The problem isn’t traffic. It’s the handoff.", primary: "", secondary: "" },
     { eyebrow: "03 / THE GUIDE", title: "A hundred touchpoints.", accent: "One firm grip.", body: "Bring social, forms, email and outreach into one organised journey. Let AI assist. Keep people in charge.", punch: "Connected channels. Clear ownership. No lead left to guesswork.", note: "Automation with brakes, not blinders.", primary: "", secondary: "" },
     { eyebrow: "04 / THE PLAN", title: "Catch the signal.", accent: "Keep the momentum.", body: "Three moves. One moving pipeline.", punch: "No channel should be a dead end.", note: "", primary: "", secondary: "" },
-    { eyebrow: "05 / THE DECISION", title: "Your audience showed interest.", accent: "Make your move.", body: "One campaign. One landing page. One clear next step.", punch: "Turn the click into a conversation.", note: "Start with the people you actually want to reach.", primary: "Start my funnel ↗", secondary: "" },
-    { eyebrow: "06 / WHAT SLIPS AWAY", title: "An unread message", accent: "doesn’t send a warning.", body: "The DM cools. The form goes stale. The buyer finds someone faster.", punch: "Silence isn’t a sales strategy.", note: "", primary: "", secondary: "" },
+    { eyebrow: "05 / THE DECISION", title: "Your audience showed interest.", accent: "Make your move.", body: "Pick one audience, one offer and one landing page. Start there.", punch: "Turn the click into a conversation.", note: "Start with the people you actually want to reach.", primary: "Build my funnel ↗", secondary: "" },
+    { eyebrow: "06 / THE COST OF WAITING", title: "Every hour of silence", accent: "is a decision.", body: "Buyers rarely announce they’ve moved on. They just stop replying.", punch: "Silence isn’t a sales strategy.", note: "", primary: "", secondary: "" },
     { eyebrow: "07 / WHAT MOVES FORWARD", title: "From “seen”", accent: "to “let’s talk.”", body: "A captured enquiry. A relevant reply. A meeting with a name and a next step.", punch: "Less chasing ghosts. More genuine conversations.", note: "", primary: "", secondary: "" },
   ],
   plan: [
@@ -52,6 +53,13 @@ export const HOME_DEFAULTS: HomeText = {
     { n: "03", title: "ADVANCE", body: "Route replies to AI-assisted or human follow-up." },
   ],
   closing: { eyebrow: "THE TURNING POINT", title: "Same attention.", accent: "Different ending.", bridge: "Interest has a short shelf life.", bridgeBold: "Give it somewhere to go." },
+  preview: {
+    kicker: "WHAT IT LOOKS LIKE",
+    title: "Every next move,",
+    accent: "ready for your say.",
+    body: "Drafts, replies and follow-ups wait in one queue. You approve, edit or pause before anything goes out.",
+    note: "Illustrative preview with invented sample data. Not a live account.",
+  },
   audiences: {
     intro: { kicker: "BEYOND THE FIRST CLICK / THE ADDENDUM", title: "Different hustles.", accent: "Same missed chances.", body: "From a one-person practice to a sales floor, a better follow-up changes the story." },
     solo: {
