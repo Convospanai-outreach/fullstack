@@ -12,6 +12,8 @@ const isCreatorFunnelEnabled = vi.hoisted(() => vi.fn());
 vi.mock("../featureGate", () => ({ isCreatorFunnelEnabled }));
 const applyFunnelEvent = vi.hoisted(() => vi.fn());
 vi.mock("../funnelStageService", () => ({ applyFunnelEvent }));
+const stopEnrollmentsForLead = vi.hoisted(() => vi.fn());
+vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({ SequenceService: { stopEnrollmentsForLead } }));
 const nurture = vi.hoisted(() => ({ stopNurture: vi.fn(), enrollInNurture: vi.fn() }));
 vi.mock("../nurtureProvider", () => nurture);
 const mail = vi.hoisted(() => ({ isSuppressed: vi.fn(), sendViaGmailMailbox: vi.fn(), sendViaResendMailbox: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
@@ -189,10 +191,38 @@ describe("checkoutHooks", () => {
             expect(mail.sendViaGmailMailbox).not.toHaveBeenCalled();
         });
 
-        it("does nothing for teams without the flag", async () => {
-            isCreatorFunnelEnabled.mockResolvedValue(false);
-            await onOrderCaptured("team-a", "order-1");
-            expect(mockDb.order.findFirst).not.toHaveBeenCalled();
+        describe("teams without the flag", () => {
+            beforeEach(() => {
+                isCreatorFunnelEnabled.mockResolvedValue(false);
+                stopEnrollmentsForLead.mockResolvedValue({ stopped: 1 });
+            });
+
+            it("ends the buyer's sequences, finding the lead by email, and does nothing else", async () => {
+                mockDb.order.findFirst.mockResolvedValue({ customerEmail: " Buyer@Example.com ", leadId: null });
+                mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+
+                await onOrderCaptured("team-a", "order-1");
+
+                expect(stopEnrollmentsForLead).toHaveBeenCalledWith("team-a", "lead-1", "EXIT_NURTURE_PURCHASED");
+                expect(mockDb.lead.create).not.toHaveBeenCalled();
+                expect(applyFunnelEvent).not.toHaveBeenCalled();
+                expect(mail.sendViaGmailMailbox).not.toHaveBeenCalled();
+            });
+
+            it("uses the lead already linked to the order", async () => {
+                mockDb.order.findFirst.mockResolvedValue({ customerEmail: null, leadId: "lead-9" });
+                await onOrderCaptured("team-a", "order-1");
+                expect(stopEnrollmentsForLead).toHaveBeenCalledWith("team-a", "lead-9", "EXIT_NURTURE_PURCHASED");
+            });
+
+            it("does nothing when the buyer is not one of the team's leads or the order is not captured", async () => {
+                mockDb.order.findFirst.mockResolvedValue({ customerEmail: "x@y.test", leadId: null });
+                mockDb.lead.findFirst.mockResolvedValue(null);
+                await onOrderCaptured("team-a", "order-1");
+                mockDb.order.findFirst.mockResolvedValue(null);
+                await onOrderCaptured("team-a", "order-2");
+                expect(stopEnrollmentsForLead).not.toHaveBeenCalled();
+            });
         });
     });
 
