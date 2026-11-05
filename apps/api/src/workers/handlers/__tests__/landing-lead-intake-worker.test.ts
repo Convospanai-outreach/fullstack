@@ -407,9 +407,9 @@ describe("landing-lead-intake-worker", () => {
                 expect(pushLead.mock.calls.map((c) => c[0])).toEqual(["lead-social", "lead-existing", "lead-new"]);
             });
 
-            it("pushes the lead to Mautic as before when the page had no consent box", async () => {
+            it("does not push the lead to Mautic when the page had no consent box", async () => {
                 await run({ answers: {} });
-                expect(pushLead).toHaveBeenCalledTimes(3);
+                expect(pushLead).not.toHaveBeenCalled();
             });
         });
 
