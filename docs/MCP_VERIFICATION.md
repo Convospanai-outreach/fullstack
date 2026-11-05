@@ -59,9 +59,27 @@ Addressed the second CodeRabbit round and an independent review: user-keyed rate
 | Prisma schema/migration mirrors (`scripts/db/compare-prisma-schemas.mjs`) | All match, including `20261105130000_mcp_reviewed_actions` |
 | Deliberate failure | Changing the registration-cap assertion from 503 to 201 made the suite exit 1 (1 failed, 46 passed); the original assertion was restored and the suite passes |
 
-Not done:
+## Production findings and full-catalog smoke — 2026-11-05
 
-- `scripts/verify-inbound-mcp.ts` was updated (approval flow, independent relay key, and an existing foreign-workspace ICP checked separately from a missing one) but **not re-run**; the disposable Postgres container needs Docker, which was not running. [MCP_LOCAL_SMOKE.json](MCP_LOCAL_SMOKE.json) is the earlier run and only shows that a missing ICP is rejected. The foreign-ICP and deliberate-failure claims for the smoke script remain unproven until it runs.
-- The Node 22 record in [MCP_NODE22_CHECKS.json](MCP_NODE22_CHECKS.json) predates this follow-up. The numbers above were produced on Node 26.13.0 and should be repeated on Node 22 and in CI.
+The first real Claude connection exposed gaps that mocks and the SDK-based smoke could not: the review link was only in `structuredContent` (Claude shows `content[].text`), and the review window and expiry were not stated. Both are fixed, and `mcp.test.ts` now asserts what each reviewed-change outcome says in its text. Auditing the rest turned up two more: a rejected pipeline move and an unknown lead on task creation both returned HTTP 500, which MCP presents as an uncertain outcome. They now return 409 and 404 with a readable reason.
+
+| Check | Result |
+| --- | --- |
+| `verify-inbound-mcp.ts` against the disposable database, full API and web | Passed. All 31 tools were called through the official SDK; results are judged on `content[].text`; each change is staged, approved and checked in Postgres |
+| Bad-input sweep | 14 calls (unknown ids and rule violations across reads and changes) all returned a 4xx and left no uncertain outcome |
+| MCP, pipeline and web relay tests on Node 22.23.4 | 89 passed (API 66, web 23) |
+| Foreign-workspace ICP rejection | Now proven by the smoke (it was not before) |
+
+Still unproven:
+
+- A real Claude session has connected, been granted access and staged a change, but approval, the retry with the same `requestId` and the resulting write have not been observed in production at the time of writing.
+- ChatGPT has not been tested.
+- The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
+- A request left `RUNNING` by a crash is never retried automatically and stays reported as uncertain until inspected.
+- The smoke sends no outreach and uses no provider credit, so `generate_message_preview` is only proven to be rejected by guardrails, not to produce a preview.
+- Unrelated and untouched: a type error in `services/browser/browser-engine.ts` (`Browser.isConnected`).
+
+Unchanged from earlier follow-ups:
+
 - Behaviour that is deliberately unchanged: a concurrent refresh loser still revokes the token family.
 - Documentation-comment coverage across the new MCP files is below CodeRabbit's threshold. That is a maintainability note, not a defect, and was left alone.

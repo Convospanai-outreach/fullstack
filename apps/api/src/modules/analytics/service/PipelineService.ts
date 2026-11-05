@@ -8,6 +8,11 @@ import { PIPELINE_PRIORITY } from "@/lib/crm/leadStageTransitions";
 export const PIPELINE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"] as const;
 export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
+/** A rejected request is a client error, not a server failure; callers map `status` to the HTTP response. */
+export class PipelineRequestError extends Error {
+    constructor(message: string, readonly status: 404 | 409) { super(message); }
+}
+
 export class PipelineService {
     static async moveLead(teamId: string, leadId: string, newStage: PipelineStage, dealValue?: number) {
         if (!PIPELINE_STAGES.includes(newStage)) {
@@ -16,14 +21,14 @@ export class PipelineService {
 
         const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
         if (!lead) {
-            throw new Error("Lead not found");
+            throw new PipelineRequestError("Lead not found", 404);
         }
 
         const currentState = lead.pipelineState || "COLD";
         const currentRank = PIPELINE_PRIORITY[currentState] ?? 0;
         const nextRank = PIPELINE_PRIORITY[newStage] ?? 0;
         if (nextRank <= currentRank) {
-            throw new Error(`Cannot move lead from ${currentState} to ${newStage} — pipeline moves are forward-only`);
+            throw new PipelineRequestError(`Cannot move lead from ${currentState} to ${newStage} — pipeline moves are forward-only`, 409);
         }
 
         return prisma.lead.update({
@@ -49,7 +54,7 @@ export class PipelineService {
         if (leadId) {
             const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
             if (!lead) {
-                throw new Error("Lead not found");
+                throw new PipelineRequestError("Lead not found", 404);
             }
         }
         return prisma.task.create({
