@@ -7,6 +7,7 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
+import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -14,6 +15,11 @@ const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // genuine duplicate send if an earlier attempt actually reached Resend. Capped
 // well under 24 attempts to leave margin for scheduling/processing drift.
 const MAX_EMAIL_SEND_ATTEMPTS = 20;
+// An email step whose merge fields cannot all be filled for this contact waits here until the sender fixes the
+// contact or the step, or approves the suggested fallbacks. TOKENS_APPROVED on the run is that approval.
+export const TOKENS_HELD_STATUS = "AWAITING_TOKEN_APPROVAL";
+export const TOKENS_HELD_CODE = "MISSING_TOKENS";
+export const TOKENS_APPROVED_CODE = "TOKENS_APPROVED";
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
 // "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
 const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
@@ -451,7 +457,31 @@ export class SequenceService {
             return { runId: run.id, status: "FAILED", errorCode: "MISSING_BODY" };
         }
 
-        const result = await emailService.sendEmail(lead.email, subject, body, {
+        const approved = run.errorCode === TOKENS_APPROVED_CODE;
+        const resolvedSubject = resolveMessageTokens(subject, lead, { useSuggestedFallbacks: approved });
+        const resolvedBody = resolveMessageTokens(body, lead, { useSuggestedFallbacks: approved, html: true });
+        const problems = new Map<string, MissingToken>();
+        for (const m of [...resolvedSubject.missing, ...resolvedBody.missing]) problems.set(m.token, m);
+        // Once approved, only what a fallback cannot cover still holds the email (a mistyped field, a missing property).
+        const blocking = [...problems.values()].filter((m) => !approved || m.reason === "unknown" || m.suggestedFallback === null);
+        if (blocking.length > 0) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: {
+                    status: TOKENS_HELD_STATUS,
+                    completedAt: now,
+                    errorCode: TOKENS_HELD_CODE,
+                    errorMessage: JSON.stringify({ missing: [...problems.values()] }),
+                },
+            });
+            await client.sequenceEnrollment.update({
+                where: { id: run.enrollmentId },
+                data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+            });
+            return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
+        }
+
+        const result = await emailService.sendEmail(lead.email, resolvedSubject.text, resolvedBody.text, {
             teamId: run.teamId,
             leadId: run.leadId,
             campaignId: run.campaignId,
@@ -841,6 +871,35 @@ export class SequenceService {
             data: { status: "DONE" },
         });
         return { resumed: resuming };
+    }
+
+    // The sender approved sending a held email with the suggested fallbacks (for example "there" for a missing
+    // first name). Only possible when every missing field has a suggestion; a mistyped field or a missing custom
+    // property has to be fixed on the contact or in the step instead.
+    static async approveTokenFallbacks(teamId: string, runId: string, now = new Date()) {
+        const client = db();
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS } });
+        if (!run) return { approved: false as const, reason: "NOT_WAITING" as const };
+
+        let missing: MissingToken[] = [];
+        try {
+            missing = JSON.parse(run.errorMessage || "{}").missing ?? [];
+        } catch {
+            missing = [];
+        }
+        const stuck = missing.filter((m) => m.reason === "unknown" || m.suggestedFallback === null);
+        if (stuck.length > 0) return { approved: false as const, reason: "NEEDS_FIX" as const, tokens: stuck.map((m) => m.token) };
+
+        const taken = await client.sequenceStepRun.updateMany({
+            where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
+        });
+        if (taken.count !== 1) return { approved: false as const, reason: "NOT_WAITING" as const };
+        await client.sequenceEnrollment.updateMany({
+            where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
+            data: { status: "SCHEDULING" },
+        });
+        return { approved: true as const };
     }
 
     // LinkedIn steps waiting on this person, for the list in the browser extension.
