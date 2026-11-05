@@ -54,6 +54,8 @@ export class WorkerManager {
     private domainWatchInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastCampaignHealthTick: number = 0;
     private campaignHealthInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastSilentSunsetTick: number = 0;
+    private silentSunsetInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastFacebookLeadsTick: number = 0;
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
@@ -332,6 +334,17 @@ export class WorkerManager {
                 const result = await runCampaignHealth();
                 if (result.nudgesCreated > 0) {
                     console.log(`[Worker] CampaignHealth raised ${result.nudgesCreated} nudge(s) across ${result.sequencesChecked} live sequence(s).`);
+                }
+            });
+        }
+
+        if (now - this.lastSilentSunsetTick >= this.silentSunsetInterval) {
+            this.lastSilentSunsetTick = now;
+            await this.runSweep("SilentSunset", async () => {
+                const { runSilentSunset } = await import("@/modules/email-campaigner/service/silentSunset");
+                const result = await runSilentSunset();
+                if (result.enrollmentsExited > 0) {
+                    console.log(`[Worker] SilentSunset exited ${result.enrollmentsExited} silent enrollment(s) across ${result.campaignsChecked} campaign(s).`);
                 }
             });
         }
