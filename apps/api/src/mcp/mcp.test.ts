@@ -226,6 +226,29 @@ describe('remote MCP protocol and authorization', () => {
     expect((await executeMcpTool(instance, config, principal, 'create_campaign', { requestId, name: 'Other', icpId: 'icp-1' })).structuredContent.status).toBe(409);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  // Real clients may show only content[].text, so everything an agent or user must act on has to be in the text.
+  it('puts everything needed to act in the text of each reviewed-change outcome', async () => {
+    const instance = await app();
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    const { actionHash } = await import('./actions');
+    const args = { title: 'task', priority: 'MEDIUM' }; // priority is the schema default, so it is part of the stored request
+    const base = { id: 'action-1', operation: 'create_task', argumentsHash: actionHash('create_task', JSON.stringify(args)), result: null };
+    const run = async (row: Record<string, unknown>) => {
+      mocks.db.mcpToolAction.findUnique.mockResolvedValue({ ...base, ...row });
+      const result = await executeMcpTool(instance, config, principal, 'create_task', { requestId, title: 'task' });
+      return result.content.map(part => part.text).join(' ');
+    };
+    const soon = new Date(Date.now() + 5 * 60_000);
+    const pending = await run({ status: 'PENDING', expiresAt: soon });
+    expect(pending).toContain('/mcp/connect?action=action-1');
+    expect(pending).toContain(soon.toISOString());
+    const expired = await run({ status: 'PENDING', expiresAt: new Date(Date.now() - 1000) });
+    expect(expired).toMatch(/nothing was changed/i);
+    expect(expired).toMatch(/NEW requestId/);
+    expect(await run({ status: 'REJECTED', expiresAt: soon })).toMatch(/rejected/i);
+    expect(await run({ status: 'UNKNOWN', expiresAt: soon })).toMatch(/do not create a replacement/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it('refuses new reviewed requests beyond the pending queue limit', async () => {
     const instance = await app();
     mocks.db.mcpToolAction.count.mockResolvedValue(50);

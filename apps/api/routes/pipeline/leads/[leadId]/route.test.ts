@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockMoveLead, mockGetCurrentContext } = vi.hoisted(() => ({
+const { mockMoveLead, mockGetCurrentContext, MockPipelineRequestError } = vi.hoisted(() => ({
     mockMoveLead: vi.fn(),
     mockGetCurrentContext: vi.fn(),
+    MockPipelineRequestError: class extends Error {
+        constructor(message: string, readonly status: 404 | 409) { super(message); }
+    },
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/modules/analytics/service/PipelineService", () => ({
     PIPELINE_STAGES: ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"],
+    PipelineRequestError: MockPipelineRequestError,
     PipelineService: { moveLead: mockMoveLead },
 }));
 
@@ -29,6 +33,20 @@ describe("PATCH /pipeline/leads/[leadId]", () => {
         vi.clearAllMocks();
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
         mockMoveLead.mockResolvedValue({ id: "lead-1" });
+    });
+
+    // A rejected move is the caller's problem, not a server failure; MCP agents rely on the 4xx to tell them so.
+    it("answers a backwards move with 409 and its reason", async () => {
+        mockMoveLead.mockRejectedValue(new MockPipelineRequestError("Cannot move lead from WARM to WARM — pipeline moves are forward-only", 409));
+        const res = await PATCH(patchRequest({ status: "WARM" }), ctx);
+
+        expect(res.status).toBe(409);
+        expect((await res.json()).error).toMatch(/forward-only/);
+    });
+
+    it("answers an unknown lead with 404", async () => {
+        mockMoveLead.mockRejectedValue(new MockPipelineRequestError("Lead not found", 404));
+        expect((await PATCH(patchRequest({ status: "HOT" }), ctx)).status).toBe(404);
     });
 
     it("moves a lead to a real stage (the Kanban board's payload)", async () => {
