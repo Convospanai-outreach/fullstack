@@ -49,3 +49,18 @@ export function mergeHeroText(raw: unknown, defaults: HeroText): HeroText {
         }),
     };
 }
+
+// Lays edited words over a block of default text. The defaults decide the shape: lists keep their length and
+// order, and only strings are taken from the edit. An empty, missing or wrongly typed value keeps the default.
+export function mergeText<T>(defaults: T, raw: unknown): T {
+    if (typeof defaults === "string") return (text(raw) || defaults) as T;
+    if (Array.isArray(defaults)) {
+        const edited = Array.isArray(raw) ? raw : [];
+        return defaults.map((base, i) => mergeText(base, edited[i])) as T;
+    }
+    if (defaults && typeof defaults === "object") {
+        const edited = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+        return Object.fromEntries(Object.entries(defaults).map(([key, base]) => [key, mergeText(base, edited[key])])) as T;
+    }
+    return defaults;
+}
