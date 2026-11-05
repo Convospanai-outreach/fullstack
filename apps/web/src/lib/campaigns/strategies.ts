@@ -73,8 +73,8 @@ export const STRATEGIES: Strategy[] = [
     },
     {
         id: "S5", name: "Deliverability and sunset", group: "check", live: true,
-        summary: "Warns when SPF, DKIM or DMARC fail, and when a drip runs past 90 days.",
-        effect: "Sending domains are checked every day and the team owner is told if one stops passing; the pace check flags a drip that runs past 90 days. This already applies to every campaign.",
+        summary: "Warns when SPF, DKIM or DMARC fail, and stops mailing contacts who have not opened or clicked in 90 days.",
+        effect: "Sending domains are checked every day and the team owner is told if one stops passing; the pace check flags a drip that runs past 90 days. With this selected, a contact who has been in the campaign 90 days without opening or clicking is taken out of it, and no more emails go to them from it. Their lead record is not changed. The domain checks apply to every campaign either way.",
     },
     {
         id: "S7", name: "Conversion probability", group: "check", live: true,
