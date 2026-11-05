@@ -13,7 +13,8 @@ const leadFields = z.object({
   location: z.string().max(200).optional(), tags: z.array(z.string().max(100)).max(30).optional(),
   campaignId: id.optional(), consentObtained: z.boolean().optional(),
 }).strict();
-const leadPatch = leadFields.omit({ campaignId: true });
+// Keep updates aligned with the web lead PATCH handler's contact-field allowlist.
+const leadPatch = leadFields.pick({ fullName: true, email: true, linkedIn: true, company: true });
 type Args = Record<string, any>;
 export type McpOperation = {
   name: string; description: string; scope: McpScope; role: TeamRole;
@@ -57,7 +58,7 @@ export const MCP_OPERATIONS: McpOperation[] = [
   read('get_lead', 'Read a lead and its current customer context.', a => `/leads/${a.id}`, z.object({ id }).strict(), 'web'),
   write('create_lead', 'Save a lead supplied by the user. Requires email or LinkedIn URL. Does not contact the lead.', 'POST', '/leads',
     leadFields.refine(a => Boolean(a.email || a.linkedIn), 'Email or LinkedIn URL required'), 'web'),
-  write('update_lead', 'Update editable lead contact fields. Does not send messages or move pipeline stages.', 'PATCH', a => `/leads/${a.id}`,
+  write('update_lead', 'Update lead name, email, LinkedIn URL or company. Does not send messages or move pipeline stages.', 'PATCH', a => `/leads/${a.id}`,
     z.object({ id, changes: leadPatch.refine(a => Object.keys(a).length > 0, 'Supply changes') }).strict(), 'web', a => a.changes),
   read('get_lead_timeline', 'Read the lead activity timeline.', a => `/leads/${a.id}/timeline`, z.object({ id }).strict(), 'web'),
   write('record_channel_activity', 'Record a channel activity that actually happened. This records status; it does not contact anyone.', 'POST', a => `/leads/${a.id}/journey`,

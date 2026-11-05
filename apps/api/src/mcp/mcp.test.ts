@@ -120,6 +120,36 @@ describe('remote MCP protocol and authorization', () => {
     await expect(executeMcpTool(instance, config, principal, 'get_campaign', { id: '../other' })).rejects.toThrow();
     await expect(executeMcpTool(instance, config, principal, 'request', { url: 'https://evil.example' })).rejects.toThrow('Unknown tool');
   });
+  it.each([
+    ['phone', '+1234567890'], ['jobTitle', 'Manager'], ['location', 'London'],
+    ['tags', ['customer']], ['consentObtained', true],
+  ])('rejects unsupported lead update field %s before dispatch', async (field, value) => {
+    const instance = await app();
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    for (const changes of [{ [field as string]: value }, { fullName: 'Updated', [field as string]: value }]) {
+      await expect(executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes }))
+        .rejects.toThrow('Invalid tool arguments');
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.db.auditLog.create).not.toHaveBeenCalled();
+  });
+  it('rejects an empty lead update', async () => {
+    const instance = await app();
+    await expect(executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes: {} }))
+      .rejects.toThrow('Invalid tool arguments');
+  });
+  it('advertises and relays the lead contact fields supported by the web PATCH handler', async () => {
+    const instance = await app();
+    const changes = { fullName: 'Updated', email: 'updated@example.com', linkedIn: 'https://www.linkedin.com/in/updated', company: 'Example' };
+    const tool = describeTools().find(item => item.name === 'update_lead')!;
+    expect(Object.keys(tool.inputSchema.properties.changes.properties).sort()).toEqual(Object.keys(changes).sort());
+    expect(tool.inputSchema.properties.changes.additionalProperties).toBe(false);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'lead-1', ...changes }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await executeMcpTool(instance, config, principal, 'update_lead', { id: 'lead-1', changes });
+    expect(result.structuredContent.status).toBe(200);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).args).toEqual({ id: 'lead-1', changes });
+  });
   it('preserves insufficient-credit status without exposing prompts in audit rows', async () => {
     const instance = Fastify(); apps.push(instance);
     instance.post('/ai/preview', async (_req, reply) => reply.code(402).send({ error: 'Insufficient credits' }));
