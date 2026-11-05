@@ -283,6 +283,7 @@ export default function SetupWizardPage() {
             password: formData.step3?.password,
             fromName: formData.step3?.fromName || formData.step3?.fromEmail,
             email: formData.step3?.fromEmail || formData.step3?.user,
+            dkimSelector: formData.step3?.dkimSelector || undefined,
           };
 
           const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
@@ -710,6 +711,10 @@ function MailboxProviderStep(props: {
                   </Field>
                   <Field label="App password">
                     <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => setStep3({ password: event.target.value })} />
+                  </Field>
+                  <Field label="DKIM selector (optional)">
+                    <input className={inputClass} placeholder="e.g. s1 or mail" value={props.formData.step3?.dkimSelector || ""} onChange={(event) => setStep3({ dkimSelector: event.target.value })} />
+                    <p className="mt-1 text-xs text-slate-500">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
                   </Field>
                 </div>
               </div>

@@ -50,8 +50,12 @@ export class WorkerManager {
     private approvalSweepInterval: number = parseInt(process.env['APPROVAL_SWEEP_INTERVAL_MS'] || '900000'); // 15 minutes
     private lastOverseerTick: number = 0;
     private overseerInterval: number = parseInt(process.env['OVERSEER_TICK_INTERVAL_MS'] || '1800000'); // 30 minutes
+    private lastDomainWatchTick: number = 0;
+    private domainWatchInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastCampaignHealthTick: number = 0;
     private campaignHealthInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastSilentSunsetTick: number = 0;
+    private silentSunsetInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastFacebookLeadsTick: number = 0;
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
@@ -312,6 +316,17 @@ export class WorkerManager {
             });
         }
 
+        if (now - this.lastDomainWatchTick >= this.domainWatchInterval) {
+            this.lastDomainWatchTick = now;
+            await this.runSweep("DomainWatch", async () => {
+                const { runDomainWatch } = await import("@/modules/overseer/domainWatch");
+                const result = await runDomainWatch();
+                if (result.alarms > 0) {
+                    console.log(`[Worker] DomainWatch raised ${result.alarms} alarm(s) across ${result.domainsChecked} sending domain(s).`);
+                }
+            });
+        }
+
         if (now - this.lastCampaignHealthTick >= this.campaignHealthInterval) {
             this.lastCampaignHealthTick = now;
             await this.runSweep("CampaignHealth", async () => {
@@ -319,6 +334,17 @@ export class WorkerManager {
                 const result = await runCampaignHealth();
                 if (result.nudgesCreated > 0) {
                     console.log(`[Worker] CampaignHealth raised ${result.nudgesCreated} nudge(s) across ${result.sequencesChecked} live sequence(s).`);
+                }
+            });
+        }
+
+        if (now - this.lastSilentSunsetTick >= this.silentSunsetInterval) {
+            this.lastSilentSunsetTick = now;
+            await this.runSweep("SilentSunset", async () => {
+                const { runSilentSunset } = await import("@/modules/email-campaigner/service/silentSunset");
+                const result = await runSilentSunset();
+                if (result.enrollmentsExited > 0) {
+                    console.log(`[Worker] SilentSunset exited ${result.enrollmentsExited} silent enrollment(s) across ${result.campaignsChecked} campaign(s).`);
                 }
             });
         }

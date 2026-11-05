@@ -7,8 +7,10 @@ export const DECAP_SCRIPT = {
 };
 
 // The GitHub login is registered for one address, so the admin and its callback always use it.
+// CMS_ORIGIN overrides the site address for the CMS alone: the site can serve from a host that
+// differs from NEXTAUTH_URL (www redirecting to the bare domain), which would send /cms in a loop.
 export function canonicalOrigin(requestUrl: string): string {
-    const configured = process.env["NEXTAUTH_URL"] || process.env["APP_URL"];
+    const configured = process.env["CMS_ORIGIN"] || process.env["NEXTAUTH_URL"] || process.env["APP_URL"];
     try {
         return new URL(configured || requestUrl).origin;
     } catch {
@@ -106,6 +108,44 @@ collections:
               - { label: From, name: from, widget: string, hint: "A path on this site, for example /old-page. Not /, /api, /cms or /superadmin." }
               - { label: To, name: to, widget: string, hint: "A path (/new-page) or an https address" }
               - { label: Permanent, name: permanent, widget: boolean, default: false }
+      - label: Menus
+        name: navigation
+        file: apps/web/content/settings/navigation.json
+        fields:
+          - label: Menus
+            name: groups
+            widget: list
+            summary: "{{fields.label}}"
+            fields:
+              - { label: Menu name, name: label, widget: string }
+              - label: Links
+                name: items
+                widget: list
+                summary: "{{fields.label}}"
+                fields:
+                  - { label: Link text, name: label, widget: string }
+                  - { label: Address, name: href, widget: string, hint: "A page on this site (/pricing, /#workflow) or an https address." }
+                  - { label: Tag, name: badge, widget: string, required: false, hint: "Optional small label such as New or Popular." }
+      - label: Home page hero
+        name: hero
+        file: apps/web/content/settings/hero.json
+        fields:
+          - { label: Line above the headline, name: topLine, widget: string }
+          - { label: First button, name: startButton, widget: string }
+          - { label: Last button, name: finalButton, widget: string }
+          - label: Steps
+            name: stages
+            widget: list
+            allow_add: false
+            min: 6
+            max: 6
+            summary: "{{fields.label}}"
+            hint: "Six steps, in scroll order. Edit the words only."
+            fields:
+              - { label: Step name, name: label, widget: string }
+              - { label: Headline, name: title, widget: string }
+              - { label: Highlighted words, name: accent, widget: string }
+              - { label: Small text, name: detail, widget: text }
       - label: Analytics
         name: analytics
         file: apps/web/content/settings/analytics.json

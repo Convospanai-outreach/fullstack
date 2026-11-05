@@ -8,6 +8,9 @@ export enum ConsentMethod {
     VERBAL_CONFIRMATION = "VERBAL_CONFIRMATION"
 }
 
+const INBOUND_REPLY_PURPOSE = "INBOUND_REPLY";
+const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export class ConsentService {
 
     /**
@@ -84,14 +87,44 @@ export class ConsentService {
         const latest = await prisma.consentLedger.findFirst({
             where: { leadId, channel },
             orderBy: [{ grantedAt: "desc" }, { id: "desc" }],
-            select: { status: true }
+            select: { status: true, purpose: true }
         });
 
         if (latest?.status !== "GRANTED") {
             return { hasConsent: false, reason: latest ? `${channel} consent was revoked` : `No active ${channel} consent found in ledger` };
         }
 
+        // A person who only messaged us first can be answered while WhatsApp's 24-hour reply window from
+        // their last message is open. It is not consent to outreach, so it lapses with the window.
+        if (latest.purpose === INBOUND_REPLY_PURPOSE) {
+            const open = await prisma.whatsAppMessage.findFirst({
+                where: { leadId, direction: "INBOUND", createdAt: { gte: new Date(Date.now() - REPLY_WINDOW_MS) } },
+                select: { id: true }
+            });
+            if (!open) return { hasConsent: false, reason: "The 24-hour reply window has closed. The customer needs to message again, or give consent." };
+        }
+
         return { hasConsent: true };
+    }
+
+    /**
+     * A lead wrote to the team's WhatsApp number first: allow replies for the next 24 hours.
+     * Does nothing for a lead that already has any WhatsApp consent history (granted or revoked), so
+     * it never overrides an opt-out, and it leaves the lead's consent flag off so sequences stay blocked.
+     */
+    static async recordInboundReplyWindow(leadId: string) {
+        const existing = await prisma.consentLedger.findFirst({ where: { leadId, channel: "WHATSAPP" }, select: { id: true } });
+        if (existing) return;
+        await prisma.consentLedger.create({
+            data: {
+                leadId,
+                userId: null,
+                channel: "WHATSAPP",
+                purpose: INBOUND_REPLY_PURPOSE,
+                status: "GRANTED",
+                notes: "Customer messaged first. Replies allowed within 24 hours of their last message; not consent to outreach."
+            }
+        });
     }
 
     /**

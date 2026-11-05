@@ -9,6 +9,7 @@ const { mockPrisma } = vi.hoisted(() => ({
         domainAuthenticationCheck: {
             upsert: vi.fn().mockResolvedValue({}),
             findMany: vi.fn().mockResolvedValue([]),
+            findUnique: vi.fn().mockResolvedValue(null),
         },
     },
 }));
@@ -16,6 +17,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/modules/email-campaigner/service/domainAuthService", () => ({
     checkDomainDeliverabilitySignals: vi.fn(),
+    dkimSelectorFromMetadata: () => undefined,
 }));
 
 import { getDeliverabilityStats } from "./deliverabilityService";
@@ -115,6 +117,21 @@ describe("getDeliverabilityStats", () => {
         const stats = await getDeliverabilityStats("team-1");
 
         expect(stats.score).toBe(0);
+    });
+
+    it("holds the last recorded result when DNS cannot answer, instead of reporting every record missing", async () => {
+        mockPrisma.connectedMailbox.findMany.mockResolvedValue([{ email: "hello@flaky-dns.test", provider: "SMTP" }]);
+        (checkDomainDeliverabilitySignals as Mock).mockRejectedValue(new Error("DNS lookup failed"));
+        mockPrisma.domainAuthenticationCheck.findUnique.mockResolvedValueOnce({
+            mxStatus: "VERIFIED", spfStatus: "VERIFIED", dkimStatus: "VERIFIED", dmarcStatus: "MISSING",
+        });
+
+        const stats = await getDeliverabilityStats("team-1");
+
+        expect(checkDomainDeliverabilitySignals).toHaveBeenCalledWith("flaky-dns.test", "SMTP", undefined);
+        expect(stats.domains).toEqual([
+            expect.objectContaining({ domain: "flaky-dns.test", mx: true, spf: true, dkim: true, dmarc: false }),
+        ]);
     });
 
     it("falls back to an unauthenticated result when a domain lookup throws", async () => {

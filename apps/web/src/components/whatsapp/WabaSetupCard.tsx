@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/Input";
 import { Settings } from "lucide-react";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { startEmbeddedSignup } from "@/lib/whatsappEmbeddedSignup";
 
 const API_BASE = getBrowserApiBase();
 
@@ -14,6 +15,8 @@ export interface WabaSettings {
     hasWaba: boolean;
     phoneNumberId: string | null;
     businessAccountId?: string | null;
+    /** Present when Meta's one-click signup is set up on the server; the button is hidden without it. */
+    embeddedSignup?: { appId: string; configId: string } | null;
 }
 
 export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; onSaved: (next: WabaSettings) => void }) {
@@ -45,6 +48,28 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
         }
     }
 
+    async function connectWithWhatsApp() {
+        if (!settings.embeddedSignup) return;
+        setSaving(true);
+        setFormError(null);
+        try {
+            const signup = await startEmbeddedSignup(settings.embeddedSignup);
+            const res = await fetch(`${API_BASE}/whatsapp/embedded-signup`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(signup),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+            onSaved({ ...json, embeddedSignup: settings.embeddedSignup });
+            setEditing(false);
+        } catch (e: any) {
+            setFormError(e.message || "Could not connect WhatsApp");
+        } finally {
+            setSaving(false);
+        }
+    }
+
     return (
         <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -61,7 +86,11 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
                             ? <>Template steps are checked against Business Account <code>{settings.businessAccountId}</code>.</>
                             : "Add the Business Account ID (Change credentials) to send approved templates from sequences."}
                     </p>
+                    {formError && <p className="text-xs text-destructive">{formError}</p>}
                     <div className="flex gap-2">
+                        {settings.embeddedSignup && (
+                            <Button size="sm" variant="outline" onClick={connectWithWhatsApp} disabled={saving}>Reconnect with WhatsApp</Button>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Change credentials</Button>
                         <Button size="sm" variant="outline" onClick={() => save(false)} disabled={saving}>Disable automation</Button>
                     </div>
@@ -83,7 +112,17 @@ export function WabaSetupCard({ settings, onSaved }: { settings: WabaSettings; o
             ) : (
                 <div className="text-sm text-muted-foreground space-y-2">
                     <p>No WABA connected. WhatsApp sequence steps will queue a task for a rep to send manually instead of sending automatically.</p>
-                    <Button size="sm" onClick={() => setEditing(true)}>Connect a WABA</Button>
+                    {formError && <p className="text-xs text-destructive">{formError}</p>}
+                    <div className="flex gap-2">
+                        {settings.embeddedSignup && (
+                            <Button size="sm" onClick={connectWithWhatsApp} disabled={saving}>
+                                {saving ? "Connecting..." : "Connect with WhatsApp"}
+                            </Button>
+                        )}
+                        <Button size="sm" variant={settings.embeddedSignup ? "outline" : "default"} onClick={() => setEditing(true)}>
+                            {settings.embeddedSignup ? "Enter credentials manually" : "Connect a WABA"}
+                        </Button>
+                    </div>
                 </div>
             )}
         </Card>

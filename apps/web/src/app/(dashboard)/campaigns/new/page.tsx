@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import StrategyPicker from "@/components/campaigns/StrategyPicker";
+import type { PreflightBrief } from "@/lib/campaigns/preflight";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
 
@@ -27,6 +28,7 @@ export default function NewCampaignPage() {
     const [draftGenerationMode, setDraftGenerationMode] = useState<"REALTIME" | "BATCH">("REALTIME");
     const [strategies, setStrategies] = useState<string[]>([]);
     const [objective, setObjective] = useState("");
+    const [brief, setBrief] = useState<PreflightBrief>({});
 
     const [targetStageEnabled, setTargetStageEnabled] = useState(false);
     const [stage, setStage] = useState<string>("WARM");
@@ -99,6 +101,7 @@ export default function NewCampaignPage() {
             if (strategies.length > 0 || objective.trim()) {
                 body["strategies"] = strategies;
                 body["objective"] = objective;
+                if (strategies.includes("S14")) body["preflight"] = brief;
             }
 
             if (targetStageEnabled) {
@@ -210,6 +213,8 @@ export default function NewCampaignPage() {
                             <StrategyPicker
                                 value={strategies}
                                 objective={objective}
+                                brief={brief}
+                                onBriefChange={setBrief}
                                 icp={icps.find((i) => i.id === icpId) ? { name: icps.find((i) => i.id === icpId)!.name, criteria: icps.find((i) => i.id === icpId)!.criteria } : null}
                                 onChange={(next, nextObjective) => {
                                     setStrategies(next);

@@ -2,25 +2,26 @@ import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
 
-const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent } = vi.hoisted(() => ({
+const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWindow } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findFirst: vi.fn() },
-        lead: { findFirst: vi.fn() },
+        lead: { findFirst: vi.fn(), create: vi.fn() },
         whatsAppMessage: { create: vi.fn() },
     },
     mockAdvanceLeadAfterReply: vi.fn(),
     mockRevokeConsent: vi.fn(),
+    mockRecordWindow: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterReply: mockAdvanceLeadAfterReply }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent } }));
+vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent, recordInboundReplyWindow: mockRecordWindow } }));
 
 const VERIFY_TOKEN = "test-verify-token";
 const APP_SECRET = "test-app-secret";
 
-function messagePayload(overrides: Partial<{ phoneNumberId: string; from: string; text: string }> = {}) {
+function messagePayload(overrides: Partial<{ phoneNumberId: string; from: string; text: string; profileName: string }> = {}) {
     return {
         entry: [{
             id: "waba-1",
@@ -28,6 +29,7 @@ function messagePayload(overrides: Partial<{ phoneNumberId: string; from: string
                 field: "messages",
                 value: {
                     metadata: { phone_number_id: overrides.phoneNumberId ?? "phone-number-1" },
+                    ...(overrides.profileName ? { contacts: [{ wa_id: overrides.from ?? "919876543210", profile: { name: overrides.profileName } }] } : {}),
                     messages: [{ from: overrides.from ?? "919876543210", id: "wamid.1", type: "text", text: { body: overrides.text ?? "Hi there" } }],
                 },
             }],
@@ -192,15 +194,66 @@ describe("/webhooks/whatsapp", () => {
             expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
         });
 
-        it("skips silently (200 OK) when no lead matches the sender's phone", async () => {
+        it("creates a lead for an unknown sender and records their message against it", async () => {
             mockPrisma.lead.findFirst.mockResolvedValue(null);
+            mockPrisma.lead.create.mockResolvedValue({ id: "lead-new", teamId: "team-1" });
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ from: "919876543210", text: "Do you do SEO?", profileName: "Priya Nair" })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockPrisma.lead.create).toHaveBeenCalledWith({
+                data: { teamId: "team-1", phone: "+919876543210", fullName: "Priya Nair", source: "WHATSAPP_INBOUND", status: "NEW" },
+                select: { id: true, teamId: true },
+            });
+            expect(mockPrisma.whatsAppMessage.create).toHaveBeenCalledWith({
+                data: { leadId: "lead-new", body: "Do you do SEO?", direction: "INBOUND", status: "received" },
+            });
+            expect(mockAdvanceLeadAfterReply).toHaveBeenCalledWith(mockPrisma, { leadId: "lead-new", teamId: "team-1" });
+            expect(mockRecordWindow).toHaveBeenCalledWith("lead-new");
+        });
+
+        it("still records the message and advances the lead if opening the reply window fails", async () => {
+            mockRecordWindow.mockRejectedValue(new Error("db"));
             const { POST } = await import("./route");
 
             const res = await POST(signedRequest(messagePayload()) as any);
 
             expect(res.status).toBe(200);
+            expect(mockAdvanceLeadAfterReply).toHaveBeenCalled();
+        });
+
+        it("creates the lead without a name when WhatsApp sends none, and without any consent", async () => {
+            mockPrisma.lead.findFirst.mockResolvedValue(null);
+            mockPrisma.lead.create.mockResolvedValue({ id: "lead-new", teamId: "team-1" });
+            const { POST } = await import("./route");
+
+            await POST(signedRequest(messagePayload()) as any);
+
+            const data = mockPrisma.lead.create.mock.calls[0][0].data;
+            expect(data.fullName).toBeNull();
+            expect(data).not.toHaveProperty("whatsappConsent");
+            expect(data).not.toHaveProperty("consentObtained");
+        });
+
+        it("does not create a lead for a stranger whose first message is an opt-out", async () => {
+            mockPrisma.lead.findFirst.mockResolvedValue(null);
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ text: "STOP" })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockPrisma.lead.create).not.toHaveBeenCalled();
             expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
-            expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+            expect(mockRevokeConsent).not.toHaveBeenCalled();
+        });
+
+        it("does not create a second lead when the sender already exists", async () => {
+            const { POST } = await import("./route");
+
+            await POST(signedRequest(messagePayload()) as any);
+
+            expect(mockPrisma.lead.create).not.toHaveBeenCalled();
         });
 
         it("ignores non-message change events (e.g. a bare status-only field)", async () => {
@@ -246,6 +299,7 @@ describe("/webhooks/whatsapp", () => {
             expect(res.status).toBe(200);
             expect(mockRevokeConsent).toHaveBeenCalledWith("lead-1", undefined, "WhatsApp inbound opt-out keyword", "WHATSAPP");
             expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+            expect(mockRecordWindow).not.toHaveBeenCalled();
         });
 
         it("matches opt-out keywords case-insensitively with surrounding whitespace", async () => {
