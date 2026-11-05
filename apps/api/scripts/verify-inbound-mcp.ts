@@ -47,12 +47,15 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
   if (result.isError) throw new Error(`${name}: ${JSON.stringify(result.structuredContent || result.content)}`);
   return result.structuredContent as { status: number; data: any };
 }
+/** Real clients may show only content[].text, so every assertion about what a user or agent can act on reads that. */
+const textOf = (result: unknown) => ((result as { content: { text: string }[] }).content || []).map(part => part.text).join(' ');
 /** A change is staged (202), approved as the signed-in user in the browser endpoint, then repeated with the same requestId. */
 async function change(client: Client, name: string, args: Record<string, unknown>) {
   const requestId = randomUUID();
   const staged = await client.callTool({ name, arguments: { ...args, requestId } });
   const state = staged.structuredContent as { status: number; actionId: string };
   assert.equal(state.status, 202, `${name} must wait for browser review`);
+  assert(textOf(staged).includes(`/mcp/connect?action=${state.actionId}`), `${name}: the review link must be in the text a client shows`);
   const path = `/mcp/actions/${state.actionId}`;
   const decision = await fetch(base + path, { method: 'POST', headers: signed(path), body: JSON.stringify({ decision: 'approve' }) });
   assert.equal(decision.status, 200, await decision.clone().text());
@@ -82,6 +85,14 @@ assert.notEqual(stored.refreshTokenHash, tokens.refresh_token); checks.push('Onl
 
 const client = new Client({ name: 'cmf-local-smoke', version: '1' });
 await client.connect(new StreamableHTTPClientTransport(new URL(resource), { requestInit: { headers: { authorization: `Bearer ${tokens.access_token}` } } }));
+// The full sweep exceeds the per-user limit of 60 calls a minute; wait out a 429 instead of failing.
+const rawCallTool = client.callTool.bind(client);
+(client as { callTool: unknown }).callTool = async (...input: Parameters<typeof rawCallTool>) => {
+  for (;;) {
+    try { return await rawCallTool(...input); }
+    catch (error) { if ((error as { code?: number }).code !== 429) throw error; await new Promise(resolve => setTimeout(resolve, 62_000)); }
+  }
+};
 const tools = await client.listTools(); assert.equal(tools.tools.length, 31); checks.push('Official SDK discovers all 31 tools on the full Fastify server');
 const stagedTask = await client.callTool({ name: 'create_task', arguments: { title: 'Unapproved', requestId: randomUUID() } });
 assert.equal((stagedTask.structuredContent as { status: number }).status, 202);
@@ -113,6 +124,55 @@ await prisma.teamMember.updateMany({ where: { userId: user.id, teamId: team.id }
 assert((await client.callTool({ name: 'create_task', arguments: { title: 'Forbidden', requestId: randomUUID() } })).isError);
 await prisma.teamMember.updateMany({ where: { userId: user.id, teamId: team.id }, data: { role: 'owner' } });
 checks.push('A role demotion takes effect on the next MCP request');
+// Every remaining tool runs against the real handlers and database, judged on the text a client shows.
+const covered = new Set<string>();
+async function works(name: string, args: Record<string, unknown> = {}, isChange = false) {
+  const result = isChange ? await change(client, name, args) : await client.callTool({ name, arguments: args });
+  const text = textOf(result);
+  assert(!result.isError, `${name} failed: ${text.slice(0, 300)}`);
+  assert((result.structuredContent as { status: number }).status < 400, `${name}: unexpected status`);
+  JSON.parse(text); covered.add(name);
+}
+for (const name of ['list_campaigns', 'list_leads', 'get_pipeline_stats', 'list_meetings', 'get_inbox', 'get_inbox_counts', 'list_templates',
+  'list_knowledge_bases', 'list_workflows', 'get_funnel_analytics', 'list_icps', 'list_pending_approvals']) await works(name);
+await works('get_campaign', { id: campaign.id });
+await works('get_campaign_analytics', { id: campaign.id });
+await works('get_lead_timeline', { id: lead.id });
+await works('get_lead_thread', { leadId: lead.id });
+await works('update_campaign_details', { id: campaign.id, name: 'MCP local draft renamed' }, true);
+await works('update_lead', { id: lead.id, changes: { fullName: 'Renamed prospect' } }, true);
+await works('record_channel_activity', { id: lead.id, channel: 'EMAIL', status: 'CONTACTED', notes: 'Recorded by smoke test' }, true);
+await works('move_lead_stage', { leadId: lead.id, status: 'HOT' }, true);
+await works('record_meeting', { title: 'MCP smoke meeting', startTime: new Date(Date.now() + 86400_000).toISOString(), endTime: new Date(Date.now() + 90000_000).toISOString(), leadId: lead.id }, true);
+await works('save_inbox_draft', { leadId: lead.id, content: 'Draft saved by the smoke test.' }, true);
+await works('create_knowledge_base', { name: 'MCP smoke knowledge base' }, true);
+const knowledgeBase = await prisma.knowledgeBase.findFirstOrThrow({ where: { teamId: team.id, name: 'MCP smoke knowledge base' } });
+await works('get_knowledge_items', { id: knowledgeBase.id });
+assert.equal((await prisma.campaign.findUniqueOrThrow({ where: { id: campaign.id } })).name, 'MCP local draft renamed');
+assert.equal((await prisma.lead.findUniqueOrThrow({ where: { id: lead.id } })).fullName, 'Renamed prospect');
+assert.equal(await prisma.meeting.count({ where: { teamId: team.id, title: 'MCP smoke meeting' } }), 1);
+// Bad input must come back as a readable 4xx, never as a server failure that marks a change as uncertain.
+const missing = randomUUID();
+async function rejectsCleanly(name: string, args: Record<string, unknown>, isChange: boolean) {
+  const result = isChange ? await change(client, name, args) : await client.callTool({ name, arguments: args });
+  const status = (result.structuredContent as { status: number }).status;
+  assert(result.isError, `${name}: bad input must be rejected`);
+  assert(status >= 400 && status < 500, `${name}: bad input returned ${status}, expected a 4xx. ${textOf(result).slice(0, 200)}`);
+  assert(textOf(result).length > 0);
+}
+for (const [name, args] of [['get_campaign', { id: missing }], ['get_campaign_analytics', { id: missing }], ['get_lead', { id: missing }],
+  ['get_lead_timeline', { id: missing }], ['get_lead_thread', { leadId: missing }], ['get_knowledge_items', { id: missing }]] as const) await rejectsCleanly(name, args, false);
+for (const [name, args] of [['update_campaign_details', { id: missing, name: 'x' }], ['update_lead', { id: missing, changes: { fullName: 'x' } }],
+  ['record_channel_activity', { id: missing, channel: 'EMAIL', status: 'CONTACTED' }], ['move_lead_stage', { leadId: missing, status: 'HOT' }],
+  ['move_lead_stage', { leadId: lead.id, status: 'COLD' }], ['save_inbox_draft', { leadId: missing, content: 'x' }],
+  ['record_meeting', { title: 'x', startTime: new Date(Date.now() + 86400_000).toISOString(), endTime: new Date(Date.now() + 90000_000).toISOString(), leadId: missing }],
+  ['create_task', { title: 'x', leadId: missing }]] as const) await rejectsCleanly(name, args, true);
+assert.equal(await prisma.mcpToolAction.count({ where: { status: 'UNKNOWN', grant: { userId: user.id } } }), 0, 'bad input must not leave uncertain outcomes behind');
+checks.push('Unknown ids and rule violations on every tool return a readable 4xx and leave no uncertain outcome');
+const everyTool = new Set(tools.tools.map(tool => tool.name));
+const exercised = new Set([...covered, 'create_task', 'list_tasks', 'create_template', 'generate_message_preview', 'create_lead', 'get_lead', 'create_campaign']);
+assert.deepEqual([...everyTool].filter(name => !exercised.has(name)), [], 'every advertised tool must be exercised by this smoke');
+checks.push('All 31 tools ran against real handlers; changes were staged, approved and verified in Postgres; results read from content text');
 await client.close();
 const refresh = { grant_type: 'refresh_token', client_id: registered.client_id, resource, refresh_token: tokens.refresh_token };
 assert.equal((await form('/mcp/oauth/token', refresh)).status, 200);
