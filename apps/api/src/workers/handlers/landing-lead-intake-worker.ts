@@ -36,8 +36,9 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
     // The landing form's consent box. Only ever sets consentObtained to true, never back to false.
     const consentGiven = consentRecordOf(landingLead.rawPayload)?.given === true;
-    // A form with a consent box that was not ticked does not go to Mautic: its journeys can send mail.
-    const mauticAllowed = consentAllowsContact(landingLead.rawPayload);
+    // Only a ticked consent box sends the lead to Mautic: its journeys can send mail. A form with no box,
+    // or a box that was not ticked, stays out. (Plan nurture and the Meta event keep their own rule.)
+    const mauticAllowed = consentGiven;
 
     // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
     // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
