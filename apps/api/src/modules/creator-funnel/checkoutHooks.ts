@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
 
+// Any team: a verified payment ends the buyer's live email sequences (stopBuyerSequences below).
 // Creator funnel checkout hooks (teams with the flag on):
 // - checkout started -> the buyer's existing lead moves to BOFU;
 // - not paid within the product's hours -> that lead joins the product's cart-abandon sequence;
@@ -58,7 +59,10 @@ export async function onCheckoutStarted(orderId: string) {
 /** Called by the order_captured job (payment verified by the Stripe/Razorpay webhook). Never throws. */
 export async function onOrderCaptured(teamId: string, orderId: string) {
     try {
-        if (!(await flagOn(teamId))) return;
+        if (!(await flagOn(teamId))) {
+            await stopBuyerSequences(teamId, orderId);
+            return;
+        }
         const order = await prisma.order.findFirst({
             where: { id: orderId, teamId, status: "CAPTURED" },
             include: { product: true },
@@ -87,6 +91,22 @@ export async function onOrderCaptured(teamId: string, orderId: string) {
     } catch (error) {
         console.error(`[CheckoutHooks] Order ${orderId} hooks failed: ${errorText(error)}`);
     }
+}
+
+// Teams without the creator funnel get only this: the buyer's live sequences end so a paying customer
+// stops receiving sales emails. It acts on a lead the team already has (never creates one, never
+// changes the funnel stage or sends a delivery email) and a missing buyer email or lead is a no-op.
+async function stopBuyerSequences(teamId: string, orderId: string) {
+    const order = await prisma.order.findFirst({
+        where: { id: orderId, teamId, status: "CAPTURED" },
+        select: { customerEmail: true, leadId: true },
+    });
+    if (!order) return;
+    const email = normalEmail(order.customerEmail);
+    const leadId = order.leadId ?? (email ? (await findLeadByEmail(teamId, email))?.id : null);
+    if (!leadId) return;
+    const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+    await SequenceService.stopEnrollmentsForLead(teamId, leadId, "EXIT_NURTURE_PURCHASED");
 }
 
 // The buyer's lead: an existing one with that email, or a new one (a verified payment is a real buyer).
