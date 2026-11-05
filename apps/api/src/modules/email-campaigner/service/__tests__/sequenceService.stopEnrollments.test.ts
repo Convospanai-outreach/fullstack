@@ -122,6 +122,15 @@ describe("SequenceService.stopEnrollmentsForLead", () => {
         expect(tables["sequenceEnrollment"][0]).toMatchObject({ status: "EXITED", nextRunAt: null, exitReason: "reply_not_interested" });
     });
 
+    it("does not send to a lead an opt-out marked DNC", async () => {
+        tables["lead"][0].status = "DNC";
+
+        await SequenceService.processDue({ now });
+
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(tables["sequenceEnrollment"][0]).toMatchObject({ status: "EXITED", exitReason: "dnc" });
+    });
+
     it("only touches the given team's enrollments", async () => {
         await SequenceService.stopEnrollmentsForLead("team-1", "lead-1", "EXIT_REPLY_INTERESTED", now);
 
