@@ -141,6 +141,25 @@ describe("email steps with merge fields", () => {
         expect(emailService.sendEmail).not.toHaveBeenCalled();
     });
 
+    it("checks again after the contact is fixed and sends the real value, with no approval needed", async () => {
+        await SequenceService.processDue({ now });
+        tables["lead"][0].fullName = "Asha Rao";
+
+        expect(await SequenceService.retryHeldTokens("team-1", "run-1", now)).toEqual({ retried: true });
+        await SequenceService.processDue({ now });
+
+        expect((emailService.sendEmail as any).mock.calls[0][2]).toBe("Hi Asha, just checking in");
+    });
+
+    it("holds again when checked again without fixing anything", async () => {
+        await SequenceService.processDue({ now });
+        await SequenceService.retryHeldTokens("team-1", "run-1", now);
+        await SequenceService.processDue({ now });
+
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(tables["sequenceStepRun"][0]).toMatchObject({ status: "AWAITING_TOKEN_APPROVAL" });
+    });
+
     it("only approves a run that belongs to the team and is waiting", async () => {
         await SequenceService.processDue({ now });
         expect(await SequenceService.approveTokenFallbacks("team-2", "run-1", now)).toEqual({ approved: false, reason: "NOT_WAITING" });

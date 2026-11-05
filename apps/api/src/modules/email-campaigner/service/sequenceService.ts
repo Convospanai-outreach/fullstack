@@ -902,6 +902,24 @@ export class SequenceService {
         return { approved: true as const };
     }
 
+    // The sender fixed the contact or the step and wants the held email checked again. No approval is given: if a
+    // field is still missing the email is held again with the current list.
+    static async retryHeldTokens(teamId: string, runId: string, now = new Date()) {
+        const client = db();
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS } });
+        if (!run) return { retried: false as const };
+        const taken = await client.sequenceStepRun.updateMany({
+            where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: null, errorMessage: null, completedAt: null },
+        });
+        if (taken.count !== 1) return { retried: false as const };
+        await client.sequenceEnrollment.updateMany({
+            where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
+            data: { status: "SCHEDULING" },
+        });
+        return { retried: true as const };
+    }
+
     // LinkedIn steps waiting on this person, for the list in the browser extension.
     static async listDueLinkedInSteps(teamId: string, userId: string) {
         const client = db();
