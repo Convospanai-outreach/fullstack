@@ -103,10 +103,14 @@ async function stopBuyerSequences(teamId: string, orderId: string) {
     });
     if (!order) return;
     const email = normalEmail(order.customerEmail);
-    const leadId = order.leadId ?? (email ? (await findLeadByEmail(teamId, email))?.id : null);
-    if (!leadId) return;
+    // Every lead the team has with the buyer's email (duplicates happen), plus the order's own lead.
+    const sameEmail = email
+        ? await prisma.lead.findMany({ where: { teamId, email: { equals: email, mode: "insensitive" } }, select: { id: true } })
+        : [];
+    const leadIds = [...new Set([...(order.leadId ? [order.leadId] : []), ...sameEmail.map((lead) => lead.id)])];
+    if (leadIds.length === 0) return;
     const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
-    await SequenceService.stopEnrollmentsForLead(teamId, leadId, "EXIT_NURTURE_PURCHASED");
+    for (const leadId of leadIds) await SequenceService.stopEnrollmentsForLead(teamId, leadId, "EXIT_NURTURE_PURCHASED");
 }
 
 // The buyer's lead: an existing one with that email, or a new one (a verified payment is a real buyer).

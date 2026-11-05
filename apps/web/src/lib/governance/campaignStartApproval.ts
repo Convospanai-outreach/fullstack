@@ -35,6 +35,9 @@ export async function checkCampaignStartApproval({
 
     // Two simultaneous starts must not each file a request: look and create under a lock held for
     // this campaign until the transaction ends, so the second start sees the first one's request.
+    // Read before the transaction: it uses its own connection, and nesting it inside could starve the pool.
+    const tier = resolveApprovalTier(ACTION_TYPE);
+    const breakerState = await getBreakerState(teamId);
     return prisma.$transaction(async (tx): Promise<CampaignStartGate> => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(7402, hashtext(${campaignId}))`;
 
@@ -47,8 +50,6 @@ export async function checkCampaignStartApproval({
             return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: latest.id, message: PENDING_MESSAGE } };
         }
 
-        const tier = resolveApprovalTier(ACTION_TYPE);
-        const breakerState = await getBreakerState(teamId);
         const created = await tx.approvalRequest.create({
             data: {
                 teamId,
