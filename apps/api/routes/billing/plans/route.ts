@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
         const priced = plans.map((plan) => {
             if (currency === "INR") {
-                return { id: plan.id, name: plan.name, currency, amount: plan.monthlyPrice, creditsPerMonth: plan.creditsPerMonth, maxAgents: plan.maxAgents, features: plan.features };
+                return { id: plan.id, name: plan.name, currency, amount: plan.monthlyPrice, available: true, creditsPerMonth: plan.creditsPerMonth, maxAgents: plan.maxAgents, features: plan.features };
             }
             const stripePrices = (plan.stripePrices as Record<string, { amount: number; stripePriceId: string }> | null) || {};
             const priceForCurrency = stripePrices[currency];
