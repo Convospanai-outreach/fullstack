@@ -31,10 +31,13 @@ export interface HeldEmail {
 // mistyped in the step). Nothing goes out until the sender fixes it or approves the suggested fallback.
 export function HeldEmails({
     items,
+    total,
     onApprove,
     onRetry,
 }: {
     items: HeldEmail[];
+    // All held emails; larger than items.length when the list is cut off.
+    total?: number | undefined;
     onApprove: (runId: string) => Promise<void>;
     onRetry: (runId: string) => Promise<void>;
 }) {
@@ -58,6 +61,12 @@ export function HeldEmails({
     }
 
     return (
+        <div className="space-y-3">
+        {total !== undefined && total > items.length && (
+            <p className="text-sm text-muted-foreground">
+                Showing the newest {items.length} of {total} held emails. The rest appear here as you approve or fix these.
+            </p>
+        )}
         <ul className="space-y-3" aria-label="Held emails">
             {items.map((item) => (
                 <li key={item.runId}>
@@ -108,5 +117,6 @@ export function HeldEmails({
                 </li>
             ))}
         </ul>
+        </div>
     );
 }
