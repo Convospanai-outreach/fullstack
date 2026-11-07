@@ -49,6 +49,20 @@ describe("LeadFormSettingsPanel consent section", () => {
         expect(container.textContent).not.toContain("Add a privacy policy link");
     });
 
+    it("says follow-ups and tracking run without consent only when the checkbox is off", async () => {
+        const warning = "Without a consent checkbox, automatic follow-up emails and ad tracking run";
+        await act(async () => {
+            root.render(<LeadFormSettingsPanel config={LEAD_FORM_DEFAULT_CONFIG} onApply={vi.fn()} />);
+        });
+        expect(container.textContent).not.toContain(warning);
+        act(() => root.unmount());
+        root = createRoot(container);
+        await act(async () => {
+            root.render(<LeadFormSettingsPanel config={setLeadFormConsent(LEAD_FORM_DEFAULT_CONFIG, { enabled: false })} onApply={vi.fn()} />);
+        });
+        expect(container.textContent).toContain(warning);
+    });
+
     it("applies a changed consent wording", async () => {
         const onApply = vi.fn();
         await act(async () => {
