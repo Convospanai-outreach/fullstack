@@ -361,6 +361,20 @@ describe("runOverseerTick", () => {
             mockJevJudge.mockResolvedValue({ judgments: [{ enrollmentId: "enr-a", nudgeType: "ROUTE_MANUAL", suggestion: "jev for a" }], logs: [] });
         });
 
+        it("judges a lead who opted out by the rules alone, without reading or sending their thread to Jev", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([
+                { ...enrollment("enr-a", "team-1", "lead-a"), lead: { status: "unsubscribed", phone: null, whatsappConsent: false, messages: [], replies: [] } },
+            ]);
+            mockJudge.mockReturnValue([]);
+            mockJevJudge.mockResolvedValue({ judgments: [], logs: [] });
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ enrollmentId: "enr-a", optedOut: true })]);
+            expect(mockJevJudge).not.toHaveBeenCalled();
+            expect(mockPrisma.lead.findFirst).not.toHaveBeenCalled();
+        });
+
         it("consults Jev only for the team that turned the feature on, and reads that team's lead only", async () => {
             await runOverseerTick();
 

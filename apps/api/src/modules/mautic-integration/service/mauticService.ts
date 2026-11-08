@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { isOptedOutStatus } from "@/lib/leadOptOut";
 import { logger } from "@/lib/logger";
 
 // One shared Mautic instance (not per-team credentials): a single Mautic serves top-of-funnel capture/segmentation/funnel
@@ -34,8 +35,6 @@ function authHeader(username: string, password: string) {
 // fetch has no default timeout, so a slow Mautic instance would hang the push
 // (roadmap B-07). Bound each call to 10s via AbortSignal.
 const MAUTIC_TIMEOUT_MS = 10_000;
-// Lead statuses (compared lower-cased) that must never reach Mautic: "DNC" is what ComplianceGuard writes.
-const OPTED_OUT_STATUSES = new Set(["dnc", "do_not_contact", "unsubscribed", "bounced"]);
 
 const FUNNEL_STAGE_TAGS = ["stage-tofu", "stage-mofu", "stage-bofu", "stage-post"];
 
@@ -64,7 +63,7 @@ class MauticService {
             if (!lead) return { status: "error", details: "Lead not found" };
             if (!lead.email) return { status: "skipped", details: "Lead has no email" };
             // Mautic journeys can send mail, so a lead who opted out or bounced never goes there.
-            if (OPTED_OUT_STATUSES.has((lead.status || "").toLowerCase())) return { status: "skipped", details: "Lead has opted out or bounced" };
+            if (isOptedOutStatus(lead.status)) return { status: "skipped", details: "Lead has opted out or bounced" };
 
             const headers = {
                 Authorization: authHeader(config.username, config.password),
