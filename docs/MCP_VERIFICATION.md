@@ -70,12 +70,29 @@ The first real Claude connection exposed gaps that mocks and the SDK-based smoke
 | MCP, pipeline and web relay tests on Node 22.23.4 | 89 passed (API 66, web 23) |
 | Foreign-workspace ICP rejection | Now proven by the smoke (it was not before) |
 
+## Production run — 2026-11-08
+
+Observed against production with a real Claude connection (grant `356a44d3…`, all three scopes):
+
+| Check | Result |
+| --- | --- |
+| `list_campaigns`, `list_leads` (web-owned, signed relay) | 200 with real data once the web service was awake |
+| `create_task` first call | 202 PENDING with review URL and expiry in the text; no row written |
+| Browser approval | `MCP_ACTION_APPROVED` audit row; action APPROVED |
+| `create_task` retry, same `requestId` | 200; action SUCCEEDED; exactly one `Task` titled "MCP test" in the workspace |
+| `create_template` staged, then **Reject** in the browser | Action REJECTED with one `MCP_ACTION_REJECTED` audit row; no template written; retrying the same `requestId` returned "The user rejected this change." |
+| 17 read calls, including unknown ids | 15 returned 200; unknown campaign and lead ids were audited as 404, not 5xx |
+
+Findings:
+
+- The Render web service is on the free plan and sleeps. The first web-owned call after idle waited about 56 seconds and returned 401 "MCP delegation rejected", because the relay's 30-second signature window had passed by the time the service woke. Both audit rows showed status 401 with a duration near 56 s. A retry once the service was awake succeeded. Fix: a paid plan or a keep-warm ping; not changed in code.
+- An earlier approval attempt, made while the service was cold, never registered (the action stayed PENDING with no approval audit row). The cause was not observed; the cold start is the likely explanation but is unproven.
+
 Still unproven:
 
-- A real Claude session has connected, been granted access and staged a change, but approval, the retry with the same `requestId` and the resulting write have not been observed in production at the time of writing.
 - ChatGPT has not been tested.
 - The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
-- A request left `RUNNING` by a crash is never retried automatically and stays reported as uncertain until inspected.
+- A request left `RUNNING` by a crash is never retried automatically. The 30-minute maintenance job now marks any action still `RUNNING` after 10 minutes as `UNKNOWN`, so the agent is told to inspect it instead of waiting; this is covered by a unit test (shown to fail when the step is broken) but has not been observed against a real crash.
 - The smoke sends no outreach and uses no provider credit, so `generate_message_preview` is only proven to be rejected by guardrails, not to produce a preview.
 - Unrelated and untouched: a type error in `services/browser/browser-engine.ts` (`Browser.isConnected`).
 

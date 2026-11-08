@@ -8,18 +8,20 @@ import { registerMcp, executeMcpTool, describeTools } from './server';
 import { authenticateMcpToken, digest } from './oauth';
 import { getMcpConfig, parseScopes, redirectUriSchema } from './config';
 import { MCP_OPERATIONS } from './catalog';
+import { cleanupMcpRecords } from './maintenance';
 import { TeamRole } from '@/lib/permissions';
 import { verifyInternalAuthHeaders } from '@/lib/internalAuth';
 
 const mocks = vi.hoisted(() => ({
   db: {
-    mcpOAuthClient: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
-    mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
+    mcpOAuthClient: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), deleteMany: vi.fn() },
+    mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
     mcpOAuthCode: { findUnique: vi.fn(), deleteMany: vi.fn() },
     mcpOAuthRefreshUse: { create: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn() },
     team: { findMany: vi.fn() },
     teamMember: { findFirst: vi.fn(), findMany: vi.fn() }, user: { findUnique: vi.fn() },
-    mcpToolAction: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    mcpToolAction: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+    mcpRelayClaim: { deleteMany: vi.fn() },
     auditLog: { create: vi.fn() }, $transaction: vi.fn(), $executeRaw: vi.fn(),
   }, getToken: vi.fn(), rate: vi.fn(),
 }));
@@ -427,5 +429,14 @@ describe('OAuth connection lifecycle', () => {
     const instance = await app(); mocks.getToken.mockResolvedValue(null);
     expect((await instance.inject('/mcp/connections')).statusCode).toBe(401);
     expect(mocks.db.mcpOAuthGrant.findMany).not.toHaveBeenCalled();
+  });
+  it('marks a change left running by a crashed process as uncertain, and only once it is clearly stale', async () => {
+    const now = new Date('2026-11-08T12:00:00Z');
+    await cleanupMcpRecords(now);
+    const stuck = mocks.db.mcpToolAction.updateMany.mock.calls[0]![0];
+    expect(stuck.where.status).toBe('RUNNING');
+    expect(stuck.where.startedAt.lt).toEqual(new Date('2026-11-08T11:50:00Z'));
+    expect(stuck.data).toEqual({ status: 'UNKNOWN', completedAt: now });
+    expect(mocks.db.mcpToolAction.deleteMany).toHaveBeenCalled();
   });
 });
