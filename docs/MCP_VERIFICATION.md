@@ -70,9 +70,24 @@ The first real Claude connection exposed gaps that mocks and the SDK-based smoke
 | MCP, pipeline and web relay tests on Node 22.23.4 | 89 passed (API 66, web 23) |
 | Foreign-workspace ICP rejection | Now proven by the smoke (it was not before) |
 
+## Production run — 2026-11-08
+
+Observed against production with a real Claude connection (grant `356a44d3…`, all three scopes):
+
+| Check | Result |
+| --- | --- |
+| `list_campaigns`, `list_leads` (web-owned, signed relay) | 200 with real data once the web service was awake |
+| `create_task` first call | 202 PENDING with review URL and expiry in the text; no row written |
+| Browser approval | `MCP_ACTION_APPROVED` audit row; action APPROVED |
+| `create_task` retry, same `requestId` | 200; action SUCCEEDED; exactly one `Task` titled "MCP test" in the workspace |
+
+Findings:
+
+- The Render web service is on the free plan and sleeps. The first web-owned call after idle waited about 56 seconds and returned 401 "MCP delegation rejected", because the relay's 30-second signature window had passed by the time the service woke. Both audit rows showed status 401 with a duration near 56 s. A retry once the service was awake succeeded. Fix: a paid plan or a keep-warm ping; not changed in code.
+- An earlier approval attempt, made while the service was cold, never registered (the action stayed PENDING with no approval audit row). The cause was not observed; the cold start is the likely explanation but is unproven.
+
 Still unproven:
 
-- A real Claude session has connected, been granted access and staged a change, but approval, the retry with the same `requestId` and the resulting write have not been observed in production at the time of writing.
 - ChatGPT has not been tested.
 - The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
 - A request left `RUNNING` by a crash is never retried automatically and stays reported as uncertain until inspected.
