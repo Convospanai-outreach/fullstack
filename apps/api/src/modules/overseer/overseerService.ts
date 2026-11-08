@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { isOptedOutStatus } from "@/lib/leadOptOut";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { toPlainText } from "@/modules/inbox/actionInboxService";
 import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode } from "./stallJudgment";
@@ -73,6 +74,7 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             sequence: { select: { name: true, campaign: { select: { aiConfig: true } }, _count: { select: { steps: true } } } },
             lead: {
                 select: {
+                    status: true,
                     phone: true,
                     whatsappConsent: true,
                     messages: {
@@ -148,7 +150,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             stallDays,
             whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true,
             replied: !!replyInEnrollment || (!!lastInbound && lastInbound >= enrollment.startedAt),
-            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null
+            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null,
+            optedOut: isOptedOutStatus(enrollment.lead?.status)
         };
     });
 
@@ -161,7 +164,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     for (const candidate of candidates) {
         const enrollment = byEnrollmentId.get(candidate.enrollmentId)!;
         const mode: StallJevMode = jevModeByTeam.get(enrollment.teamId) ?? "off";
-        if (mode === "off") {
+        // A lead who opted out is judged by the rules alone: their thread is not sent to Jev.
+        if (mode === "off" || candidate.optedOut) {
             rulesOnly.push(candidate);
             continue;
         }
