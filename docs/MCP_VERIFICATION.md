@@ -80,6 +80,8 @@ Observed against production with a real Claude connection (grant `356a44d3…`, 
 | `create_task` first call | 202 PENDING with review URL and expiry in the text; no row written |
 | Browser approval | `MCP_ACTION_APPROVED` audit row; action APPROVED |
 | `create_task` retry, same `requestId` | 200; action SUCCEEDED; exactly one `Task` titled "MCP test" in the workspace |
+| `create_template` staged, then **Reject** in the browser | Action REJECTED with one `MCP_ACTION_REJECTED` audit row; no template written; retrying the same `requestId` returned "The user rejected this change." |
+| 17 read calls, including unknown ids | 15 returned 200; unknown campaign and lead ids were audited as 404, not 5xx |
 
 Findings:
 
@@ -90,7 +92,7 @@ Still unproven:
 
 - ChatGPT has not been tested.
 - The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
-- A request left `RUNNING` by a crash is never retried automatically and stays reported as uncertain until inspected.
+- A request left `RUNNING` by a crash is never retried automatically. The 30-minute maintenance job now marks any action still `RUNNING` after 10 minutes as `UNKNOWN`, so the agent is told to inspect it instead of waiting; this is covered by a unit test (shown to fail when the step is broken) but has not been observed against a real crash.
 - The smoke sends no outreach and uses no provider credit, so `generate_message_preview` is only proven to be rejected by guardrails, not to produce a preview.
 - Unrelated and untouched: a type error in `services/browser/browser-engine.ts` (`Browser.isConnected`).
 
