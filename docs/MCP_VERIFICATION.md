@@ -96,7 +96,7 @@ ChatGPT did not retry until prompted again, and its first attempt to log in drov
 
 Findings:
 
-- The Render web service is on the free plan and sleeps. The first web-owned call after idle waited about 56 seconds and returned 401 "MCP delegation rejected", because the relay's 30-second signature window had passed by the time the service woke. Both audit rows showed status 401 with a duration near 56 s. A retry once the service was awake succeeded. Fix: a paid plan or a keep-warm ping; not changed in code.
+- The Render web service is on the free plan and sleeps. The first web-owned call after idle waited about 56 seconds and returned 401 "MCP delegation rejected", because the relay's 30-second signature window had passed by the time the service woke. Both audit rows showed status 401 with a duration near 56 s. A retry once the service was awake succeeded. Fix: a paid plan or a keep-warm ping. Mitigated on 2026-11-09 without a code change: an external UptimeRobot monitor requests the web service every 5 minutes. Over the first 40 minutes the checks answered in 171 to 305 ms and the service did not restart. This covers sleeping only; a deploy or crash restart would still give one slow first call, and the relay's 30-second window is unchanged. A paid plan would remove the cause.
 - An earlier approval attempt, made while the service was cold, never registered (the action stayed PENDING with no approval audit row). The cause was not observed; the cold start is the likely explanation but is unproven.
 
 Still unproven:
