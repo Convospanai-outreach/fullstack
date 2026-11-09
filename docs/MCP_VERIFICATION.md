@@ -83,6 +83,17 @@ Observed against production with a real Claude connection (grant `356a44d3…`, 
 | `create_template` staged, then **Reject** in the browser | Action REJECTED with one `MCP_ACTION_REJECTED` audit row; no template written; retrying the same `requestId` returned "The user rejected this change." |
 | 17 read calls, including unknown ids | 15 returned 200; unknown campaign and lead ids were audited as 404, not 5xx |
 
+ChatGPT (client `087030fd…`, redirect `chatgpt.com/connector/oauth/…`, grant `323aed22…`, all three scopes), observed the same day:
+
+| Check | Result |
+| --- | --- |
+| Dynamic registration, consent, token issue | Worked; one `MCP_CONNECTED` audit row |
+| `list_campaigns` | 200 in 1.6 s |
+| `create_task` first call | Staged as PENDING with a review link; nothing written |
+| Browser approval, then ChatGPT retry with the same `requestId` | Action reused (no second request), RUNNING then SUCCEEDED in 306 ms; exactly one `Task` written, inside the 10-minute window |
+
+ChatGPT did not retry until prompted again, and its first attempt to log in drove a browser rather than the connector; it used the connector once the connector was enabled for the chat. Neither is a server defect.
+
 Findings:
 
 - The Render web service is on the free plan and sleeps. The first web-owned call after idle waited about 56 seconds and returned 401 "MCP delegation rejected", because the relay's 30-second signature window had passed by the time the service woke. Both audit rows showed status 401 with a duration near 56 s. A retry once the service was awake succeeded. Fix: a paid plan or a keep-warm ping; not changed in code.
@@ -90,7 +101,6 @@ Findings:
 
 Still unproven:
 
-- ChatGPT has not been tested.
 - The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
 - A request left `RUNNING` by a crash is never retried automatically. The 30-minute maintenance job now marks any action still `RUNNING` after 10 minutes as `UNKNOWN`, so the agent is told to inspect it instead of waiting; this is covered by a unit test (shown to fail when the step is broken) but has not been observed against a real crash.
 - The smoke sends no outreach and uses no provider credit, so `generate_message_preview` is only proven to be rejected by guardrails, not to produce a preview.
