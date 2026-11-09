@@ -130,6 +130,23 @@ describe("forwardRequest upstream failures", () => {
         expect(body).not.toHaveProperty("upstream");
     });
 
+    it("logs which request failed and how long it took, without the query string", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        const abort = new Error("aborted");
+        abort.name = "AbortError";
+        global.fetch = vi.fn().mockRejectedValue(abort) as any;
+        const url = "http://localhost:3000/api/proxy/mcp/oauth/consent?code_challenge=secret-value";
+        const req = Object.assign(new Request(url, { method: "GET" }), { nextUrl: new URL(url) }) as any;
+
+        await POST(req, { params: Promise.resolve({ path: ["mcp", "oauth", "consent"] }) });
+
+        const entry = log.mock.calls.find(call => call[0] === "[proxy] upstream request failed")?.[1] as Record<string, unknown>;
+        expect(entry).toMatchObject({ path: "/api/proxy/mcp/oauth/consent" });
+        expect(typeof entry["method"]).toBe("string");
+        expect(typeof entry["elapsedMs"]).toBe("number");
+        expect(JSON.stringify(entry)).not.toContain("secret-value");
+    });
+
     it("returns a fixed message instead of an internal error's text", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {});
         global.fetch = vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 10.0.0.12:3001")) as any;

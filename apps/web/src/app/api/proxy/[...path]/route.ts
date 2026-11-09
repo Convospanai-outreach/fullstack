@@ -219,6 +219,7 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers, method
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
+    const startedAt = Date.now();
     try {
         if (!pathParts || pathParts.length === 0) {
             throw new Error("Proxy path is required");
@@ -289,7 +290,11 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
     } catch (error) {
         // The detail (internal origin, config or socket errors) stays in the server log: the browser only
         // needs to know the upstream API did not answer.
+        // Path only: the query string can carry OAuth parameters.
         console.error("[proxy] upstream request failed", {
+            method: req.method,
+            path: req.nextUrl.pathname,
+            elapsedMs: Date.now() - startedAt,
             upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
             error: error instanceof Error ? error.message : String(error),
         });

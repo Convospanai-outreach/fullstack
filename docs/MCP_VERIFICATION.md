@@ -101,7 +101,7 @@ Findings:
 
 Still unproven:
 
-- The one-off 15-second consent timeout seen on first connection was not diagnosed; only one occurrence was recorded.
+- The one-off 15-second consent timeout seen on first connection (2026-11-05) is probably an API redeploy, not proven. The web proxy logged one abort at 17:02:27 UTC (its 15-second limit on the API's response), 66 seconds into the `api-main` deploy window (17:01:21 to 17:08:30), and the Render web instance had been up since 16:43, so it was not a web cold start. The API's own logs could not be read, and the old log line carried no path, so the request is not confirmed as the consent call. The proxy now logs method, path (no query string) and elapsed time on failure, so a repeat can be identified. Deploys still drop requests briefly; not changed.
 - A request left `RUNNING` by a crash is never retried automatically. The 30-minute maintenance job now marks any action still `RUNNING` after 10 minutes as `UNKNOWN`, so the agent is told to inspect it instead of waiting; this is covered by a unit test (shown to fail when the step is broken) but has not been observed against a real crash.
 - The smoke sends no outreach and uses no provider credit, so `generate_message_preview` is only proven to be rejected by guardrails, not to produce a preview.
 - Unrelated and untouched: a type error in `services/browser/browser-engine.ts` (`Browser.isConnected`).
