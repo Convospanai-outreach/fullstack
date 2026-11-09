@@ -325,6 +325,33 @@ describe("runOverseerTick", () => {
             expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: false, replyClassification: null })]);
         });
 
+        it("does not count an older message's late-classified reply when a newer message is still unclassified", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false,
+                messages: [{ id: "m-new", createdAt: replyAt(1) }, { id: "m-old", createdAt: replyAt(30) }],
+                replies: [{ emailId: "m-old", receivedAt: replyAt(0.5), aiClassification: "DNC", humanCorrection: null }]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: true, replyClassification: null })]);
+        });
+
+        it("uses the reply that belongs to a message since the enrollment started, even when a later-classified reply is for an older message", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false,
+                messages: [{ id: "m-new", createdAt: replyAt(2) }, { id: "m-old", createdAt: replyAt(30) }],
+                replies: [
+                    { emailId: "m-old", receivedAt: replyAt(0.5), aiClassification: "DNC", humanCorrection: null },
+                    { emailId: "m-new", receivedAt: replyAt(1.5), aiClassification: "INTERESTED", humanCorrection: null },
+                ]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replyClassification: "INTERESTED" })]);
+        });
+
         it("marks a reply with no classification yet as replied", async () => {
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(1) }], replies: [] })]);
 
