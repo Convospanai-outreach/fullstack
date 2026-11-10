@@ -65,6 +65,7 @@ export function enforceAIPromptPolicy(
         surface?: AISurface;
         maxChars?: number;
         label?: string;
+        skipContentRules?: boolean;
     } = {}
 ): string {
     if (typeof prompt !== "string") {
@@ -83,6 +84,8 @@ export function enforceAIPromptPolicy(
     if (normalized.length > maxChars) {
         throw new Error(`${label} exceeds ${maxChars} characters.`);
     }
+
+    if (options.skipContentRules) return normalized;
 
     const checkString = normalizeForSecurityCheck(normalized);
 

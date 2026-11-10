@@ -120,6 +120,8 @@ export async function scanWebsite(rawUrl: string, teamId: string): Promise<{ pro
         taskType: "WEBSITE_SCAN",
         expectsJson: true,
         chargeCredits: false,
+        // Page text is not user-typed; the guardrail's phrase and URL-count rules would reject normal sites.
+        maxPromptChars: 60_000,
     });
 
     let parsed: unknown;
