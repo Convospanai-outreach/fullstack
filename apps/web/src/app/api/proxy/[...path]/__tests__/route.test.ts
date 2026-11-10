@@ -89,6 +89,28 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
         const init = fetchMock.mock.calls[0][1] as RequestInit;
         expect(init.signal).toBeInstanceOf(AbortSignal);
     });
+
+    it("gives the website scan longer than 15s but still bounds other paths at 15s", async () => {
+        vi.useFakeTimers();
+        try {
+            global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 })) as any;
+            const call = async (path: string[]) => {
+                const url = `http://localhost:3000/api/proxy/${path.join("/")}`;
+                const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+                await POST(req, { params: Promise.resolve({ path }) });
+            };
+            // The proxy clears its timer when headers arrive, so capture the timer length instead.
+            const spy = vi.spyOn(global, "setTimeout");
+            await call(["setup", "scan"]);
+            await call(["workflows", "wf-1"]);
+            const delays = spy.mock.calls.map((c) => c[1]);
+            expect(delays).toContain(90_000);
+            expect(delays).toContain(15_000);
+        } finally {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        }
+    });
 });
 
 describe("forwardRequest upstream failures", () => {

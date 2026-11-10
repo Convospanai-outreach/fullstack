@@ -21,6 +21,10 @@ const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
 // B-05). Bound the time-to-response-headers to 15s; the timer is cleared once the
 // upstream responds, so a legitimately long response body still streams through.
 const PROXY_TIMEOUT_MS = 15_000;
+// The website scan reads up to 6 pages and then calls the model, which takes longer than 15s.
+const SLOW_PROXY_TIMEOUT_MS = 90_000;
+const timeoutFor = (pathParts: string[] | undefined) =>
+    pathParts?.join("/") === "setup/scan" ? SLOW_PROXY_TIMEOUT_MS : PROXY_TIMEOUT_MS;
 
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
@@ -260,7 +264,7 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
                 : await req.arrayBuffer();
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutFor(pathParts));
 
         const requestInit: RequestInit = {
             method,
@@ -300,7 +304,7 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
         });
         if (error instanceof Error && error.name === "AbortError") {
             return NextResponse.json({
-                error: `Upstream API did not respond within ${PROXY_TIMEOUT_MS / 1000}s.`,
+                error: `Upstream API did not respond within ${timeoutFor(pathParts) / 1000}s.`,
                 code: "PROXY_UPSTREAM_TIMEOUT",
             }, { status: 504 });
         }
