@@ -3,6 +3,8 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { internalErrorMessage } from "@/lib/internalError";
+import { companyProfileSchema } from "@/modules/onboarding/service/websiteScan";
+import { icpService } from "@/modules/icp-builder/service/icpService";
 
 // The data responsibility notice version (step 1). Keep in step with apps/web/src/lib/setupSteps.ts.
 const DATA_RESPONSIBILITY_VERSION = "2026-11";
@@ -105,6 +107,40 @@ export async function POST(req: NextRequest) {
                     };
                 }
                 break;
+
+            case 15: { // Website scan: the owner's reviewed profile. Nothing is saved before this.
+                const parsed = companyProfileSchema.safeParse(data.companyProfile);
+                if (!parsed.success) {
+                    return NextResponse.json({ error: "That company profile is not valid." }, { status: 400 });
+                }
+                const profile = parsed.data;
+                const sourceUrl = typeof data.sourceUrl === "string" ? data.sourceUrl.slice(0, 300) : "";
+                updateData.aiConfig = {
+                    ...currentAiConfig,
+                    companyProfile: { ...profile, sourceUrl, confirmedAt: new Date().toISOString() },
+                };
+                // An ICP is created only when the owner asked for it, and only once per company name.
+                const icp = profile.icp_primary;
+                if (data.createIcp === true && (icp.industry || icp.buyer_title)) {
+                    const name = `${profile.company_name || "My company"} (from website)`;
+                    const existing = await prisma.iCP.findFirst({ where: { teamId: ctx.teamId, name }, select: { id: true } });
+                    if (!existing) {
+                        await icpService.create(ctx.teamId, {
+                            name,
+                            description: icp.pain_statement || null,
+                            criteria: {
+                                industries: icp.industry ? [icp.industry] : [],
+                                companySizes: icp.company_size ? [icp.company_size] : [],
+                                buyerTitles: icp.buyer_title ? [icp.buyer_title] : [],
+                                triggerEvent: icp.trigger_event,
+                                signalKeywords: profile.campaign_seed.signal_keywords,
+                                source: "website_scan",
+                            },
+                        } as any);
+                    }
+                }
+                break;
+            }
 
             case 9: // Email Attachments & Media Kit
                 // data contains { calendarLink, demoUrl }

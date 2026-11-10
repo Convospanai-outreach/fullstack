@@ -537,6 +537,8 @@ async function callLLM(
         creditDescription?: string;
         actorId?: string;
         systemPrompt?: string;
+        /** false: use the team's key (else the platform's) but take no credits. Default true. */
+        chargeCredits?: boolean;
     }
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
@@ -544,7 +546,7 @@ async function callLLM(
     const chain = buildProviderChain(providers, options.complexity);
     const primary = chain[0];
     const start = Date.now();
-    const billedTeamId = isChargeableTeamId(options.teamId) ? options.teamId : undefined;
+    const billedTeamId = options.chargeCredits !== false && isChargeableTeamId(options.teamId) ? options.teamId : undefined;
     const estimatedCredits = estimateCreditsForPrompt(prompt, options.complexity);
     const billingDescription = options.creditDescription || "AI generation usage";
     const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, billingDescription, {
@@ -678,6 +680,8 @@ export class AIService {
              * model tier instead of the default strategic one.
              */
             complexity?: TaskComplexity;
+            /** false: take no credits for this call (key choice is unchanged). Default true. */
+            chargeCredits?: boolean;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
@@ -694,7 +698,8 @@ export class AIService {
             taskTypeLabel: taskContext?.taskType || surface,
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
             actorId: taskContext?.actorId,
-            systemPrompt: safeSystemPrompt
+            systemPrompt: safeSystemPrompt,
+            chargeCredits: taskContext?.chargeCredits
         });
 
         const expectsJson = !!taskContext?.expectsJson;
