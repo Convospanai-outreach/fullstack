@@ -204,6 +204,13 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
           } });
         }
       }
+      // A spent code is kept with an epoch expiry. Seeing it again means the code was replayed, so end the connection
+      // its first exchange created rather than leaving those tokens live.
+      if (data.grant_type === 'authorization_code' && code && code.expiresAt.getTime() === 0 && code.grant.clientId === data.client_id) {
+        await prisma.mcpOAuthGrant.updateMany({ where: { id: code.grantId }, data: {
+          revokedAt: new Date(), accessTokenHash: null, refreshTokenHash: null,
+        } });
+      }
       if (!grant || grant.clientId !== data.client_id || grant.resource !== data.resource || grant.revokedAt || grant.expiresAt <= now ||
         (data.grant_type === 'authorization_code' && (!code || code.expiresAt <= now || !data.code_verifier ||
           code.codeChallenge !== challengeFor(data.code_verifier) || code.redirectUri !== data.redirect_uri))) {
@@ -214,7 +221,7 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
       const refresh = secret();
       const updated = await prisma.$transaction(async tx => {
         if (data.grant_type === 'authorization_code') {
-          const consumed = await tx.mcpOAuthCode.deleteMany({ where: { hash: code!.hash, expiresAt: { gt: now } } });
+          const consumed = await tx.mcpOAuthCode.updateMany({ where: { hash: code!.hash, expiresAt: { gt: now } }, data: { expiresAt: new Date(0) } });
           if (consumed.count !== 1) return false;
         }
         const result = await tx.mcpOAuthGrant.updateMany({ where: {
@@ -229,7 +236,7 @@ export function registerMcpOAuth(app: FastifyInstance, config: McpConfig) {
       if (!updated) {
         // Reuse revokes the family even when detected by a lost concurrent
         // rotation: we cannot distinguish a client retry from a stolen token.
-        if (data.grant_type === 'refresh_token') await prisma.mcpOAuthGrant.updateMany({ where: { id: grant.id },
+        await prisma.mcpOAuthGrant.updateMany({ where: { id: grant.id },
           data: { revokedAt: new Date(), accessTokenHash: null, refreshTokenHash: null } });
         return reply.code(400).send({ error: 'invalid_grant' });
       }

@@ -129,7 +129,7 @@ Observations, not defects:
 
 - The forward-only stage rule is enforced when the change runs, not when it is staged, so the user can be asked to approve a move that can never succeed.
 - Lead tools return the whole lead row to the agent, including internal fields such as `crmId`, `mauticContactId` and `embedding`.
-- Replaying an authorization code is refused, but the tokens issued by its first exchange stay valid; the OAuth security guidance recommends revoking them. The attacker would also need the PKCE verifier, so the risk is small.
+- Replaying an authorization code was refused, but the tokens issued by its first exchange stayed valid (observed 2026-11-10). A spent code is now kept with an epoch expiry, and presenting it again revokes the grant it created. Not re-observed in production until this change is deployed.
 - A staged request not opened within 10 minutes expires and must be staged again with a new `requestId`; the old one does nothing.
 
 Still unproven:
