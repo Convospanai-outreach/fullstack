@@ -116,6 +116,7 @@ Tool series — 2026-11-10 (production, Claude connection, one test workspace). 
 | Read-only connection (throwaway client granted `cmf:read` only; the scope on the token was `cmf:read`) | `list_campaigns` returned data. `create_task` and `generate_message_preview` were refused with `insufficient_scope` (tool result status 403, asking for `cmf:write` and `cmf:generate`); no action rows were created for either request. The refusal arrives as HTTP 200 with the 403 inside the tool result. The grant was revoked afterwards. An earlier attempt had asked for all three scopes by mistake; it was revoked unused. |
 | OAuth token endpoint, bad exchanges (throwaway `cmf:read` client) | Wrong PKCE verifier and wrong `redirect_uri`: 400 `invalid_grant`. Wrong or missing `resource`: 400 `invalid_request`. The failed attempts did not consume the code; the correct exchange afterwards returned 200 with scope `cmf:read`. |
 | Authorization code replay | Second exchange of the same code: 400 `invalid_grant`. The tokens from the first exchange kept working (`list_campaigns` 200), so a replay does not revoke them (see observations). |
+| Authorization code replay, after the fix (PR #922, deployed 2026-11-10) | New `cmf:read` grant: first exchange 200, and `list_campaigns` 200. Replay of the same code: 400 `invalid_grant`. The first access token was then refused ("Authentication required") and the first refresh token returned 400 `invalid_grant`; no live tokens were left for the test client. |
 | Refresh scope | A refresh asking for `cmf:read cmf:write` returned scope `cmf:read`; the request is ignored. |
 | Refresh token reuse | Reusing the spent refresh token: 400 `invalid_grant`. The newer refresh token then also returned 400 and the newer access token was refused ("Authentication required"); the grant ended with no tokens. |
 | `requestId` reuse with changed arguments | `create_task` "A" staged and approved in the browser. A retry with the same `requestId` and title "B" was refused (409, "This requestId belongs to a different change") and nothing ran; the action stayed APPROVED with no task written. A retry with the original "A" then ran once (SUCCEEDED, exactly one `Task`). The test task was deleted afterwards. |
@@ -129,7 +130,7 @@ Observations, not defects:
 
 - The forward-only stage rule is enforced when the change runs, not when it is staged, so the user can be asked to approve a move that can never succeed.
 - Lead tools return the whole lead row to the agent, including internal fields such as `crmId`, `mauticContactId` and `embedding`.
-- Replaying an authorization code was refused, but the tokens issued by its first exchange stayed valid (observed 2026-11-10). A spent code is now kept with an epoch expiry, and presenting it again revokes the grant it created. Not re-observed in production until this change is deployed.
+- Replaying an authorization code was refused, but the tokens issued by its first exchange stayed valid (observed 2026-11-10). A spent code is now kept with an epoch expiry, and presenting it again revokes the grant it created (PR #922). Re-observed in production after the deploy of 2026-11-10 (row above).
 - A staged request not opened within 10 minutes expires and must be staged again with a new `requestId`; the old one does nothing.
 
 Still unproven:
