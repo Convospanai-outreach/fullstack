@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Facebook,
   FileText,
+  Globe,
   LayoutGrid,
   Linkedin,
   Loader2,
@@ -40,6 +41,7 @@ import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetu
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
 import { STORE_URL } from "@/lib/extensionIds";
 import DomainsStep from "@/components/setup/DomainsStep";
+import WebsiteScanStep, { websiteScanPayload } from "@/components/setup/WebsiteScanStep";
 import { HourglassBuddy } from "@/components/setup/HourglassBuddy";
 
 type SetupStatus = {
@@ -99,6 +101,7 @@ type DomainCheckResult = {
 const STEPS = [
   { id: 1, title: "Launch Brief", icon: Users, description: "Tell us who you're reaching out for, and confirm account access." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
+  { id: 15, title: "Scan Your Website", icon: Globe, description: "Let us read your website and draft who you sell to and what to say. Optional." },
   { id: 3, title: "Sending Mailbox", icon: Mail, description: "Choose how outreach gets sent: Google Workspace, Microsoft 365, SMTP, or Resend." },
   { id: 4, title: "Outreach Connectors", icon: Linkedin, description: "See which outreach channels you can connect: email, LinkedIn, Meta and WhatsApp." },
   { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
@@ -154,6 +157,7 @@ export default function SetupWizardPage() {
       if (stepId === 12) return true;
       if (stepId === 13) return true;
       if (stepId === 14) return true;
+      if (stepId === 15) return !!(status.aiConfig as { companyProfile?: unknown } | null)?.companyProfile;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -201,6 +205,7 @@ export default function SetupWizardPage() {
           signOff: data.aiConfig?.signOff || "Best regards,",
         },
         step6: { geminiKey: data.aiConfig?.apiKey || "" },
+        step15: { url: data.aiConfig?.companyProfile?.sourceUrl || "", profile: null, createIcp: false },
         step9: {
           calendarLink: data.aiConfig?.calendarLink || "",
           demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
@@ -330,7 +335,7 @@ export default function SetupWizardPage() {
         }
         // GOOGLE / MICROSOFT connect via their own OAuth buttons, not this form submit — nothing to POST here.
       } else {
-        const payload = stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
+        const payload = stepId === 15 ? websiteScanPayload(formData.step15) : stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
           const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
@@ -562,6 +567,14 @@ export default function SetupWizardPage() {
             {active.id === 12 && <NotificationsStep />}
             {active.id === 13 && <InviteTeamStep />}
             {active.id === 14 && <DomainsStep />}
+            {active.id === 15 && (
+              <WebsiteScanStep
+                apiBase={apiBase}
+                state={formData.step15 ?? { url: "", profile: null, createIcp: false }}
+                onChange={(next) => setFormData({ ...formData, step15: next })}
+                savedAt={(status.aiConfig as { companyProfile?: { confirmedAt?: string } } | null)?.companyProfile?.confirmedAt ?? null}
+              />
+            )}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
