@@ -682,12 +682,15 @@ export class AIService {
             complexity?: TaskComplexity;
             /** false: take no credits for this call (key choice is unchanged). Default true. */
             chargeCredits?: boolean;
+            /** Set only for prompts the server builds itself around fetched page text: the user-typing content rules are skipped and this size cap applies. */
+            maxPromptChars?: number;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
         const safePrompt = enforceAIPromptPolicy(prompt, {
             surface,
-            label: "AI prompt"
+            label: "AI prompt",
+            ...(taskContext?.maxPromptChars ? { maxChars: taskContext.maxPromptChars, skipContentRules: true } : {})
         });
         const safeSystemPrompt = taskContext?.systemPrompt
             ? enforceAIPromptPolicy(taskContext.systemPrompt, { surface, label: "AI system prompt" })
