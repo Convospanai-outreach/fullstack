@@ -64,6 +64,10 @@ export class WorkerManager {
     private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastRetentionTick: number = 0;
     private retentionInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastRenewalReminderTick: number = 0;
+    private renewalReminderInterval: number = 6 * 60 * 60 * 1000;
+    private lastYearlyCreditTick: number = 0;
+    private yearlyCreditInterval: number = 60 * 60 * 1000; // hourly; grants are monthly, so a late tick loses nothing
     private lastInrPriceTick: number = 0;
     private inrPriceInterval: number = 24 * 60 * 60 * 1000; // daily, matching the published USD/INR rate
     private lastDigestHourSlot: number | null = null;
@@ -424,6 +428,27 @@ export class WorkerManager {
         // failing table can't starve the ticks above or retry every loop.
         // Indian plan prices follow the day's USD/INR rate (inrPricing.ts). Also runs on worker start,
         // so a deploy applies a price change at once. A failed rate fetch keeps the current prices.
+        // Customers pay Razorpay plans by hand, so they are reminded before the period ends (renewalReminders.ts).
+        // Emails customers, so it stays off until RENEWAL_REMINDERS_ENABLED=true.
+        if (process.env["RENEWAL_REMINDERS_ENABLED"] === "true" && now - this.lastRenewalReminderTick >= this.renewalReminderInterval) {
+            this.lastRenewalReminderTick = now;
+            await this.runSweep("RenewalReminders", async () => {
+                const { sendRenewalReminders } = await import("@/modules/billing/service/renewalReminders");
+                const sent = await sendRenewalReminders(new Date(now));
+                if (sent > 0) console.log(`[Worker] Renewal reminders: ${sent} sent.`);
+            });
+        }
+
+        // Yearly subscriptions are paid once and credited monthly (yearlyCredits.ts).
+        if (now - this.lastYearlyCreditTick >= this.yearlyCreditInterval) {
+            this.lastYearlyCreditTick = now;
+            await this.runSweep("YearlyCredits", async () => {
+                const { grantDueYearlyCredits } = await import("@/modules/billing/service/yearlyCredits");
+                const granted = await grantDueYearlyCredits(new Date(now));
+                if (granted > 0) console.log(`[Worker] Yearly plans: ${granted} monthly credit grant(s) made.`);
+            });
+        }
+
         if (now - this.lastInrPriceTick >= this.inrPriceInterval) {
             this.lastInrPriceTick = now;
             await this.runSweep("InrPrices", async () => {
