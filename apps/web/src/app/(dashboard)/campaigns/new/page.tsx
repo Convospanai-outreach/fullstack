@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import StrategyPicker from "@/components/campaigns/StrategyPicker";
+import { useDripPlaybooks } from "@/components/playbooks/DripPlaybooks";
 import type { PreflightBrief } from "@/lib/campaigns/preflight";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
@@ -38,6 +39,9 @@ export default function NewCampaignPage() {
     const [icps, setIcps] = useState<ICP[]>([]);
     const [icpId, setIcpId] = useState("");
     const [loadingIcps, setLoadingIcps] = useState(true);
+    // Only a business profile from the website scan makes the ranking mean anything.
+    const drip = useDripPlaybooks();
+    const recommended = drip.data?.hasProfile ? drip.data.playbooks.slice(0, 3) : [];
 
     useEffect(() => {
         fetch("/api/proxy/icp-builder/list")
@@ -141,6 +145,14 @@ export default function NewCampaignPage() {
             >
                 <ArrowLeft className="w-4 h-4" /> Back to Campaigns
             </Link>
+
+            {recommended.length > 0 && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                    Want emails that start by themselves when someone signs up or clicks a link? Recommended for you:{" "}
+                    <strong>{recommended.map((p) => p.name).join(", ")}</strong>.{" "}
+                    <Link href="/playbooks" className="underline font-semibold">See email playbooks</Link>
+                </div>
+            )}
 
             <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                 <div className="flex items-center gap-3 mb-6">

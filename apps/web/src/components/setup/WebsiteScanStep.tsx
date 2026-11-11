@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Globe, Loader2 } from "lucide-react";
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
@@ -82,6 +83,11 @@ export default function WebsiteScanStep(props: {
       {scanning && <p className="mt-3 text-sm text-slate-400">Reading your site. This can take up to a minute.</p>}
       {error && <p role="alert" className="mt-3 text-sm text-amber-300">{error}</p>}
       {savedAt && !profile && <p className="mt-3 text-sm text-emerald-300">Profile saved {new Date(savedAt).toLocaleDateString()}.</p>}
+      {savedAt && (
+        <p className="mt-2 text-sm text-slate-300">
+          Next: <Link href="/playbooks" className="font-semibold text-cyan-300 underline">pick the email playbooks that fit your business</Link>, such as a welcome series or a win-back. You can do this after setup.
+        </p>
+      )}
 
       {profile && (
         <div className="mt-6 space-y-4">

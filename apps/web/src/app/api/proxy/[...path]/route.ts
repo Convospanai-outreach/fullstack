@@ -21,10 +21,12 @@ const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
 // B-05). Bound the time-to-response-headers to 15s; the timer is cleared once the
 // upstream responds, so a legitimately long response body still streams through.
 const PROXY_TIMEOUT_MS = 15_000;
-// The website scan reads up to 6 pages and then calls the model, which takes longer than 15s.
+// The website scan reads up to 6 pages and then calls the model, and a drip playbook draft writes
+// several emails with the model, so both take longer than 15s.
 const SLOW_PROXY_TIMEOUT_MS = 90_000;
+const SLOW_PROXY_PATHS = new Set(["setup/scan", "drip-playbooks/draft"]);
 const timeoutFor = (pathParts: string[] | undefined) =>
-    pathParts?.join("/") === "setup/scan" ? SLOW_PROXY_TIMEOUT_MS : PROXY_TIMEOUT_MS;
+    SLOW_PROXY_PATHS.has(pathParts?.join("/") ?? "") ? SLOW_PROXY_TIMEOUT_MS : PROXY_TIMEOUT_MS;
 
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
