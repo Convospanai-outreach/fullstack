@@ -165,6 +165,8 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
  * 
  * Supports Hybrid Mode: Redis Primary -> LRU Secondary
  */
+let lastFallbackLogAt = 0; // throttles the in-memory fallback error to once a minute
+
 export async function checkRateLimit(
   identifier: string,
   config: RateLimitConfig,
@@ -195,6 +197,10 @@ export async function checkRateLimit(
   }
 
   // 2. Fallback to LRU (In-Memory)
+  if (process.env["NODE_ENV"] === "production" && now - lastFallbackLogAt > 60_000) {
+    lastFallbackLogAt = now;
+    logger.error("rate_limit_fallback_inmemory", { message: "Redis not available - rate limiting is process-local. This is unsafe with more than one instance." });
+  }
   return checkRateLimitLRU(identifier, config, endpoint);
 }
 

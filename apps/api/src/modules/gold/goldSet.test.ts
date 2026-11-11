@@ -83,7 +83,7 @@ describe("syncGold", () => {
         mockPrisma.knowledgeItem.findMany.mockResolvedValue([]);
         mockPrisma.knowledgeItem.create.mockResolvedValue({ id: "item" });
         mockPrisma.knowledgeItem.deleteMany.mockResolvedValue({ count: 0 });
-        mockEmbed.mockResolvedValue([0.1]);
+        mockEmbed.mockResolvedValue(Array(1536).fill(0.1));
     });
 
     it("refuses a held-out example before touching anything", async () => {
@@ -127,7 +127,7 @@ describe("syncGold", () => {
 describe("searchGold", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockEmbed.mockResolvedValue([0.1]);
+        mockEmbed.mockResolvedValue(Array(1536).fill(0.1));
     });
 
     it("searches the gold knowledge base for the same node and returns the examples", async () => {
