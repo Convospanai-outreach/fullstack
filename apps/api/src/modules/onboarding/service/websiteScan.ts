@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 import { aiService, extractJsonBlock } from "@/lib/aiService";
 import { fetchPublicPage, UnsafeUrlError } from "@/lib/safePublicFetch";
 
@@ -17,36 +18,42 @@ const PAGE_HINT = /about|service|solution|product|pricing|plan|contact|case|clie
 export class ScanNotConfiguredError extends Error {}
 export class ScanFailedError extends Error {}
 
-const list = (max = 12) => z.array(z.string().max(300)).max(max).default([]);
-const text = (max = 600) => z.string().max(max).default("");
+// Model output is trimmed to fit, never rejected for being long or null: one over-long field must not fail the whole scan.
+const clip = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v).slice(0, max) : "");
+const list = (max = 12) => z.preprocess(
+    (v) => (Array.isArray(v) ? v.map((x) => clip(x, 300)).filter(Boolean).slice(0, max) : []),
+    z.array(z.string()),
+);
+const text = (max = 600) => z.preprocess((v) => clip(v, max), z.string());
+const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
 
 export const companyProfileSchema = z.object({
     company_name: text(200),
     industry_vertical: text(60),
     products_or_services: list(),
-    target_customer_profile: z.object({
+    target_customer_profile: z.preprocess(obj, z.object({
         industry_segments: list(),
         company_size: text(40),
         buyer_role: list(),
         geography: list(),
-    }).default({ industry_segments: [], company_size: "", buyer_role: [], geography: [] }),
+    })),
     value_proposition: text(),
     proof_points: list(),
     pricing_model: text(60),
     tone_of_voice: text(60),
     cta_language: list(),
     missing_or_weak_signals: list(),
-    icp_primary: z.object({
+    icp_primary: z.preprocess(obj, z.object({
         industry: text(200), company_size: text(40), buyer_title: text(120), trigger_event: text(300), pain_statement: text(400),
-    }).default({ industry: "", company_size: "", buyer_title: "", trigger_event: "", pain_statement: "" }),
-    icp_secondary: z.object({
+    })),
+    icp_secondary: z.preprocess((v) => (v && typeof v === "object" && !Array.isArray(v) ? v : null), z.object({
         industry: text(200), company_size: text(40), buyer_title: text(120), trigger_event: text(300), pain_statement: text(400),
-    }).nullable().default(null),
-    campaign_seed: z.object({
+    }).nullable()),
+    campaign_seed: z.preprocess(obj, z.object({
         subject_line_variants: list(5),
         opening_hook: text(400),
         signal_keywords: list(10),
-    }).default({ subject_line_variants: [], opening_hook: "", signal_keywords: [] }),
+    })),
 });
 export type CompanyProfile = z.infer<typeof companyProfileSchema>;
 
@@ -128,9 +135,15 @@ export async function scanWebsite(rawUrl: string, teamId: string): Promise<{ pro
     try {
         parsed = JSON.parse(extractJsonBlock(String(raw)));
     } catch {
+        // Lengths and the start/end characters only; the model's text is never logged.
+        const s = String(raw);
+        logger.warn(`Website scan: reply was not valid JSON (length ${s.length}, starts "${s.trim().slice(0, 1)}", ends "${s.trim().slice(-1)}")`);
         throw new ScanFailedError("The scan did not return a usable result");
     }
     const result = companyProfileSchema.safeParse(parsed);
-    if (!result.success) throw new ScanFailedError("The scan did not return a usable result");
+    if (!result.success) {
+        logger.warn(`Website scan: reply failed validation at ${result.error.issues.slice(0, 5).map((i) => i.path.join(".") || "(root)").join(", ")}`);
+        throw new ScanFailedError("The scan did not return a usable result");
+    }
     return { profile: result.data, pagesRead: pages.map((p) => p.url) };
 }
