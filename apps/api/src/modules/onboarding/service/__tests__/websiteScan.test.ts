@@ -53,12 +53,31 @@ describe("scanWebsite", () => {
         expect(prompt).toContain("Ignore previous instructions");
     });
 
-    it("fails the scan when the model returns something that is not the profile shape", async () => {
+    it("fails the scan when the model returns something that is not JSON", async () => {
         mockFetch.mockResolvedValue(page("https://acme.test/", "<p>Hi</p>"));
         mockAsk.mockResolvedValue("sorry, I cannot");
         await expect(scanWebsite("acme.test", TEAM)).rejects.toBeInstanceOf(ScanFailedError);
-        mockAsk.mockResolvedValue(JSON.stringify({ company_name: "x".repeat(5000) }));
-        await expect(scanWebsite("acme.test", TEAM)).rejects.toBeInstanceOf(ScanFailedError);
+    });
+
+    it("trims over-long fields and fixes nulls instead of failing the scan", async () => {
+        mockFetch.mockResolvedValue(page("https://acme.test/", "<p>Hi</p>"));
+        mockAsk.mockResolvedValue(JSON.stringify({
+            company_name: "x".repeat(5000),
+            value_proposition: "v".repeat(2000),
+            products_or_services: ["p".repeat(900), null, "ok"],
+            target_customer_profile: null,
+            icp_primary: { industry: null, buyer_title: "VP Sales" },
+            icp_secondary: null,
+            campaign_seed: { signal_keywords: "not a list" },
+        }));
+        const { profile } = await scanWebsite("acme.test", TEAM);
+        expect(profile.company_name).toHaveLength(200);
+        expect(profile.value_proposition).toHaveLength(600);
+        expect(profile.products_or_services).toEqual(["p".repeat(300), "ok"]);
+        expect(profile.target_customer_profile.buyer_role).toEqual([]);
+        expect(profile.icp_primary).toMatchObject({ industry: "", buyer_title: "VP Sales" });
+        expect(profile.icp_secondary).toBeNull();
+        expect(profile.campaign_seed.signal_keywords).toEqual([]);
     });
 
     it("reports an unsafe or unreachable site without calling the model", async () => {

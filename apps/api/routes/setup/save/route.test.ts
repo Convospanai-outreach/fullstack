@@ -97,7 +97,7 @@ describe("/setup/save", () => {
 
         it("rejects a profile that is not the expected shape", async () => {
             const { POST } = await import("./route");
-            const response = await POST(postRequest({ step: 15, data: { companyProfile: { company_name: "x".repeat(5000) } } }));
+            const response = await POST(postRequest({ step: 15, data: { companyProfile: "not a profile" } }));
             expect(response.status).toBe(400);
             expect(mockPrisma.team.update).not.toHaveBeenCalled();
         });
