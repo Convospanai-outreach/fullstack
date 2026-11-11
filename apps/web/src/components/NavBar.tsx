@@ -108,7 +108,7 @@ export function NavBar() {
             className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
           >
             <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-            <span className="relative z-10">Build my funnel</span>
+            <span className="relative z-10">Start free ↗</span>
           </Link>
         </div>
 
@@ -179,7 +179,7 @@ export function NavBar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-                <span className="relative z-10">Build my funnel</span>
+                <span className="relative z-10">Start free ↗</span>
               </Link>
             </div>
           </div>
