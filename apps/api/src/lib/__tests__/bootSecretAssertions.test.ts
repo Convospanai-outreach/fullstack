@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { assertProductionSecretsAreSafe } from "@/lib/bootSecretAssertions";
 
 const SAFE_ENV: NodeJS.ProcessEnv = {
@@ -21,10 +21,16 @@ describe("assertProductionSecretsAreSafe", () => {
         expect(() => assertProductionSecretsAreSafe(SAFE_ENV)).not.toThrow();
     });
 
-    it("throws in production when REDIS_URL is unset, unless Redis is explicitly disabled", () => {
+    it("boots in production without REDIS_URL but logs an error, unless Redis is explicitly disabled", () => {
         const { REDIS_URL: _omit, ...noRedis } = SAFE_ENV;
-        expect(() => assertProductionSecretsAreSafe(noRedis)).toThrow(/REDIS_URL/);
+        const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+        expect(() => assertProductionSecretsAreSafe(noRedis)).not.toThrow();
+        expect(spy).toHaveBeenCalledWith(expect.stringContaining("REDIS_URL"));
+        spy.mockClear();
         expect(() => assertProductionSecretsAreSafe({ ...noRedis, DISABLE_REDIS: "true" })).not.toThrow();
+        expect(() => assertProductionSecretsAreSafe(SAFE_ENV)).not.toThrow();
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
     });
 
     it("rejects an edge-node endpoint aimed at the metadata service or a non-http scheme, but allows local and private hosts", () => {

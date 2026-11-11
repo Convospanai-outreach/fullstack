@@ -49,13 +49,13 @@ export function assertProductionSecretsAreSafe(env: NodeJS.ProcessEnv = process.
     const onPremProblem = onPremEndpointProblem(env["ON_PREM_AI_ENDPOINT"] || env["EDGE_NODE_URI"]);
     if (onPremProblem) problems.push(onPremProblem);
 
-    // Rate limits are per process without Redis, so N replicas allow N times the limit.
-    // DISABLE_REDIS=true is the explicit, deliberate opt-out for a single-instance deploy.
-    if (!(env["REDIS_URL"] || "").trim() && env["DISABLE_REDIS"] !== "true") {
-        problems.push("REDIS_URL is not set, so rate limiting would be per process; set REDIS_URL, or DISABLE_REDIS=true for a single-instance deploy");
-    }
-
     if (problems.length > 0) {
         throw new Error(`Refusing to start in production with unsafe secrets:\n- ${problems.join("\n- ")}`);
+    }
+
+    // Rate limits are per process without Redis, so N replicas allow N times the limit. Loud but not
+    // fatal: the API runs fine on one instance, so a missing URL must not stop a deploy from booting.
+    if (!(env["REDIS_URL"] || "").trim() && env["DISABLE_REDIS"] !== "true") {
+        console.error("CRITICAL: REDIS_URL is not set in production. Rate limiting is per process and unsafe with more than one API instance. Set REDIS_URL, or DISABLE_REDIS=true to silence this on a single-instance deploy.");
     }
 }
