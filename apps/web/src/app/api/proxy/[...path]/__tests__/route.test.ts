@@ -102,9 +102,10 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
             // The proxy clears its timer when headers arrive, so capture the timer length instead.
             const spy = vi.spyOn(global, "setTimeout");
             await call(["setup", "scan"]);
+            await call(["drip-playbooks", "draft"]);
             await call(["workflows", "wf-1"]);
             const delays = spy.mock.calls.map((c) => c[1]);
-            expect(delays).toContain(90_000);
+            expect(delays.filter((d) => d === 90_000)).toHaveLength(2);
             expect(delays).toContain(15_000);
         } finally {
             vi.useRealTimers();
