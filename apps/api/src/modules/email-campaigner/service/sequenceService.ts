@@ -7,6 +7,7 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
+import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -14,8 +15,15 @@ const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // genuine duplicate send if an earlier attempt actually reached Resend. Capped
 // well under 24 attempts to leave margin for scheduling/processing drift.
 const MAX_EMAIL_SEND_ATTEMPTS = 20;
+// An email step whose merge fields cannot all be filled for this contact waits here until the sender fixes the
+// contact or the step, or approves the suggested fallbacks. TOKENS_APPROVED on the run is that approval.
+export const TOKENS_HELD_STATUS = "AWAITING_TOKEN_APPROVAL";
+export const TOKENS_HELD_CODE = "MISSING_TOKENS";
+export const TOKENS_APPROVED_CODE = "TOKENS_APPROVED";
+const TOKENS_APPROVED_MARKER = "[tokens-approved] ";
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
-const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "meeting_booked"]);
+// "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
+const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
 const STOP_PIPELINE_STATES = new Set(["MEETING_BOOKED", "MEETING_CONFIRMED", "BOUNCED", "UNSUBSCRIBED"]);
 
 type SequencePrisma = {
@@ -328,7 +336,7 @@ export class SequenceService {
             if (reason) {
                 await client.sequenceEnrollment.update({
                     where: { id: enrollment.id },
-                    data: { status: "EXITED", completedAt: options.now, cancelledAt: options.now },
+                    data: { status: "EXITED", completedAt: options.now, cancelledAt: options.now, exitReason: reason },
                 });
                 continue;
             }
@@ -417,7 +425,7 @@ export class SequenceService {
             });
             await client.sequenceEnrollment.update({
                 where: { id: run.enrollmentId },
-                data: { status: "EXITED", completedAt: now, cancelledAt: now },
+                data: { status: "EXITED", completedAt: now, cancelledAt: now, exitReason: "suppressed" },
             });
             return { runId: run.id, status: "SKIPPED_SUPPRESSED" };
         }
@@ -450,7 +458,32 @@ export class SequenceService {
             return { runId: run.id, status: "FAILED", errorCode: "MISSING_BODY" };
         }
 
-        const result = await emailService.sendEmail(lead.email, subject, body, {
+        // A failed send overwrites errorCode, so a retry keeps the approval through this marker in the message.
+        const approved = run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
+        const resolvedSubject = resolveMessageTokens(subject, lead, { useSuggestedFallbacks: approved });
+        const resolvedBody = resolveMessageTokens(body, lead, { useSuggestedFallbacks: approved, html: true });
+        const problems = new Map<string, MissingToken>();
+        for (const m of [...resolvedSubject.missing, ...resolvedBody.missing]) problems.set(m.token, m);
+        // Once approved, only what a fallback cannot cover still holds the email (a mistyped field, a missing property).
+        const blocking = [...problems.values()].filter((m) => !approved || m.reason === "unknown" || m.suggestedFallback === null);
+        if (blocking.length > 0) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: {
+                    status: TOKENS_HELD_STATUS,
+                    completedAt: now,
+                    errorCode: TOKENS_HELD_CODE,
+                    errorMessage: JSON.stringify({ missing: [...problems.values()] }),
+                },
+            });
+            await client.sequenceEnrollment.update({
+                where: { id: run.enrollmentId },
+                data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+            });
+            return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
+        }
+
+        const result = await emailService.sendEmail(lead.email, resolvedSubject.text, resolvedBody.text, {
             teamId: run.teamId,
             leadId: run.leadId,
             campaignId: run.campaignId,
@@ -468,7 +501,7 @@ export class SequenceService {
             // duplicate send against the same (now stale) idempotency key.
             const retryable = this.isRetryableEmailError(result.error) && (run.attemptCount ?? 0) < MAX_EMAIL_SEND_ATTEMPTS;
             const errorCode = retryable ? "EMAIL_RETRYABLE" : this.isRetryableEmailError(result.error) ? "EMAIL_RETRY_LIMIT_EXCEEDED" : "EMAIL_SEND_FAILED";
-            await this.failRun(run.id, errorCode, result.error || "Email send failed.", retryable, now);
+            await this.failRun(run.id, errorCode, `${approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
             return { runId: run.id, status: retryable ? "RETRY_SCHEDULED" : "FAILED" };
         }
 
@@ -770,7 +803,7 @@ export class SequenceService {
         });
         await client.sequenceEnrollment.update({
             where: { id: run.enrollmentId },
-            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: errorCode.replace(/^EXIT_/, "").toLowerCase() },
         });
     }
 
@@ -782,7 +815,7 @@ export class SequenceService {
         const client = db();
         const stopped = await client.sequenceEnrollment.updateMany({
             where: { teamId, leadId, status: { in: ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"] } },
-            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null },
+            data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: errorCode.replace(/^EXIT_/, "").toLowerCase() },
         });
         await client.sequenceStepRun.updateMany({
             where: { teamId, leadId, status: { in: RUN_DUE_STATUSES } },
@@ -803,11 +836,12 @@ export class SequenceService {
         });
         if (!run) return { resumed: false };
 
-        const exiting = Boolean(exitReason(run.enrollment?.lead));
+        const leaveReason = exitReason(run.enrollment?.lead);
+        const exiting = Boolean(leaveReason);
         const taken = await client.sequenceEnrollment.updateMany({
             where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
             data: exiting
-                ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null }
+                ? { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: leaveReason }
                 : { status: "SCHEDULING" },
         });
         const resuming = taken.count === 1 && !exiting;
@@ -839,6 +873,54 @@ export class SequenceService {
             data: { status: "DONE" },
         });
         return { resumed: resuming };
+    }
+
+    // The sender approved sending a held email with the suggested fallbacks (for example "there" for a missing
+    // first name). Only possible when every missing field has a suggestion; a mistyped field or a missing custom
+    // property has to be fixed on the contact or in the step instead.
+    static async approveTokenFallbacks(teamId: string, runId: string, now = new Date()) {
+        const client = db();
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS, enrollment: { status: "MANUAL_REVIEW" } } });
+        if (!run) return { approved: false as const, reason: "NOT_WAITING" as const };
+
+        let missing: MissingToken[] = [];
+        try {
+            missing = JSON.parse(run.errorMessage || "{}").missing ?? [];
+        } catch {
+            missing = [];
+        }
+        const stuck = missing.filter((m) => m.reason === "unknown" || m.suggestedFallback === null);
+        if (stuck.length > 0) return { approved: false as const, reason: "NEEDS_FIX" as const, tokens: stuck.map((m) => m.token) };
+
+        const taken = await client.sequenceStepRun.updateMany({
+            where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
+        });
+        if (taken.count !== 1) return { approved: false as const, reason: "NOT_WAITING" as const };
+        await client.sequenceEnrollment.updateMany({
+            where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
+            data: { status: "SCHEDULING" },
+        });
+        return { approved: true as const };
+    }
+
+    // The sender fixed the contact or the step and wants the held email checked again. No approval is given: if a
+    // field is still missing the email is held again with the current list.
+    static async retryHeldTokens(teamId: string, runId: string, now = new Date()) {
+        const client = db();
+        // An enrollment that was stopped meanwhile (a reply, a manual stop) must not send this follow-up.
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS, enrollment: { status: "MANUAL_REVIEW" } } });
+        if (!run) return { retried: false as const };
+        const taken = await client.sequenceStepRun.updateMany({
+            where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: null, errorMessage: null, completedAt: null },
+        });
+        if (taken.count !== 1) return { retried: false as const };
+        await client.sequenceEnrollment.updateMany({
+            where: { id: run.enrollmentId, teamId, status: "MANUAL_REVIEW" },
+            data: { status: "SCHEDULING" },
+        });
+        return { retried: true as const };
     }
 
     // LinkedIn steps waiting on this person, for the list in the browser extension.

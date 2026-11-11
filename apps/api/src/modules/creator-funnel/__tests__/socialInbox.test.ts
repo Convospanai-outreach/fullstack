@@ -16,6 +16,7 @@ const onInboundReply = vi.hoisted(() => vi.fn());
 const evaluate = vi.hoisted(() => vi.fn());
 const queueDmReply = vi.hoisted(() => vi.fn());
 const queueCommentReplies = vi.hoisted(() => vi.fn());
+const queueDmFlowMessage = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: vi.fn(async (secret: any) => secret?.plain) }));
@@ -29,6 +30,7 @@ vi.mock("../keywordTriggers", async (importOriginal) => ({
     queueCommentReplies,
 }));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
+vi.mock("../dmFlowRuns", () => ({ queueDmFlowMessage }));
 
 import { extractDmEvents, fillContactProfile, ingestMetaWebhook, sendSocialReply } from "../socialInbox";
 import { GraphError } from "../metaGraph";
@@ -101,6 +103,14 @@ describe("ingestMetaWebhook", () => {
         graphCall.mockRejectedValue(new GraphError("no profile", false)); // background profile lookup
         queueDmReply.mockResolvedValue(false);
         queueCommentReplies.mockResolvedValue(0);
+        queueDmFlowMessage.mockResolvedValue(undefined);
+    });
+
+    it("offers every DM to the flows, including an attachment-only one that can open a flow's window", async () => {
+        await ingestMetaWebhook(igDelivery([dm(), dm({}, { mid: "mid-att", text: undefined, attachments: [{ type: "image" }] })]), NOW);
+        expect(queueDmFlowMessage).toHaveBeenCalledWith(account, { mid: "mid-1", senderId: "igsid-9", text: "Is the course still open?" }, NOW);
+        expect(queueDmFlowMessage).toHaveBeenCalledWith(account, { mid: "mid-att", senderId: "igsid-9", text: "" }, NOW);
+        expect(queueDmReply).toHaveBeenCalledTimes(1);
     });
 
     it("checks each DM against keyword triggers, including a retried one (the queue is idempotent)", async () => {
@@ -228,6 +238,22 @@ describe("fillContactProfile", () => {
         expect(mockDb.lead.updateMany).toHaveBeenCalledWith({ where: { id: "lead-1", fullName: null }, data: { fullName: "Asha Rao" } });
     });
 
+    it("looks up the profile on the Instagram host with the account's own token when it has no Page", async () => {
+        mockDb.socialContact.findUnique.mockResolvedValue({
+            id: "contact-1",
+            leadId: "lead-1",
+            externalUserId: "igsid-9",
+            socialAccount: { teamId: "team-a", platform: "INSTAGRAM", parentExternalId: null, status: "CONNECTED", encryptedToken: { plain: "ig-user-token" } },
+        });
+        graphCall.mockResolvedValue({ name: "Asha Rao", username: "asha.makes" });
+
+        await fillContactProfile("contact-1");
+
+        expect(mockDb.socialAccount.findFirst).not.toHaveBeenCalled();
+        expect(graphCall).toHaveBeenCalledWith("GET", "igsid-9", { fields: "name,username" }, "ig-user-token", "https://graph.instagram.com/v26.0");
+        expect(mockDb.socialContact.update).toHaveBeenCalledWith({ where: { id: "contact-1" }, data: { handle: "@asha.makes", name: "Asha Rao" } });
+    });
+
     it("does nothing when the linked Page is disconnected, and never throws", async () => {
         mockDb.socialAccount.findFirst.mockResolvedValue({ status: "DISCONNECTED", encryptedToken: null });
         await fillContactProfile("contact-1");
@@ -283,6 +309,30 @@ describe("sendSocialReply", () => {
             data: expect.objectContaining({ leadId: "lead-1", direction: "OUTBOUND", platform: "INSTAGRAM", sender: "Rep", status: "sent", externalId: "acc-ig:mid-out" }),
         });
         expect(mockDb.message.update).toHaveBeenCalledWith({ where: { id: "msg-1" }, data: { isRead: true } });
+    });
+
+    it("sends an Instagram Login reply from the account's own id, as JSON on the Instagram host", async () => {
+        const noPage = { ...igAccount, parentExternalId: null, scopes: ["instagram_business_basic", "instagram_business_manage_messages"] };
+        mockDb.socialContact.findFirst.mockResolvedValue(contact({ socialAccount: noPage }));
+        graphPostJson.mockResolvedValue({ recipient_id: "igsid-9", message_id: "mid-ig" });
+
+        await reply("Yes, it's open until Friday");
+
+        expect(mockDb.socialAccount.findFirst).not.toHaveBeenCalled();
+        expect(graphPostJson).toHaveBeenCalledWith(
+            "ig-1/messages",
+            { recipient: { id: "igsid-9" }, message: { text: "Yes, it's open until Friday" } },
+            "user-token",
+            "https://graph.instagram.com/v26.0"
+        );
+        expect(graphCall).not.toHaveBeenCalled();
+        expect(mockDb.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ platform: "INSTAGRAM", externalId: "acc-ig:mid-ig" }) });
+    });
+
+    it("wants the Instagram Login messaging permission for an account with no Page, not the Facebook one", async () => {
+        mockDb.socialContact.findFirst.mockResolvedValue(contact({ socialAccount: { ...igAccount, parentExternalId: null } })); // only instagram_manage_messages
+        await expect(reply()).rejects.toMatchObject({ statusCode: 409, code: "MISSING_PERMISSION" });
+        expect(graphPostJson).not.toHaveBeenCalled();
     });
 
     it("sends a Facebook reply as a RESPONSE from the Page", async () => {

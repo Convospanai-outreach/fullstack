@@ -10,6 +10,8 @@ export async function createSubscriptionCheckoutSession(params: {
     teamId: string;
     userId: string;
     planId: string;
+    /** "year" for a yearly subscription; the webhook reads it back to size the period and credit monthly. */
+    interval?: "month" | "year";
     customerEmail?: string;
     successUrl: string;
     cancelUrl: string;
@@ -21,9 +23,9 @@ export async function createSubscriptionCheckoutSession(params: {
         line_items: [{ price: params.stripePriceId, quantity: 1 }],
         customer_email: params.customerEmail,
         client_reference_id: params.teamId,
-        metadata: { teamId: params.teamId, userId: params.userId, planId: params.planId },
+        metadata: { teamId: params.teamId, userId: params.userId, planId: params.planId, interval: params.interval ?? "month" },
         subscription_data: {
-            metadata: { teamId: params.teamId, userId: params.userId, planId: params.planId },
+            metadata: { teamId: params.teamId, userId: params.userId, planId: params.planId, interval: params.interval ?? "month" },
         },
         success_url: params.successUrl,
         cancel_url: params.cancelUrl,
@@ -47,6 +49,7 @@ export async function getSubscriptionMetadata(subscriptionId: string): Promise<{
     teamId?: string;
     userId?: string;
     planId?: string;
+    interval?: string;
 }> {
     if (!stripe) throw new Error("Stripe is not configured");
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);

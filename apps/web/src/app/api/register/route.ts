@@ -4,6 +4,7 @@ import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { hashPassword, registerSchema } from "@/lib/passwordAuth";
 import { allowForEmail, clientIpFromRequest, isBreachedPassword, looksLikeBot, verifyTurnstile } from "@/lib/botCheck";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
     const { prisma } = await import("@/lib/db");
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        await prisma.user.create({
+        const created = await prisma.user.create({
             data: {
                 email,
                 name: `${firstName} ${lastName}`,
@@ -73,7 +74,11 @@ export async function POST(req: NextRequest) {
                 profileCompletedAt: new Date(),
                 settings: { create: { theme: "dark" } },
             },
+            select: { id: true },
         });
+        // A new account has no team yet (it gets one on first sign-in), so there is no workspace to hold
+        // an audit row; this line is the record that the account was created, and from where.
+        logger.info("auth.registered", { userId: created.id, ip: clientIpFromRequest(req) });
     } catch (error) {
         // Lost a race with a concurrent signup for the same email (unique constraint).
         if ((error as { code?: string }).code === "P2002") {

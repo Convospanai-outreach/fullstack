@@ -1,12 +1,17 @@
 "use client";
 
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import AIPanel from "./AIPanel";
 import SequenceCanvas, { SequenceStepItem } from "./SequenceCanvas";
+import StrategyPicker from "@/components/campaigns/StrategyPicker";
+import { preflightFromConfig, strategiesFromConfig } from "@/lib/campaigns/strategies";
+import type { PreflightBrief } from "@/lib/campaigns/preflight";
 import { SequenceMailbox } from "./SenderScheduleNode";
+import MergeFieldCheck from "./MergeFieldCheck";
 
 interface SequenceStepFromApi {
     id: string;
@@ -33,6 +38,8 @@ const toItem = (s: SequenceStepFromApi): SequenceStepItem => ({
 
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [loading, setLoading] = useState(true);
+    const [mergeCheckOpen, setMergeCheckOpen] = useState(false);
+    const [savedCount, setSavedCount] = useState(0);
     const [saving, setSaving] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [steps, setSteps] = useState<SequenceStepItem[]>([]);
@@ -40,6 +47,56 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [timezone, setTimezone] = useState("UTC");
     const [mailboxes, setMailboxes] = useState<SequenceMailbox[]>([]);
     const [linkedinLocked, setLinkedinLocked] = useState(true);
+    const [strategies, setStrategies] = useState<string[]>([]);
+    const [objective, setObjective] = useState("");
+    const [brief, setBrief] = useState<PreflightBrief>({});
+    const [strategyOpen, setStrategyOpen] = useState(false);
+    const [icp, setIcp] = useState<{ name: string; criteria: unknown } | null>(null);
+    const [savingStrategy, setSavingStrategy] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch(`/api/campaigns/${campaignId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((campaign) => {
+                if (cancelled || !campaign) return;
+                setStrategies(strategiesFromConfig(campaign.aiConfig));
+                setBrief(preflightFromConfig(campaign.aiConfig));
+                setObjective(typeof campaign.aiConfig?.goal === "string" ? campaign.aiConfig.goal : "");
+                if (typeof campaign.icpId === "string") {
+                    fetch("/api/proxy/icp-builder/list")
+                        .then((res) => (res.ok ? res.json() : null))
+                        .then((data) => {
+                            const found = (data?.icps || []).find((i: { id: string }) => i.id === campaign.icpId);
+                            if (!cancelled && found) setIcp({ name: found.name, criteria: found.criteria });
+                        })
+                        .catch(() => {});
+                }
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [campaignId]);
+
+    async function saveStrategy() {
+        setSavingStrategy(true);
+        try {
+            const res = await fetch(`/api/campaigns/${campaignId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ strategies, objective, preflight: brief }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Failed to save the strategy");
+            toast.success("Strategy saved");
+            setStrategyOpen(false);
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to save the strategy");
+        } finally {
+            setSavingStrategy(false);
+        }
+    }
 
     useEffect(() => {
         let cancelled = false;
@@ -111,6 +168,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             }
             const savedSteps: SequenceStepFromApi[] = data.steps || [];
             setSteps(savedSteps.map(toItem));
+            setSavedCount((n) => n + 1);
             toast.success("Sequence saved");
         } catch (error: any) {
             toast.error(error?.message || "Failed to save sequence");
@@ -133,7 +191,12 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             });
             const data = await res.json();
             if (!res.ok) {
+                if (handleNoSendingChannel(data)) return;
                 toast.error(data.error || "Failed to enroll leads");
+                return;
+            }
+            if (data.status === "pending_approval") {
+                toast.info(data.message || "Approval requested - start this campaign again once it is approved");
                 return;
             }
             if (data.enrolled > 0) {
@@ -169,6 +232,20 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 <div className="flex items-center justify-end gap-2 border-b border-border bg-card p-3">
                     <button
                         type="button"
+                        onClick={() => setStrategyOpen((open) => !open)}
+                        className="mr-auto inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                        Strategy{strategies.length > 0 ? ` (${strategies.length})` : ""}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMergeCheckOpen((open) => !open)}
+                        className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                        Check merge fields
+                    </button>
+                    <button
+                        type="button"
                         onClick={handleEnroll}
                         disabled={saving || enrolling || steps.length === 0}
                         className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
@@ -186,6 +263,32 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         {saving ? "Saving..." : "Save sequence"}
                     </button>
                 </div>
+                {mergeCheckOpen && <MergeFieldCheck campaignId={campaignId} savedCount={savedCount} />}
+                {strategyOpen && (
+                    <div className="max-h-80 space-y-3 overflow-auto border-b border-border bg-card p-4">
+                        <StrategyPicker
+                            value={strategies}
+                            objective={objective}
+                            icp={icp}
+                            brief={brief}
+                            onBriefChange={setBrief}
+                            onChange={(next, nextObjective) => {
+                                setStrategies(next);
+                                setObjective(nextObjective);
+                            }}
+                            disabled={savingStrategy}
+                        />
+                        <button
+                            type="button"
+                            onClick={saveStrategy}
+                            disabled={savingStrategy}
+                            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+                        >
+                            {savingStrategy && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {savingStrategy ? "Saving..." : "Save strategy"}
+                        </button>
+                    </div>
+                )}
                 <div className="flex-1">
                     <SequenceCanvas
                         steps={steps}
@@ -195,6 +298,8 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         timezone={timezone}
                         onSenderScheduleChange={handleSenderScheduleChange}
                         linkedinLocked={linkedinLocked}
+                        strategies={strategies}
+                        campaignId={campaignId}
                         disabled={saving || enrolling}
                     />
                 </div>

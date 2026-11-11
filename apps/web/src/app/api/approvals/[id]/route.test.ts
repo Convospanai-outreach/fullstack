@@ -9,6 +9,7 @@ const { mockGetCurrentContext, mockAuthorizePermission, mockPrisma, mockHandleEm
         lead: { update: vi.fn(), findFirst: vi.fn() },
         campaign: { findFirst: vi.fn() },
         connectedMailbox: { findFirst: vi.fn() },
+        teamMember: { count: vi.fn() },
     },
     mockHandleEmailSending: vi.fn(),
 }));
@@ -196,5 +197,107 @@ describe("POST /api/approvals/[id] - content posts", () => {
         const { POST } = await import("./route");
         expect((await POST(postRequest({}), paramsFor("req-1"))).status).toBe(400);
         expect(mockDecideContentPost).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /api/approvals/[id] - campaign start self-approval", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1", teamId: "team-1", actionType: "CAMPAIGN_START", entityType: "Campaign", entityId: "campaign-1",
+            requesterId: "user-1", payload: { campaignId: "campaign-1" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+    });
+
+    it("refuses to let the requester approve while another admin could", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+
+    it("lets a sole approver approve their own request, and anyone reject it", async () => {
+        mockPrisma.teamMember.count.mockResolvedValue(0);
+        const { POST } = await import("./route");
+        expect((await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"))).status).toBe(200);
+
+        mockPrisma.teamMember.count.mockResolvedValue(1);
+        expect((await POST(postRequest({ action: "REJECT" }), paramsFor("req-1"))).status).toBe(200);
+        expect(mockPrisma.approvalRequest.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED" }) }));
+    });
+});
+
+describe("POST /api/approvals/[id] - held AI messages (MESSAGE_SEND)", () => {
+    const held = {
+        id: "req-1",
+        teamId: "team-1",
+        actionType: "MESSAGE_SEND",
+        status: "PENDING",
+        payload: { jobType: "SEQUENCE_ACTION", jobPayload: { enrollmentId: "e1" }, channel: "EMAIL", body: "Hi" },
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.resetModules();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue(held);
+    });
+
+    it("approving queues the send job instead of updating the row directly", async () => {
+        const approve = vi.fn().mockResolvedValue(undefined);
+        vi.doMock("@/modules/governance/messageApproval", () => ({ approveMessageSend: approve, rejectMessageSend: vi.fn(), resolveNeedsAttention: vi.fn() }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE", body: "Edited" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(approve).toHaveBeenCalledWith(held, "team-1", "user-1", { body: "Edited" });
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+        expect(mockHandleEmailSending).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 when the approval has expired or was already decided", async () => {
+        vi.doMock("@/modules/governance/messageApproval", () => ({
+            approveMessageSend: vi.fn().mockRejectedValue(new Error("This message approval has expired or was already decided.")),
+            rejectMessageSend: vi.fn(),
+            resolveNeedsAttention: vi.fn(),
+        }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(409);
+    });
+
+    it("retry, write and skip go to the needs-attention resolver with the reviewer text", async () => {
+        const resolve = vi.fn().mockResolvedValue(undefined);
+        vi.doMock("@/modules/governance/messageApproval", () => ({ approveMessageSend: vi.fn(), rejectMessageSend: vi.fn(), resolveNeedsAttention: resolve }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "WRITE", subject: "Hi", body: "Mine" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(resolve).toHaveBeenCalledWith(held, "team-1", "user-1", "WRITE", { subject: "Hi", body: "Mine" });
+    });
+
+    it("answers 409 with the reason when the resolver refuses", async () => {
+        vi.doMock("@/modules/governance/messageApproval", () => ({
+            approveMessageSend: vi.fn(),
+            rejectMessageSend: vi.fn(),
+            resolveNeedsAttention: vi.fn().mockRejectedValue(new Error("This message was already handled.")),
+        }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "RETRY" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBe("This message was already handled.");
     });
 });

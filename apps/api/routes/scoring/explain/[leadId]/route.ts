@@ -10,6 +10,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { leadScoringService, caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(
     req: NextRequest,
@@ -114,7 +115,7 @@ export async function GET(
     } catch (error: any) {
         console.error("[API] Explain Score Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to explain score" },
+            { error: internalErrorMessage(error, "Failed to explain score") },
             { status: 500 }
         );
     }

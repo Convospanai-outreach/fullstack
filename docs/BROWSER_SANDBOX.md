@@ -65,11 +65,11 @@ docker run --cap-add=SYS_ADMIN your-image
 # Option 2: Disable seccomp (security trade-off)
 docker run --security-opt seccomp=unconfined your-image
 
-# Option 3: Use custom seccomp profile (RECOMMENDED)
+# Option 3: Use a full seccomp profile that also allows user namespaces (RECOMMENDED)
 docker run --security-opt seccomp=chrome.json your-image
 ```
 
-**Chrome Seccomp Profile** (`chrome.json`):
+**Syscalls a profile must allow** (this entry alone is not a usable profile: with `defaultAction` set to `SCMP_ACT_ERRNO` every other syscall, including `execve`, is denied and the container cannot start). Add it to the `syscalls` list of Docker's default profile (`default.json` in the moby repository) or use a complete published Chrome profile:
 ```json
 {
   "defaultAction": "SCMP_ACT_ERRNO",
@@ -199,6 +199,24 @@ sudo apt-get install -y \
 ```bash
 docker run --shm-size=2g your-image
 ```
+
+## Enabling the sandbox in the Docker deployment
+
+`ENABLE_BROWSER_SANDBOX` is read by every Chromium launch in `apps/api` (the scraper's `browserManager`, `services/browser/BrowserSandbox`, and the invoice PDF renderer) through `src/lib/security/chromiumSandbox.ts`. It defaults to off, which keeps `--no-sandbox`, because the API container cannot run Chromium's sandbox out of the box:
+
+- Docker's default seccomp profile blocks the user-namespace syscalls the sandbox needs.
+- Do **not** work around that with `--cap-add SYS_ADMIN`, `--privileged` or `seccomp=unconfined`; each removes more protection than the sandbox adds.
+
+To turn it on for a container, in this order:
+
+1. Confirm the host allows unprivileged user namespaces: `sysctl user.max_user_namespaces` must be above 0, `kernel.unprivileged_userns_clone` must be 1 where that sysctl exists (Debian/Ubuntu kernels), and `kernel.apparmor_restrict_unprivileged_userns` must be 0 where it exists (Ubuntu 23.10 and later), or an AppArmor profile must allow them.
+2. Run the container with a seccomp profile that permits them, for example Docker's default profile with `clone`, `unshare` and `setns` added to its allow list (not the three-syscall example above on its own): `security_opt: ["seccomp=/path/to/profile.json"]` in the compose file.
+3. Set `ENABLE_BROWSER_SANDBOX=true` in that VM's `.env` and recreate the container.
+4. Check a scrape and an invoice PDF download both still work.
+
+With the flag on and no usable sandbox, Chromium refuses to start ("No usable sandbox") instead of running unsandboxed, so a misconfiguration shows up as failed launches. To roll back, set the flag back to `false`.
+
+Not yet verified on the Oracle VMs; test on one VM before the other.
 
 ## Migration Guide
 

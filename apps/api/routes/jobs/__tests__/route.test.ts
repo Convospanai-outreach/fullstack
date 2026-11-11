@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Role enforcement has its own coverage (routes/__tests__/viewerReadOnly.test.ts): here the caller is a member.
+vi.mock("@/lib/permissions", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/permissions")>()),
+    forbiddenUnlessRole: vi.fn().mockResolvedValue(null),
+    authorizeRole: vi.fn().mockResolvedValue(undefined),
+}));
 import { NextRequest } from "next/server";
 
 const { mockPrisma, mockAuth, mockQueue } = vi.hoisted(() => ({
@@ -95,6 +102,72 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             );
         });
 
+        it("namespaces a caller-supplied idempotency key by the session team", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({ type: "lead_scoring", payload: { leadId: "l1" }, idempotencyKey: "shared-key" }),
+            });
+            await POST(req);
+
+            expect(mockQueue.JobQueue.enqueue).toHaveBeenCalledWith(
+                "lead_scoring",
+                expect.anything(),
+                expect.objectContaining({ idempotencyKey: "team-alpha:shared-key" })
+            );
+        });
+
+        it.each([
+            "campaign_execution",
+            "email_sending",
+            "LINKEDIN_ACTION",
+            "SEQUENCE_ACTION",
+            "WEBHOOK_DISPATCH",
+            "linkedin_scraping",
+            "lead_rescore",
+            "landing_lead_intake",
+            "not_a_real_type",
+        ])("rejects %s: only allowlisted job types can be enqueued directly", async (type) => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({ type, payload: { campaignId: "c1", leadId: "l1" }, idempotencyKey: "idem-1" }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("rejects a non-allowlisted type in the envelope shape too", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    version: 1,
+                    task_type: "campaign_execution",
+                    tenant_id: "team-alpha",
+                    execution_mode: "saas_only",
+                    target_runtime: "saas_only",
+                    task_id: "task-1",
+                    idempotency_key: "idem-1",
+                    created_at: new Date().toISOString(),
+                    payload: { campaignId: "c1" },
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
         it("rejects warmup_seed_reply as a client-enqueueable job type (legacy shape)", async () => {
             mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
             const { POST } = await import("../route");
@@ -153,7 +226,7 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
         });
 
-        it("overrides an attacker-supplied payload.teamId with the caller's own session teamId", async () => {
+        it("overrides an attacker-supplied payload.teamId with the caller's own session teamId (envelope shape)", async () => {
             mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
             mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });
             const { POST } = await import("../route");
@@ -161,17 +234,23 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             const req = new NextRequest("http://localhost/api/jobs", {
                 method: "POST",
                 body: JSON.stringify({
-                    type: "email_sending",
-                    payload: { leadId: "l1", campaignId: "c1", teamId: "victim-team" },
-                    idempotencyKey: "idem-1",
+                    version: 1,
+                    task_type: "lead_scoring",
+                    tenant_id: "team-alpha",
+                    execution_mode: "saas_only",
+                    target_runtime: "saas_only",
+                    task_id: "task-1",
+                    idempotency_key: "idem-1",
+                    created_at: new Date().toISOString(),
+                    payload: { teamId: "victim-team" },
                 }),
             });
             const res = await POST(req);
 
             expect(res.status).toBe(201);
             expect(mockQueue.JobQueue.enqueue).toHaveBeenCalledWith(
-                "email_sending",
-                { leadId: "l1", campaignId: "c1", teamId: "team-alpha" },
+                "lead_scoring",
+                { teamId: "team-alpha" },
                 expect.objectContaining({ teamId: "team-alpha" })
             );
         });

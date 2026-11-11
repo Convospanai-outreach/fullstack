@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 
 // GET /api/jobs/[id] - Get job status
 export async function GET(
@@ -42,6 +43,9 @@ export async function DELETE(
         if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        const denied = await forbiddenUnlessRole(ctx.userId, ctx.teamId, TeamRole.MEMBER);
+        if (denied) return denied;
 
         const { id } = await params;
         const existing = await prisma.job.findFirst({

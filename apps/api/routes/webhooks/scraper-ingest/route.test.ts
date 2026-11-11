@@ -75,6 +75,38 @@ describe("POST /webhooks/scraper-ingest", () => {
         mockGetRedisClient.mockResolvedValue(null);
     });
 
+    it.each(["development", "test", "staging"])(
+        "refuses to verify against a built-in key when SCRAPER_SECRET is unset (NODE_ENV=%s)",
+        async (nodeEnv) => {
+            const original = process.env["NODE_ENV"];
+            delete process.env["SCRAPER_SECRET"];
+            (process.env as Record<string, string>)["NODE_ENV"] = nodeEnv;
+            vi.spyOn(console, "error").mockImplementation(() => {});
+            try {
+                const rawBody = JSON.stringify({ jobId: "job-nosecret", url: "https://example.com", teamId: "team-1" });
+                const timestamp = String(Date.now());
+                // Signed with the literal that used to be the fallback key.
+                const forged = crypto
+                    .createHmac("sha256", "dev-secret-key-32-chars-long-####")
+                    .update(`${rawBody}.${timestamp}`)
+                    .digest("hex");
+
+                const res = await POST(
+                    new Request("http://localhost/webhooks/scraper-ingest", {
+                        method: "POST",
+                        headers: { "X-Timestamp": timestamp, "X-Compliance-Hash": forged, "content-type": "application/json" },
+                        body: rawBody,
+                    }),
+                );
+
+                expect(res.status).toBeGreaterThanOrEqual(500);
+                expect(mockScrapingJob.upsert).not.toHaveBeenCalled();
+            } finally {
+                (process.env as Record<string, string | undefined>)["NODE_ENV"] = original;
+            }
+        },
+    );
+
     it("rejects a request with an invalid compliance hash", async () => {
         const res = await POST(signedRequest({ jobId: "job-1", url: "https://example.com" }, { badHash: true }));
         expect(res.status).toBe(401);

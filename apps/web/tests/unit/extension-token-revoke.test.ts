@@ -9,8 +9,12 @@ const { mockSessionDeleteMany, mockGetCurrentContext } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/db", () => ({
-    prisma: { session: { deleteMany: mockSessionDeleteMany } },
+    prisma: {
+        session: { deleteMany: mockSessionDeleteMany },
+        $transaction: async (fn: (client: unknown) => unknown) => fn({ session: { deleteMany: mockSessionDeleteMany } }),
+    },
 }));
+vi.mock("@/modules/audit/auditService", () => ({ AuditService: { log: vi.fn() } }));
 
 import { DELETE } from "../../src/app/api/extension/token/route";
 

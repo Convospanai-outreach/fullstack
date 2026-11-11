@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { scrubBreadcrumb, scrubEvent, scrubRecordingEvent } from "./lib/sentryScrub";
 
 // Client-side Sentry entry point. Next 16 loads this file automatically in the
 // browser bundle (the successor to the legacy sentry.client.config.ts). It stays
@@ -19,10 +20,12 @@ Sentry.init({
         Sentry.replayIntegration({
             maskAllText: true,
             blockAllMedia: true,
+            beforeAddRecordingEvent: scrubRecordingEvent,
         }),
     ],
 
     environment: process.env.NODE_ENV || "development",
+    sendDefaultPii: false,
 
     ignoreErrors: [
         // Browser extensions
@@ -41,8 +44,10 @@ Sentry.init({
         if (process.env.NODE_ENV === "development") {
             return null;
         }
-        return event;
+        return scrubEvent(event);
     },
+    beforeSendTransaction: scrubEvent,
+    beforeBreadcrumb: scrubBreadcrumb,
 });
 
 // Instruments client-side navigations so Sentry traces route transitions.

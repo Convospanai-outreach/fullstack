@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { emailService } from "@/modules/email-campaigner";
 import { prisma } from "@/lib/db";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
         const ctx = await getCurrentContext();
-        if (!ctx.teamId) {
+        if (!ctx.teamId || !ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // This sends mail to any address from the team's sender, so a read-only VIEWER must not be able to.
+        if (!(await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const body = await req.json();
@@ -51,6 +57,6 @@ export async function POST(req: NextRequest) {
         }
     } catch (err: any) {
         console.error("[Email Send API] Error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

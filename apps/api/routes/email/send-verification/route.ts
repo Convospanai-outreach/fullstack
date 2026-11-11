@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 
 function getSystemSmtpConfig() {
     const host = process.env.SMTP_HOST;
@@ -17,7 +18,7 @@ function getSystemSmtpConfig() {
         user,
         password,
         fromName: process.env.SMTP_FROM_NAME || "CraftMyFunnel",
-        fromEmail: process.env.SMTP_FROM_EMAIL || user
+        fromEmail: process.env.SMTP_FROM_EMAIL || SYSTEM_FROM_EMAIL
     };
 }
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
 
     const html = `
-        <p>Hi ${name || "there"},</p>
+        <p>Hi ${(name || "there").replace(/[&<>"']/g, (c: string) => `&#${c.charCodeAt(0)};`)},</p>
         <p>Please verify your email to activate your CraftMyFunnel account:</p>
         <p><a href="${verifyUrl}">Verify Email</a></p>
         <p>If you did not request this, you can ignore this email.</p>

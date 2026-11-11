@@ -92,6 +92,15 @@ describe("emailService Gmail fallback policy", () => {
         }));
     });
 
+    it("saves the copy provenance on the sent email, and none when the caller gave none", async () => {
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", { ...metadata, copyProvenance: { v: 1, marker: "prov-x" } } as any);
+        expect(sentEmailData()).toEqual(expect.objectContaining({ copyProvenance: { v: 1, marker: "prov-x" } }));
+
+        (prisma.email.create as Mock).mockClear();
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+        expect(sentEmailData()).not.toHaveProperty("copyProvenance");
+    });
+
     it("uses SMTP as primary when no Gmail mailbox is selected", async () => {
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });

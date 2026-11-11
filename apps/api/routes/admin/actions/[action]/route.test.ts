@@ -54,6 +54,18 @@ describe("POST /admin/actions/[action] - cross-tenant scoping", () => {
         });
     });
 
+    it("honors a supplied teamId only through an active membership", async () => {
+        mockGetAdminUser.mockResolvedValue({ id: "user-1", role: "ADMIN", enterpriseRole: "ORG_ADMIN" });
+        mockPrisma.teamMember.findFirst.mockResolvedValue({ teamId: "team-own" });
+
+        await POST(jsonRequest({ teamId: "team-own" }) as any, params("pause-outreach"));
+
+        expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
+            where: { userId: "user-1", teamId: "team-own", status: "active" },
+            select: { teamId: true },
+        });
+    });
+
     it("allows a platform-level SYSTEM_ADMIN to act on an arbitrary teamId without a membership check", async () => {
         mockGetAdminUser.mockResolvedValue({ id: "user-1", role: "ADMIN", enterpriseRole: "SYSTEM_ADMIN" });
         mockPrisma.campaign.updateMany.mockResolvedValue({ count: 5 });
@@ -77,7 +89,7 @@ describe("POST /admin/actions/[action] - cross-tenant scoping", () => {
 
         expect(res.status).toBe(200);
         expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
-            where: { userId: "user-1" },
+            where: { userId: "user-1", status: "active" },
             select: { teamId: true },
         });
         expect(mockPrisma.campaign.updateMany).toHaveBeenCalledWith({

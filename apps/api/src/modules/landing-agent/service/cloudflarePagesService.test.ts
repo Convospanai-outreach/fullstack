@@ -10,7 +10,8 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
-import { cloudflarePagesService } from "./cloudflarePagesService";
+import { buildFullDocument, cloudflarePagesService } from "./cloudflarePagesService";
+import { encodeLeadFormMarkerId } from "../leadFormConfig";
 
 describe("cloudflarePagesService.publishPageToCloudflare", () => {
     const originalEnv = { ...process.env };
@@ -35,6 +36,24 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
 
         expect(result.status).toBe("skipped");
         expect(mockPrisma.landingPage.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("publishes a themed page with the preset class and variables on the body", async () => {
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "themed",
+            title: "Themed",
+            renderedJson: { html: "<p>Hello</p>", css: "", theme: { preset: "glass", primary: "#112233", accent: "#abcdef" } },
+            campaign: { teamId: "team-1" },
+        });
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.html).toContain('<body class="la-page la-theme-glass" style="');
+        expect(body.html).toContain("--la-primary:#112233");
     });
 
     it("PUTs the rendered HTML and owning teamId to the correct KV key", async () => {
@@ -99,7 +118,7 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         await cloudflarePagesService.publishPageToCloudflare("page-1");
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
         expect(body.html).toContain('<input type="checkbox" name="whatsappConsent" style="margin-top:3px" />Yes, Asha &lt;b&gt;&amp; Co&lt;/b&gt; can message me on WhatsApp at the phone number above.');
-        expect(body.html).not.toContain("checked");
+        expect(body.html).not.toMatch(/<input[^>]*schecked[s/>]/);
         const script = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
         expect(script).toContain('whatsappConsent: data.get("whatsappConsent") === "on" || undefined');
         expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
@@ -133,6 +152,81 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         expect(plain.tracking).toBeUndefined();
     });
 
+    // Regression pin: a page with no Meta Pixel must publish exactly as it did before the Pixel existed,
+    // so its stored document and script hash never change. Date is frozen because the lead script embeds Date.now().
+    it("publishes a page without a Meta Pixel byte-for-byte as before", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+        try {
+            const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+            global.fetch = fetchMock as any;
+            mockPrisma.landingPage.findUnique.mockResolvedValue({
+                id: "page-1",
+                slug: "plain",
+                title: "Plain",
+                renderedJson: { html: "<p>Hello</p>", css: "" },
+                campaign: { teamId: "team-1" },
+                tracking: { ga4Id: "G-ABC1234", hotjarId: "1234567" },
+            });
+            await cloudflarePagesService.publishPageToCloudflare("page-1");
+            const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+            expect(createHash("sha256").update(body.html, "utf8").digest("hex")).toBe("4293a478b0893b5ec47e364340603904bcfbf2292f6011569074a0c16abf2046");
+            const script = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
+            expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
+            expect(body.metaPixel).toBeUndefined();
+            expect(body.html).not.toContain("fbevents");
+            expect(body.html).not.toContain("cmfMeta");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("adds the Meta Pixel to the one hashed script, flags the page, and fires Lead after a successful submit", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "my-campaign",
+            title: "My Campaign",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+            tracking: { metaPixelId: "123456789012345" },
+        });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        const scripts = [...body.html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)];
+        expect(scripts).toHaveLength(1);
+        const script = scripts[0]![1]!;
+        expect(script).toContain('window.fbq("init", "123456789012345")');
+        expect(script).toContain('var slug = "my-campaign"');
+        expect(body.scriptHash).toBe(`sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`);
+        expect(body.tracking).toBe(true);
+        expect(body.metaPixel).toBe(true);
+        // Lead fires only after the server accepted the submission, with the ID made for this submit.
+        expect(script).toContain('var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;');
+        expect(script).toMatch(/if \(!res\.ok\) throw new Error\("Submission failed"\);\s*if \(metaEventId\) window\.cmfMeta\.track\("Lead", metaEventId\);/);
+        // The lead POST carries the same ID, and the page URL without its query (the ?t= social token must not reach Meta).
+        expect(script).toContain("metaEventId: metaEventId || undefined,");
+        expect(script).toContain("metaEventSourceUrl: location.origin + location.pathname,");
+    });
+
+    it("sends no Meta fields from a page without a Meta Pixel", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => "" });
+        global.fetch = fetchMock as any;
+        mockPrisma.landingPage.findUnique.mockResolvedValue({
+            id: "page-1",
+            slug: "plain",
+            title: "Plain",
+            renderedJson: { html: "<p>Hello</p>", css: "" },
+            campaign: { teamId: "team-1" },
+            tracking: { ga4Id: "G-ABC1234" },
+        });
+        await cloudflarePagesService.publishPageToCloudflare("page-1");
+        const script = [...JSON.parse(fetchMock.mock.calls[0][1].body).html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)][0]![1]!;
+        expect(script).not.toContain("metaEventId");
+        expect(script).not.toContain("metaEventSourceUrl");
+    });
+
     it("returns an error result (not a thrown exception) when the Cloudflare API call fails", async () => {
         mockPrisma.landingPage.findUnique.mockResolvedValue({
             id: "page-1",
@@ -146,5 +240,27 @@ describe("cloudflarePagesService.publishPageToCloudflare", () => {
         const result = await cloudflarePagesService.publishPageToCloudflare("page-1");
 
         expect(result.status).toBe("error");
+    });
+});
+
+describe("buildFullDocument lead form", () => {
+    const config = { fields: [{ key: "email", label: "Work email", type: "email" as const, required: true }], buttonLabel: "Send it to me", successMessage: "Thanks!" };
+    const doc = (html: string) => buildFullDocument({ title: "T", css: "", html, script: "", whatsappOptIn: null, slug: "guide" });
+
+    it("a page without a marker keeps the fixed box at the bottom", () => {
+        const out = doc("<p>Hi</p>");
+        expect(out).toContain("Request a follow-up");
+        expect(out).toContain('id="la-lead-form"');
+        expect(out).not.toContain("data-cmf-form");
+    });
+
+    it("a page with a marker gets its form in place of the fixed box", () => {
+        const marker = `<div class="cmf-form" id="${encodeLeadFormMarkerId(config)}"></div>`;
+        const out = doc(`<p>Hi</p>${marker}<p>After</p>`);
+        expect(out).toContain('data-cmf-form="1"');
+        expect(out).not.toContain("Request a follow-up");
+        expect(out).not.toContain("cmf-form-");
+        expect(out.indexOf("<p>Hi</p>")).toBeLessThan(out.indexOf("data-cmf-form"));
+        expect(out.indexOf("data-cmf-form")).toBeLessThan(out.indexOf("<p>After</p>"));
     });
 });

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
+import { companyProfileSchema } from "@/modules/onboarding/service/websiteScan";
+import { icpService } from "@/modules/icp-builder/service/icpService";
+
+// The data responsibility notice version (step 1). Keep in step with apps/web/src/lib/setupSteps.ts.
+const DATA_RESPONSIBILITY_VERSION = "2026-11";
 
 export async function POST(req: NextRequest) {
     try {
@@ -25,6 +31,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing step or data payload" }, { status: 400 });
         }
 
+        // Step 6 stores the team's AI provider key, which every member's AI usage is billed to, so it stays an admin action.
+        if (step === 6 && !await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
         const team = await prisma.team.findUnique({
             where: { id: ctx.teamId },
             select: { branding: true, aiConfig: true }
@@ -44,7 +55,15 @@ export async function POST(req: NextRequest) {
                 if (data.outreachMode !== "personal" && data.outreachMode !== "company") {
                     return NextResponse.json({ error: "Choose personal or company." }, { status: 400 });
                 }
-                updateData.aiConfig = { ...currentAiConfig, outreachMode: data.outreachMode };
+                // The team owns its leads and their data: keep who agreed, when, and which notice version.
+                if (data.acknowledgedDataResponsibility !== true) {
+                    return NextResponse.json({ error: "Read the data responsibility notice and tick the box to continue." }, { status: 400 });
+                }
+                updateData.aiConfig = {
+                    ...currentAiConfig,
+                    outreachMode: data.outreachMode,
+                    dataResponsibility: { version: DATA_RESPONSIBILITY_VERSION, acknowledgedBy: ctx.userId, acknowledgedAt: new Date().toISOString() },
+                };
                 break;
 
             case 2: // Brand Identity
@@ -89,6 +108,40 @@ export async function POST(req: NextRequest) {
                 }
                 break;
 
+            case 15: { // Website scan: the owner's reviewed profile. Nothing is saved before this.
+                const parsed = companyProfileSchema.safeParse(data.companyProfile);
+                if (!parsed.success) {
+                    return NextResponse.json({ error: "That company profile is not valid." }, { status: 400 });
+                }
+                const profile = parsed.data;
+                const sourceUrl = typeof data.sourceUrl === "string" ? data.sourceUrl.slice(0, 300) : "";
+                updateData.aiConfig = {
+                    ...currentAiConfig,
+                    companyProfile: { ...profile, sourceUrl, confirmedAt: new Date().toISOString() },
+                };
+                // An ICP is created only when the owner asked for it, and only once per company name.
+                const icp = profile.icp_primary;
+                if (data.createIcp === true && (icp.industry || icp.buyer_title)) {
+                    const name = `${profile.company_name || "My company"} (from website)`;
+                    const existing = await prisma.iCP.findFirst({ where: { teamId: ctx.teamId, name }, select: { id: true } });
+                    if (!existing) {
+                        await icpService.create(ctx.teamId, {
+                            name,
+                            description: icp.pain_statement || null,
+                            criteria: {
+                                industries: icp.industry ? [icp.industry] : [],
+                                companySizes: icp.company_size ? [icp.company_size] : [],
+                                buyerTitles: icp.buyer_title ? [icp.buyer_title] : [],
+                                triggerEvent: icp.trigger_event,
+                                signalKeywords: profile.campaign_seed.signal_keywords,
+                                source: "website_scan",
+                            },
+                        } as any);
+                    }
+                }
+                break;
+            }
+
             case 9: // Email Attachments & Media Kit
                 // data contains { calendarLink, demoUrl }
                 // Uploaded files are handled by the /api/upload/pdf route, creating KnowledgeItems
@@ -119,7 +172,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("Setup save error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 

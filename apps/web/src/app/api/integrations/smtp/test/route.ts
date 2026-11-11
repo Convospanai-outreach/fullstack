@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, messageId: sendResult.messageId });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal server error during SMTP test send." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(err, "Internal server error during SMTP test send.") }, { status: 500 });
   }
 }

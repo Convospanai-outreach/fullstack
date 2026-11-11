@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { neutralizeCsvFormula, streamingCsvResponse } from "@/lib/csvStream";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const EXPORT_BATCH_SIZE = 1000;
 
@@ -65,6 +66,8 @@ export async function GET() {
             chunks,
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: error?.statusCode || 500 });
+        // A statusCode below 500 marks an error thrown on purpose, with a message meant for the caller.
+        const status = error?.statusCode || 500;
+        return NextResponse.json({ error: status < 500 ? error.message : internalErrorMessage(error) }, { status });
     }
 }

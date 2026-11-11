@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { icpService } from "../../service/icpService";
 import { getCurrentContextFromRequest } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function PUT(
     req: Request,
@@ -19,7 +20,7 @@ export async function PUT(
         return NextResponse.json({ ok: true, icp });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

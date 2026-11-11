@@ -788,6 +788,16 @@ function wrapBase64(content: string) {
     return content.replace(/[\r\n]/g, "").replace(/(.{76})/g, "$1\r\n");
 }
 
+// Attachment metadata goes straight into MIME headers, so a quote, backslash or line break in it would end the
+// header value early or add headers of its own.
+function mimeFilename(filename: string) {
+    return filename.replace(/[\x00-\x1f\x7f"\\]/g, "_");
+}
+
+function mimeType(type: string) {
+    return /^[\w.+-]+\/[\w.+-]+$/.test(type) ? type : "application/octet-stream";
+}
+
 function buildMimeBody(headers: string[], html: string, attachments?: EmailAttachment[]) {
     if (!attachments?.length) {
         const singlePartHeaders = [...headers, "Content-Type: text/html; charset=UTF-8"];
@@ -803,9 +813,9 @@ function buildMimeBody(headers: string[], html: string, attachments?: EmailAttac
     for (const a of attachments) {
         parts.push(
             `--${boundary}`,
-            `Content-Type: ${a.mimeType}; name="${a.filename}"`,
+            `Content-Type: ${mimeType(a.mimeType)}; name="${mimeFilename(a.filename)}"`,
             "Content-Transfer-Encoding: base64",
-            `Content-Disposition: attachment; filename="${a.filename}"`,
+            `Content-Disposition: attachment; filename="${mimeFilename(a.filename)}"`,
             "",
             wrapBase64(a.content)
         );
@@ -1014,7 +1024,10 @@ export function signTrackedUrl(trackingId: string, targetUrl: string) {
 
 export function verifyTrackedUrlSignature(trackingId: string, targetUrl: string, signature: string) {
     const expected = signTrackedUrl(trackingId, targetUrl);
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    const provided = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expected);
+    // timingSafeEqual throws on a length mismatch, which would turn a bad signature into a 500.
+    return provided.length === expectedBuf.length && crypto.timingSafeEqual(provided, expectedBuf);
 }
 
 async function refreshAccessToken(mailbox: any, assertLeaseOwned?: GmailLeaseHeartbeat) {

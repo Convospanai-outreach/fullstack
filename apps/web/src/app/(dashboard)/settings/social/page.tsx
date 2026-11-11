@@ -14,6 +14,7 @@ type SocialAccount = {
     id: string;
     platform: "FACEBOOK_PAGE" | "INSTAGRAM" | "LINKEDIN_MEMBER" | "LINKEDIN_ORG";
     handle: string | null;
+    parentExternalId?: string | null; // an Instagram account with none was connected with Instagram only (no Facebook Page)
     status: "CONNECTED" | "NEEDS_RECONNECT";
     lastError: string | null;
     tokenExpiresAt: string | null;
@@ -62,9 +63,16 @@ export default function SocialAccountsPage() {
     };
     const connect = () => startSignIn("connect", "/api/integrations/facebook/oauth/start?purpose=social&next=/settings/social");
     const connectBusiness = () => startSignIn("connect-business", "/api/integrations/facebook/oauth/start?purpose=social&business=1&next=/settings/social");
+    const connectInstagramOnly = () => startSignIn("connect-instagram", "/api/integrations/instagram/oauth/start?next=/settings/social");
     const connectLinkedIn = (kind: "profile" | "pages") => startSignIn(`linkedin-${kind}`, `/api/integrations/linkedin/oauth/start?kind=${kind}`);
     const reconnect = (account: SocialAccount) =>
-        account.platform === "LINKEDIN_MEMBER" ? connectLinkedIn("profile") : account.platform === "LINKEDIN_ORG" ? connectLinkedIn("pages") : connect();
+        account.platform === "LINKEDIN_MEMBER"
+            ? connectLinkedIn("profile")
+            : account.platform === "LINKEDIN_ORG"
+              ? connectLinkedIn("pages")
+              : account.platform === "INSTAGRAM" && account.parentExternalId === null
+                ? connectInstagramOnly()
+                : connect();
 
     const disconnect = async (account: SocialAccount) => {
         setBusy(account.id);
@@ -107,6 +115,20 @@ export default function SocialAccountsPage() {
                         className="h-9 shrink-0 rounded-md border border-border px-4 text-sm font-medium text-foreground disabled:opacity-50"
                     >
                         {busy === "connect-business" ? "Opening Facebook..." : "Page is in Business Manager"}
+                    </button>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                        No Facebook Page? Sign in with Instagram instead. It reads comments and messages for keyword auto-replies; posting needs the Facebook connection.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={connectInstagramOnly}
+                        disabled={busy !== null}
+                        className="h-9 shrink-0 rounded-md border border-border px-4 text-sm font-medium text-foreground disabled:opacity-50"
+                    >
+                        {busy === "connect-instagram" ? "Opening Instagram..." : "Connect Instagram only"}
                     </button>
                 </div>
 

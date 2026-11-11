@@ -7,6 +7,10 @@
 // checked 2026-09-30).
 
 export const GRAPH_BASE_URL = "https://graph.facebook.com/v26.0";
+// Instagram API with Instagram Login (no Facebook Page): its own host and Instagram User tokens,
+// sent in an Authorization header. Checked 2026-10-24:
+// https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/get-started.md
+export const IG_GRAPH_BASE_URL = "https://graph.instagram.com/v26.0";
 const TIMEOUT_MS = 15_000;
 
 export class GraphError extends Error {
@@ -15,14 +19,16 @@ export class GraphError extends Error {
     }
 }
 
-export async function graphCall(method: "GET" | "POST", path: string, params: Record<string, string>, token: string): Promise<any> {
-    const query = new URLSearchParams({ ...params, access_token: token });
-    const url = `${GRAPH_BASE_URL}/${path}`;
+export async function graphCall(method: "GET" | "POST", path: string, params: Record<string, string>, token: string, base: string = GRAPH_BASE_URL): Promise<any> {
+    const bearer = base === IG_GRAPH_BASE_URL;
+    const query = new URLSearchParams(bearer ? params : { ...params, access_token: token });
+    const url = `${base}/${path}`;
+    const auth: Record<string, string> = bearer ? { Authorization: `Bearer ${token}` } : {};
     let res: Response;
     try {
         res = await fetch(method === "GET" ? `${url}?${query}` : url, {
             method,
-            ...(method === "POST" ? { body: query, headers: { "Content-Type": "application/x-www-form-urlencoded" } } : {}),
+            ...(method === "POST" ? { body: query, headers: { "Content-Type": "application/x-www-form-urlencoded", ...auth } } : bearer ? { headers: auth } : {}),
             redirect: "error",
             signal: AbortSignal.timeout(TIMEOUT_MS),
         });
@@ -36,10 +42,10 @@ export async function graphCall(method: "GET" | "POST", path: string, params: Re
 // Authorization header ("Bearer <token>", accepted by graph.facebook.com:
 // https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/,
 // checked 2026-10-01), so it's still never in the URL.
-export async function graphPostJson(path: string, body: Record<string, unknown>, token: string): Promise<any> {
+export async function graphPostJson(path: string, body: Record<string, unknown>, token: string, base: string = GRAPH_BASE_URL): Promise<any> {
     let res: Response;
     try {
-        res = await fetch(`${GRAPH_BASE_URL}/${path}`, {
+        res = await fetch(`${base}/${path}`, {
             method: "POST",
             body: JSON.stringify(body),
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

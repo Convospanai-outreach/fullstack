@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mcpManager } from "@/lib/mcp/McpManager";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: NextRequest) {
     try {
@@ -8,6 +9,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ ok: true, tools });
     } catch (error: any) {
         console.error("Error fetching MCP tools:", error);
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

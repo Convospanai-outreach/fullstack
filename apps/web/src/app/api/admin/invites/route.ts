@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
@@ -15,7 +16,7 @@ import {
 type AdminActor = {
     id: string;
     enterpriseRole: UserRole | string | null;
-    memberships: Array<{ teamId: string; status: string }>;
+    memberships: Array<{ teamId: string; status: string; role: string }>;
 };
 
 async function loadPrisma() {
@@ -35,9 +36,41 @@ async function getActor(): Promise<AdminActor | null> {
     }) as Promise<AdminActor | null>;
 }
 
+// Teams whose invitations the actor may create, list and revoke: those where they hold an
+// active owner or admin seat. The global enterpriseRole says nothing about their role in a
+// particular team.
 function getAllowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
-    return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
+    return actor.memberships
+        .filter((member) => member.status === "active" && (member.role === "owner" || member.role === "admin"))
+        .map((member) => member.teamId);
+}
+
+// The workspace the user has selected (same cookie getCurrentContext honours) wins when they may
+// invite into it; otherwise fall back to their first eligible membership.
+async function defaultTeamId(actor: AdminActor, allowedTeamIds: string[] | null) {
+    const selected = (await cookies()).get("convo-workspace-id")?.value;
+    const selectedUsable = selected && (allowedTeamIds
+        ? allowedTeamIds.includes(selected)
+        : actor.memberships.some((member) => member.status === "active" && member.teamId === selected));
+    if (selectedUsable) return selected;
+    return allowedTeamIds ? allowedTeamIds[0] : actor.memberships.find((member) => member.status === "active")?.teamId;
+}
+
+// An invitation may create or refresh a pending seat, never change one someone already holds
+// (or an owner's seat reserved for a founder).
+function isTakenSeat(member: { status: string; userId: string | null; role: string }) {
+    return member.status !== "invited" || member.userId !== null || member.role === "owner";
+}
+
+// Every invitation sends a platform email, so cap how many go out. Counted over all statuses: a
+// revoked invitation was still emailed. The address limit spans teams because anyone can found one.
+const TEAM_DAILY_INVITE_LIMIT = 100;
+const ADDRESS_DAILY_INVITE_LIMIT = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+async function invitesSentToday(prisma: Awaited<ReturnType<typeof loadPrisma>>, where: { teamId: string } | { email: string }) {
+    return prisma.userInvitation.count({ where: { ...where, createdAt: { gte: new Date(Date.now() - DAY_MS) } } });
 }
 
 export async function GET() {
@@ -114,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || actor.memberships.find((member) => member.status === "active")?.teamId;
+    const teamId = requestedTeamId || await defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -125,6 +158,20 @@ export async function POST(req: NextRequest) {
     }
 
     const prisma = await loadPrisma();
+    const existingMember = await prisma.teamMember.findFirst({
+        where: { teamId, email: { equals: email, mode: "insensitive" } }
+    });
+    if (existingMember && isTakenSeat(existingMember)) {
+        return NextResponse.json({ error: "This person is already a member of the team." }, { status: 409 });
+    }
+
+    if (await invitesSentToday(prisma, { teamId }) >= TEAM_DAILY_INVITE_LIMIT) {
+        return NextResponse.json({ error: `This team can send up to ${TEAM_DAILY_INVITE_LIMIT} invitations a day. Try again tomorrow.` }, { status: 429 });
+    }
+    if (await invitesSentToday(prisma, { email }) >= ADDRESS_DAILY_INVITE_LIMIT) {
+        return NextResponse.json({ error: "This address has received too many invitations today. Try again tomorrow." }, { status: 429 });
+    }
+
     const token = createInviteToken();
     const inviteLink = getInviteLink(token);
     const invitation = await prisma.userInvitation.create({
@@ -137,10 +184,6 @@ export async function POST(req: NextRequest) {
             expiresAt: new Date(Date.now() + INVITE_TTL_MS)
         },
         include: { team: { select: { id: true, name: true } } }
-    });
-
-    const existingMember = await prisma.teamMember.findFirst({
-        where: { teamId, email }
     });
 
     const teamRole = role === UserRole.ORG_ADMIN ? "admin" : role === UserRole.VIEWER ? "viewer" : "member";
@@ -184,7 +227,7 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || actor.memberships.find((member) => member.status === "active")?.teamId;
+    const teamId = requestedTeamId || await defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -213,10 +256,23 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
     }
 
     const prisma = await loadPrisma();
+    const remaining = TEAM_DAILY_INVITE_LIMIT - await invitesSentToday(prisma, { teamId });
+    if (emails.length > remaining) {
+        return NextResponse.json({ error: `This team can send ${Math.max(0, remaining)} more invitations today.` }, { status: 429 });
+    }
+
     const teamRole = role === UserRole.ORG_ADMIN ? "admin" : role === UserRole.VIEWER ? "viewer" : "member";
 
     const results = await Promise.all(emails.map(async (email) => {
         try {
+            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email: { equals: email, mode: "insensitive" } } });
+            if (existingMember && isTakenSeat(existingMember)) {
+                return { email, ok: false as const, error: "Already a member of this team" };
+            }
+            if (await invitesSentToday(prisma, { email }) >= ADDRESS_DAILY_INVITE_LIMIT) {
+                return { email, ok: false as const, error: "Too many invitations to this address today" };
+            }
+
             const token = createInviteToken();
             const inviteLink = getInviteLink(token);
             const invitation = await prisma.userInvitation.create({
@@ -230,7 +286,6 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
                 }
             });
 
-            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
             if (existingMember) {
                 await prisma.teamMember.update({
                     where: { id: existingMember.id },

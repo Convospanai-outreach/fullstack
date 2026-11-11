@@ -27,6 +27,7 @@ const trigger = (overrides: Partial<KeywordTrigger> = {}): KeywordTrigger => ({
     publicCommentReply: null,
     landingPageId: null,
     mauticPageUrl: null,
+    flowId: null,
     active: false,
     sentLast7Days: 4,
     lastError: null,
@@ -125,6 +126,7 @@ describe("Keyword auto-replies", () => {
             publicCommentReply: "Sent you a DM!",
             landingPageId: "lp-1",
             mauticPageUrl: null,
+            flowId: null,
         });
         expect(toast.success).toHaveBeenCalledWith("Saved. Switch it on when you're ready.");
     });
@@ -165,5 +167,126 @@ describe("Keyword auto-replies", () => {
         expect(patch![0]).toBe(`${BASE}/trig-1`);
         expect(JSON.parse(patch![1].body)).toEqual({ active: true });
         expect(toast.error).toHaveBeenCalledWith("Reconnect this account and allow: instagram_manage_comments.");
+    });
+
+    describe("Conversation flow on an auto-reply", () => {
+        const FLOW = { id: "flow-1", name: "Guide flow", version: 1, steps: [{ type: "message", text: "Hi there" }, { type: "end" }] };
+        const LINK_FLOW = { id: "flow-link", name: "Link flow", version: 1, steps: [{ type: "message", text: "Hi" }, { type: "link", text: "Here it is" }] };
+        const PROPERTIES = {
+            properties: [
+                { key: "budget", label: "Budget", type: "text", archivedAt: null },
+                { key: "pick", label: "Pick", type: "choice", options: ["a"], archivedAt: null },
+            ],
+        };
+
+        // Routes each URL like the real API; a POST to the flows list adds the flow to the list.
+        function mockApi(flows: any[] = [FLOW], triggers: KeywordTrigger[] = []) {
+            fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+                if (url === "/api/proxy/settings/custom-properties") return json(200, PROPERTIES);
+                if (url === "/api/proxy/content/dm-flows" && init?.method === "POST") {
+                    const created = { id: "flow-new", version: 1, ...JSON.parse(init.body as string) };
+                    flows.push(created);
+                    return json(201, { flow: created });
+                }
+                if (url === "/api/proxy/content/dm-flows") return json(200, { flows });
+                if (url === BASE && init?.method === "POST") return json(201, { trigger: trigger() });
+                if (url === BASE && init?.method === "PATCH") return json(200, { trigger: trigger() });
+                return json(200, list(triggers));
+            });
+        }
+
+        const bodyOf = (method: string, url: string) => {
+            const call = fetchMock.mock.calls.find(([u, init]) => u === url && init?.method === method);
+            return call ? JSON.parse(call[1].body) : undefined;
+        };
+
+        async function fillBasics() {
+            await click(byText("New auto-reply"));
+            await setValue(field<HTMLInputElement>("Keywords", "input"), "guide");
+            await setValue(field<HTMLTextAreaElement>("Message they get", "textarea"), "Here's the guide");
+        }
+
+        it("attaches an existing flow to a new auto-reply", async () => {
+            mockApi();
+            await render();
+            await fillBasics();
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "flow-1");
+            await click(byText("Save"));
+            expect(bodyOf("POST", BASE).flowId).toBe("flow-1");
+        });
+
+        it("detaches a flow by choosing no flow", async () => {
+            mockApi([FLOW], [trigger({ flowId: "flow-1" })]);
+            await render();
+            await click(byText("Edit"));
+            expect(field<HTMLSelectElement>("Conversation flow", "select").value).toBe("flow-1");
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "");
+            await click(byText("Save"));
+            expect(bodyOf("PATCH", `${BASE}/trig-1`).flowId).toBeNull();
+        });
+
+        it("blocks saving a flow with a landing link until a landing page is picked", async () => {
+            mockApi([LINK_FLOW]);
+            await render();
+            await fillBasics();
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "flow-link");
+            expect(container.textContent).toContain("This flow sends a landing page link. Pick a landing page above.");
+            expect((byText("Save") as HTMLButtonElement).disabled).toBe(true);
+            await setValue(field<HTMLSelectElement>("Link to landing page", "select"), "lp-1");
+            expect((byText("Save") as HTMLButtonElement).disabled).toBe(false);
+        });
+
+        it("shows an archived flow as a problem, and blocks saving until it is detached", async () => {
+            mockApi([], [trigger({ flowId: "flow-gone" })]);
+            await render();
+            await click(byText("Edit"));
+            expect(container.textContent).toContain("This flow was archived. Choose another flow or none, then save.");
+            expect((byText("Save") as HTMLButtonElement).disabled).toBe(true);
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "");
+            expect((byText("Save") as HTMLButtonElement).disabled).toBe(false);
+        });
+
+        it("creates a flow in the editor and attaches it to the auto-reply", async () => {
+            mockApi([]);
+            await render();
+            await fillBasics();
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "__new");
+            await setValue(field<HTMLInputElement>("Flow name", "input"), "Budget check");
+            await click(byText("Add message"));
+            await setValue(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Step 1 text"]')!, "Thanks for asking!");
+            await click(byText("Add question"));
+            await setValue(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Step 2 text"]')!, "What is your budget?");
+            await setValue(container.querySelector<HTMLSelectElement>('select[aria-label="Step 2 property"]')!, "budget");
+            await click(byText("Create flow"));
+            expect(bodyOf("POST", "/api/proxy/content/dm-flows")).toEqual({
+                name: "Budget check",
+                steps: [
+                    { type: "message", text: "Thanks for asking!" },
+                    { type: "question", text: "What is your budget?", property: "budget" },
+                ],
+            });
+            await click(byText("Save"));
+            expect(bodyOf("POST", BASE).flowId).toBe("flow-new");
+        });
+
+        it("edits an attached flow's steps and saves them", async () => {
+            mockApi([FLOW]);
+            await render();
+            await fillBasics();
+            await setValue(field<HTMLSelectElement>("Conversation flow", "select"), "flow-1");
+            await click(byText("Edit flow"));
+            await click(byText("Add question"));
+            await setValue(container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Step 2 text"]')!, "Q?");
+            await setValue(container.querySelector<HTMLSelectElement>('select[aria-label="Step 2 property"]')!, "budget");
+            await click(byText("Save flow"));
+            expect(bodyOf("PATCH", `${BASE.replace("keyword-triggers", "dm-flows")}/flow-1`)).toEqual({
+                name: "Guide flow",
+                steps: [
+                    { type: "message", text: "Hi there" },
+                    { type: "question", text: "Q?", property: "budget" },
+                    { type: "end" },
+                ],
+            });
+        });
     });
 });

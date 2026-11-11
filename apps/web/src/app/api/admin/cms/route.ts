@@ -4,6 +4,8 @@ import { authOptions, isSuperAdminRole } from "@/lib/auth";
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import { internalErrorMessage } from "@/lib/internalError";
+import { clientIp } from "@/lib/clientIp";
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
@@ -12,10 +14,23 @@ async function getActorEnterpriseRole() {
     return session?.user?.enterpriseRole;
 }
 
+// Writing platform content and pushing it to the app's git repo are recorded before they run, so
+// neither can happen unrecorded: if the row cannot be written, the action does not run. The file
+// name is recorded, never its content.
+async function auditCms(req: NextRequest, action: "CMS_WRITE" | "CMS_PUSH", file: string) {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("No signed-in user to record the action for");
+    const { prisma } = await import("@/lib/db");
+    await prisma.superAdminAuditLog.create({
+        data: { userId, action, ipAddress: clientIp(req.headers), metadata: { file } },
+    });
+}
+
 // Helper to sanitize and resolve paths safely
 function getSafePath(file: string): string {
     const resolved = path.resolve(CONTENT_DIR, file);
-    if (!resolved.startsWith(CONTENT_DIR)) {
+    if (resolved !== CONTENT_DIR && !resolved.startsWith(CONTENT_DIR + path.sep)) {
         throw new Error("Directory traversal detected");
     }
     return resolved;
@@ -79,6 +94,7 @@ export async function POST(req: NextRequest) {
         }
 
         const safePath = getSafePath(file);
+        await auditCms(req, "CMS_WRITE", file);
         fs.mkdirSync(path.dirname(safePath), { recursive: true });
         fs.writeFileSync(safePath, content, "utf8");
 
@@ -111,6 +127,7 @@ export async function PUT(req: NextRequest) {
         // child process argument - execFileSync below passes args as an array (no
         // shell), so this isn't for command-injection safety, just path safety.
         getSafePath(file);
+        await auditCms(req, "CMS_PUSH", file);
         const relativePath = path.join("content", file);
 
         // 1. Stage the file
@@ -125,6 +142,6 @@ export async function PUT(req: NextRequest) {
 
         return NextResponse.json({ success: true, message: "Sync complete" });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

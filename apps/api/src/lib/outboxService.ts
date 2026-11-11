@@ -87,6 +87,22 @@ export class OutboxService {
                     },
                 };
 
+            case "LANDING_META_LEAD_CAPI":
+                return {
+                    type: "meta_capi_lead",
+                    payload: {
+                        teamId: event.teamId,
+                        landingLeadId: event.aggregateId,
+                        pixelId: p.pixelId,
+                        eventId: p.eventId,
+                        eventTime: p.eventTime,
+                        eventSourceUrl: p.eventSourceUrl,
+                        fbc: p.fbc,
+                        fbp: p.fbp,
+                        testEventCode: p.testEventCode,
+                    },
+                };
+
             case "PAYMENT_CAPTURED":
                 return {
                     type: "workflow_step",

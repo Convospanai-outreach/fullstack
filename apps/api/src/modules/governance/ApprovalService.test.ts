@@ -57,6 +57,16 @@ vi.mock("@/modules/learning/EventStore", () => ({
     SystemEventType: { USER: "USER" },
 }));
 
+const { mockApproveMessageSend, mockRejectMessageSend } = vi.hoisted(() => ({
+    mockApproveMessageSend: vi.fn().mockResolvedValue(undefined),
+    mockRejectMessageSend: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("./messageApproval", () => ({
+    approveMessageSend: mockApproveMessageSend,
+    rejectMessageSend: mockRejectMessageSend,
+}));
+
 import { ApprovalService } from "./ApprovalService";
 import { ApprovalTier, resolveApprovalTier } from "./approvalPolicy";
 
@@ -382,6 +392,27 @@ describe("ApprovalService.approve / reject - content posts", () => {
     it("routes rejections, including the auto-deny sweep's, the same way", async () => {
         await ApprovalService.reject("req-1", "system-timeout", "team-a", "Auto-denied");
         expect(mockDecideContentPost).toHaveBeenCalledWith("team-a", "req-1", "system-timeout", "REJECTED", "Auto-denied");
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("ApprovalService.approve / reject - AI message sends", () => {
+    const request = { id: "req-1", teamId: "team-a", actionType: "MESSAGE_SEND", entityType: "Lead", entityId: "lead-1:EMAIL", status: "PENDING", payload: {} };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(request);
+    });
+
+    it("hands an approval to the message gate, which queues the send once, instead of the generic update", async () => {
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+        expect(mockApproveMessageSend).toHaveBeenCalledWith(request, "team-a", "user-a");
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("routes rejections, including the auto-deny sweep (stored as no reviewer), the same way", async () => {
+        await ApprovalService.reject("req-1", "system-timeout", "team-a", "Auto-denied");
+        expect(mockRejectMessageSend).toHaveBeenCalledWith("req-1", "team-a", null, "Auto-denied");
         expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
     });
 });

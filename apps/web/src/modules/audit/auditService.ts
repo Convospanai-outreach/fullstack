@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
 import { PIIScrubber } from "@/lib/governance/PIIScrubber";
 
+// The slice of a Prisma client (or interactive-transaction client) that writing a row needs.
+type AuditDb = { auditLog: { create: (args: any) => Promise<unknown> } };
+
 export class AuditService {
 
     /**
@@ -14,7 +17,11 @@ export class AuditService {
         resourceId: string | null,
         details: any = {},
         ipAddress: string | null = null,
-        correlationId: string | null = null
+        correlationId: string | null = null,
+        // Pass strict with a transaction client to make the row commit or roll back together with
+        // the change it records; a failed write then propagates instead of being swallowed.
+        strict: boolean = false,
+        db: AuditDb = prisma
     ) {
         // [Observability] Auto-discover correlation ID if missing
         if (!correlationId) {
@@ -47,7 +54,7 @@ export class AuditService {
         }
 
         try {
-            await prisma.auditLog.create({
+            await db.auditLog.create({
                 data: {
                     orgId: teamId,
                     actorId: userId || "SYSTEM", // actorId is required in unchecked but mapped to userId which was nullable. Added system fallback.
@@ -61,7 +68,8 @@ export class AuditService {
             });
         } catch (error) {
             console.error("[AuditService] Failed to log action:", error);
-            // Non-blocking: don't throw, just log error so flow continues
+            if (strict) throw error;
+            // Non-blocking by default: don't throw, just log error so flow continues
         }
     }
 

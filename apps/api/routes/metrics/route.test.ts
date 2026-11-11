@@ -16,6 +16,15 @@ describe("/api/metrics", () => {
         process.env = { ...originalEnv, NODE_ENV: "production", METRICS_TOKEN: "test-token" };
     });
 
+    it("denies access when METRICS_TOKEN is not set, in any environment", async () => {
+        delete process.env["METRICS_TOKEN"];
+        (process.env as Record<string, string | undefined>)["NODE_ENV"] = "development";
+        const { GET } = await import("./route");
+
+        expect((await GET(request())).status).toBe(401);
+        expect((await GET(request({ Authorization: "Bearer " }))).status).toBe(401);
+    });
+
     it("rejects requests without the metrics bearer token", async () => {
         const { GET } = await import("./route");
 

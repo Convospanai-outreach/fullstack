@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -74,6 +75,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, mailboxId: mailbox.id, email: mailbox.email });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal server error during Resend connection." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(err, "Internal server error during Resend connection.") }, { status: 500 });
   }
 }

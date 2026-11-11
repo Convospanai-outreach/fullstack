@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
@@ -12,8 +12,19 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
 describe("BlindIndexService", () => {
+    const saved = { blind: process.env["BLIND_INDEX_KEY"], enc: process.env["ENCRYPTION_KEY"] };
+
     beforeEach(() => {
         vi.clearAllMocks();
+        delete process.env["BLIND_INDEX_KEY"];
+        process.env["ENCRYPTION_KEY"] = "test-encryption-key-material";
+    });
+
+    afterEach(() => {
+        if (saved.blind === undefined) delete process.env["BLIND_INDEX_KEY"];
+        else process.env["BLIND_INDEX_KEY"] = saved.blind;
+        if (saved.enc === undefined) delete process.env["ENCRYPTION_KEY"];
+        else process.env["ENCRYPTION_KEY"] = saved.enc;
     });
 
     describe("computeHash", () => {
@@ -40,6 +51,31 @@ describe("BlindIndexService", () => {
             const { BlindIndexService } = await import("@/lib/blindIndexService");
 
             expect(() => BlindIndexService.computeHash("", "email", "test@example.com")).toThrow();
+        });
+
+        describe("key material", () => {
+            it("refuses to hash when neither BLIND_INDEX_KEY nor ENCRYPTION_KEY is set", async () => {
+                delete process.env["BLIND_INDEX_KEY"];
+                delete process.env["ENCRYPTION_KEY"];
+                const { BlindIndexService } = await import("@/lib/blindIndexService");
+
+                expect(() => BlindIndexService.computeHash("team-1", "email", "a@b.com")).toThrow(/BLIND_INDEX_KEY|ENCRYPTION_KEY/);
+            });
+
+            it("prefers BLIND_INDEX_KEY and falls back to ENCRYPTION_KEY", async () => {
+                const { BlindIndexService } = await import("@/lib/blindIndexService");
+
+                delete process.env["BLIND_INDEX_KEY"];
+                process.env["ENCRYPTION_KEY"] = "enc-key-material";
+                const withEncryptionKey = BlindIndexService.computeHash("team-1", "email", "a@b.com");
+
+                process.env["BLIND_INDEX_KEY"] = "dedicated-key-material";
+                const withDedicatedKey = BlindIndexService.computeHash("team-1", "email", "a@b.com");
+
+                expect(withEncryptionKey).toHaveLength(64);
+                expect(withDedicatedKey).toHaveLength(64);
+                expect(withDedicatedKey).not.toBe(withEncryptionKey);
+            });
         });
     });
 

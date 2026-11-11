@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { checkDomainDeliverabilitySignals } from "@/modules/email-campaigner/service/domainAuthService";
+import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "@/modules/email-campaigner/service/domainAuthService";
 
 const WINDOW_DAYS = 30;
 const GENERIC_CHECK_PROVIDER = "GENERIC";
@@ -12,6 +12,8 @@ export type DomainHealthEntry = {
     spf: boolean;
     dkim: boolean;
     dmarc: boolean;
+    // Passing-but-weak or failing-for-a-reason remarks from the DNS check (e.g. DMARC only monitoring).
+    notes?: string[];
     // false once no currently-CONNECTED mailbox sends from this domain anymore - still
     // shown (not dropped) so a domain that went bad and got swapped out stays visible.
     active: boolean;
@@ -66,11 +68,28 @@ function labelFor(score: number): DomainHealthLabel {
     return "Poor";
 }
 
-async function checkAndRecordDomain(teamId: string, domain: string, active: boolean) {
-    let signals: { mx: boolean; spf: boolean; dkim: boolean; dmarc: boolean };
+async function checkAndRecordDomain(teamId: string, domain: string, active: boolean, provider?: string | null, dkimSelector?: string) {
+    let signals: { mx: boolean; spf: boolean; dkim: boolean; dmarc: boolean; notes?: string[] };
     try {
-        signals = await checkDomainDeliverabilitySignals(domain);
+        signals = await checkDomainDeliverabilitySignals(domain, provider, dkimSelector);
     } catch {
+        // DNS could not answer. Hold the last recorded result rather than reporting every record missing.
+        let prior: any = null;
+        try {
+            prior = await (prisma as any).domainAuthenticationCheck.findUnique({
+                where: { teamId_domain_provider: { teamId, domain, provider: GENERIC_CHECK_PROVIDER } },
+            });
+        } catch {
+            // No prior result to hold; fall through to all-missing.
+        }
+        if (prior) {
+            return {
+                mx: prior.mxStatus === "VERIFIED",
+                spf: prior.spfStatus === "VERIFIED",
+                dkim: prior.dkimStatus === "VERIFIED",
+                dmarc: prior.dmarcStatus === "VERIFIED",
+            };
+        }
         signals = { mx: false, spf: false, dkim: false, dmarc: false };
     }
 
@@ -117,7 +136,7 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, openedAt: { not: null } } }),
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, unsubscribedAt: { not: null } } }),
         prisma.emailEvent.count({ where: { teamId, createdAt: { gte: windowStart }, type: "COMPLAINED" } }),
-        prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { email: true } }),
+        prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { email: true, provider: true, metadata: true } }),
         prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }),
     ]);
 
@@ -130,9 +149,19 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
         new Set(mailboxes.map((m) => m.email.split("@")[1]?.toLowerCase()).filter((d): d is string => Boolean(d)))
     );
 
+    const providerByDomain = new Map<string, string>();
+    const selectorByDomain = new Map<string, string>();
+    for (const m of mailboxes) {
+        const d = m.email.split("@")[1]?.toLowerCase();
+        if (!d) continue;
+        if (!providerByDomain.has(d)) providerByDomain.set(d, m.provider);
+        const selector = dkimSelectorFromMetadata(m.metadata);
+        if (selector && !selectorByDomain.has(d)) selectorByDomain.set(d, selector);
+    }
+
     const activeEntries: DomainHealthEntry[] = await Promise.all(
         activeDomains.map(async (domain) => {
-            const signals = await checkAndRecordDomain(teamId, domain, true);
+            const signals = await checkAndRecordDomain(teamId, domain, true, providerByDomain.get(domain), selectorByDomain.get(domain));
             const score = domainScore(signals, true, bounceRate, complaintRate);
             return { domain, ...signals, active: true, score, label: labelFor(score), lastActiveAt: new Date().toISOString() };
         })

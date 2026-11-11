@@ -29,6 +29,7 @@ import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
 export default function LeadJourneyAnalyticsPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [medianFirstResponse, setMedianFirstResponse] = useState<number | null>(null);
 
     useEffect(() => {
         fetch(getBrowserApiUrl("/analytics/journey"))
@@ -41,6 +42,13 @@ export default function LeadJourneyAnalyticsPage() {
                 console.error("Failed to load journey analytics:", err);
                 setLoading(false);
             });
+    }, []);
+
+    useEffect(() => {
+        fetch("/api/leads/response-time")
+            .then(res => (res.ok ? res.json() : null))
+            .then(json => setMedianFirstResponse(typeof json?.medianSeconds === "number" ? json.medianSeconds : null))
+            .catch(() => setMedianFirstResponse(null));
     }, []);
 
     return (
@@ -58,7 +66,7 @@ export default function LeadJourneyAnalyticsPage() {
             {/* Stat Cards KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? (
-                    [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)
+                    [1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)
                 ) : (
                     <>
                         <StatCard
@@ -87,6 +95,12 @@ export default function LeadJourneyAnalyticsPage() {
                             icon={Award}
                             description="Handoff conversion velocity"
                             trend={{ value: 4.1, isUp: true }}
+                        />
+                        <StatCard
+                            label="Median First Response"
+                            value={medianFirstResponse === null ? "No replies yet" : `${Math.round(medianFirstResponse / 60)} min`}
+                            icon={Clock}
+                            description="Landing leads, form to first reply (90 days)"
                         />
                     </>
                 )}

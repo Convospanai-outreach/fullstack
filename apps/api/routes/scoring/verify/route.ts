@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { verificationAgent } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] Verification Error:", error);
         return NextResponse.json(
-            { error: error.message || "Verification failed" },
+            { error: internalErrorMessage(error, "Verification failed") },
             { status: 500 }
         );
     }
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] Get Logs Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to get logs" },
+            { error: internalErrorMessage(error, "Failed to get logs") },
             { status: 500 }
         );
     }
@@ -147,7 +148,7 @@ export async function DELETE(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] Purge Error:", error);
         return NextResponse.json(
-            { error: error.message || "Purge failed" },
+            { error: internalErrorMessage(error, "Purge failed") },
             { status: 500 }
         );
     }

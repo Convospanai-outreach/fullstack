@@ -106,6 +106,7 @@ class EmailService {
             campaignId?: string;
             variantId?: string;
             idempotencyKey?: string;
+            copyProvenance?: unknown;
         };
         subject: string;
         body: string;
@@ -129,6 +130,7 @@ class EmailService {
                 mailboxId: input.mailboxId ?? null,
                 ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
                 ...(input.metadata.idempotencyKey ? { idempotencyKey: input.metadata.idempotencyKey } : {}),
+                ...(input.metadata.copyProvenance ? { copyProvenance: input.metadata.copyProvenance } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
             } as any,
@@ -146,6 +148,7 @@ class EmailService {
             campaignId?: string;
             variantId?: string;
             idempotencyKey?: string;
+            copyProvenance?: unknown;
         };
         attachments?: EmailAttachment[];
     }): Promise<EmailSendResult> {
@@ -201,6 +204,8 @@ class EmailService {
             mailboxId?: string;
             // Stable across retries of the same logical send (see resendMailboxService.ts).
             idempotencyKey?: string;
+            // Which prompt versions wrote an AI-drafted email (see copyProvenance.ts); omitted for copy a person wrote.
+            copyProvenance?: unknown;
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;

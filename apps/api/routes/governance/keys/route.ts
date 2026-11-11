@@ -12,6 +12,7 @@ import {
     toApiKeyListMetadata,
     validateApiKeyScopes,
 } from "@/lib/apiKeySecurity";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const KEY_LIST_LIMIT = 100;
 
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to fetch API keys", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -136,6 +137,6 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to create API key", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

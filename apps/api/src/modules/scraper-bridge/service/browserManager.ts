@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { logger } from '@/lib/logger';
+import { chromiumSandboxArgs } from '@/lib/security/chromiumSandbox';
 
 puppeteer.use(StealthPlugin());
 
@@ -14,8 +15,7 @@ export class BrowserManager {
             this.browser = await puppeteer.launch({
                 headless: true,
                 args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
+                    ...chromiumSandboxArgs(),
                     '--disable-blink-features=AutomationControlled',
                     '--window-size=1920,1080'
                 ]

@@ -10,6 +10,8 @@ import {
   Database,
   DollarSign,
   History,
+  Inbox,
+  Briefcase,
   KeyRound,
   Layers,
   Lock,
@@ -29,6 +31,9 @@ import { Telemetry } from "@/lib/analytics/telemetry";
 import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 import SystemTiles, { type SystemHealth } from "./SystemTiles";
 import FeaturesTab from "./FeaturesTab";
+import ServerErrorsTab from "./ServerErrorsTab";
+import EnquiriesTab from "./EnquiriesTab";
+import ApplicationsTab from "./ApplicationsTab";
 import UserControls from "./UserControls";
 import PlanOverride from "./PlanOverride";
 import BannerCard from "./BannerCard";
@@ -274,7 +279,7 @@ const ADMIN_TOOLS = [
   { href: "/admin/audit", label: "Audit trail" },
 ];
 
-type TabType = "activity" | "usage" | "billing" | "api" | "health" | "features" | "auditLog";
+type TabType = "activity" | "usage" | "billing" | "api" | "health" | "serverErrors" | "enquiries" | "applications" | "features" | "auditLog";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
@@ -588,6 +593,24 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 label="Outages & Job Health"
                 badge={data.totals.failedJobsCount ? `${data.totals.failedJobsCount} err` : undefined}
                 badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-destructive" : undefined}
+              />
+              <TabButton
+                active={activeTab === "serverErrors"}
+                onClick={() => setActiveTab("serverErrors")}
+                icon={AlertTriangle}
+                label="Server Errors"
+              />
+              <TabButton
+                active={activeTab === "enquiries"}
+                onClick={() => setActiveTab("enquiries")}
+                icon={Inbox}
+                label="Enquiries"
+              />
+              <TabButton
+                active={activeTab === "applications"}
+                onClick={() => setActiveTab("applications")}
+                icon={Briefcase}
+                label="Job Applications"
               />
               <TabButton
                 active={activeTab === "features"}
@@ -1042,6 +1065,10 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             )}
 
             {/* TAB 6: Superadmin Activity Log */}
+            {activeTab === "serverErrors" && <ServerErrorsTab onLoggedOut={onLoggedOut} />}
+            {activeTab === "enquiries" && <EnquiriesTab onLoggedOut={onLoggedOut} />}
+            {activeTab === "applications" && <ApplicationsTab onLoggedOut={onLoggedOut} />}
+
             {activeTab === "features" && <FeaturesTab teams={data.teams} onLoggedOut={onLoggedOut} />}
 
             {activeTab === "auditLog" && (

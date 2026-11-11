@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cryptoNode from "crypto";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -99,6 +100,6 @@ export async function POST(req: NextRequest) {
     // needed by any legitimate producer.
     return NextResponse.json({ success: true, processed: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal FBL complaint handler error." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(err, "Internal FBL complaint handler error.") }, { status: 500 });
   }
 }

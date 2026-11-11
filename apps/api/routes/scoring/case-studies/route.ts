@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 async function getTeamId(userId: string): Promise<string | null> {
     const member = await prisma.teamMember.findFirst({
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] List Case Studies Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to list case studies" },
+            { error: internalErrorMessage(error, "Failed to list case studies") },
             { status: 500 }
         );
     }
@@ -57,6 +59,9 @@ export async function POST(req: NextRequest) {
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
+
+        const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+        if (denied) return denied;
 
         const body = await req.json();
         const { action } = body;
@@ -111,7 +116,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] Case Study Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to process case study" },
+            { error: internalErrorMessage(error, "Failed to process case study") },
             { status: 500 }
         );
     }
@@ -128,6 +133,9 @@ export async function DELETE(req: NextRequest) {
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
+
+        const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+        if (denied) return denied;
 
         const { searchParams } = new URL(req.url);
         const caseStudyId = searchParams.get("id");
@@ -155,7 +163,7 @@ export async function DELETE(req: NextRequest) {
     } catch (error: any) {
         console.error("[API] Delete Case Study Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to delete case study" },
+            { error: internalErrorMessage(error, "Failed to delete case study") },
             { status: 500 }
         );
     }

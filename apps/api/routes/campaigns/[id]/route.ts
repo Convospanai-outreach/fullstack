@@ -1,3 +1,4 @@
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { NextResponse } from "next/server";
 import { CampaignService } from "@/lib/campaignService";
 import { prisma } from "@/lib/db";
@@ -17,8 +18,6 @@ const patchCampaignSchema = z.object({
     leadIds: z.array(z.string().min(1)).optional(),
     name: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).nullable().optional(),
-    targetCount: z.number().int().nonnegative().optional(),
-    completedCount: z.number().int().nonnegative().optional(),
     draftGenerationMode: z.enum(["REALTIME", "BATCH"]).optional(),
 });
 
@@ -74,6 +73,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             await prisma.campaign.update({ where: { id }, data: { draftGenerationMode: body.draftGenerationMode } });
         }
         if (body.action === "start" || body.status === "active") {
+            if (!(await hasSendingChannel(teamId))) {
+                return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
+            }
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);
@@ -84,8 +86,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (body.name !== undefined) allowedUpdates.name = body.name;
             if (body.description !== undefined) allowedUpdates.description = body.description;
             if (body.status !== undefined) allowedUpdates.status = body.status;
-            if (body.targetCount !== undefined) allowedUpdates.targetCount = body.targetCount;
-            if (body.completedCount !== undefined) allowedUpdates.completedCount = body.completedCount;
 
             if (Object.keys(allowedUpdates).length === 0 && body.draftGenerationMode === undefined) {
                 throw new APIError("No valid update fields provided", 400, "VALIDATION_ERROR");

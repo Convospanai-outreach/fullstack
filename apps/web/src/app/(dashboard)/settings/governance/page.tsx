@@ -196,6 +196,22 @@ export default function GovernancePage() {
                             onChange={(val) => handleUpdate("requiresApprovalForCampaign", val)}
                         />
                     </div>
+
+                    <div className="flex items-center justify-between p-4 bg-emerald-950/20 rounded-xl border border-emerald-500/10">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
+                                <ClipboardCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <div className="text-foreground font-medium">Review AI-written messages before they are sent</div>
+                                <div className="text-xs text-muted-foreground">Emails and LinkedIn messages written by AI wait for an Admin to approve them, and are held if not approved within 48 hours. Turn off to send them without review.</div>
+                            </div>
+                        </div>
+                        <Toggle
+                            checked={policy.requiresMessageApproval !== false}
+                            onChange={(val) => handleUpdate("requiresMessageApproval", val)}
+                        />
+                    </div>
                 </GlassCard>
 
                 {/* Identity & Access */}

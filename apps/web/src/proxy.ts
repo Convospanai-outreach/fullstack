@@ -18,6 +18,7 @@ import {
 } from './lib/markdownNegotiator';
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER, getBaseSiteUrl } from './lib/apiCatalog';
 import { isValidInternalRelay } from './lib/internalRelay';
+import { mcpAdmissionGrant } from './lib/mcpAdmission';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
 import {
@@ -182,12 +183,13 @@ async function appProxy(req: NextRequest) {
         "/api/auth/error",
     ];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
-    // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
+    const underPrefix = (candidate: string, prefix: string) => candidate === prefix || candidate.startsWith(prefix + "/");
+    // Extension routes enforce their own Bearer sync-token check (validateExtensionAuth), not a Clerk cookie.
     const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
-        "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/health", "/api/cms", "/api/careers", "/api/contact", "/api/help", "/api/support/contact",
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
@@ -219,7 +221,7 @@ async function appProxy(req: NextRequest) {
         if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+        if (!metricsToken) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
     }
@@ -255,9 +257,13 @@ async function appProxy(req: NextRequest) {
         && (await isValidInternalRelay(req, process.env['NEXTAUTH_SECRET'] || ''));
     if (path.startsWith("/api") && !isInternalRelay) {
         let rateLimitResponse: NextResponse | null = null;
+        const mcpGrant = path === '/api/mcp/execute' ? await mcpAdmissionGrant(req) : null;
 
         // 1. Passive session-check endpoints (polled far more often than real sign-ins)
-        if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
+        if (mcpGrant) {
+            rateLimitResponse = await applyRateLimit(req, { windowMs: 60_000, maxRequests: 60 }, 'mcp-relay', `mcp:${mcpGrant}`);
+        }
+        else if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
         }
         // 2. NextAuth's own OAuth round-trip endpoints - not brute-forceable
@@ -270,7 +276,7 @@ async function appProxy(req: NextRequest) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
         // 4. Webhook endpoints
-        else if (webhookApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+        else if (webhookApiPrefixes.some((prefix) => underPrefix(path, prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
         // 5. Error logging endpoint
@@ -299,7 +305,7 @@ async function appProxy(req: NextRequest) {
 
     // 1. CORS for API routes
     // Extension routes handle their own CORS/OPTIONS (chrome-extension:// origins) in their route handler.
-    if (path.startsWith("/api") && !extensionApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+    if (path.startsWith("/api") && !extensionApiPrefixes.some((prefix) => underPrefix(path, prefix))) {
         const origin = req.headers.get("origin");
         const allowedOrigins = process.env['ALLOWED_ORIGINS']?.split(",") || ["http://localhost:3000"];
 
@@ -319,6 +325,9 @@ async function appProxy(req: NextRequest) {
     // 2. Authentication Check
     const publicPaths = [
         "/",
+        // Decap CMS admin: signing in with GitHub (and GitHub repo write access) is its access control.
+        "/cms",
+        "/careers",
         "/login",
         "/agent-login",
         "/client-login",
@@ -368,14 +377,16 @@ async function appProxy(req: NextRequest) {
 
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
+        // This exact route verifies a one-use signed API capability itself.
+        (path === "/api/mcp/execute" && req.method === "POST") || path === "/mcp/connect" ||
         path.startsWith("/p/") ||
-        authApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        authApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         cleanPath.startsWith("/_next") ||
         cleanPath.startsWith("/static") ||
         cleanPath.startsWith("/images") ||
-        webhookApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
-        extensionApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
-        publicApiPrefixes.some((prefix) => cleanPath.startsWith(prefix));
+        webhookApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
+        extensionApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
+        publicApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix));
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting
@@ -388,7 +399,8 @@ async function appProxy(req: NextRequest) {
             }
             const url = req.nextUrl.clone();
             url.pathname = path.startsWith("/client") ? "/client-login" : "/login";
-            url.searchParams.set("callbackUrl", path);
+            // Keep the query so pages like /extension/connect?ext=... come back intact after sign-in.
+            url.searchParams.set("callbackUrl", path + req.nextUrl.search);
             return NextResponse.redirect(url);
         }
 
@@ -528,6 +540,20 @@ async function appProxy(req: NextRequest) {
         "form-action 'self'",
         "frame-ancestors 'none'",
     ];
+
+    // The CMS admin page loads Decap from unpkg (pinned, with an integrity hash) and talks to GitHub.
+    if (cleanPath === "/cms" || cleanPath.startsWith("/cms/")) {
+        cspValues[1] += " https://unpkg.com";
+        cspValues[3] += " https://*.githubusercontent.com";
+        cspValues[5] += " https://api.github.com";
+    }
+
+    // The WhatsApp page can open Meta's Embedded Signup popup, which loads Meta's SDK and talks to Meta.
+    if (cleanPath === "/whatsapp" || cleanPath.startsWith("/whatsapp/")) {
+        cspValues[1] += " https://connect.facebook.net";
+        cspValues[5] += " https://graph.facebook.com https://www.facebook.com";
+        cspValues[6] += " https://www.facebook.com https://web.facebook.com";
+    }
 
     if (process.env['NODE_ENV'] === 'production') {
         cspValues.push("upgrade-insecure-requests");

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
@@ -240,6 +241,7 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
                 subject: generatedDraft.subject,
                 body: generatedDraft.body,
                 status: "draft",
+                copyProvenance: (generatedDraft as { provenance?: unknown }).provenance ?? Prisma.DbNull,
             },
             create: {
                 id: draftId,
@@ -248,6 +250,7 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
                 subject: generatedDraft.subject,
                 body: generatedDraft.body,
                 status: "draft",
+                ...((generatedDraft as { provenance?: unknown }).provenance ? { copyProvenance: (generatedDraft as { provenance: object }).provenance } : {}),
             },
         });
 

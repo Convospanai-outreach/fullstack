@@ -3,6 +3,7 @@ import { CampaignAgent } from "@/lib/ai/agents/CampaignAgent";
 import { getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const campaignSchema = z.object({
     goal: z.string().min(5),
@@ -38,6 +39,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ sequence: result });
     } catch (error: any) {
         console.error("Campaign Agent Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

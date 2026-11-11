@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentContext } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { enforcePolicy } from '@/lib/governance/guard';
+import { internalErrorMessage } from "@/lib/internalError";
 
 const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -9,6 +11,12 @@ export async function POST(req: NextRequest) {
         const ctx = await getCurrentContext();
         if (!ctx.teamId || !ctx.userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        try {
+            await enforcePolicy({ orgId: ctx.teamId, userId: ctx.userId, action: 'UPLOAD' });
+        } catch (error: any) {
+            return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
         const formData = await req.formData();
@@ -78,6 +86,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error('[PDF Upload] Error:', error);
-        return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Upload failed") }, { status: 500 });
     }
 }

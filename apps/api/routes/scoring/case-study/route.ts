@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { caseStudyService } from "@/modules/scoring";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const denied = await forbiddenUnlessRole(ctx.userId, ctx.teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     const body = await req.json();
     const data = body.data ?? body;
@@ -14,7 +17,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const denied = await forbiddenUnlessRole(ctx.userId, ctx.teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     const body = await req.json().catch(() => ({}));
     const caseStudyId = body.caseStudyId;

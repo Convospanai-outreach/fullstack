@@ -40,7 +40,11 @@ function hasValidTokenShape(token: string) {
 }
 
 function getMetadataSecret() {
-    return process.env["NEXTAUTH_SECRET"] || process.env["AUTH_SECRET"] || process.env["ENCRYPTION_KEY"] || "tracking-metadata";
+    const secret = process.env["NEXTAUTH_SECRET"] || process.env["AUTH_SECRET"] || process.env["ENCRYPTION_KEY"];
+    if (!secret) {
+        throw new Error("NEXTAUTH_SECRET, AUTH_SECRET or ENCRYPTION_KEY must be set to hash tracking metadata");
+    }
+    return secret;
 }
 
 function sanitizeHeader(value: string | null, maxLength: number) {

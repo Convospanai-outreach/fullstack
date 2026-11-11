@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db";
+import { isOptedOutStatus } from "@/lib/leadOptOut";
 import { logger } from "@/lib/logger";
 
-// One shared Mautic instance (not per-team credentials) - see HANDOVER_CLAUDE_CODE.md
-// §5/I6 decision: a single Mautic serves top-of-funnel capture/segmentation/funnel
+// One shared Mautic instance (not per-team credentials): a single Mautic serves top-of-funnel capture/segmentation/funnel
 // visualization for all teams, segmented by a per-team tag rather than a dedicated
 // per-tenant stack. Mautic's own API is disabled by default (config/local.php must
 // set api_enabled/api_enable_basic_auth - see docker/mautic/config/local.php) and
@@ -62,6 +62,8 @@ class MauticService {
             const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
             if (!lead) return { status: "error", details: "Lead not found" };
             if (!lead.email) return { status: "skipped", details: "Lead has no email" };
+            // Mautic journeys can send mail, so a lead who opted out or bounced never goes there.
+            if (isOptedOutStatus(lead.status)) return { status: "skipped", details: "Lead has opted out or bounced" };
 
             const headers = {
                 Authorization: authHeader(config.username, config.password),

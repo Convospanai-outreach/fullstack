@@ -3,6 +3,7 @@ import { UserRole } from "@prisma/client";
 import { checkAdmin } from "@/lib/admin";
 import { AiStatsService } from "@/modules/ai/aiStatsService";
 import { logger } from "@/lib/logger";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     // Platform-wide LLM metrics (AiTrace has no teamId) - SYSTEM_ADMIN only (S-05).
@@ -22,6 +23,6 @@ export async function GET() {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Admin API] Failed to fetch LLM stats", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

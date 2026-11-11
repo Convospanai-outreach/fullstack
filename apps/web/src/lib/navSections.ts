@@ -28,6 +28,8 @@ export const NAV_SECTIONS: NavSection[] = [
             { label: "People", href: "/leads" },
             { label: "Accounts", href: "/accounts" },
             { label: "Ideal customer", href: "/icp-builder" },
+            { label: "Find emails", href: "/hunter-email-finder", feature: "hunter-email-finder" },
+            { label: "CSV import", href: "/csv-ingestion", feature: "csv-ingestion" },
         ],
     },
     {
@@ -40,6 +42,9 @@ export const NAV_SECTIONS: NavSection[] = [
             { label: "LinkedIn outreach", href: "/linkedin-runner", feature: "linkedin-runner" },
             { label: "WhatsApp", href: "/whatsapp", feature: "whatsapp" },
             { label: "Calling", href: "/caller", feature: "caller" },
+            { label: "AI agents", href: "/agents/swarm", match: "/agents", feature: "agents" },
+            { label: "Agent runs", href: "/command-center", feature: "command-center" },
+            { label: "Background jobs", href: "/jobs", feature: "jobs" },
         ],
     },
     {
@@ -56,10 +61,12 @@ export const NAV_SECTIONS: NavSection[] = [
         tabs: [
             { label: "Templates", href: "/templates" },
             { label: "Landing pages", href: "/landing-agent" },
+            { label: "Studio", href: "/studio", feature: "studio" },
             { label: "Playbooks", href: "/playbooks", feature: "playbooks" },
             { label: "Knowledge", href: "/knowledge", feature: "knowledge" },
             { label: "Content calendar", href: "/content/calendar", feature: "creator-funnel" },
             { label: "Launch plans", href: "/content/plans", feature: "creator-funnel" },
+            { label: "Instagram funnel", href: "/content/instagram-funnel", feature: "creator-funnel" },
         ],
     },
     {
@@ -96,11 +103,13 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         links: [
             { label: "Mailboxes", href: "/settings/mailboxes" },
             { label: "Do-not-contact list", href: "/settings/suppressions" },
+            { label: "Custom properties", href: "/settings/custom-properties" },
             { label: "Social accounts", href: "/settings/social", feature: "creator-funnel" },
             ...(PRODUCT_FLAGS.emailFirstBeta ? [] : [{ label: "CRM sync", href: "/settings/crm" }]),
             { label: "Webhooks", href: "/settings/webhooks" },
             { label: "Personality insights", href: "/settings/crystal-knows" },
             { label: "API docs", href: "/docs/api" },
+            { label: "Agent connections", href: "/mcp/connect" },
         ],
     },
     {

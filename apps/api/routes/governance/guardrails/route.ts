@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Client-editable fields only - notably excludes id/teamId (ownership must not
 // be reassignable via the request body, matching the pattern in
@@ -61,7 +62,7 @@ export async function GET() {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to fetch guardrails", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -90,6 +91,6 @@ export async function POST(req: Request) {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to update guardrails", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

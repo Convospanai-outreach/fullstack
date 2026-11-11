@@ -4,53 +4,10 @@ import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { cleanNavGroups } from "@/lib/siteContent";
+import navigation from "../../content/settings/navigation.json";
 
-const NAV_GROUPS = [
-  {
-    label: "Product",
-    items: [
-      { label: "Fluid Funnel Engine", href: "/products/fluid-funnel-engine", badge: "New" },
-      { label: "Buyer Signals — NetJana", href: "/products/buyer-signals" },
-      { label: "AI Outreach — CMF Core", href: "/products/ai-outreach" },
-      { label: "Human Layer", href: "/products/human-layer" },
-      { label: "Covospan EDGE", href: "/products/covospan-edge" },
-    ],
-  },
-  {
-    label: "Use Cases",
-    items: [
-      { label: "All Use Cases", href: "/use-cases" },
-      { label: "Facility Management", href: "/use-cases/facility-management" },
-      { label: "Security Services", href: "/use-cases/security-services" },
-      { label: "Staffing & Recruiting", href: "/use-cases/staffing" },
-      { label: "L&D / Training", href: "/use-cases/training" },
-      { label: "Consulting & Advisory", href: "/use-cases/consulting" },
-      { label: "Managed IT Services", href: "/use-cases/managed-services" },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [
-      { label: "How it works", href: "/#dashboard-preview" },
-      { label: "Pilot programme", href: "/#pilot" },
-      { label: "Pricing", href: "/pricing", badge: "Popular" },
-      { label: "About", href: "/about" },
-      { label: "Regional Hubs", href: "/locations" },
-    ],
-  },
-  {
-    label: "Resources",
-    items: [
-      { label: "Blog", href: "/blog" },
-      { label: "Help Center", href: "/help" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Contact", href: "/contact" },
-      { label: "Support", href: "/support" },
-      { label: "Security", href: "/security" },
-      { label: "Google API Disclosure", href: "/google-api-disclosure" },
-    ],
-  },
-];
+const NAV_GROUPS = cleanNavGroups(navigation);
 
 function DropdownMenu({
   group,
@@ -77,7 +34,7 @@ function DropdownMenu({
     >
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={(event) => setOpen((value) => event.detail === 0 ? !value : true)}
         className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
         aria-expanded={open}
       >
@@ -133,6 +90,12 @@ export function NavBar() {
 
         {/* Desktop CTAs */}
         <div className="hidden items-center gap-3 md:flex">
+          <Link
+            href="/pricing"
+            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+          >
+            Pricing
+          </Link>
           <div className="h-5 w-px bg-white/15" />
           <Link
             href="/login"
@@ -145,7 +108,7 @@ export function NavBar() {
             className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
           >
             <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-            <span className="relative z-10">Get Started</span>
+            <span className="relative z-10">Build my funnel</span>
           </Link>
         </div>
 
@@ -197,6 +160,13 @@ export function NavBar() {
             ))}
             <div className="flex flex-col gap-3 pt-2">
               <Link
+                href="/pricing"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                onClick={() => setMobileOpen(false)}
+              >
+                Pricing
+              </Link>
+              <Link
                 href="/login"
                 className="rounded-full border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-white"
                 onClick={() => setMobileOpen(false)}
@@ -209,7 +179,7 @@ export function NavBar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-                <span className="relative z-10">Get Started</span>
+                <span className="relative z-10">Build my funnel</span>
               </Link>
             </div>
           </div>

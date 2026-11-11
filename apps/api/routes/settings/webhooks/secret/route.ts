@@ -3,7 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import crypto from "crypto";
-import { audit } from "@/lib/governance/audit";
+import { dispatchAuditWebhook, writeAuditLog } from "@/lib/governance/audit";
 
 export async function POST(req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -19,19 +19,24 @@ export async function POST(req: NextRequest) {
     const newSecret = crypto.randomBytes(32).toString("hex");
 
     try {
-        await prisma.webhook.update({
-            where: { id: webhookId, teamId },
-            data: { secret: newSecret }
-        });
-
-        await audit({
+        const auditParams = {
             actorId: userId,
             orgId: teamId,
             action: "WEBHOOK_SECRET_ROTATED",
             entity: "Webhook",
             entityId: webhookId,
             metadata: {}
+        };
+        // The rotation and its audit row commit together, so a rotation the caller is told failed
+        // has not happened, and one that happened is on record.
+        const log = await prisma.$transaction(async (tx) => {
+            await tx.webhook.update({
+                where: { id: webhookId, teamId },
+                data: { secret: newSecret }
+            });
+            return writeAuditLog(tx, auditParams);
         });
+        await dispatchAuditWebhook(log, auditParams);
 
         return NextResponse.json({ success: true, secret: newSecret });
     } catch (e: any) {

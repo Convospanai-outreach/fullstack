@@ -55,6 +55,27 @@ describe("POST /api/superadmin/login per-IP limiter", () => {
     });
 });
 
+describe("POST /api/superadmin/login lockout", () => {
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        await clearAllRateLimits();
+    });
+
+    it("answers a locked account exactly like a wrong password, without checking the password", async () => {
+        mockUserFindUnique.mockResolvedValue({
+            id: "admin-1",
+            email: "attacker-guess@example.com",
+            enterpriseRole: "SUPER_ADMIN",
+            superAdminCredential: { passwordHash: "x", failedAttempts: 5, lockedUntil: new Date(Date.now() + 60_000) },
+        });
+
+        const res = await POST(loginFrom("203.0.113.50"));
+
+        expect(res.status).toBe(401);
+        expect(await res.json()).toEqual({ error: "Invalid credentials" });
+    });
+});
+
 describe("superadmin session revoke switch (SUPERADMIN_SESSION_VERSION)", () => {
     beforeEach(() => {
         vi.stubEnv("NEXTAUTH_SECRET", "test-nextauth-secret");

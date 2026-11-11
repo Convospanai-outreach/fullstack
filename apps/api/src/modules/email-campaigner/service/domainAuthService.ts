@@ -1,5 +1,6 @@
 import { resolveMx, resolveTxt } from "dns/promises";
 import { prisma } from "@/lib/db";
+import { lookupMx, lookupTxt } from "./dnsLookup";
 
 type CheckStatus = "VERIFIED" | "MISSING";
 const db = prisma as any;
@@ -69,31 +70,113 @@ export type GenericDomainAuthResult = {
     spf: boolean;
     dmarc: boolean;
     dkim: boolean;
+    // Things that pass but deserve a word (DMARC only monitoring), or fail for a reason worth naming.
+    notes?: string[];
 };
 
-// Provider-agnostic presence check (unlike checkGoogleWorkspaceDomainAuth, which only
-// verifies Google Workspace's specific SPF include/MX hosts) — used for dashboard
-// deliverability signals where a connected domain may be Resend, Gmail, or SMTP.
-// Checks common DKIM selectors since the actual selector isn't known generically.
-const COMMON_DKIM_SELECTORS = ["google", "resend", "default", "selector1", "selector2", "k1", "s1"];
+type SenderProfile = {
+    // DKIM selectors this provider publishes under; null means unknown, so common ones are tried.
+    selectors: string[] | null;
+    // The include: the domain's SPF record needs for this provider; null means any SPF record counts.
+    spfInclude: string | null;
+    // Hosts besides the domain itself where this provider keeps its SPF record.
+    spfSubdomains?: string[];
+};
 
-export async function checkDomainDeliverabilitySignals(domainInput: string): Promise<GenericDomainAuthResult> {
+const COMMON_DKIM_SELECTORS = ["default", "google", "selector1", "selector2", "k1", "s1", "s2", "mail", "smtp", "dkim"];
+
+function profileFor(provider: string | null | undefined): SenderProfile {
+    const p = (provider || "").toUpperCase();
+    if (p === "GOOGLE_WORKSPACE" || p === "GMAIL_API") return { selectors: ["google"], spfInclude: "_spf.google.com" };
+    if (p.startsWith("MICROSOFT")) return { selectors: ["selector1", "selector2"], spfInclude: "spf.protection.outlook.com" };
+    // Resend signs as resend._domainkey and keeps its SPF record on the send subdomain.
+    if (p === "RESEND") return { selectors: ["resend"], spfInclude: "amazonses.com", spfSubdomains: ["send"] };
+    return { selectors: null, spfInclude: null };
+}
+
+// A DKIM TXT record counts only if it is a key record with a non-empty p= (an empty p= is a revoked key).
+function isLiveDkimKey(value: string): boolean {
+    if (!/(^|;)\s*(v=DKIM1|k=|p=)/i.test(value)) return false;
+    const key = /(?:^|;)\s*p=([^;]*)/i.exec(value);
+    return !!key && key[1].replace(/\s+/g, "").length > 0;
+}
+
+// DMARC may sit on the organisational domain rather than the sending subdomain, so look up the tree.
+async function findDmarc(domain: string): Promise<string | null> {
+    const labels = domain.split(".");
+    for (let i = 0; i <= labels.length - 2; i++) {
+        const host = `_dmarc.${labels.slice(i).join(".")}`;
+        const record = (await lookupTxt(host)).find((value) => /^v=DMARC1\b/i.test(value));
+        if (record) return record;
+    }
+    return null;
+}
+
+// Provider-aware check of a sending domain, for dashboard health and the daily watch. Throws
+// DnsUnavailableError when DNS could not answer, so a timeout is never reported as a missing record.
+// DKIM is checked at the provider's own selectors, or at common ones when the provider is unknown
+// (an SMTP host's selector cannot be known from here). It proves a key is published, not that mail
+// is being signed with it; only a real message's Authentication-Results header shows that.
+const SELECTOR_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/i;
+
+// The DKIM selector a user gave for a mailbox, kept in its metadata. Anything that is not a valid
+// selector is ignored so a bad value can never reach a DNS query.
+export function dkimSelectorFromMetadata(metadata: unknown): string | undefined {
+    const value = typeof metadata === "object" && metadata !== null ? (metadata as Record<string, unknown>)["dkimSelector"] : undefined;
+    return typeof value === "string" && SELECTOR_PATTERN.test(value.trim()) ? value.trim().toLowerCase() : undefined;
+}
+
+export async function checkDomainDeliverabilitySignals(
+    domainInput: string,
+    provider?: string | null,
+    // A selector the user gave for this domain; it replaces the provider's or the guessed ones.
+    dkimSelector?: string | null
+): Promise<GenericDomainAuthResult> {
     const domain = normalizeDomain(domainInput);
-    const dmarcHost = `_dmarc.${domain}`;
+    const profile = profileFor(provider);
+    const notes: string[] = [];
 
-    const [mxValues, rootTxt, dmarcTxt, dkimResults] = await Promise.all([
-        safeResolveMx(domain),
-        safeResolveTxt(domain),
-        safeResolveTxt(dmarcHost),
-        Promise.all(COMMON_DKIM_SELECTORS.map((selector) => safeResolveTxt(`${selector}._domainkey.${domain}`))),
+    const spfHosts = [domain, ...(profile.spfSubdomains || []).map((sub) => `${sub}.${domain}`)];
+    const chosen = dkimSelector && SELECTOR_PATTERN.test(dkimSelector) ? [dkimSelector.toLowerCase()] : null;
+    const selectors = chosen || profile.selectors || COMMON_DKIM_SELECTORS;
+
+    const [mxValues, spfTxt, dmarcRecord, dkimTxt] = await Promise.all([
+        lookupMx(domain),
+        Promise.all(spfHosts.map((host) => lookupTxt(host))),
+        findDmarc(domain),
+        Promise.all(selectors.map((selector) => lookupTxt(`${selector}._domainkey.${domain}`))),
     ]);
 
     const mx = mxValues.length > 0;
-    const spf = rootTxt.some((value) => /^v=spf1\b/i.test(value));
-    const dmarc = dmarcTxt.some((value) => /^v=DMARC1\b/i.test(value));
-    const dkim = dkimResults.some((values) => values.some((value) => /(v=DKIM1|p=)/i.test(value)));
 
-    return { domain, mx, spf, dmarc, dkim };
+    let spf = false;
+    const missingInclude: string[] = [];
+    for (const txt of spfTxt) {
+        const records = txt.filter((value) => /^v=spf1\b/i.test(value));
+        if (records.length > 1) {
+            notes.push("More than one SPF record is published; receivers treat that as a failure. Merge them into one.");
+            continue;
+        }
+        if (records.length === 1) {
+            const covers = !profile.spfInclude || records[0].toLowerCase().includes(`include:${profile.spfInclude}`) || /redirect=/i.test(records[0]);
+            if (covers) spf = true;
+            else missingInclude.push(`SPF does not include ${profile.spfInclude}, so mail from your provider can fail SPF.`);
+        }
+    }
+    // Only a problem if no host passed (Resend's root record is optional when its subdomain passes).
+    if (!spf) notes.push(...missingInclude);
+
+    const dmarc = dmarcRecord !== null;
+    if (dmarcRecord && /(?:^|;)\s*p=none/i.test(dmarcRecord)) {
+        notes.push("DMARC is set to p=none, which only monitors. Move to quarantine or reject once mail passes.");
+    }
+
+    const dkim = dkimTxt.some((values) => values.some(isLiveDkimKey));
+    if (!dkim && dkimTxt.some((values) => values.some((value) => /(^|;)\s*p=\s*(;|$)/i.test(value)))) {
+        notes.push("A DKIM key is published but its p= value is empty, which means it was revoked.");
+    }
+
+    return { domain, mx, spf, dmarc, dkim, ...(notes.length > 0 ? { notes } : {}) };
 }
 
 export async function checkGoogleWorkspaceDomainAuth(input: {

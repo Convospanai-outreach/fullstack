@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildGoogleMailboxAuthUrl, sanitizeRelativePath } from "@/modules/email-campaigner/service/googleMailboxService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: NextRequest) {
     try {
@@ -22,6 +23,6 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({ authUrl });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to start Google OAuth." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to start Google OAuth.") }, { status: 500 });
     }
 }

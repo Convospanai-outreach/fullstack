@@ -1,0 +1,26 @@
+{
+  "slug": "noida",
+  "name": "Noida",
+  "state": "Uttar Pradesh",
+  "stateCode": "IN-UP",
+  "placename": "Noida, Uttar Pradesh, India",
+  "position": "28.5355;77.3910",
+  "icbm": "28.5355, 77.3910",
+  "latitude": "28.5355",
+  "longitude": "77.3910",
+  "corridors": [
+    "Sector 62 IT Hub",
+    "Sector 132 Tech Corridor",
+    "Noida Expressway",
+    "Sector 18",
+    "Greater Noida Knowledge Park"
+  ],
+  "industryFocus": [
+    "IT & Software Services",
+    "EdTech & Digital Media",
+    "Electronics Manufacturing",
+    "Commercial Facilities & Security"
+  ],
+  "summary": "High-velocity intent signal capture and approved meeting workflows across Noida Expressway and Sector 62 tech hubs.",
+  "order": 3
+}

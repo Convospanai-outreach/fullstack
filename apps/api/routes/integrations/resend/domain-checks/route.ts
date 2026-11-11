@@ -8,6 +8,7 @@ import {
     listResendDomains,
 } from "@/modules/email-campaigner/service/resendDomainService";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const DomainCheckSchema = z.object({
     domain: z.string().min(3).max(253),
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
         const domains = await listResendDomains(ctx.teamId);
         return NextResponse.json({ domains });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to list Resend domains." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to list Resend domains.") }, { status: 500 });
     }
 }
 

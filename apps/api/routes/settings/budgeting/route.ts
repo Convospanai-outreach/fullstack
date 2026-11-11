@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { Permission, authorizePermission } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     const { userId, teamId } = await getCurrentContext();
@@ -31,7 +32,7 @@ export async function GET() {
         });
     } catch (error: any) {
         console.error("[Budgeting API] GET error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -89,6 +90,6 @@ export async function PUT(req: Request) {
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("[Budgeting API] PUT error:", error);
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

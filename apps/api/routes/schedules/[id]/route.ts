@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 
 // Client-editable fields only - notably excludes id/teamId (ownership must not
 // be reassignable: schedules feed scheduler-driven credit deduction and job
@@ -30,6 +31,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     const body = await req.json();
     const data = pickPatchableFields(body);
@@ -50,6 +53,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const denied = await forbiddenUnlessRole(userId, teamId, TeamRole.MEMBER);
+    if (denied) return denied;
 
     const { count } = await prisma.schedule.deleteMany({
         where: { id, teamId }

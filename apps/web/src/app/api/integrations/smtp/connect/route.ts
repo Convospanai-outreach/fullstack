@@ -3,6 +3,7 @@ import { verifySmtpConfig } from "@/lib/email/smtpClient";
 import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { host, port, secure, user, password, fromName, email } = body;
+    // Optional: the DKIM selector the mail server signs with, so the domain check looks at the right record.
+    const rawSelector = typeof body.dkimSelector === "string" ? body.dkimSelector.trim() : "";
+    if (rawSelector && !/^[a-z0-9][a-z0-9_-]{0,62}$/i.test(rawSelector)) {
+      return NextResponse.json({ error: "The DKIM selector can only use letters, numbers, hyphens and underscores." }, { status: 400 });
+    }
+    const dkimSelector = rawSelector.toLowerCase();
 
     if (!host || !port || !user || !password || !email) {
       return NextResponse.json({ error: "Missing required SMTP connection parameters." }, { status: 400 });
@@ -41,6 +48,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { prisma } = await import("@/lib/db");
+    // Reconnecting without a selector keeps the one saved before.
+    const existing = await prisma.connectedMailbox.findUnique({ where: { teamId_email: { teamId, email: smtpConfig.fromEmail } }, select: { metadata: true } });
+    const savedSelector = (existing?.metadata as { dkimSelector?: unknown } | null)?.dkimSelector;
+    const selectorToKeep = dkimSelector || (typeof savedSelector === "string" ? savedSelector : "");
 
     // 2. Encrypt SMTP password via credentialVault.ts
     const encryptedPassword = await encryptCredential(password);
@@ -62,6 +73,7 @@ export async function POST(req: NextRequest) {
           host: smtpConfig.host,
           port: smtpConfig.port,
           secure: smtpConfig.secure,
+          ...(selectorToKeep ? { dkimSelector: selectorToKeep } : {}),
         },
       },
       update: {
@@ -72,6 +84,7 @@ export async function POST(req: NextRequest) {
           host: smtpConfig.host,
           port: smtpConfig.port,
           secure: smtpConfig.secure,
+          ...(selectorToKeep ? { dkimSelector: selectorToKeep } : {}),
         },
         updatedAt: new Date(),
       },
@@ -79,6 +92,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, mailboxId: mailbox.id, email: mailbox.email });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Internal server error during SMTP connection." }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(err, "Internal server error during SMTP connection.") }, { status: 500 });
   }
 }

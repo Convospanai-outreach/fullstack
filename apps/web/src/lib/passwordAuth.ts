@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
+import { createHmac } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { provisionUserTeam } from "@/lib/passwordOnboarding";
 import { allowForEmail } from "@/lib/botCheck";
+import { clientIp as ipFromHeaders } from "@/lib/clientIp";
 
 export const PASSWORD_MIN_LENGTH = 10;
 // bcrypt silently ignores everything past 72 bytes, so longer passwords would
@@ -58,9 +60,29 @@ function getDummyHash() {
 
 function clientIp(req: unknown) {
     const headers = (req as { headers?: Record<string, string | string[] | undefined> } | undefined)?.headers;
-    const forwarded = headers?.["x-forwarded-for"];
-    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-    return value?.split(",")[0]?.trim() || "unknown";
+    return ipFromHeaders(headers) || "unknown";
+}
+
+// Keyed so the logged id cannot be recomputed from a guessed address by someone who only has the logs.
+// Left out when no secret is configured rather than falling back to an unkeyed hash.
+export function loginLogId(email: string) {
+    const secret = process.env["NEXTAUTH_SECRET"];
+    if (!secret) return undefined;
+    return createHmac("sha256", secret).update(`login-log:${email}`).digest("hex").slice(0, 12);
+}
+
+// Failed sign-ins were not recorded anywhere, so a guessing run could not be seen. Only a short keyed hash of the
+// email is logged (enough to correlate attempts), never the address or the password, and wrong-password and
+// unknown-email share one reason so the log does not reveal which emails exist.
+function logLoginFailure(reason: "bad_credentials" | "rate_limited", req: unknown, email: string) {
+    console.warn(
+        JSON.stringify({
+            event: "login_failed",
+            reason,
+            ip: clientIp(req),
+            emailHash: loginLogId(email),
+        }),
+    );
 }
 
 export async function authorizeCredentials(
@@ -75,12 +97,16 @@ export async function authorizeCredentials(
     // of their own account just by guessing at it.
     const { checkRateLimit } = await import("@/lib/rateLimit");
     const limit = await checkRateLimit(`${clientIp(req)}:${email}`, LOGIN_ATTEMPT_LIMIT, "credentials-login");
-    if (!limit.allowed) throw new Error(AUTH_ERROR_RATE_LIMITED);
+    if (!limit.allowed) {
+        logLoginFailure("rate_limited", req, email);
+        throw new Error(AUTH_ERROR_RATE_LIMITED);
+    }
 
     // The IP above comes from a client-settable header, so also cap guesses per
     // address across all IPs. Generous enough that it is a ceiling on a distributed
     // guessing attack, not a way to lock a real user out.
     if (!(await allowForEmail(email, "credentials-login-email", EMAIL_ATTEMPT_LIMIT.maxRequests, EMAIL_ATTEMPT_LIMIT.windowMs))) {
+        logLoginFailure("rate_limited", req, email);
         throw new Error(AUTH_ERROR_RATE_LIMITED);
     }
 
@@ -90,7 +116,10 @@ export async function authorizeCredentials(
     });
 
     const passwordOk = await bcrypt.compare(password, user?.password ?? getDummyHash());
-    if (!user || !user.password || !passwordOk) return null;
+    if (!user || !user.password || !passwordOk) {
+        logLoginFailure("bad_credentials", req, email);
+        return null;
+    }
 
     // Only after the password checks out, so these don't reveal which emails exist.
     if (!user.emailVerified) throw new Error(AUTH_ERROR_EMAIL_NOT_VERIFIED);

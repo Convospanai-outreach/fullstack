@@ -12,8 +12,9 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-For `EDGE_MODE=enabled`, set `EDGE_API_KEY` and `EDGE_VAULT_KEY`. Sensitive routes accept either
-`X-API-Key: <key>` or `Authorization: Bearer <key>`.
+Set `EDGE_API_KEY` (and `EDGE_VAULT_KEY` for `EDGE_MODE=enabled`). Without a key, every route except
+`/health`, `/version` and `/capabilities` returns 503 unless `EDGE_REQUIRE_API_KEY=false` is set for a
+local-only lab run. Sensitive routes accept either `X-API-Key: <key>` or `Authorization: Bearer <key>`.
 
 ## Build Docker image
 

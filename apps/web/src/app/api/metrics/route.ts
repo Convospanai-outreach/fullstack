@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "crypto";
 import { getMetrics } from "@/lib/metrics";
 
 export const dynamic = "force-dynamic";
 
 function isAuthorized(request: Request) {
     const token = process.env["METRICS_TOKEN"];
-    const authorization = request.headers.get("authorization");
+    if (!token) return false;
 
-    if (!token) {
-        return process.env["NODE_ENV"] !== "production";
-    }
-
-    return authorization === `Bearer ${token}`;
+    const provided = createHash("sha256").update(request.headers.get("authorization") ?? "").digest();
+    const expected = createHash("sha256").update(`Bearer ${token}`).digest();
+    return timingSafeEqual(provided, expected);
 }
 
 export async function GET(request: Request) {

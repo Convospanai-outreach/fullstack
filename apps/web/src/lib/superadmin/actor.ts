@@ -1,4 +1,5 @@
 import { getSuperAdminUserId } from "@/lib/superadmin/session";
+import { clientIp } from "@/lib/clientIp";
 
 export type SuperAdminActor = { id: string; email: string; enterpriseRole: string };
 
@@ -17,6 +18,6 @@ export async function getSuperAdminActor(): Promise<SuperAdminActor | null> {
 /** Writes a SuperAdminAuditLog row for a change made from the panel. */
 export async function auditSuperAdmin(actor: SuperAdminActor, action: string, req: Request, metadata: Record<string, unknown>) {
     const { prisma } = await import("@/lib/db");
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const ipAddress = clientIp(req.headers);
     await prisma.superAdminAuditLog.create({ data: { userId: actor.id, action, ipAddress, metadata: metadata as object } });
 }

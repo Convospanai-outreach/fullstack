@@ -104,26 +104,42 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Cannot remove your own super admin access." }, { status: 400 });
     }
 
+    // The legacy role gates platform-wide reads (e.g. GET /audit), so only super admins may grant it.
+    // The role editor resends the current value on every save, so an unchanged role is not a grant.
+    const currentRole = (target as { role?: string }).role;
+    if (!isSuperAdminRole(actor.enterpriseRole) && (role === "admin" || role === "superadmin") && role !== currentRole) {
+        return NextResponse.json({ error: "Only super admins can grant admin access." }, { status: 403 });
+    }
+
     const data: { role?: string; enterpriseRole?: UserRole } = {};
     if (role && ["user", "admin", "superadmin"].includes(role)) data.role = role;
     if (enterpriseRole) data.enterpriseRole = enterpriseRole as UserRole;
 
+    const auditTeamId = sharedTeamIds[0] || target.memberships[0]?.teamId || actor.memberships[0]?.teamId;
+
     let updated = target;
     if (Object.keys(data).length > 0) {
-        updated = await prisma.user.update({ where: { id }, data, include: { memberships: true } });
-        await AuditService.log(sharedTeamIds[0] || target.memberships[0]?.teamId || actor.memberships[0]?.teamId, actor.id, "role_changed", "User", id, {
-            role: data.role,
-            enterpriseRole: data.enterpriseRole
+        // The role change and its audit row commit together.
+        updated = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.update({ where: { id }, data, include: { memberships: true } });
+            await AuditService.log(auditTeamId, actor.id, "role_changed", "User", id, {
+                role: data.role,
+                enterpriseRole: data.enterpriseRole
+            }, null, null, true, tx);
+            return user;
         });
     }
 
     if (status === "inactive") {
-        await prisma.teamMember.updateMany({
-            where: teamIds ? { userId: id, teamId: { in: sharedTeamIds } } : { userId: id },
-            data: { status: "inactive" }
-        });
-        await AuditService.log(sharedTeamIds[0] || target.memberships[0]?.teamId || actor.memberships[0]?.teamId, actor.id, "user_deactivated", "User", id, {
-            email: target.email
+        // The deactivation and its audit row commit together.
+        await prisma.$transaction(async (tx) => {
+            await tx.teamMember.updateMany({
+                where: teamIds ? { userId: id, teamId: { in: sharedTeamIds } } : { userId: id },
+                data: { status: "inactive" }
+            });
+            await AuditService.log(auditTeamId, actor.id, "user_deactivated", "User", id, {
+                email: target.email
+            }, null, null, true, tx);
         });
     }
 

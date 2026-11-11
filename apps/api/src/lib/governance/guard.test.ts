@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
-        organizationPolicy: { findUnique: vi.fn(), create: vi.fn() },
+        organizationPolicy: { findUnique: vi.fn(), upsert: vi.fn() },
         teamMember: { findFirst: vi.fn() },
         approvalRequest: { findFirst: vi.fn() },
     },
@@ -24,7 +24,20 @@ describe("enforcePolicy - membership check ordering", () => {
             enforcePolicy({ orgId: "victim-team", userId: "attacker", action: "CAMPAIGN_RUN" })
         ).rejects.toThrow("NOT_A_TEAM_MEMBER");
 
-        expect(mockPrisma.organizationPolicy.create).not.toHaveBeenCalled();
+        expect(mockPrisma.organizationPolicy.upsert).not.toHaveBeenCalled();
+    });
+
+    it("creates the default policy through an upsert, so a racing first request does not fail", async () => {
+        mockPrisma.teamMember.findFirst.mockResolvedValue({ teamId: "team-1", userId: "user-1", role: "admin" });
+        mockPrisma.organizationPolicy.upsert.mockResolvedValue({ requiresApprovalForCampaign: false });
+
+        await expect(enforcePolicy({ orgId: "team-1", userId: "user-1", action: "READ" })).resolves.toBe(true);
+
+        expect(mockPrisma.organizationPolicy.upsert).toHaveBeenCalledWith({
+            where: { organizationId: "team-1" },
+            create: { organizationId: "team-1" },
+            update: {},
+        });
     });
 });
 
@@ -56,7 +69,7 @@ describe("enforcePolicy - CAMPAIGN_RUN approval scoping", () => {
         ).rejects.toThrow("VALID_APPROVAL_REQUIRED");
 
         expect(mockPrisma.approvalRequest.findFirst).toHaveBeenCalledWith({
-            where: { id: "approval-from-team-2", teamId: "team-1", entityType: "Campaign", entityId: "campaign-1" },
+            where: { id: "approval-from-team-2", teamId: "team-1", entityType: "Campaign", actionType: "CAMPAIGN_START", entityId: "campaign-1" },
         });
     });
 

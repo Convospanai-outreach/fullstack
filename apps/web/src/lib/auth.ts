@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { RequestContext } from "@/lib/requestContext";
+import { clientIp } from "@/lib/clientIp";
 
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -33,6 +35,16 @@ function applyDefaultClaims(token: JWT) {
 
 const prismaAdapter = PrismaAdapter(prisma as any);
 const linkedInProvider = linkedInLoginProvider();
+
+// The caller's IP for an audit row. NextAuth events carry no request, so it comes from the request
+// headers; outside a request there is none to record.
+async function requestIp(): Promise<string | null> {
+    try {
+        return clientIp(await headers());
+    } catch {
+        return null;
+    }
+}
 
 export const authOptions: NextAuthOptions = {
     adapter: {
@@ -275,7 +287,8 @@ export const authOptions: NextAuthOptions = {
                                 "USER_LOGIN",
                                 "Auth",
                                 message.user.id,
-                                { email: message.user.email }
+                                { email: message.user.email },
+                                await requestIp()
                             );
                         } catch (logError) {
                             console.error("Audit logging failed during login:", logError);
@@ -298,7 +311,8 @@ export const authOptions: NextAuthOptions = {
                             "USER_LOGOUT",
                             "Auth",
                             message.token.id as string,
-                            { email: message.token.email }
+                            { email: message.token.email },
+                            await requestIp()
                         ).catch((e: unknown) => console.error("Audit log failed on logout", e));
                     }
                 } catch (e) { console.error("Failed to load AuditService during logout", e); }
@@ -306,7 +320,9 @@ export const authOptions: NextAuthOptions = {
         },
     },
     session: {
-        strategy: "jwt"
+        strategy: "jwt",
+        // NextAuth's default is 30 days; a stolen cookie should not outlive a working day.
+        maxAge: 24 * 60 * 60,
     },
     pages: {
         signIn: "/login",
@@ -348,6 +364,8 @@ export async function setupUser(user: { id: string, email: string, name?: string
 }
 
 export async function getCurrentContext() {
+    const mcpIdentity = RequestContext.get()?.mcpIdentity;
+    if (mcpIdentity) return mcpIdentity;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {

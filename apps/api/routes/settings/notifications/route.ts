@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { settingsService } from "@/modules/settings/service/settingsService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     const { userId } = await getCurrentContextFromRequest(req);
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
         await settingsService.updateNotifications(userId, data);
         return NextResponse.json({ success: true });
     } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+        return new NextResponse(internalErrorMessage(error), { status: 500 });
     }
 }
 
@@ -28,6 +29,6 @@ export async function GET(req: NextRequest) {
         const settings = await settingsService.getSettings(userId);
         return NextResponse.json(settings.notifications || {});
     } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+        return new NextResponse(internalErrorMessage(error), { status: 500 });
     }
 }

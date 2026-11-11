@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { computeGstExclusive } from "@/lib/gst";
 import { parseBody } from "@/lib/validation/parseBody";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Types only - the presence/tier checks below keep their existing messages.
 const topupSchema = z.object({
@@ -77,6 +78,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Top-up error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

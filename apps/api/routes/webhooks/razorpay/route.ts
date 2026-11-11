@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import type { TransactionClient } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
 import { computeGstInclusive } from "@/lib/gst";
 import { OutboxService } from "@/lib/outboxService";
+import { MONTHLY_PERIOD_DAYS, YEARLY_PERIOD_DAYS } from "@/modules/billing/service/yearlyCredits";
 
 // GST is normally computed and added on top of the price at order-creation
 // time (checkout/topup), then snapshotted into the order notes so the
@@ -73,6 +75,8 @@ export async function POST(req: Request) {
 
         // Verify signature
         if (!signature || !secret) {
+            if (!secret) console.error("[Razorpay Webhook] RAZORPAY_WEBHOOK_SECRET is not configured.");
+            else logWebhookRejected(req, "razorpay", "missing_signature");
             return new NextResponse("Missing Signature or Secret", { status: 400 });
         }
 
@@ -91,6 +95,7 @@ export async function POST(req: Request) {
         // timingSafeEqual throws on mismatched buffer length instead of returning false.
         if (signatureBuffer.length !== expectedBuffer.length ||
             !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+            logWebhookRejected(req, "razorpay", "invalid_signature", rawBody.length);
             return new NextResponse("Invalid Signature", { status: 400 });
         }
 
@@ -101,7 +106,7 @@ export async function POST(req: Request) {
 
         if (event === "payment.captured") {
             const payment = payload.payment.entity;
-            const notes = payment.notes;
+            const notes = payment.notes ?? {};
 
             // Route (funnel checkout) orders are a separate flow from the platform's
             // own credit-grant/subscription billing below - they never create a
@@ -120,6 +125,7 @@ export async function POST(req: Request) {
                 : null;
             if (checkoutOrder || notes?.checkoutOrderId) {
                 if (!checkoutOrder) return NextResponse.json({ status: "ok" });
+                let notApplied: { teamId: string } | null = null;
                 await prisma.$transaction(async (tx) => {
                     const claim = await tx.order.updateMany({
                         where: {
@@ -131,6 +137,12 @@ export async function POST(req: Request) {
                         },
                         data: { status: "CAPTURED", gatewayPaymentId: payment.id },
                     });
+                    if (claim.count === 0) {
+                        // Either a retry of a delivery already applied (same payment id), or a captured payment that
+                        // could not be applied (amount differs, or the order is no longer PENDING).
+                        const current = await tx.order.findUnique({ where: { id: checkoutOrder.id } });
+                        if (current && current.gatewayPaymentId !== payment.id) notApplied = { teamId: current.teamId };
+                    }
                     if (claim.count === 1) {
                         const order = await tx.order.findUnique({ where: { id: checkoutOrder.id } });
                         if (order) {
@@ -151,6 +163,22 @@ export async function POST(req: Request) {
                         }
                     }
                 });
+                if (notApplied) {
+                    // Money was captured but the order was not marked paid. strict:true so a failed write 500s and
+                    // Razorpay retries, rather than acknowledging an event nothing durable records.
+                    const { AuditService } = await import("@/modules/audit/auditService");
+                    await AuditService.log(
+                        (notApplied as { teamId: string }).teamId,
+                        null,
+                        "WEBHOOK_ORDER_NOT_APPLIED",
+                        "Order",
+                        checkoutOrder.id,
+                        { paymentId: payment.id, amount: payment.amount, currency: payment.currency },
+                        null,
+                        null,
+                        true
+                    );
+                }
                 return NextResponse.json({ status: "ok" });
             }
 
@@ -224,7 +252,12 @@ export async function POST(req: Request) {
                     } else if (notes.planId && notes.userId) {
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
                         if (plan) {
-                            const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
+                            // Order notes are set server-side at checkout. A yearly order is paid once for 12 months and
+                            // credited monthly (see yearlyCredits.ts); a missing interval, e.g. an order created before
+                            // yearly billing existed, is monthly.
+                            const yearly = notes.interval === "year";
+                            const periodDays = yearly ? YEARLY_PERIOD_DAYS : MONTHLY_PERIOD_DAYS;
+                            const description = `${plan.name} plan ${yearly ? "yearly " : ""}subscription via Razorpay (ID: ${payment.id})`;
                             try {
                                 // Same all-or-nothing transaction as the top-up branch,
                                 // covering the credit grant, the subscription extension, and
@@ -234,7 +267,8 @@ export async function POST(req: Request) {
                                 // read the same currentPeriodEnd and overwrite each other -
                                 // GREATEST(...)+30 days is computed by Postgres in a single
                                 // statement, so concurrent deliveries serialize on the row
-                                // instead of racing in application code.
+                                // instead of racing in application code. A yearly order adds a
+                                // year, credits the first month now and schedules the next one.
                                 await prisma.$transaction(async (tx) => {
                                     await addCredits(
                                         notes.teamId,
@@ -246,12 +280,15 @@ export async function POST(req: Request) {
                                     );
 
                                     const [subscription] = await tx.$queryRaw<{ id: string }[]>`
-                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", "createdAt", "updatedAt")
-                                        VALUES (gen_random_uuid(), ${notes.userId}, ${plan.id}, 'active', NOW() + INTERVAL '30 days', NOW(), NOW())
+                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", "billingInterval", "nextCreditGrantAt", "teamId", "createdAt", "updatedAt")
+                                        VALUES (gen_random_uuid(), ${notes.userId}, ${plan.id}, 'active', NOW() + ${periodDays}::int * INTERVAL '1 day', ${yearly ? "YEAR" : "MONTH"}, CASE WHEN ${yearly}::boolean THEN NOW() + ${MONTHLY_PERIOD_DAYS}::int * INTERVAL '1 day' ELSE NULL END, ${notes.teamId}, NOW(), NOW())
                                         ON CONFLICT ("userId") DO UPDATE SET
                                             "planId" = EXCLUDED."planId",
                                             status = 'active',
-                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + INTERVAL '30 days',
+                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + ${periodDays}::int * INTERVAL '1 day',
+                                            "billingInterval" = EXCLUDED."billingInterval",
+                                            "nextCreditGrantAt" = EXCLUDED."nextCreditGrantAt",
+                                            "teamId" = EXCLUDED."teamId",
                                             "updatedAt" = NOW()
                                         RETURNING id
                                     `;

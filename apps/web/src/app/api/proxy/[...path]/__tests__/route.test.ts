@@ -89,4 +89,128 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
         const init = fetchMock.mock.calls[0][1] as RequestInit;
         expect(init.signal).toBeInstanceOf(AbortSignal);
     });
+
+    it("gives the website scan longer than 15s but still bounds other paths at 15s", async () => {
+        vi.useFakeTimers();
+        try {
+            global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 })) as any;
+            const call = async (path: string[]) => {
+                const url = `http://localhost:3000/api/proxy/${path.join("/")}`;
+                const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+                await POST(req, { params: Promise.resolve({ path }) });
+            };
+            // The proxy clears its timer when headers arrive, so capture the timer length instead.
+            const spy = vi.spyOn(global, "setTimeout");
+            await call(["setup", "scan"]);
+            await call(["workflows", "wf-1"]);
+            const delays = spy.mock.calls.map((c) => c[1]);
+            expect(delays).toContain(90_000);
+            expect(delays).toContain(15_000);
+        } finally {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        }
+    });
+});
+
+describe("forwardRequest upstream failures", () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => { global.fetch = originalFetch; });
+
+    function post() {
+        const url = "http://localhost:3000/api/proxy/workflows/wf-1";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        return POST(req, { params: Promise.resolve({ path: ["workflows", "wf-1"] }) });
+    }
+
+    it("does not tell the browser where the internal API lives when it is unreachable", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        global.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed")) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(502);
+        expect(body.code).toBe("PROXY_UPSTREAM_UNAVAILABLE");
+        expect(body).not.toHaveProperty("upstream");
+        expect(JSON.stringify(body)).not.toMatch(/localhost:3001|127\.0\.0\.1|API_INTERNAL_ORIGIN/);
+    });
+
+    it("does not tell the browser where the internal API lives when it times out", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const abort = new Error("aborted");
+        abort.name = "AbortError";
+        global.fetch = vi.fn().mockRejectedValue(abort) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(504);
+        expect(body.code).toBe("PROXY_UPSTREAM_TIMEOUT");
+        expect(body).not.toHaveProperty("upstream");
+    });
+
+    it("logs which request failed and how long it took, without the query string", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        const abort = new Error("aborted");
+        abort.name = "AbortError";
+        global.fetch = vi.fn().mockRejectedValue(abort) as any;
+        const url = "http://localhost:3000/api/proxy/mcp/oauth/consent?code_challenge=secret-value";
+        const req = Object.assign(new Request(url, { method: "GET" }), { nextUrl: new URL(url) }) as any;
+
+        await POST(req, { params: Promise.resolve({ path: ["mcp", "oauth", "consent"] }) });
+
+        const entry = log.mock.calls.find(call => call[0] === "[proxy] upstream request failed")?.[1] as Record<string, unknown>;
+        expect(entry).toMatchObject({ path: "/api/proxy/mcp/oauth/consent" });
+        expect(typeof entry["method"]).toBe("string");
+        expect(typeof entry["elapsedMs"]).toBe("number");
+        expect(JSON.stringify(entry)).not.toContain("secret-value");
+    });
+
+    it("returns a fixed message instead of an internal error's text", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        global.fetch = vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED 10.0.0.12:3001")) as any;
+
+        const res = await post();
+        const body = await res.json();
+
+        expect(res.status).toBe(502);
+        expect(JSON.stringify(body)).not.toContain("10.0.0.12");
+    });
+});
+
+describe("forwardRequest internal-only routes", () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => { global.fetch = originalFetch; });
+
+    it.each([
+        ["email", "send-verification"],
+        ["email", "verification-token"],
+        ["email", "verify-token"],
+        ["email", "verification-token", "extra"],
+    ])("does not relay /%s/%s to apps/api", async (...path) => {
+        const url = `http://localhost:3000/api/proxy/${path.join("/")}`;
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        global.fetch = vi.fn() as any;
+
+        const res = await POST(req, { params: Promise.resolve({ path }) });
+
+        expect(res.status).toBe(404);
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("still relays other email routes", async () => {
+        const url = "http://localhost:3000/api/proxy/email/send";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        global.fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 })) as any;
+
+        const res = await POST(req, { params: Promise.resolve({ path: ["email", "send"] }) });
+
+        expect(res.status).toBe(200);
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
 });

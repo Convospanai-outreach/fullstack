@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { audit } from "@/lib/governance/audit";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // POST /api/upload/csv - Upload and process CSV file
 export async function POST(req: NextRequest) {
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     console.error("CSV import error:", error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to import CSV",
+        error: internalErrorMessage(error, "Failed to import CSV"),
       },
       { status: 500 }
     );

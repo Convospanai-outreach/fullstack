@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
 import { OutboxService } from "@/lib/outboxService";
+import { MONTHLY_PERIOD_DAYS, YEARLY_PERIOD_DAYS } from "@/modules/billing/service/yearlyCredits";
 import { verifyStripeBillingWebhook, getSubscriptionMetadata } from "@/modules/billing/service/stripeSubscriptionGateway";
 
 // Platform-level Stripe subscription billing webhook. Separate endpoint (and
@@ -18,6 +20,7 @@ export async function POST(req: Request) {
     try {
         const signature = req.headers.get("stripe-signature");
         if (!signature) {
+            logWebhookRejected(req, "stripe-billing", "missing_signature");
             return new NextResponse("Missing Signature", { status: 400 });
         }
 
@@ -26,6 +29,7 @@ export async function POST(req: Request) {
         try {
             event = verifyStripeBillingWebhook(rawBody, signature);
         } catch {
+            logWebhookRejected(req, "stripe-billing", "invalid_signature", rawBody.length);
             return new NextResponse("Invalid Signature", { status: 400 });
         }
 
@@ -50,11 +54,14 @@ export async function POST(req: Request) {
                 if (!existingCredit && !existingInvoice) {
                     const metadata = await getSubscriptionMetadata(subscriptionId);
                     const { teamId, userId, planId } = metadata;
+                    // Stamped at checkout (createSubscriptionCheckoutSession); no value means a monthly subscription.
+                    const yearly = metadata.interval === "year";
+                    const periodDays = yearly ? YEARLY_PERIOD_DAYS : MONTHLY_PERIOD_DAYS;
 
                     if (teamId && userId && planId) {
                         const plan = await prisma.plan.findUnique({ where: { id: planId } });
                         if (plan) {
-                            const description = `${plan.name} plan subscription via Stripe (ID: ${paymentId})`;
+                            const description = `${plan.name} plan ${yearly ? "yearly " : ""}subscription via Stripe (ID: ${paymentId})`;
                             try {
                                 await prisma.$transaction(async (tx) => {
                                     await addCredits(
@@ -70,14 +77,17 @@ export async function POST(req: Request) {
                                     // subscription branch, so concurrent renewal deliveries for the
                                     // same user serialize on the row instead of racing in app code.
                                     const [subscription] = await tx.$queryRaw<{ id: string }[]>`
-                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", gateway, "externalSubscriptionId", "createdAt", "updatedAt")
-                                        VALUES (gen_random_uuid(), ${userId}, ${plan.id}, 'active', NOW() + INTERVAL '30 days', 'STRIPE', ${subscriptionId}, NOW(), NOW())
+                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", gateway, "externalSubscriptionId", "billingInterval", "nextCreditGrantAt", "teamId", "createdAt", "updatedAt")
+                                        VALUES (gen_random_uuid(), ${userId}, ${plan.id}, 'active', NOW() + ${periodDays}::int * INTERVAL '1 day', 'STRIPE', ${subscriptionId}, ${yearly ? "YEAR" : "MONTH"}, CASE WHEN ${yearly}::boolean THEN NOW() + ${MONTHLY_PERIOD_DAYS}::int * INTERVAL '1 day' ELSE NULL END, ${teamId}, NOW(), NOW())
                                         ON CONFLICT ("userId") DO UPDATE SET
                                             "planId" = EXCLUDED."planId",
                                             status = 'active',
                                             gateway = 'STRIPE',
                                             "externalSubscriptionId" = EXCLUDED."externalSubscriptionId",
-                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + INTERVAL '30 days',
+                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + ${periodDays}::int * INTERVAL '1 day',
+                                            "billingInterval" = EXCLUDED."billingInterval",
+                                            "nextCreditGrantAt" = EXCLUDED."nextCreditGrantAt",
+                                            "teamId" = EXCLUDED."teamId",
                                             "updatedAt" = NOW()
                                         RETURNING id
                                     `;
@@ -114,6 +124,20 @@ export async function POST(req: Request) {
                             }
                         } else {
                             console.error(`[Stripe Billing Webhook] Unknown planId in subscription metadata: ${planId}`);
+                            // Payment was taken but nothing was provisioned. strict:true, as in the Razorpay webhook: if this
+                            // write fails nothing durable exists for the event, so 500 and let Stripe retry.
+                            const { AuditService } = await import("@/modules/audit/auditService");
+                            await AuditService.log(
+                                teamId,
+                                userId,
+                                "WEBHOOK_UNRECOGNIZED_PLAN",
+                                "Billing",
+                                paymentId,
+                                { planId, amount: invoice.amount_paid, currency: invoice.currency, gateway: "STRIPE" },
+                                null,
+                                null,
+                                true
+                            );
                         }
                     } else {
                         console.error(`[Stripe Billing Webhook] Subscription ${subscriptionId} is missing teamId/userId/planId metadata`);

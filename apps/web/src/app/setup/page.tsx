@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Facebook,
   FileText,
+  Globe,
   LayoutGrid,
   Linkedin,
   Loader2,
@@ -34,10 +35,14 @@ import {
 import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import { useLiveFeatureKeys } from "@/components/dashboard/SectionTabs";
-import { nextStepId, previousStepId, readOutreachMode, visibleStepIds, type OutreachMode } from "@/lib/setupSteps";
+import { hasDataResponsibilityAck, nextStepId, previousStepId, readOutreachMode, visibleStepIds, type OutreachMode } from "@/lib/setupSteps";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
+import { STORE_URL } from "@/lib/extensionIds";
+import DomainsStep from "@/components/setup/DomainsStep";
+import WebsiteScanStep, { websiteScanPayload } from "@/components/setup/WebsiteScanStep";
+import { HourglassBuddy } from "@/components/setup/HourglassBuddy";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -47,7 +52,6 @@ type SetupStatus = {
   canSendEmail: boolean;
   hasCustomSender: boolean;
   hasLinkedInSession: boolean;
-  hasExtensionApiKey: boolean;
   extensionApiBase: string;
   emailVoiceComplete: boolean;
   hasGeminiKey: boolean;
@@ -97,6 +101,7 @@ type DomainCheckResult = {
 const STEPS = [
   { id: 1, title: "Launch Brief", icon: Users, description: "Tell us who you're reaching out for, and confirm account access." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
+  { id: 15, title: "Scan Your Website", icon: Globe, description: "Let us read your website and draft who you sell to and what to say. Optional." },
   { id: 3, title: "Sending Mailbox", icon: Mail, description: "Choose how outreach gets sent: Google Workspace, Microsoft 365, SMTP, or Resend." },
   { id: 4, title: "Outreach Connectors", icon: Linkedin, description: "See which outreach channels you can connect: email, LinkedIn, Meta and WhatsApp." },
   { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
@@ -108,6 +113,7 @@ const STEPS = [
   { id: 11, title: "Handoffs", icon: LayoutGrid, description: "Review optional infrastructure and handoff integrations." },
   { id: 12, title: "Notifications", icon: Bell, description: "Choose which email and in-app alerts your team receives." },
   { id: 13, title: "Invite Your Team", icon: UserPlus, description: "Add teammates now so they can start working the moment their invite lands." },
+  { id: 14, title: "Test Your Domains", icon: ShieldCheck, description: "Check your email and landing page DNS now, so problems show up before your first send." },
 ];
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
@@ -137,10 +143,10 @@ export default function SetupWizardPage() {
   const stepComplete = useMemo(() => {
     if (!status) return () => false;
     return (stepId: number) => {
-      if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig);
+      if (stepId === 1) return status.hasAccount && status.isEmailVerified && !!readOutreachMode(status.aiConfig) && hasDataResponsibilityAck(status.aiConfig);
       if (stepId === 2) return status.brandingComplete;
       if (stepId === 3) return status.canSendEmail || connectedMailboxes > 0;
-      if (stepId === 4) return PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
+      if (stepId === 4) return true;
       if (stepId === 5) return status.emailVoiceComplete;
       if (stepId === 6) return status.hasGeminiKey;
       if (stepId === 7) return status.leadCount > 0;
@@ -150,6 +156,8 @@ export default function SetupWizardPage() {
       if (stepId === 11) return PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
       if (stepId === 12) return true;
       if (stepId === 13) return true;
+      if (stepId === 14) return true;
+      if (stepId === 15) return !!(status.aiConfig as { companyProfile?: unknown } | null)?.companyProfile;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -161,7 +169,7 @@ export default function SetupWizardPage() {
       const data = await readJson(res);
       setStatus(data);
       setFormData({
-        step1: { outreachMode: readOutreachMode(data.aiConfig) },
+        step1: { outreachMode: readOutreachMode(data.aiConfig), acknowledgedDataResponsibility: hasDataResponsibilityAck(data.aiConfig) },
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
@@ -197,6 +205,7 @@ export default function SetupWizardPage() {
           signOff: data.aiConfig?.signOff || "Best regards,",
         },
         step6: { geminiKey: data.aiConfig?.apiKey || "" },
+        step15: { url: data.aiConfig?.companyProfile?.sourceUrl || "", profile: null, createIcp: false },
         step9: {
           calendarLink: data.aiConfig?.calendarLink || "",
           demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
@@ -261,6 +270,10 @@ export default function SetupWizardPage() {
       setActionMessage("Choose who you're reaching out for to continue.");
       return;
     }
+    if (stepId === 1 && formData.step1?.acknowledgedDataResponsibility !== true) {
+      setActionMessage("Read the notice about your leads and tick the box to continue.");
+      return;
+    }
     setSaving(true);
     setActionMessage(null);
     try {
@@ -276,6 +289,7 @@ export default function SetupWizardPage() {
             password: formData.step3?.password,
             fromName: formData.step3?.fromName || formData.step3?.fromEmail,
             email: formData.step3?.fromEmail || formData.step3?.user,
+            dkimSelector: formData.step3?.dkimSelector || undefined,
           };
 
           const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
@@ -321,7 +335,7 @@ export default function SetupWizardPage() {
         }
         // GOOGLE / MICROSOFT connect via their own OAuth buttons, not this form submit — nothing to POST here.
       } else {
-        const payload = stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
+        const payload = stepId === 15 ? websiteScanPayload(formData.step15) : stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
           const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
@@ -459,6 +473,7 @@ export default function SetupWizardPage() {
                   <div className="h-full rounded-full bg-cyan-400 transition-all duration-500" style={{ width: `${completion}%` }} />
                 </div>
               </div>
+              <HourglassBuddy stepId={active.id} completion={completion} completedCount={visibleSteps.filter((step) => stepComplete(step.id)).length} saving={saving} errorMessage={actionMessage} />
             </div>
 
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -511,9 +526,14 @@ export default function SetupWizardPage() {
                 status={status}
                 mode={outreachMode}
                 message={actionMessage}
+                acknowledged={formData.step1?.acknowledgedDataResponsibility === true}
+                onAcknowledge={(value) => {
+                  setActionMessage(null);
+                  setFormData({ ...formData, step1: { ...formData.step1, acknowledgedDataResponsibility: value } });
+                }}
                 onChoose={(mode) => {
                   setActionMessage(null);
-                  setFormData({ ...formData, step1: { outreachMode: mode } });
+                  setFormData({ ...formData, step1: { ...formData.step1, outreachMode: mode } });
                 }}
               />
             )}
@@ -546,6 +566,15 @@ export default function SetupWizardPage() {
             {active.id === 11 && <Handoffs status={status} />}
             {active.id === 12 && <NotificationsStep />}
             {active.id === 13 && <InviteTeamStep />}
+            {active.id === 14 && <DomainsStep />}
+            {active.id === 15 && (
+              <WebsiteScanStep
+                apiBase={apiBase}
+                state={formData.step15 ?? { url: "", profile: null, createIcp: false }}
+                onChange={(next) => setFormData({ ...formData, step15: next })}
+                savedAt={(status.aiConfig as { companyProfile?: { confirmedAt?: string } } | null)?.companyProfile?.confirmedAt ?? null}
+              />
+            )}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
@@ -697,6 +726,10 @@ function MailboxProviderStep(props: {
                   </Field>
                   <Field label="App password">
                     <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => setStep3({ password: event.target.value })} />
+                  </Field>
+                  <Field label="DKIM selector (optional)">
+                    <input className={inputClass} placeholder="e.g. s1 or mail" value={props.formData.step3?.dkimSelector || ""} onChange={(event) => setStep3({ dkimSelector: event.target.value })} />
+                    <p className="mt-1 text-xs text-slate-500">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
                   </Field>
                 </div>
               </div>
@@ -884,7 +917,21 @@ const OUTREACH_MODES: Array<{ mode: OutreachMode; title: string; text: string; i
   { mode: "company", title: "On behalf of a company", text: "You're reaching out to other companies for your company or a client, with teammates and brand details.", icon: Building2 },
 ];
 
-function LaunchBrief({ status, mode, message, onChoose }: { status: SetupStatus; mode: OutreachMode | null; message: string | null; onChoose: (mode: OutreachMode) => void }) {
+function LaunchBrief({
+  status,
+  mode,
+  message,
+  acknowledged,
+  onAcknowledge,
+  onChoose,
+}: {
+  status: SetupStatus;
+  mode: OutreachMode | null;
+  message: string | null;
+  acknowledged: boolean;
+  onAcknowledge: (value: boolean) => void;
+  onChoose: (mode: OutreachMode) => void;
+}) {
   return (
     <div className="space-y-5">
       <section className={panelClass}>
@@ -912,10 +959,26 @@ function LaunchBrief({ status, mode, message, onChoose }: { status: SetupStatus;
         {message ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{message}</p> : null}
       </section>
       <section className={panelClass}>
+        <h3 className="text-xl font-semibold text-white">Your leads and your responsibilities</h3>
+        <div className="mt-4 space-y-3 text-sm text-slate-300">
+          <p>You own the leads you collect and the data you store about them.</p>
+          <p>
+            You are responsible for getting consent, publishing a privacy policy, honouring unsubscribe and data-deletion requests, and following the
+            laws that apply to you and your recipients.
+          </p>
+          <p>This product gives you tools: a consent checkbox on landing page forms, a data-deletion page and a do-not-contact list. It does not give legal advice.</p>
+        </div>
+        <label className="mt-5 flex items-start gap-3 text-sm text-white">
+          <input type="checkbox" className="mt-1" checked={acknowledged} onChange={(e) => onAcknowledge(e.target.checked)} />
+          <span>I understand and accept these responsibilities for my team.</span>
+        </label>
+      </section>
+      <section className={panelClass}>
         <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <ChecklistItem label="Account exists" passed={status.hasAccount} />
           <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
+          <ChecklistItem label="Notice about your leads accepted" passed={hasDataResponsibilityAck(status.aiConfig)} />
           <ChecklistItem label="Qualified lead definition reviewed" passed={false} />
           <ChecklistItem label="Meeting workflow tracking confirmed" passed={false} />
         </div>
@@ -1078,36 +1141,49 @@ function ExtensionSyncToken() {
 
   return (
     <section className={panelClass}>
-      <h3 className="text-lg font-semibold text-white">Chrome extension sync token</h3>
+      <h3 className="text-lg font-semibold text-white">Connect the Chrome extension</h3>
       <p className="mt-2 text-sm text-slate-400">
-        The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account. A token is tied to the team you&apos;re in when you generate it: the extension saves every lead to that team.
+        Open the extension popup and click &quot;Connect to CraftMyFunnel&quot;. A tab opens here and links the extension to your account, with nothing to copy or paste. The extension saves every lead to the team you&apos;re in when you connect.
       </p>
-      <button
-        type="button"
-        onClick={generate}
-        disabled={generating}
-        className="mt-4 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+      <a
+        href={STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-300 hover:text-cyan-200"
       >
-        {generating ? "Generating..." : "Generate sync token"}
-      </button>
-      {syncToken && (
-        <div className="mt-4 space-y-2">
-          <div className="flex gap-2">
-            <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
-              {syncToken.token}
-            </code>
-            <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
-              <Copy className="h-4 w-4" />
-            </button>
+        Install the extension from the Chrome Web Store <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+      <div className="mt-4 border-t border-white/10 pt-4">
+        <p className="text-sm text-slate-400">
+          No Connect button in your extension (version 1.1.0 or older), or using a self-hosted workspace? Generate a sync token and paste it into the popup&apos;s &quot;Sync token&quot; field (in 1.2.0, under &quot;Advanced: connect manually&quot;). Version 1.1.0 also asks for an extension key: any text works there.
+        </p>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={generating}
+          className="mt-3 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+        >
+          {generating ? "Generating..." : "Generate sync token"}
+        </button>
+        {syncToken && (
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-2">
+              <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
+                {syncToken.token}
+              </code>
+              <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
+            {syncToken.team && (
+              <p className="text-xs text-slate-300">
+                This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
+              </p>
+            )}
           </div>
-          <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
-          {syncToken.team && (
-            <p className="text-xs text-slate-300">
-              This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
@@ -1523,7 +1599,7 @@ function StatusPill({ ready }: { ready: boolean }) {
 function continueLabel(stepId: number, provider?: string) {
   if (stepId === 3) return provider === "RESEND" ? "Save Resend and continue" : provider === "SMTP" ? "Save SMTP and continue" : "Continue";
   if (stepId === 7) return "Continue to campaign plan";
-  if (stepId === 13) return "Open dashboard";
+  if (stepId === 14) return "Open dashboard";
   return "Save and continue";
 }
 

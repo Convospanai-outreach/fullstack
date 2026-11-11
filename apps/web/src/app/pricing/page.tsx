@@ -8,6 +8,7 @@ import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
+import { displayPrice, type LivePrice } from "./displayPrice";
 import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
@@ -73,7 +74,7 @@ const PRESENTATION: Record<PricingTier["name"], PlanPresentation> = {
 
 const plans: Plan[] = PRICING_TIERS.map((tier) => ({
     ...tier,
-    monthlyPrice: tier.inrMonthly,
+    monthlyPrice: tier.usdMonthly,
     ...PRESENTATION[tier.name],
 }));
 
@@ -83,9 +84,28 @@ const proofPoints = [
     "Lead and meeting workflow tracking",
 ];
 
-type LivePrice = { currency: string; amount: number | null; available: boolean };
+const pricingFaqs = [
+    {
+        q: "What do I get with the Pilot?",
+        a: "A 30-day growth pilot package for one ideal customer profile, one geography and one offer, with an approval-first sending flow and follow-up reporting.",
+    },
+    {
+        q: "Which currency are prices shown in?",
+        a: "Indian visitors see the live INR price. Other countries see the USD list price. Pick your country above; your billing country at checkout also decides GST treatment on the invoice.",
+    },
+    {
+        q: "Does anything send without a person approving it?",
+        a: "Approval-first sending and governance controls are part of the plans, so campaigns are reviewed before they go out.",
+    },
+    {
+        q: "How do I get Enterprise or the booking add-on?",
+        a: "Both are quoted individually. Use Talk to Sales and we will scope quotas, playbooks and caller support with you.",
+    },
+];
 
-const CURRENCY_SYMBOL: Record<string, string> = { USD: "$", EUR: "€", INR: "₹" };
+// Checkout charges the monthly price whatever the visitor picks here, so the Annual toggle stays hidden until
+// annual billing exists on the server. With it hidden, isAnnual can never become true.
+const ANNUAL_BILLING_AVAILABLE = false;
 
 export default function PricingPage() {
     const router = useRouter();
@@ -109,11 +129,11 @@ export default function PricingPage() {
         const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
 
         fetch(`${base}/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
-            .then((res) => res.json())
+            .then((res) => { if (!res.ok) throw new Error("Price quote is unavailable"); return res.json(); })
             .then((data) => {
                 const byName: Record<string, LivePrice> = {};
                 for (const p of data.plans || []) {
-                    byName[p.name] = { currency: data.currency, amount: p.amount, available: p.available ?? true };
+                    byName[p.name] = { currency: data.currency, amount: p.amount, available: p.available === true };
                 }
                 setLivePrices(byName);
             })
@@ -215,12 +235,35 @@ export default function PricingPage() {
         }
     };
 
+    const priceFor = (plan: Plan) => displayPrice({
+        isAnnual,
+        country: billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry,
+        live: livePrices?.[plan.dbName],
+        usdMonthly: plan.monthlyPrice,
+        annualPrice: plan.annualPrice,
+    });
+
+    // Live price only applies to the monthly figure - annual billing isn't wired up
+    // server-side yet (see the toggle's comment above). Only trust the live price when
+    // the currency is actually available; otherwise displayPrice falls back to the USD
+    // list price, except for India where no amount is shown.
+    const priceLabel = (plan: Plan) => {
+        const { symbol, amount } = priceFor(plan);
+        return amount != null ? <>{symbol}{amount}</> : <span title="Price unavailable">&mdash;</span>;
+    };
+
+    const ctaFor = (plan: Plan) => {
+        if (plan.name === "Enterprise") return "Talk to Sales";
+        if (plan.name === "Growth") return isLoggedIn ? "Start Guided Growth Pilot" : "Sign Up for Growth Pilot";
+        return isLoggedIn ? "Start Pilot" : "Sign Up for Pilot";
+    };
+
     // JSON-LD structured data is rendered once, server-side, in layout.tsx (built
     // from the canonical PRICING_TIERS). It used to be duplicated here with a
     // conflicting hardcoded USD list - removed to leave a single source (F-02).
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
+        <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
             <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
             <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 
@@ -230,12 +273,13 @@ export default function PricingPage() {
                         Pricing & Plans
                     </Badge>
                     <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">
-                        Plans for managed growth execution, campaign operations, and pipeline tracking.
+                        Choose your plan
                     </h1>
                     <p className="mx-auto max-w-2xl text-lg text-slate-300">
                         Start with a focused pilot, then scale the buyer-signal-to-meeting workflow with managed campaigns, follow-ups, and governance.
                     </p>
 
+                    {ANNUAL_BILLING_AVAILABLE ? (
                     <div className="pt-4">
                         <div className="inline-flex items-center gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-2">
                             <span className={`text-sm font-semibold transition-colors ${!isAnnual ? "text-white" : "text-slate-400"}`}>Monthly</span>
@@ -252,40 +296,41 @@ export default function PricingPage() {
                             </div>
                         </div>
                     </div>
+                    ) : null}
+                </div>
+
+                <div className="mb-10 flex flex-col items-center justify-center gap-3 text-sm text-slate-300 sm:flex-row">
+                    <label htmlFor="pricing-country" className="font-semibold text-white">Prices shown for</label>
+                    <select
+                        id="pricing-country"
+                        className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white"
+                        value={billingCountry}
+                        onChange={(e) => setBillingCountry(e.target.value)}
+                    >
+                        {BILLING_COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                        ))}
+                    </select>
+                    {billingCountry === "OTHER" && (
+                        <input
+                            aria-label="Country name"
+                            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white"
+                            value={billingCustomCountry}
+                            onChange={(e) => setBillingCustomCountry(e.target.value)}
+                            placeholder="Enter your country"
+                        />
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-3">
                     {plans.map((plan) => {
                         const Icon = plan.icon;
-                        const live = livePrices?.[plan.dbName];
-                        // Live price only applies to the monthly figure - annual billing isn't
-                        // wired up server-side yet (see the toggle's comment above), so the
-                        // annual column stays on the static marketing estimate either way.
-                        // Only trust the live price when the currency is actually available
-                        // (INR today; USD only once Plan.stripePrices is seeded). Otherwise
-                        // fall back to the canonical INR figure - never a fabricated "$49".
-                        const liveAmount = !isAnnual && live?.available === true && live.amount != null ? live.amount : null;
-                        const price = isAnnual
-                            ? plan.annualPrice
-                            : liveAmount != null ? Math.round(liveAmount / 100) : plan.monthlyPrice;
-                        const currencySymbol = liveAmount != null ? (CURRENCY_SYMBOL[live!.currency] || live!.currency + " ") : "₹";
-                        const isEnterprise = plan.name === "Enterprise";
-                        let ctaText = isEnterprise ? "Talk to Sales" : "Start Pilot";
-                        
-                        if (!isEnterprise) {
-                            if (plan.name === "Growth") {
-                                ctaText = isLoggedIn ? "Start Guided Growth Pilot" : "Sign Up for Growth Pilot";
-                            } else {
-                                ctaText = isLoggedIn ? "Start Pilot" : "Sign Up for Pilot";
-                            }
-                        }
-
                         return (
                             <div key={plan.name} className="relative">
                                 {plan.highlight && (
                                     <div className="absolute -top-4 inset-x-0 z-20 flex justify-center">
                                         <Badge variant="info" className="border-none bg-cyan-500 px-4 py-1 text-white shadow-lg shadow-cyan-500/30">
-                                            {plan.badge}
+                                            Recommended
                                         </Badge>
                                     </div>
                                 )}
@@ -297,32 +342,36 @@ export default function PricingPage() {
                                             : "border-white/10 bg-slate-900/35 hover:border-white/25"
                                     }`}
                                 >
-                                    <div className="mb-8">
-                                        <div className="mb-5 w-fit rounded-2xl bg-white/5 p-3 text-cyan-300">
-                                            <Icon className="h-8 w-8" />
+                                    <div className="mb-6">
+                                        <div className="mb-4 w-fit rounded-2xl bg-white/5 p-3 text-cyan-300">
+                                            <Icon className="h-7 w-7" />
                                         </div>
                                         <h3 className="mb-2 text-2xl font-bold text-white">{plan.displayName}</h3>
                                         <p className="text-sm leading-relaxed text-slate-300">{plan.description}</p>
-                                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">{plan.outcome}</p>
                                     </div>
 
-                                    <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                                    <div className="mb-6">
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-4xl font-black text-white">{currencySymbol}{price}</span>
+                                            <span className="text-4xl font-black text-white">{priceLabel(plan)}</span>
                                             <span className="text-sm font-medium text-slate-400">/month</span>
                                         </div>
                                         <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                             Billed {isAnnual ? "annually" : "monthly"}
                                         </p>
-                                        <div className="mt-4 border-t border-white/10 pt-4">
-                                            <div className="flex items-center justify-between text-sm">
-                                                <span className="text-slate-300">Commercial focus</span>
-                                                <span className="font-bold text-white">Pipeline tracking</span>
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    <ul className="mb-10 flex-1 space-y-4">
+                                    <Button
+                                        variant={plan.highlight ? "default" : "outline"}
+                                        className={`mb-8 w-full py-6 text-base font-bold ${
+                                            plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"
+                                        }`}
+                                        onClick={() => handleCheckout(plan.name)}
+                                    >
+                                        {ctaFor(plan)}
+                                    </Button>
+
+                                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">Key features</p>
+                                    <ul className="flex-1 space-y-4">
                                         {plan.features.map((feature) => (
                                             <li key={feature} className="flex items-start gap-3 text-sm text-slate-200">
                                                 <div className="mt-0.5 shrink-0 text-cyan-300">
@@ -332,21 +381,62 @@ export default function PricingPage() {
                                             </li>
                                         ))}
                                     </ul>
-
-                                    <Button
-                                        variant={plan.highlight ? "default" : "outline"}
-                                        className={`w-full py-6 text-base font-bold ${
-                                            plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"
-                                        }`}
-                                        onClick={() => handleCheckout(plan.name)}
-                                    >
-                                        {ctaText}
-                                    </Button>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
+
+                <section aria-labelledby="compare-plans" className="mt-20">
+                    <h2 id="compare-plans" className="mb-8 text-center text-3xl font-black text-white md:text-4xl">Compare plans</h2>
+                    <div className="overflow-x-auto rounded-3xl border border-white/10 bg-slate-900/35">
+                        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-white/10 bg-slate-900/90">
+                                    <th scope="col" className="sticky top-0 w-1/4 p-5 align-bottom text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Plan</th>
+                                    {plans.map((plan) => (
+                                        <th key={plan.name} scope="col" className="sticky top-0 p-5 align-bottom">
+                                            <div className="text-lg font-bold text-white">{plan.displayName}</div>
+                                            <div className="mt-1 text-2xl font-black text-white">
+                                                {priceLabel(plan)}<span className="ml-1 text-sm font-medium text-slate-400">/month</span>
+                                            </div>
+                                            <Button
+                                                variant={plan.highlight ? "default" : "outline"}
+                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"}`}
+                                                onClick={() => handleCheckout(plan.name)}
+                                            >
+                                                {plan.name === "Enterprise" ? "Talk to Sales" : "Choose plan"}
+                                            </Button>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="border-b border-white/10 align-top">
+                                    <th scope="row" className="p-5 font-semibold text-white">Best for</th>
+                                    {plans.map((plan) => (
+                                        <td key={plan.name} className="p-5 text-slate-300">{plan.outcome}</td>
+                                    ))}
+                                </tr>
+                                <tr className="align-top">
+                                    <th scope="row" className="p-5 font-semibold text-white">What&apos;s included</th>
+                                    {plans.map((plan) => (
+                                        <td key={plan.name} className="p-5">
+                                            <ul className="space-y-3">
+                                                {plan.features.map((feature) => (
+                                                    <li key={feature} className="flex items-start gap-2 text-slate-200">
+                                                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                                                        {feature}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </td>
+                                    ))}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
                 <div className="mt-16 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/8 to-slate-900/80 p-8 md:p-10">
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr,0.9fr]">
@@ -419,6 +509,37 @@ export default function PricingPage() {
                         <p className="text-sm text-slate-300">Start with a pilot package, review qualified lead and meeting-tracking signals, then scale the managed workflow.</p>
                     </div>
                 </div>
+
+                <section aria-labelledby="pricing-faq" className="mx-auto mt-20 max-w-3xl">
+                    <h2 id="pricing-faq" className="mb-8 text-center text-3xl font-black text-white md:text-4xl">Pricing questions</h2>
+                    <div className="divide-y divide-white/10 rounded-3xl border border-white/10 bg-slate-900/35">
+                        {pricingFaqs.map((item) => (
+                            <details key={item.q} className="group p-6">
+                                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-white">
+                                    {item.q}
+                                    <span className="text-cyan-300 transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                                </summary>
+                                <p className="mt-3 text-sm leading-7 text-slate-300">{item.a}</p>
+                            </details>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="mt-20 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/8 to-slate-900/80 p-10 text-center">
+                    <h2 className="text-3xl font-black text-white md:text-4xl">Ready to start your pilot?</h2>
+                    <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-200">
+                        Create an account and set up your first governed campaign, or talk to us about a larger rollout.
+                    </p>
+                    <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                        <Button onClick={() => router.push("/signup")} className="bg-cyan-600 px-8 py-5 font-semibold hover:bg-cyan-500">
+                            Get started
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" onClick={() => router.push("/contact")} className="border-white/20 px-8 py-5 font-semibold hover:bg-white/10">
+                            Talk to sales
+                        </Button>
+                    </div>
+                </section>
 
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
                     {proofPoints.map((point) => (

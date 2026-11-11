@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { z } from "zod";
 
 const TemplateSchema = z.object({
@@ -30,10 +31,11 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const body = await req.json();
 

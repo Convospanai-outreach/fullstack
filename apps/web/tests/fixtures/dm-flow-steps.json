@@ -1,0 +1,480 @@
+{
+  "description": "Shared by apps/web (dmFlowSteps.ts) and apps/api (dmFlowMachine.ts validateFlowSteps). Both must return the same result for every case.",
+  "constants": {
+    "maxSteps": 12,
+    "messageMaxBytes": 1000,
+    "linkMaxBytes": 700
+  },
+  "cases": [
+    {
+      "name": "a message then end",
+      "input": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "end"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "end"
+        }
+      ]
+    },
+    {
+      "name": "a question saves to its property",
+      "input": [
+        {
+          "type": "question",
+          "text": "Budget?",
+          "property": "budget"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "question",
+          "text": "Budget?",
+          "property": "budget"
+        }
+      ]
+    },
+    {
+      "name": "a link step after a message",
+      "input": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "link",
+          "text": "Here is the guide"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "link",
+          "text": "Here is the guide"
+        }
+      ]
+    },
+    {
+      "name": "text is trimmed before it is kept",
+      "input": [
+        {
+          "type": "message",
+          "text": "  Hi  "
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "Hi"
+        }
+      ]
+    },
+    {
+      "name": "twelve steps is the most",
+      "input": [
+        {
+          "type": "message",
+          "text": "Step 1"
+        },
+        {
+          "type": "message",
+          "text": "Step 2"
+        },
+        {
+          "type": "message",
+          "text": "Step 3"
+        },
+        {
+          "type": "message",
+          "text": "Step 4"
+        },
+        {
+          "type": "message",
+          "text": "Step 5"
+        },
+        {
+          "type": "message",
+          "text": "Step 6"
+        },
+        {
+          "type": "message",
+          "text": "Step 7"
+        },
+        {
+          "type": "message",
+          "text": "Step 8"
+        },
+        {
+          "type": "message",
+          "text": "Step 9"
+        },
+        {
+          "type": "message",
+          "text": "Step 10"
+        },
+        {
+          "type": "message",
+          "text": "Step 11"
+        },
+        {
+          "type": "message",
+          "text": "Step 12"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "Step 1"
+        },
+        {
+          "type": "message",
+          "text": "Step 2"
+        },
+        {
+          "type": "message",
+          "text": "Step 3"
+        },
+        {
+          "type": "message",
+          "text": "Step 4"
+        },
+        {
+          "type": "message",
+          "text": "Step 5"
+        },
+        {
+          "type": "message",
+          "text": "Step 6"
+        },
+        {
+          "type": "message",
+          "text": "Step 7"
+        },
+        {
+          "type": "message",
+          "text": "Step 8"
+        },
+        {
+          "type": "message",
+          "text": "Step 9"
+        },
+        {
+          "type": "message",
+          "text": "Step 10"
+        },
+        {
+          "type": "message",
+          "text": "Step 11"
+        },
+        {
+          "type": "message",
+          "text": "Step 12"
+        }
+      ]
+    },
+    {
+      "name": "a message of exactly 1000 bytes",
+      "input": [
+        {
+          "type": "message",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "1000 bytes of two-byte letters",
+      "input": [
+        {
+          "type": "message",
+          "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+        }
+      ]
+    },
+    {
+      "name": "a link of exactly 700 bytes",
+      "input": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "link",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "link",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "a 32-character property key",
+      "input": [
+        {
+          "type": "question",
+          "text": "Q?",
+          "property": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": true,
+      "steps": [
+        {
+          "type": "question",
+          "text": "Q?",
+          "property": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
+    {
+      "name": "no steps at all",
+      "input": [],
+      "ok": false,
+      "message": "A flow has 1 to 12 steps."
+    },
+    {
+      "name": "not a list",
+      "input": "message",
+      "ok": false,
+      "message": "A flow needs a list of steps."
+    },
+    {
+      "name": "thirteen steps",
+      "input": [
+        {
+          "type": "message",
+          "text": "Step 1"
+        },
+        {
+          "type": "message",
+          "text": "Step 2"
+        },
+        {
+          "type": "message",
+          "text": "Step 3"
+        },
+        {
+          "type": "message",
+          "text": "Step 4"
+        },
+        {
+          "type": "message",
+          "text": "Step 5"
+        },
+        {
+          "type": "message",
+          "text": "Step 6"
+        },
+        {
+          "type": "message",
+          "text": "Step 7"
+        },
+        {
+          "type": "message",
+          "text": "Step 8"
+        },
+        {
+          "type": "message",
+          "text": "Step 9"
+        },
+        {
+          "type": "message",
+          "text": "Step 10"
+        },
+        {
+          "type": "message",
+          "text": "Step 11"
+        },
+        {
+          "type": "message",
+          "text": "Step 12"
+        },
+        {
+          "type": "message",
+          "text": "Step 13"
+        }
+      ],
+      "ok": false,
+      "message": "A flow has 1 to 12 steps."
+    },
+    {
+      "name": "end before the last step",
+      "input": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "end"
+        },
+        {
+          "type": "message",
+          "text": "Bye"
+        }
+      ],
+      "ok": false,
+      "message": "The end step must be the last step."
+    },
+    {
+      "name": "only an end step",
+      "input": [
+        {
+          "type": "end"
+        }
+      ],
+      "ok": false,
+      "message": "A flow needs at least one step before end."
+    },
+    {
+      "name": "an unknown type",
+      "input": [
+        {
+          "type": "tag",
+          "text": "vip"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 has an unknown type."
+    },
+    {
+      "name": "a null step",
+      "input": [
+        null
+      ],
+      "ok": false,
+      "message": "Step 1 has an unknown type."
+    },
+    {
+      "name": "blank text",
+      "input": [
+        {
+          "type": "message",
+          "text": "   "
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 needs text."
+    },
+    {
+      "name": "text that is not a string",
+      "input": [
+        {
+          "type": "message",
+          "text": 5
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 needs text."
+    },
+    {
+      "name": "a message of 1001 bytes",
+      "input": [
+        {
+          "type": "message",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 is over 1000 bytes."
+    },
+    {
+      "name": "1002 bytes of two-byte letters",
+      "input": [
+        {
+          "type": "message",
+          "text": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 is over 1000 bytes."
+    },
+    {
+      "name": "a link of 701 bytes",
+      "input": [
+        {
+          "type": "message",
+          "text": "Hi"
+        },
+        {
+          "type": "link",
+          "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": false,
+      "message": "Step 2 is over 700 bytes."
+    },
+    {
+      "name": "a question without a property",
+      "input": [
+        {
+          "type": "question",
+          "text": "Budget?"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 needs a property key (lowercase letters, digits and underscores)."
+    },
+    {
+      "name": "a property key with capitals",
+      "input": [
+        {
+          "type": "question",
+          "text": "Budget?",
+          "property": "Budget"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 needs a property key (lowercase letters, digits and underscores)."
+    },
+    {
+      "name": "a property key of 33 characters",
+      "input": [
+        {
+          "type": "question",
+          "text": "Q?",
+          "property": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "ok": false,
+      "message": "Step 1 needs a property key (lowercase letters, digits and underscores)."
+    }
+  ]
+}

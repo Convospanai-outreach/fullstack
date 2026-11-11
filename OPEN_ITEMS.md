@@ -7126,6 +7126,142 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
     (`(dashboard)/dashboard/layout.tsx`); viewers are never redirected.
   - **Where the org chart is (asked at the same time, no change):** Leads → Accounts tab → click a company; or
     a lead's "View Org Chart" button.
+- **OPEN-351 (Fixed — 8 of 10 open Dependabot alerts cleared by upgrades; 2 stay allowlisted):** 2026-10-19.
+  - **Why:** GitHub listed 10 open Dependabot alerts on main. None was reachable from the running app or API,
+    but patched versions now exist for most of them.
+  - **Upgraded:** `prisma`, `@prisma/client` and `@prisma/adapter-pg` to 7.10.1 in both apps, plus
+    `@prisma/config` in apps/api (web was pinned to exactly 7.8.0, api resolved 7.9.1). This brings mysql2 3.24.4
+    (alerts 330, 333), deepmerge-ts 8.0.2 (329), and drops the `@hono/node-server` 1.19.11 that Prisma Studio's
+    dev server bundled (247, 347). `vitest`, `@vitest/coverage-v8` and `@vitest/ui` to ^4.1.11 (342, 346).
+    `sharp` 0.35.5 pinned in `workers/landing-pages` (its own lockfile; pulled in by wrangler's local dev server,
+    363). Supersedes Dependabot PR #661, whose lockfile left vitest without vite.
+  - **Allowlist:** removed the entries for GHSA-ggr8-5vv4-36mx, GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3,
+    GHSA-92pp-h63x-v22m and GHSA-frvp-7c67-39w9 (no longer in the tree). The two image-size entries
+    (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq, alerts 349, 350) stay, with corrected text: image-size 2.0.3 is
+    fixed, but pptxgenjs 4.0.1 (latest) depends on ^1.2.1, a root override does not apply (tried; same
+    conflicting-override-sets problem as OPEN-40), and pptxgenjs never loads it (its only call site is
+    commented out in both bundles).
+  - **Checked:** with both apps on 7.10.1, npm keeps one shared `@prisma/client` at the root. Both apps'
+    `prisma generate` still works and the root scripts can import the client, so the OPEN-18 failure does not
+    come back locally. No schema change and no migration.
+- **OPEN-352 (Resolved (pending merge) — Chrome extension connects from the web app in one click; shared extension key no longer required):** 2026-10-27.
+  - **Why:** connecting the extension meant copying a shared extension key and a sync token into the popup by
+    hand. The owner asked for a one-click connect and for the shared key to be dropped.
+  - **Web:** new page `/extension/connect?ext=<extension id>` (sign-in required). It accepts the Chrome Web Store
+    build's ID plus any IDs in the optional `EXTENSION_IDS` env and pings the extension (`CMF_PING`). When the
+    user clicks Connect, it mints a sync token through `POST /api/extension/token` and hands it over with
+    `CMF_CONNECT` (version 1, workspace URL, token, expiry, team). Signed-out redirects now keep the query in
+    `callbackUrl`. The setup page explains the Connect button and keeps the token generator visible for 1.1.0 and
+    older builds (their Extension key field accepts any text) and for self-hosted workspaces. LinkedIn runtime
+    readiness no longer depends on `EXTENSION_API_KEY`; `setup/status` no longer returns `hasExtensionApiKey`
+    and the setup page's LinkedIn step counts as done.
+  - **API:** `validateExtensionAuth` authenticates with the per-user Bearer sync token alone (expiry, suspended
+    user and team binding unchanged). `x-extension-key` is no longer checked; requests from older builds that
+    still send it keep working, and the web proxy keeps it in the CORS allowed headers. The unused
+    `extension/auth/token` route and its test are removed. `setup/status` and `admin/runtime-overview` no longer
+    read `EXTENSION_API_KEY`.
+  - **Extension 1.2.0:** Settings has a "Connect to CraftMyFunnel" button that opens the connect page.
+    `externally_connectable` lists the two craftmyfunnel.live origins, and the background worker answers only the
+    `/extension/connect` page there, saving the bare domain as the workspace. Requests send only the Bearer token.
+    The button reads "Reconnect" when the workspace refuses the token or it expires within three days. The shared
+    key field is gone; workspace URL and sync token stay under "Advanced: connect manually". A profile saved while
+    not connected is sent once the extension connects. A save refused because the token no longer works asks the
+    user to reconnect. Also in 1.2.0: the profile name capture drops LinkedIn's unread-count prefix in the page
+    title, as in "(3) Jane Doe" (`content.js`, `content-title.test.ts`).
+  - **Deploy order:** (1) merge, so the API (Oracle VMs) and web (Render) deploy; builds 1.0.0/1.1.0 keep working.
+    (2) Upload extension 1.2.0 to the Chrome Web Store; until it is approved, users on 1.1.0 connect with the
+    setup page's token generator. (3) Once rolling the API back past this release is no longer on the table, remove
+    `EXTENSION_API_KEY` from the VM `.env` files. Set `EXTENSION_IDS` on web only if unpacked/dev builds need
+    one-click connect.
+  - **Rollback:** an API image from before this release needs `EXTENSION_API_KEY` set and checks
+    `x-extension-key`, which 1.2.0 never sends. Once 1.2.0 is live, rolling the API back past this release stops
+    extension requests from 1.2.0 (and from every build if the key was already removed) until it is rolled
+    forward again.
+
+- **OPEN-353 (Resolved (pending merge) — browser proxy no longer relays the internal-only email routes):** 2026-10-28.
+  - **Why:** apps/api limits `/email/send-verification`, `/email/verification-token` and `/email/verify-token` to
+    calls from the web server. The browser proxy (`/api/proxy/*`) signs forwarded requests with the signed-in
+    user’s session, so those calls could still reach the routes through it. None of the product code calls them
+    that way.
+  - **Change:** `apps/web/src/app/api/proxy/[...path]/route.ts` answers 404 for those three paths (and sub-paths)
+    without forwarding. Other `/email/*` routes are unchanged. Tests cover each path and an unaffected one.
+  - **Deploy:** web only (Render). No migration, no env change.
+
+- **OPEN-354 (Resolved (pending merge) — the LinkedIn browser only opens LinkedIn profile URLs):** 2026-10-28.
+  - **Why:** `Lead.linkedIn` is free text, and enrichment passed it to the worker’s browser as given. The browser’s
+    address check and the browser’s own lookup are separate, so a lookalike address could not be fully ruled out.
+  - **Change:** `runLinkedInAction` (`apps/api/src/linkedin/puppeteerRunner.ts`) opens only a value
+    `canonicalLinkedInProfileUrl` accepts, in its `https://www.linkedin.com/in/<handle>/` form; anything else returns
+    `{ ok: false }` without opening a page. Tests cover non-LinkedIn hosts, lookalike hosts, company pages, empty input
+    and canonicalisation.
+  - **Deploy:** api only. No migration, no env change. Leads whose `linkedIn` is not a profile URL are skipped by
+    enrichment instead of being opened.
+
+- **OPEN-355 (Resolved (pending merge) — jobs that name their team only in the payload count toward the per-team running cap):** 2026-10-28.
+  - **Why:** `JobQueue.dequeue` caps running jobs per team using the `teamId` column. `enqueue` filled that column only
+    from its `teamId` option, so jobs that carried the team in their payload were stored with a null column and were
+    never capped.
+  - **Change:** `enqueue` (`apps/api/src/lib/queue.ts`) falls back to `payload.teamId` for the column when the option
+    is absent. The option still wins. Tests cover option, payload fallback and neither.
+  - **Deploy:** api only. No migration, no env change. Applies to jobs enqueued after deploy.
+
+- **OPEN-356 (Resolved (pending merge) — reply text is pattern-masked before classification even when the Edge Node is down):** 2026-10-28.
+  - **Why:** reply text is masked before it goes to Jev. When the Edge Node (`PHI3_LOCAL_ENDPOINT`) is unreachable and
+    `STRICT_SOVEREIGNTY` is off, `SovereignFirewall.mask` fell back to a local mode that returned the text unchanged.
+  - **Change:** `mask` takes `{ alwaysMask: true }`, which keeps the local pattern masking (emails, phone numbers) in
+    that fallback. `ReplyAnalyzerAgent` passes it for the subject and body. `maskLocal` also recognises ten-digit numbers
+    written as two groups of five (+91 98765 43210). Other callers keep their current behaviour.
+  - **Names:** `SovereignFirewall.maskKnownNames` replaces the lead’s own name (and each word of it, 3+ letters)
+    and company with tokens before classification and drafting; `unmask` restores them. Other names in a reply are not
+    recognised: that needs the Edge Node (presidio + spaCy), which is not deployed on the VMs.
+  - **Deploy:** api only. No migration, no env change.
+- **OPEN-360 (Resolved (pending merge) — CI guards, browser sandbox docs and generic scraper navigation tightened):** 2026-10-29.
+  - **Why:** review follow-ups on #675, #676, #680, #697 and #707. Two CI guards could pass without checking what
+    they exist to check, the sandbox runbook was incomplete and pointed at an unusable seccomp example, the generic
+    scraper failed on pages that never go network-idle, and the Mautic image was pinned by tag only.
+  - **Change:** (1) `prod-secrets-environment.test.mjs` counts indexed `secrets[...]`, `toJSON(secrets)` and
+    `secrets: inherit` as using every production secret, with a unit check of the detector (#680).
+    (2) `compose-port-binding.test.mjs` fails when a guarded service publishes no ports (#675).
+    (3) `docs/BROWSER_SANDBOX.md`: step 1 also checks `kernel.unprivileged_userns_clone` and
+    `kernel.apparmor_restrict_unprivileged_userns`; the three-syscall example is labelled as an addition to a full
+    profile, not a profile on its own (#676). (4) `GenericAdapter` navigates with the `load` event and then a
+    bounded network-idle wait (500 ms idle, 5 s cap) that cannot fail the scrape, with a unit test (#697).
+    (5) `mautic.yaml` pins the Mautic image by its multi-arch index digest, with a template test (#707); the
+    MySQL and Caddy images stay tag-only.
+  - **Deploy:** none for the docs and CI changes. The API change deploys with the normal Oracle VM release. The
+    Mautic template change reaches the host only when its stack is updated or rebuilt; a version bump now means
+    updating both the tag and the digest.
+- **OPEN-359 (Resolved (pending merge) — review follow-ups: failed-login log id, sign-out audit, India pricing display, CRM token storage, Resend reply status):** 2026-10-29.
+  - **Why:** five low-severity review comments on merged PRs (#693, #691, #704, #671, #727) were still present on main.
+  - **Change:**
+    - #693: the failed-login log id is now a keyed HMAC of the email (`NEXTAUTH_SECRET`) instead of a plain hash; it is left out when the secret is not set.
+    - #691: if ending a user's extension sessions fails during suspend or sign-out, the audit entry is still written (with `sessionRevokeFailed`) and the request answers 500 so the admin retries.
+    - #704: the pricing page shows no amount for India while the INR price is loading or unavailable, instead of the USD list price. Other countries and the annual figure are unchanged.
+    - #671: the HubSpot token refresh stores the refresh token encrypted even when HubSpot returns no new one (an older plaintext value is re-saved encrypted). The apps/api copy of `crmService.ts` has the same line and is not changed here.
+    - #727: the Resend reply handler sets `Email.status` to `replied`, as the Gmail and IMAP paths do. Reports that count `sent` and `delivered` emails now treat Resend replies the same way as the other two; no count queries were changed.
+  - **Deploy:** none beyond the normal merge deploy. Web needs `NEXTAUTH_SECRET` (already set) for the log id. No migration.
+- **OPEN-358 (Resolved (pending merge) — data scoping and logic fixes across jobs, overseer, invites, approvals, policy and INR pricing):** 2026-10-29.
+  - **Why:** follow-ups from review of the PRs listed below. Each was confirmed against the code on main; all are
+    low impact in practice.
+  - **Change:** (#719) `POST /jobs` namespaces a caller-supplied idempotency key with the session team, so a key
+    used by another team neither returns nor blocks this team's job. (#722) the Overseer counts a reply as inside
+    an enrollment only when the inbound message also arrived after the enrollment started, since the reply row's
+    timestamp is set when classification finishes. (#718) `admin/invites` defaults to the workspace the user has
+    selected when they may invite into it, and finds an existing seat regardless of email case. (#678) the
+    scheduler's approval check lets the latest CAMPAIGN_START request decide, as the web start routes do. (#673)
+    `enforcePolicy` accepts only a CAMPAIGN_START approval for a campaign run, and the web start gate uses the
+    extended auto-deny window while the team's breaker is not closed. (#686) the default policy row is created
+    with an upsert, so two first requests for one team no longer collide. (#704) the INR plan prices are written
+    in one transaction.
+  - **Deploy:** none beyond the normal merge; no schema change and no new env.
+
+- **OPEN-357 (Resolved (pending merge) — the public contact forms share a lower rate limit):** 2026-10-28.
+  - **Why:** `/api/contact` and `/api/support/contact` are public and each accepted message sends an email to the team
+    inbox. The only limit was the shared public bucket (100 requests a minute per IP, per process).
+  - **Change:** both routes share a `contact-form` limit of 5 messages per IP per 10 minutes
+    (`RATE_LIMITS.CONTACT_FORM`), checked before the body is read. The Turnstile check on both forms already landed
+    separately. Tests cover the limit on both routes and the Turnstile paths.
+  - **Deploy:** web only (Render). No migration, no env change.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

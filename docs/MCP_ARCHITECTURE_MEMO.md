@@ -1,5 +1,7 @@
 # MCP Architecture Memo
 
+> Historical internal-MCP planning memo. The user-authorized 2026-11-04 inbound customer integration is specified in [MCP_INTEGRATION.md](MCP_INTEGRATION.md). It adds a backend-owned remote endpoint while preserving the mature API/web request owners; it does not consolidate or remove existing outbound integrations in this change.
+
 ## Objective
 
 Make MCP a reliable internal control plane for CraftMyFunnel so agents and operators can use tools safely, consistently, and efficiently without duplicating runtime logic across apps.

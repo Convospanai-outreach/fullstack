@@ -2,8 +2,13 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { escapeHtml, getLandingRenderPayload } from "../rendering";
+import { absoluteLandingAssetUrls, landingAppOrigin } from "../landingAssetUrls";
+import { themeFromRenderedJson } from "../theme";
+import { themeWrapper, type LandingTheme } from "../theme";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
-import { buildTrackingScript } from "../tracking";
+import { buildTrackingScript, normalizeTracking } from "../tracking";
+import { hasLeadFormMarker, readLeadFormConfig, replaceLeadFormMarkers } from "../leadFormHtml";
+import { consentModeOf, type ConsentMode } from "../leadConsent";
 
 // Pushes a published landing page's HTML into the Cloudflare Worker's KV store
 // (workers/landing-pages) so it can be served directly from Cloudflare's edge -
@@ -31,13 +36,44 @@ function getCloudflareConfig() {
 // component, this isn't a redesign. Returns the script's text content only - its
 // sha256 goes into the worker's CSP (see publishPageToCloudflare), so the hash
 // must be taken over exactly the string placed between <script> and </script>.
-function buildLeadFormScript(slug: string): string {
+// meta: the page has a Meta Pixel, so a successful submit fires Lead with the ID made for that submit.
+// consent: "none" for a form without a consent box (the script is unchanged), else "optional" or "required".
+export function buildLeadFormScript(slug: string, meta = false, consent: ConsentMode = "none"): string {
+    const consentExclude = consent === "none" ? "" : ` || el.name === "cmfConsent"`;
+    const consentBody = consent === "none" ? "" : `        consent: consentGiven,\n`;
+    const consentStart = consent === "none" ? "" : `    var consentError = document.getElementById("la-consent-error");
+    var consentBox = form.querySelector('input[name="cmfConsent"]');
+    var consentGiven = Boolean(consentBox && consentBox.checked);
+    if (consentError) consentError.textContent = "";
+    if (!consentGiven && ${consent === "required"}) {
+      if (consentError) consentError.textContent = "Please tick the consent box to send your details.";
+      if (consentBox) consentBox.focus();
+      return;
+    }
+`;
+    const metaStart = meta ? `    var metaEventId = window.cmfMeta ? window.cmfMeta.newId() : null;\n` : "";
+    // A consent box gates the browser Lead event and its event ID on the box being ticked (the server gates its own copy too).
+    const metaGate = consent === "none" ? "" : " && consentGiven";
+    const metaIdValue = consent === "none" ? "metaEventId || undefined" : "consentGiven ? metaEventId || undefined : undefined";
+    const metaTrack = meta ? `        if (metaEventId${metaGate}) window.cmfMeta.track("Lead", metaEventId);\n` : "";
+    const metaBody = meta ? `        metaEventId: ${metaIdValue},\n        metaEventSourceUrl: location.origin + location.pathname,\n` : "";
     return `
 (function () {
   var slug = ${JSON.stringify(slug)};
   var sessionId = (crypto.randomUUID ? crypto.randomUUID() : "sess-" + Date.now() + "-" + Math.random().toString(36).slice(2));
   var version = ${Date.now()};
   var formStarted = false;
+  // Lead form marker pages (data-cmf-form): every named control goes in formFields, validated server-side.
+  function collectFormFields(form) {
+    var out = {};
+    var els = form.querySelectorAll("input, select, textarea");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (!el.name || el.name === "website" || el.name === "whatsappConsent"${consentExclude}) continue;
+      out[el.name] = el.type === "checkbox" ? el.checked : el.value;
+    }
+    return out;
+  }
   var pageParams = new URL(location.href).searchParams;
   function utm(key) { return pageParams.get(key) || undefined; }
 
@@ -45,6 +81,7 @@ function buildLeadFormScript(slug: string): string {
     fetch("/" + slug + "/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      keepalive: true,
       body: JSON.stringify({
         eventName: eventName, sessionId: sessionId, pageVersion: version, eventData: eventData || undefined,
         utmSource: utm("utm_source"), utmMedium: utm("utm_medium"), utmCampaign: utm("utm_campaign"),
@@ -54,6 +91,13 @@ function buildLeadFormScript(slug: string): string {
   }
 
   trackEvent("page_view", { path: location.pathname });
+
+  // Any a.la-cta anchor (solid or outline CTA) counts as a CTA click. The lead form's submit
+  // button is a button, not an anchor, so the submit path below keeps its single cta_click.
+  document.addEventListener("click", function (e) {
+    var target = e.target;
+    if (target && target.closest && target.closest("a.la-cta")) trackEvent("cta_click", { cta: "anchor" });
+  }, true);
 
   var form = document.getElementById("la-lead-form");
   if (!form) return;
@@ -66,11 +110,11 @@ function buildLeadFormScript(slug: string): string {
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    var statusEl = document.getElementById("la-lead-form-status");
+${consentStart}    var statusEl = document.getElementById("la-lead-form-status");
     var submitBtn = form.querySelector("button[type=submit]");
     if (submitBtn) submitBtn.disabled = true;
     if (statusEl) statusEl.textContent = "";
-
+${metaStart}
     var data = new FormData(form);
     var url = new URL(location.href);
     fetch("/" + slug + "/lead", {
@@ -93,12 +137,13 @@ function buildLeadFormScript(slug: string): string {
         referrer: document.referrer || undefined,
         socialToken: url.searchParams.get("t") || undefined,
         whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
-      }),
+        formFields: form.hasAttribute("data-cmf-form") ? collectFormFields(form) : undefined,
+${consentBody}${metaBody}      }),
     })
       .then(function (res) {
         if (!res.ok) throw new Error("Submission failed");
-        trackEvent("cta_click", { cta: "form_submit" });
-        location.href = "/" + slug + "/thank-you";
+${metaTrack}        trackEvent("cta_click", { cta: "form_submit" });
+        location.href = (form.hasAttribute("data-cmf-form") && form.getAttribute("data-redirect")) || "/" + slug + "/thank-you";
       })
       .catch(function () {
         if (statusEl) statusEl.textContent = "Submission failed. Please try again.";
@@ -134,7 +179,20 @@ function buildLeadFormMarkup(whatsappOptIn: string | null): string {
 </section>`;
 }
 
-function buildFullDocument(input: { title?: string | null; css: string; html: string; script: string; whatsappOptIn: string | null }): string {
+// A page with a lead form marker gets its form where the marker is, and no fixed box.
+export function buildFullDocument(input: {
+    title?: string | null;
+    css: string;
+    html: string;
+    script: string;
+    whatsappOptIn: string | null;
+    slug: string;
+    theme?: LandingTheme | null;
+}): string {
+    // The page's theme goes on the body, the same class and variables the React wrapper gets (see theme.ts).
+    const wrapper = themeWrapper(input.theme ?? null);
+    const styleVars = Object.entries(wrapper.vars).map(([key, value]) => `${key}:${value}`).join(";");
+    const bodyStyle = styleVars ? ` style="${escapeHtml(styleVars)}"` : "";
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -143,9 +201,11 @@ function buildFullDocument(input: { title?: string | null; css: string; html: st
 <title>${(input.title || "Landing Page").replace(/</g, "&lt;")}</title>
 <style>${input.css}</style>
 </head>
-<body class="la-page">
-${input.html}
-${buildLeadFormMarkup(input.whatsappOptIn)}
+<body class="${wrapper.className}"${bodyStyle}>
+${hasLeadFormMarker(input.html)
+? replaceLeadFormMarkers(input.html, { slug: input.slug, whatsappOptIn: input.whatsappOptIn })
+: `${input.html}
+${buildLeadFormMarkup(input.whatsappOptIn)}`}
 <script>${input.script}</script>
 </body>
 </html>`;
@@ -170,9 +230,19 @@ class CloudflarePagesService {
             const payload = getLandingRenderPayload(page.renderedJson);
             // The page's analytics loaders (if any) share the one hashed inline script.
             const trackingScript = buildTrackingScript(page.tracking);
-            const script = trackingScript + buildLeadFormScript(page.slug);
+            const metaPixelId = normalizeTracking(page.tracking)?.metaPixelId;
+            const consentMode = consentModeOf(readLeadFormConfig(payload.html)?.consent);
+            const script = trackingScript + buildLeadFormScript(page.slug, Boolean(metaPixelId), consentMode);
             const whatsappOptIn = page.funnelStage ? whatsappOptInText(page.team.name) : null;
-            const html = buildFullDocument({ title: page.title, css: payload.css, html: payload.html, script, whatsappOptIn });
+            const theme = themeFromRenderedJson(page.renderedJson);
+            const html = buildFullDocument({ title: page.title, css: payload.css, html: absoluteLandingAssetUrls(payload.html, landingAppOrigin(process.env)), script, whatsappOptIn, slug: page.slug, theme });
+            const successMessage = readLeadFormConfig(payload.html)?.successMessage;
+            const instagramHandle = readLeadFormConfig(payload.html)?.instagramHandle;
+            const bookingUrl = readLeadFormConfig(payload.html)?.bookingUrl;
+            // The data-deletion page on the connected domain shows these (the Worker escapes them).
+            const consent = readLeadFormConfig(payload.html)?.consent;
+            const deletionSteps = consent?.enabled ? consent.deletionSteps : undefined;
+            const contactEmail = consent?.enabled ? consent.contactEmail : undefined;
             // CSP source for the one inline script the worker is expected to run
             // (workers/landing-pages reads it back from this KV entry).
             const scriptHash = `sha256-${createHash("sha256").update(script, "utf8").digest("base64")}`;
@@ -182,7 +252,18 @@ class CloudflarePagesService {
                 {
                     method: "PUT",
                     headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ html, teamId: page.campaign.teamId, scriptHash, ...(trackingScript ? { tracking: true } : {}) }),
+                    body: JSON.stringify({
+                        html,
+                        teamId: page.campaign.teamId,
+                        scriptHash,
+                        ...(trackingScript ? { tracking: true } : {}),
+                        ...(metaPixelId ? { metaPixel: true } : {}),
+                        ...(successMessage ? { successMessage } : {}),
+                        ...(instagramHandle ? { instagramHandle } : {}),
+                        ...(bookingUrl ? { bookingUrl } : {}),
+                        ...(deletionSteps ? { deletionSteps } : {}),
+                        ...(contactEmail ? { contactEmail } : {}),
+                    }),
                 }
             );
 

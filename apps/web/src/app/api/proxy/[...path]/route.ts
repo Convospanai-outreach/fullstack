@@ -21,6 +21,10 @@ const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
 // B-05). Bound the time-to-response-headers to 15s; the timer is cleared once the
 // upstream responds, so a legitimately long response body still streams through.
 const PROXY_TIMEOUT_MS = 15_000;
+// The website scan reads up to 6 pages and then calls the model, which takes longer than 15s.
+const SLOW_PROXY_TIMEOUT_MS = 90_000;
+const timeoutFor = (pathParts: string[] | undefined) =>
+    pathParts?.join("/") === "setup/scan" ? SLOW_PROXY_TIMEOUT_MS : PROXY_TIMEOUT_MS;
 
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
@@ -162,6 +166,15 @@ export function isWebOwnedPath(pathParts: string[]): boolean {
     return false;
 }
 
+// apps/api routes that only the web server itself may call (see apps/api/src/lib/internalOnlyRoutes.ts).
+// This proxy signs forwarded requests with the browser's session, so it must not relay them at all.
+const INTERNAL_ONLY_PROXY_PATHS = ["email/send-verification", "email/verification-token", "email/verify-token"];
+
+export function isInternalOnlyProxyPath(pathParts: string[]): boolean {
+    const joined = pathParts.join("/");
+    return INTERNAL_ONLY_PROXY_PATHS.some((p) => joined === p || joined.startsWith(`${p}/`));
+}
+
 function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
     if (!pathParts || pathParts.length === 0) return null;
     const root = pathParts[0] || "";
@@ -210,9 +223,14 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers, method
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
+    const startedAt = Date.now();
     try {
         if (!pathParts || pathParts.length === 0) {
             throw new Error("Proxy path is required");
+        }
+
+        if (isInternalOnlyProxyPath(pathParts)) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const webOwnedTarget = getWebOwnedApiUrl(req, pathParts);
@@ -246,7 +264,7 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
                 : await req.arrayBuffer();
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutFor(pathParts));
 
         const requestInit: RequestInit = {
             method,
@@ -274,18 +292,25 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
             headers: responseHeaders,
         });
     } catch (error) {
+        // The detail (internal origin, config or socket errors) stays in the server log: the browser only
+        // needs to know the upstream API did not answer.
+        // Path only: the query string can carry OAuth parameters.
+        console.error("[proxy] upstream request failed", {
+            method: req.method,
+            path: req.nextUrl.pathname,
+            elapsedMs: Date.now() - startedAt,
+            upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
+            error: error instanceof Error ? error.message : String(error),
+        });
         if (error instanceof Error && error.name === "AbortError") {
             return NextResponse.json({
-                error: `Upstream API did not respond within ${PROXY_TIMEOUT_MS / 1000}s.`,
+                error: `Upstream API did not respond within ${timeoutFor(pathParts) / 1000}s.`,
                 code: "PROXY_UPSTREAM_TIMEOUT",
-                upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
             }, { status: 504 });
         }
-        const message = error instanceof Error ? error.message : "Proxy failure";
         return NextResponse.json({
-            error: message === "fetch failed" ? "Upstream API is unavailable or API_INTERNAL_ORIGIN is misconfigured." : message,
+            error: "Upstream API is unavailable.",
             code: "PROXY_UPSTREAM_UNAVAILABLE",
-            upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
         }, { status: 502 });
     }
 }

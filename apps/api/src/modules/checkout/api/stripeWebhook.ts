@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logWebhookRejected } from "@/lib/webhookRejection";
 import { prisma } from "@/lib/db";
 import { OutboxService } from "@/lib/outboxService";
 import { verifyStripeConnectWebhook } from "../gateways/stripeConnect";
@@ -7,6 +8,7 @@ export async function POST(req: Request) {
     try {
         const signature = req.headers.get("stripe-signature");
         if (!signature) {
+            logWebhookRejected(req, "stripe-connect", "missing_signature");
             return new NextResponse("Missing Signature", { status: 400 });
         }
 
@@ -15,6 +17,7 @@ export async function POST(req: Request) {
         try {
             event = verifyStripeConnectWebhook(rawBody, signature);
         } catch {
+            logWebhookRejected(req, "stripe-connect", "invalid_signature", rawBody.length);
             return new NextResponse("Invalid Signature", { status: 400 });
         }
 

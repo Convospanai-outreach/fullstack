@@ -14,6 +14,7 @@ export interface SendMailOptions {
     to: string;
     subject: string;
     html: string;
+    text?: string;
     replyTo?: string;
     headers?: Record<string, string>;
     attachments?: { filename: string; mimeType: string; content: string }[];
@@ -34,6 +35,11 @@ export function createSmtpTransport(config: SmtpConfig): Transporter {
             user: config.user,
             pass: config.password,
         },
+        // Without these, a stuck SMTP server hangs the send (roadmap B-07, same as apps/api):
+        // bound TCP connect, the SMTP greeting, and socket inactivity.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
     });
 }
 
@@ -54,6 +60,7 @@ export async function sendViaSMTP(
             to: options.to,
             subject: options.subject,
             html: options.html,
+            ...(options.text ? { text: options.text } : {}),
             replyTo: options.replyTo,
             headers: options.headers,
             ...(options.attachments?.length

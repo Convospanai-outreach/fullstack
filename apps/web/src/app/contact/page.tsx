@@ -5,11 +5,15 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Mail, Clock, Send, Headphones, Building2 } from "lucide-react";
 import { trackCustomEvent } from "@/components/analytics/GoogleAnalytics";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 
 export default function ContactPage() {
     const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website_url: "" });
     const [loading, setLoading] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState("");
+    // A Turnstile token is single-use; remounting the widget after each attempt gets a fresh one.
+    const [widgetKey, setWidgetKey] = useState(0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +37,7 @@ export default function ContactPage() {
                 body: JSON.stringify({
                     ...form,
                     ga_client_id: gaClientId,
+                    turnstileToken,
                 }),
             });
             const data = await response.json().catch(() => ({}));
@@ -40,6 +45,10 @@ export default function ContactPage() {
             if (!response.ok) {
                 const message = typeof data?.error === "string" ? data.error : "Failed to send message. Please try again.";
                 throw new Error(message);
+            }
+
+            if (data?.delivery === "queued" || data?.status === "queued") {
+                throw new Error("Your message could not be delivered. Please email contact.us@craftmyfunnel.live.");
             }
 
             // Fire standard GA4 Lead Conversion Event
@@ -57,13 +66,15 @@ export default function ContactPage() {
             const message = error instanceof Error ? error.message : "Failed to send message. Please try again.";
             toast.error(message);
         } finally {
+            setTurnstileToken("");
+            setWidgetKey((key) => key + 1);
             setLoading(false);
         }
     };
 
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
+        <div className="relative min-h-screen bg-slate-950 text-white overflow-hidden">
             {/* Background */}
             <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -210,6 +221,8 @@ export default function ContactPage() {
                                         placeholder="Where were you, and what did you expect?"
                                     />
                                 </div>
+
+                                <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
 
                                 <button
                                     type="submit"

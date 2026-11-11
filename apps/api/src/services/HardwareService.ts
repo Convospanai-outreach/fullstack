@@ -363,7 +363,7 @@ export class HardwareService {
 
     static async reIdentify(maskedId: string, purpose: string, teamId?: string): Promise<IdentityResponse> {
         try {
-            logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
+            logger.info(`[HardwareService] Re-identifying a token for purpose: ${purpose}`);
             const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
 export function ContactSupportForm() {
     const [formData, setFormData] = useState({
@@ -17,6 +18,9 @@ export function ContactSupportForm() {
     const [ticketId, setTicketId] = useState<string>("");
     const [ticketStatus, setTicketStatus] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [turnstileToken, setTurnstileToken] = useState("");
+    // A Turnstile token is single-use; remounting the widget after each attempt gets a fresh one.
+    const [widgetKey, setWidgetKey] = useState(0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,7 +32,7 @@ export function ContactSupportForm() {
             const res = await fetch("/api/support/contact", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ ...formData, turnstileToken })
             });
             const data = await res.json().catch(() => ({}));
 
@@ -56,6 +60,8 @@ export function ContactSupportForm() {
             setSuccess(false);
             setErrorMessage("An unexpected error occurred. Please try again.");
         }
+        setTurnstileToken("");
+        setWidgetKey((key) => key + 1);
         setLoading(false);
     };
 
@@ -122,6 +128,7 @@ export function ContactSupportForm() {
                             required
                         />
                     </div>
+                    <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
                     <Button variant="default" disabled={loading} className="w-full">
                         {loading ? "Sending..." : "Send Message"}
                     </Button>

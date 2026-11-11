@@ -3,11 +3,11 @@ import { prisma, type TransactionClient } from "@/lib/db";
 
 export class BlindIndexService {
     private static getSecretKey(): string {
-        return (
-            process.env["BLIND_INDEX_KEY"] ||
-            process.env["ENCRYPTION_KEY"] ||
-            "cmf_default_blind_index_salt_secure"
-        );
+        const key = process.env["BLIND_INDEX_KEY"] || process.env["ENCRYPTION_KEY"];
+        if (!key) {
+            throw new Error("BLIND_INDEX_KEY or ENCRYPTION_KEY must be set to compute blind indexes");
+        }
+        return key;
     }
 
     /**

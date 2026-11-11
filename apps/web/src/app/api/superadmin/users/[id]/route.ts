@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSuperAdminUserId } from "@/lib/superadmin/session";
 import { fetchSuperAdminUserDetail } from "@/lib/superadmin/apiClient";
 import { auditSuperAdmin, getSuperAdminActor } from "@/lib/superadmin/actor";
+import { clientIp } from "@/lib/clientIp";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { prisma } = await import("@/lib/db");
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const { id: targetUserId } = await params;
     const range = new URL(req.url).searchParams.get("range") || "30d";
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    const ipAddress = clientIp(req.headers);
 
     try {
         const { status, body } = await fetchSuperAdminUserDetail(
@@ -84,10 +85,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await prisma.user.update({ where: { id: targetUserId }, data });
+    let sessionRevokeFailed = false;
+    // Extension tokens live in Session rows and are not covered by sessionVersion, so end them here too.
+    if (action === "suspend" || action === "signOut") {
+      // A failure here must not skip the audit entry below; it is recorded and reported after it.
+      try {
+        await prisma.session.deleteMany({ where: { userId: targetUserId } });
+      } catch {
+        sessionRevokeFailed = true;
+        metadata = { ...metadata, sessionRevokeFailed: true };
+      }
+    }
     const { forgetUserAccess } = await import("@/lib/userAccess");
     forgetUserAccess(targetUserId);
     const auditAction = { suspend: "USER_SUSPEND", reactivate: "USER_REACTIVATE", signOut: "USER_SIGN_OUT", setRole: "USER_ROLE_SET" }[action]!;
     await auditSuperAdmin(actor, auditAction, req, metadata);
+    if (sessionRevokeFailed) {
+        return NextResponse.json({ error: "The account was updated but its extension sessions could not be ended. Try again." }, { status: 500 });
+    }
 
     const updated = await prisma.user.findUnique({
         where: { id: targetUserId },

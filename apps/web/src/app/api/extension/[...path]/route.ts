@@ -18,6 +18,8 @@ function corsHeaders(req: NextRequest): HeadersInit {
     return {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        // Auth is the Bearer sync token; x-extension-key stays allowed because older
+        // extension builds still send it and their preflights must keep passing.
         "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key",
         "Access-Control-Max-Age": "600"
     };

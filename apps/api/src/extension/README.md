@@ -4,15 +4,15 @@ CraftMyFunnel Assistant is a V1 Chrome Web Store approval-safe LinkedIn profile 
 
 ## V1 Approval Scope
 
-The published build (version 1.1.0) is intentionally minimal and approval-safe: **V1 approval scope: visible LinkedIn profile capture and outreach prep only.** The active extension only captures visible public details from the LinkedIn profile page the user is currently viewing after an explicit user click:
+The current build (version 1.2.0) is intentionally minimal and approval-safe: **V1 approval scope: visible LinkedIn profile capture and outreach prep only.** The active extension only captures visible public details from the LinkedIn profile page the user is currently viewing after an explicit user click:
 
 - profile URL
-- name
+- name (from 1.2.0, without the unread-count prefix LinkedIn adds to the page title, as in "(3) Jane Doe")
 - headline when visible or safely available from the page title/meta fallback
 - current company only when confidently visible in the top profile card
 - location only when confidently visible
 
-The capture is scoped to the visible top profile card, stored locally with `chrome.storage`, and can be copied from the popup for manual review. Missing optional fields are shown as `Not detected from visible profile.` The published build does not poll background jobs, open tabs on its own, send LinkedIn actions, read cookies, or request broad host access. It opens a profile tab, or places a draft in the LinkedIn message box, only when the user clicks that button in the popup (see "Due steps" below).
+The capture is scoped to the visible top profile card, stored locally with `chrome.storage`, and can be copied from the popup for manual review. Missing optional fields are shown as `Not detected from visible profile.` The published build does not poll background jobs, open tabs on its own, send LinkedIn actions, read cookies, or request broad host access. It opens a profile tab or the CraftMyFunnel connect page, or places a draft in the LinkedIn message box, only when the user clicks that button in the popup (see "Due steps" and "Connecting to CraftMyFunnel" below).
 
 The popup provides:
 
@@ -24,7 +24,7 @@ The popup provides:
 - local save with optional best-effort workspace sync if configured
 - activity log with the last five events
 - after a lead is synced, adding it to one of the team's switched-on sequences (a lead with no email yet joins once it has one)
-- settings for workspace URL, optional token, default tone, and default outreach angle
+- a Connect to CraftMyFunnel button, with the workspace URL and sync token fields kept under "Advanced: connect manually"; default tone and default outreach angle
 - a connection check that names the CraftMyFunnel team and account the sync token belongs to (the token is tied to the team it was generated in)
 - a Due tab listing the LinkedIn sequence steps that are waiting on the signed-in person (see "Due steps" below)
 
@@ -33,6 +33,38 @@ Active Version 1 permissions:
 - `storage`
 - `activeTab`
 - LinkedIn profile host access only: `https://www.linkedin.com/in/*`
+
+`externally_connectable` lists `https://craftmyfunnel.live/*` and `https://www.craftmyfunnel.live/*`
+so the connect page can message the extension (1.2.0). It is not a permission and grants no host
+access; check the install warning shown in the store dashboard before publishing.
+
+## Connecting to CraftMyFunnel (1.2.0)
+
+Settings has a **Connect to CraftMyFunnel** button. It opens
+`https://craftmyfunnel.live/extension/connect?ext=<extension id>` in a new tab (`chrome.tabs.create`
+needs no `tabs` permission). The user signs in there and clicks Connect, and the page sends the extension
+a sync token with `chrome.runtime.sendMessage(extensionId, ...)`:
+
+- `{ type: "CMF_PING" }` is answered with `{ ok: true, version, connected }`.
+- `{ type: "CMF_CONNECT", version: 1, workspaceUrl, syncToken, expiresAt, team }` is answered with
+  `{ ok: true, version }` or `{ ok: false, error }`.
+
+The background worker answers only the `/extension/connect` page on `https://craftmyfunnel.live` or
+`https://www.craftmyfunnel.live`, and only takes a `workspaceUrl` on the same site as the page. It
+saves `https://craftmyfunnel.live` as the workspace either way. On connect it saves
+`settings.workspaceUrl`, `settings.syncToken`, `settings.syncTokenExpiresAt` and `settings.team`,
+clears `settings.extensionKey`, and sends a profile that was saved while not connected
+(`savedLead.status` `pending_sync`).
+
+Requests to the workspace carry only the sync token (`Authorization: Bearer <token>`); the shared
+extension key is no longer used. When the workspace answers 401 or 403 with `INVALID_TOKEN`,
+`TOKEN_TEAM_REVOKED`, `MISSING_TOKEN`, `LEGACY_IDENTITY_DISABLED` or `ACCOUNT_SUSPENDED`, the
+extension sets `settings.needsReconnect` and the button reads **Reconnect to CraftMyFunnel**. It
+also reads Reconnect when the token expires within three days. Settings shows the connected team
+and the expiry date.
+
+For a self-hosted or development workspace, the workspace URL and a sync token can still be entered
+by hand under "Advanced: connect manually".
 
 ## Due steps (1.1.0)
 
@@ -54,8 +86,9 @@ For each step the popup shows who it is for, what to do and the suggested messag
 - **Mark done** tells CraftMyFunnel the user did the step (`POST /api/extension/steps/<id>/done`),
   and the sequence moves on to its next step.
 
-Settings stay where 1.0.0 saved them (`settings.workspaceUrl`, `settings.extensionKey`,
-`settings.syncToken` in `chrome.storage.local`), so an update keeps the connection. A saved
+Settings stay where 1.0.0 saved them (`settings.workspaceUrl` and `settings.syncToken` in
+`chrome.storage.local`), so an update keeps the connection; a saved `settings.extensionKey` is no
+longer sent. A saved
 `https://www.craftmyfunnel.live` address is sent to `https://craftmyfunnel.live`, because the www
 address redirects and the browser does not follow a redirect for these requests.
 
@@ -140,6 +173,8 @@ The following are intentionally disabled in the V1 approval build:
 2. Enable Developer mode.
 3. Click Load unpacked.
 4. Select `apps/api/src/extension`.
+   An unpacked build has its own extension ID. Connect to CraftMyFunnel works for it only when that
+   ID is listed in the server's `EXTENSION_IDS`; otherwise use "Advanced: connect manually".
 5. Open a LinkedIn profile page.
 6. Use the popup to capture the visible profile, prepare a draft, qualify the lead, and save locally.
 
@@ -165,7 +200,10 @@ The listing text and permission answers for the store form are in `STORE_SUBMISS
 - Copy Capture and Copy Draft copy text manually.
 - Save Lead succeeds locally when workspace sync is unavailable.
 - Activity Log keeps only the last five events.
-- Settings page stores workspace URL, optional token, default tone, and default angle locally.
+- Settings: Connect to CraftMyFunnel opens the connect page; after approving there, Settings shows the team and expiry date.
+- Settings, Advanced: connect manually stores workspace URL and sync token; default tone and default angle are stored locally.
+- Save a lead before connecting: it shows "Sends when connected" and is sent after connecting.
+- Revoke the sync token in CraftMyFunnel, then open the Due tab: Settings offers Reconnect.
 - Due tab, not connected: it asks to connect CraftMyFunnel in Settings.
 - Due tab, connected, with a LinkedIn step waiting in a sequence: the step is listed with its message.
 - Open profile opens the profile in a new tab; reopening the popup there shows the Due tab with that step first.
@@ -174,7 +212,7 @@ The listing text and permission answers for the store form are in `STORE_SUBMISS
 - Put in message box with a chat open with someone else: that chat is left alone and the draft stays in the panel.
 - If Message opens LinkedIn's full messaging page instead of the chat overlay, the panel is gone with the profile page; use Copy message in the popup instead.
 - Mark done removes the step from the list, and the sequence's next step is scheduled in CraftMyFunnel.
-- Updating from 1.0.0 keeps the saved workspace URL, extension key and sync token.
+- Updating from 1.0.0 or 1.1.0 keeps the saved workspace URL and sync token.
 
 ## Safe Usage
 

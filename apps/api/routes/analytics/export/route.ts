@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
 import { CSV_FORMULA_PREFIX, streamingCsvResponse } from "@/lib/csvStream";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const EXPORT_BATCH_SIZE = 1000;
 
@@ -68,6 +69,6 @@ export async function GET(_req: NextRequest) {
         });
     } catch (error: any) {
         console.error("Error exporting analytics:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

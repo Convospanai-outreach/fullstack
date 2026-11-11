@@ -36,6 +36,54 @@ describe("normalizeTracking", () => {
     });
 });
 
+describe("Meta Pixel config", () => {
+    it("accepts digits-only Pixel IDs and rejects anything else", () => {
+        expect(pageTrackingSchema.parse({ metaPixelId: " 123456789012345 " }).metaPixelId).toBe("123456789012345");
+        for (const bad of ["12ab", "1234", "1;alert(1)", "G-ABC1234", "123456789012345678901"]) {
+            expect(pageTrackingSchema.safeParse({ metaPixelId: bad }).success).toBe(false);
+        }
+    });
+
+    it("accepts a test event code of letters, digits, dash and underscore only", () => {
+        expect(pageTrackingSchema.parse({ metaTestEventCode: "TEST12345" }).metaTestEventCode).toBe("TEST12345");
+        expect(pageTrackingSchema.safeParse({ metaTestEventCode: "" }).success).toBe(true);
+        expect(pageTrackingSchema.safeParse({ metaTestEventCode: 'TEST"<script>' }).success).toBe(false);
+    });
+
+    it("keeps both Meta fields through normalizeTracking", () => {
+        expect(normalizeTracking({ metaPixelId: "123456789012345", metaTestEventCode: "TEST1" })).toEqual({
+            metaPixelId: "123456789012345",
+            metaTestEventCode: "TEST1",
+        });
+    });
+
+    it("loads the Pixel only when a Pixel ID is configured", () => {
+        expect(buildTrackingScript({ ga4Id: "G-ABC1234" })).not.toContain("fbevents.js");
+        const script = buildTrackingScript({ metaPixelId: "123456789012345" });
+        expect(script).toContain('"https://connect.facebook.net/en_US/fbevents.js"');
+        expect(script).toContain('window.fbq("init", "123456789012345")');
+        expect(script).toContain('window.fbq("track", "PageView"');
+    });
+
+    it("never places an invalid Pixel ID in code", () => {
+        expect(buildTrackingScript({ metaPixelId: '1");alert(1);//' })).toBe("");
+    });
+
+    it("skips the Pixel for Do Not Track and Global Privacy Control visitors", () => {
+        const script = buildTrackingScript({ metaPixelId: "123456789012345" });
+        expect(script).toContain('navigator.doNotTrack === "1"');
+        expect(script).toContain("navigator.globalPrivacyControl === true");
+        expect(script).toContain("if (off) return;");
+    });
+
+    it("exposes cmfMeta so the lead form can fire Lead with the same event ID it sends to the server", () => {
+        const script = buildTrackingScript({ metaPixelId: "123456789012345" });
+        expect(script).toContain("window.cmfMeta = {");
+        expect(script).toContain("newId: function");
+        expect(script).toContain("track: function (name, eventId)");
+    });
+});
+
 describe("buildTrackingScript", () => {
     it("is empty without tracking", () => {
         expect(buildTrackingScript(null)).toBe("");

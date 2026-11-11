@@ -5,6 +5,7 @@ const { getSuperAdminUserId, prisma } = vi.hoisted(() => ({
     prisma: {
         user: { findUnique: vi.fn(), update: vi.fn() },
         superAdminAuditLog: { create: vi.fn() },
+        session: { deleteMany: vi.fn() },
     },
 }));
 
@@ -45,6 +46,18 @@ describe("PATCH /api/superadmin/users/[id]", () => {
         expect(prisma.superAdminAuditLog.create).toHaveBeenCalledWith(
             expect.objectContaining({ data: expect.objectContaining({ action: "USER_SUSPEND", metadata: { targetUserId: "u-9", email: "user@example.com", reason: "chargeback fraud" } }) })
         );
+    });
+
+    it("ends extension Session rows on suspend and sign-out, but not on reactivate or a role change", async () => {
+        await patch("u-9", { action: "suspend", reason: "abuse" });
+        expect(prisma.session.deleteMany).toHaveBeenLastCalledWith({ where: { userId: "u-9" } });
+        prisma.session.deleteMany.mockClear();
+        await patch("u-9", { action: "signOut" });
+        expect(prisma.session.deleteMany).toHaveBeenLastCalledWith({ where: { userId: "u-9" } });
+        prisma.session.deleteMany.mockClear();
+        await patch("u-9", { action: "reactivate" });
+        await patch("u-9", { action: "setRole", enterpriseRole: "ORG_ADMIN" });
+        expect(prisma.session.deleteMany).not.toHaveBeenCalled();
     });
 
     it("reactivates, signs out everywhere, and changes the role", async () => {

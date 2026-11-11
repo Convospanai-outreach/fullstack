@@ -13,7 +13,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "generationId and feedbackType required" }, { status: 400 });
     }
 
-    const generation = await prisma.generation.findUnique({ where: { id: generationId } });
+    // Generations have no team column of their own: they belong to the team of their lead.
+    const generation = await prisma.generation.findFirst({ where: { id: generationId, lead: { teamId: ctx.teamId } } });
     if (!generation) return NextResponse.json({ error: "Generation not found" }, { status: 404 });
 
     await EventStore.record({

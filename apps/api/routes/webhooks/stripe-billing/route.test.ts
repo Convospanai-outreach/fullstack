@@ -12,12 +12,15 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         creditTransaction: { findFirst: vi.fn() },
         invoice: { findFirst: vi.fn() },
         plan: { findUnique: vi.fn() },
+        auditLog: { create: vi.fn() },
         $transaction: vi.fn(),
     };
     return { mockPrisma, mockTx };
 });
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const { mockWarn } = vi.hoisted(() => ({ mockWarn: vi.fn() }));
+vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: mockWarn, error: vi.fn() } }));
 
 const { mockVerifyWebhook, mockGetSubscriptionMetadata } = vi.hoisted(() => ({
     mockVerifyWebhook: vi.fn(),
@@ -70,6 +73,7 @@ describe("/webhooks/stripe-billing", () => {
         const { POST } = await import("./route");
         const response = await POST(new Request("http://localhost/webhooks/stripe-billing", { method: "POST", body: "{}" }));
         expect(response.status).toBe(400);
+        expect(mockWarn).toHaveBeenCalledWith("webhook.signature_invalid", expect.objectContaining({ provider: "stripe-billing", reason: "missing_signature" }));
     });
 
     it("rejects a request whose signature fails verification", async () => {
@@ -77,6 +81,10 @@ describe("/webhooks/stripe-billing", () => {
         const { POST } = await import("./route");
         const response = await POST(webhookRequest("{}"));
         expect(response.status).toBe(400);
+        expect(mockWarn).toHaveBeenCalledWith(
+            "webhook.signature_invalid",
+            expect.objectContaining({ provider: "stripe-billing", reason: "invalid_signature", path: "/webhooks/stripe-billing", bodyLength: 2 })
+        );
     });
 
     it("grants credits, creates an invoice, and publishes PAYMENT_CAPTURED on invoice.payment_succeeded", async () => {
@@ -102,6 +110,31 @@ describe("/webhooks/stripe-billing", () => {
         }));
     });
 
+    it("extends a yearly subscription by 365 days, grants one month of credits and schedules the next grant", async () => {
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+        mockGetSubscriptionMetadata.mockResolvedValue({ teamId: "team-1", userId: "user-1", planId: "plan-1", interval: "year" });
+
+        const { POST } = await import("./route");
+        await POST(webhookRequest("{}"));
+
+        const [, userId, , periodDays, subscriptionId, interval, isYearly, grantDays, teamId, renewDays] = mockTx.$queryRaw.mock.calls[0];
+        expect({ userId, periodDays, subscriptionId, interval, isYearly, grantDays, teamId, renewDays }).toEqual({
+            userId: "user-1", periodDays: 365, subscriptionId: "sub_1", interval: "YEAR", isYearly: true, grantDays: 30, teamId: "team-1", renewDays: 365,
+        });
+        expect(mockTx.team.update).toHaveBeenCalledTimes(1);
+        expect(mockTx.team.update).toHaveBeenCalledWith({ where: { id: "team-1" }, data: { credits: { increment: 500 } } });
+    });
+
+    it("keeps a subscription whose metadata has no interval monthly", async () => {
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+
+        const { POST } = await import("./route");
+        await POST(webhookRequest("{}"));
+
+        const [, , , periodDays, , interval, isYearly] = mockTx.$queryRaw.mock.calls[0];
+        expect({ periodDays, interval, isYearly }).toEqual({ periodDays: 30, interval: "MONTH", isYearly: false });
+    });
+
     it("does not re-process a payment already recorded (idempotency no-op)", async () => {
         mockVerifyWebhook.mockReturnValue(invoiceEvent());
         mockPrisma.creditTransaction.findFirst.mockResolvedValue({ id: "existing" });
@@ -122,6 +155,24 @@ describe("/webhooks/stripe-billing", () => {
 
         expect(response.status).toBe(200);
         expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("records a durable audit entry, and 500s if it cannot, when the plan in the metadata is unknown", async () => {
+        mockGetSubscriptionMetadata.mockResolvedValue({ teamId: "team-1", userId: "user-1", planId: "gone" });
+        mockPrisma.plan.findUnique.mockResolvedValue(null);
+        mockPrisma.auditLog.create.mockResolvedValue({});
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+        const { POST } = await import("./route");
+
+        const ok = await POST(webhookRequest("{}"));
+
+        expect(ok.status).toBe(200);
+        expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ action: "WEBHOOK_UNRECOGNIZED_PLAN", orgId: "team-1" }),
+        }));
+
+        mockPrisma.auditLog.create.mockRejectedValue(new Error("db unavailable"));
+        expect((await POST(webhookRequest("{}"))).status).toBe(500);
     });
 
     it("skips fulfillment when subscription metadata is missing required fields", async () => {

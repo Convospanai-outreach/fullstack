@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Role enforcement has its own coverage (routes/__tests__/viewerReadOnly.test.ts): here the caller is a member.
+vi.mock("@/lib/permissions", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/permissions")>()),
+    forbiddenUnlessRole: vi.fn().mockResolvedValue(null),
+    authorizeRole: vi.fn().mockResolvedValue(undefined),
+}));
+
 const { mockGetCurrentContext, mockPrisma } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
@@ -23,7 +30,7 @@ function jsonRequest(body: any) {
 describe("templates/[id] - cross-tenant scoping", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetCurrentContext.mockResolvedValue({ teamId: "team-a" });
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
     });
 
     describe("PUT", () => {

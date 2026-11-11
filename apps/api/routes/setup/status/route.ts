@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getEdgeRuntimeAvailability, getEdgeNodeStatusSnapshot } from "@/lib/edgeRuntime";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const SENSITIVE_CONFIG_KEYS = [
     "apikey",
@@ -99,10 +100,11 @@ export async function GET(req: Request) {
         const hasCustomSender = canSendEmail;
 
         // Step 4: LinkedIn
-        const hasExtensionApiKey = !!process.env['EXTENSION_API_KEY'];
         const webBaseUrl = process.env['WEB_BASE_URL'] || process.env['NEXTAUTH_URL'] || "http://localhost:3000";
         const extensionApiBase = `${webBaseUrl.replace(/\/$/, "")}/api/proxy/extension`;
-        const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || (hasExtensionApiKey ? "EXTENSION" : "EDGE");
+        // The extension authenticates with per-user sync tokens and needs no server key, so it is
+        // always available and is the default mode unless LINKEDIN_EXECUTION_MODE says otherwise.
+        const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || "EXTENSION";
         const hasBrowserNode = !!process.env['BROWSER_NODE_URL'] || !!process.env['BROWSER_WS_ENDPOINT'];
         // Task: Check real session status from user settings
         const userSettings = await prisma.settings.findUnique({ where: { userId: ctx.userId } });
@@ -192,7 +194,7 @@ export async function GET(req: Request) {
             hasAccount, isEmailVerified, hasTeam: true, hasTeamRole,
             hasCompanyName, hasLogo, hasPrimaryColor, brandingComplete,
             hasSmtpConfig, canSendEmail, hasCustomSender,
-            hasLinkedInSession, hasBrowserNode, linkedInMode, hasExtensionApiKey, extensionApiBase,
+            hasLinkedInSession, hasBrowserNode, linkedInMode, extensionApiBase,
             hasToneSet, hasVoiceDescription, hasEmailSignature, hasGreetingStyle, emailVoiceComplete,
             hasGeminiKey, canGenerateMessage,
             leadCount, leadsWithEmail, leadsWithLinkedIn, hasHunterKey,
@@ -219,7 +221,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error("Setup status error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 

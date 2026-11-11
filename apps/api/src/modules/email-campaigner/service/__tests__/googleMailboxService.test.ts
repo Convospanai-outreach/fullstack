@@ -1678,6 +1678,30 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         expect(raw).toContain("<p>content</p>");
     });
 
+    it("does not let attachment metadata add MIME headers", async () => {
+        mockFetch
+            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
+            .mockResolvedValueOnce(response({ payload: { headers: [{ name: "Message-ID", value: "<wire-id@gmail.com>" }] } }));
+
+        await sendViaGmailMailbox({
+            teamId: "team-1",
+            mailboxId: "mailbox-1",
+            to: "recipient@example.com",
+            subject: "Hello",
+            html: "<p>content</p>",
+            attachments: [
+                { filename: 'a".pdf\r\nBcc: attacker@example.com', mimeType: "text/plain\r\nX-Evil: 1", content: Buffer.from("x").toString("base64") },
+            ],
+        });
+
+        const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+        const raw = Buffer.from(body.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+
+        expect(raw).not.toMatch(/^Bcc:/m);
+        expect(raw).not.toMatch(/^X-Evil:/m);
+        expect(raw).toContain("Content-Type: application/octet-stream");
+    });
+
     it("falls back to the client-generated RFC Message-ID when the post-send wire fetch fails", async () => {
         mockFetch
             .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))

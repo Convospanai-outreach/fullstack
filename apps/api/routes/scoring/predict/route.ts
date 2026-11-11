@@ -9,6 +9,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { predictiveService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         logger.error("[API] Predictive Error:", error);
         return NextResponse.json(
-            { error: error.message || "Prediction failed" },
+            { error: internalErrorMessage(error, "Prediction failed") },
             { status: 500 }
         );
     }
@@ -135,7 +136,7 @@ export async function GET(_req: NextRequest) {
     } catch (error: any) {
         logger.error("[API] Get Clusters Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to get clusters" },
+            { error: internalErrorMessage(error, "Failed to get clusters") },
             { status: 500 }
         );
     }

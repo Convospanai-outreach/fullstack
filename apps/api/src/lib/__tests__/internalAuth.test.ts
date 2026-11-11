@@ -51,16 +51,20 @@ describe("verifyInternalAuthHeaders", () => {
         process.env["NEXTAUTH_SECRET"] = originalSecret;
     });
 
-    it("still accepts the legacy v1 format (web builds from before this change)", () => {
-        expect(verifyInternalAuthHeaders(legacyHeaders(), REQ, NOW)).toMatchObject({
-            sub: "user-1",
-            email: "u@example.com",
-            enterpriseRole: "USER",
-        });
+    it("rejects the legacy v1 format, which binds no method, path or nonce", () => {
+        expect(verifyInternalAuthHeaders(legacyHeaders(), REQ, NOW)).toBeNull();
+        expect(verifyInternalAuthHeaders(new Headers(legacyHeaders()), REQ, NOW)).toBeNull();
     });
 
-    it("accepts the legacy format from a Headers instance too (auth.ts/admin.ts call sites)", () => {
-        expect(verifyInternalAuthHeaders(new Headers(legacyHeaders()), REQ, NOW)?.sub).toBe("user-1");
+    it("rejects a captured header set with its v2 headers stripped (no downgrade to v1)", () => {
+        const headers: Record<string, string> = v2Headers();
+        delete headers["x-craftmyfunnel-auth-nonce"];
+        delete headers["x-craftmyfunnel-auth-signature-v2"];
+        expect(verifyInternalAuthHeaders(headers, { method: "DELETE", path: "/admin/users" }, NOW)).toBeNull();
+    });
+
+    it("accepts v2 from a Headers instance too (auth.ts/admin.ts call sites)", () => {
+        expect(verifyInternalAuthHeaders(new Headers(v2Headers()), REQ, NOW)?.sub).toBe("user-1");
     });
 
     it("accepts v2 bound to the same method and path", () => {
@@ -97,15 +101,9 @@ describe("verifyInternalAuthHeaders", () => {
         expect(verifyInternalAuthHeaders(withSigOnly, REQ, NOW)).toBeNull();
     });
 
-    it("rejects either format outside the 5-minute window", () => {
+    it("rejects v2 outside the 5-minute window", () => {
         const later = NOW + 5 * 60 * 1000 + 1;
-        expect(verifyInternalAuthHeaders(legacyHeaders(), REQ, later)).toBeNull();
         expect(verifyInternalAuthHeaders(v2Headers(), REQ, later)).toBeNull();
-    });
-
-    it("rejects a forged v1 signature", () => {
-        const headers = legacyHeaders({ "x-craftmyfunnel-user-id": "someone-else" });
-        expect(verifyInternalAuthHeaders(headers, REQ, NOW)).toBeNull();
     });
 });
 
@@ -137,10 +135,8 @@ describe("authenticateInternalRequest (single-use nonce)", () => {
         expect((await authenticateInternalRequest(v2Headers({ nonce }), REQ, NOW))?.sub).toBe("user-1");
     });
 
-    it("does not track legacy requests (no nonce to claim)", async () => {
-        const headers = legacyHeaders();
-        expect(await authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
-        expect(await authenticateInternalRequest(headers, REQ, NOW)).not.toBeNull();
+    it("rejects legacy v1 requests", async () => {
+        expect(await authenticateInternalRequest(legacyHeaders(), REQ, NOW)).toBeNull();
     });
 
     it("claims the nonce in the cache it is given (server.ts passes the Redis-backed one)", async () => {

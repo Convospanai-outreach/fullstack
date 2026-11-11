@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { withUtm } from "@/lib/utm";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { GraphError, graphCall, graphPostJson } from "./metaGraph";
+import { IG_LOGIN_COMMENTS_SCOPE, IG_LOGIN_MESSAGES_SCOPE, graphBaseArg, isInstagramLogin } from "./instagramLogin";
 import {
     ACCOUNT_PLATFORM_FOR_OBJECT,
     INSTAGRAM_TEXT_MAX_BYTES,
@@ -104,6 +105,18 @@ export const PRIVATE_SCOPES: Record<"COMMENT" | "DM", Record<AccountPlatform, st
 };
 export const PUBLIC_REPLY_SCOPE: Record<AccountPlatform, string> = { INSTAGRAM: "instagram_manage_comments", FACEBOOK_PAGE: "pages_manage_engagement" };
 
+// An Instagram account connected without a Facebook Page (Instagram Login) is granted
+// differently named permissions, and needs no Page permission for private replies.
+const IG_LOGIN_PRIVATE_SCOPES: Record<"COMMENT" | "DM", string[]> = { COMMENT: [IG_LOGIN_COMMENTS_SCOPE], DM: [IG_LOGIN_MESSAGES_SCOPE] };
+
+export function privateScopesFor(kind: "COMMENT" | "DM", platform: AccountPlatform, instagramLogin: boolean) {
+    return instagramLogin ? IG_LOGIN_PRIVATE_SCOPES[kind] : PRIVATE_SCOPES[kind][platform];
+}
+
+export function publicReplyScopeFor(platform: AccountPlatform, instagramLogin: boolean) {
+    return instagramLogin ? IG_LOGIN_COMMENTS_SCOPE : PUBLIC_REPLY_SCOPE[platform];
+}
+
 // ---- Matching -------------------------------------------------------------------------------
 
 /** Lower-cased words (letters and digits, any script), so "GUIDE!!" and "guide pls" both have "guide". */
@@ -190,7 +203,7 @@ export function extractCommentEvents(body: any): CommentEvent[] {
 type MatchKind = "COMMENT" | "DM";
 
 // The account's oldest active trigger that matches. A post restriction applies to comments only.
-async function findMatchingTrigger(account: ReceivingAccount, kind: MatchKind, text: string, objectId: string | null) {
+export async function findMatchingTrigger(account: ReceivingAccount, kind: MatchKind, text: string, objectId: string | null) {
     const triggers = await prisma.keywordTrigger.findMany({
         where: { socialAccountId: account.id, teamId: account.teamId, active: true, scope: { in: [kind, "BOTH"] } },
         orderBy: { createdAt: "asc" },
@@ -200,6 +213,8 @@ async function findMatchingTrigger(account: ReceivingAccount, kind: MatchKind, t
             match: true,
             contentPostId: true,
             publicCommentReply: true,
+            flowId: true,
+            landingPageId: true,
             contentPost: { select: { targets: { where: { socialAccountId: account.id }, select: { externalId: true } } } },
         },
     });
@@ -250,7 +265,15 @@ export async function queueCommentReplies(event: CommentEvent, accounts: Receivi
         // commenter's id without saying it equals the account id for the account's own comments.
         if (event.authorHandle && account.handle && event.authorHandle.toLowerCase() === account.handle.toLowerCase()) continue;
         const trigger = await findMatchingTrigger(account, "COMMENT", event.text, event.objectId);
-        if (!trigger || (await repliedRecently(trigger.id, event.authorId, now))) continue;
+        if (!trigger) continue;
+        if (trigger.flowId) {
+            // A trigger with a DM flow starts a run instead of a single reply (dmFlowRuns.ts).
+            const { queueFlowStart } = await import("./dmFlowRuns");
+            const started = await queueFlowStart(account, { id: trigger.id, flowId: trigger.flowId, landingPageId: trigger.landingPageId }, { sourceKey: `comment:${event.commentId}`, personKey: event.authorId }, now);
+            if (started) queued++;
+            continue;
+        }
+        if (await repliedRecently(trigger.id, event.authorId, now)) continue;
         const ok = await claim({
             teamId: account.teamId,
             triggerId: trigger.id,
@@ -269,7 +292,8 @@ export async function queueCommentReplies(event: CommentEvent, accounts: Receivi
 
 export async function queueDmReply(account: ReceivingAccount, dm: { mid: string; senderId: string; text: string; leadId: string }, now = new Date()) {
     const trigger = await findMatchingTrigger(account, "DM", dm.text, null);
-    if (!trigger || (await repliedRecently(trigger.id, dm.senderId, now))) return false;
+    // Flow triggers are handled by queueDmFlowMessage (dmFlowRuns.ts), which also feeds replies to a run in progress.
+    if (!trigger || trigger.flowId || (await repliedRecently(trigger.id, dm.senderId, now))) return false;
     return claim({
         teamId: account.teamId,
         triggerId: trigger.id,
@@ -403,6 +427,28 @@ function errorText(error: unknown) {
 
 type Outcome = "SENT" | "FAILED" | "SKIPPED" | "UNCONFIRMED" | null; // null: another worker has it
 
+/**
+ * The one Send API call for auto-replies and flow messages: a private reply to a comment (kind
+ * COMMENT, recipient comment_id) or a DM to the person (kind DM, recipient id). Instagram Login
+ * sends JSON from the account's own id; through Facebook, from the linked Page.
+ */
+export async function sendMessageRequest(
+    account: { platform: string; externalId: string; parentExternalId: string | null },
+    token: string,
+    kind: MatchKind,
+    recipient: Record<string, unknown>,
+    text: string
+): Promise<any> {
+    const platform = account.platform as AccountPlatform;
+    const instagramLogin = isInstagramLogin(account);
+    const pageId = encodeURIComponent(platform === "INSTAGRAM" && !instagramLogin ? (account.parentExternalId as string) : account.externalId);
+    if (instagramLogin) return graphPostJson(`${pageId}/messages`, { recipient, message: { text } }, token, ...graphBaseArg(account));
+    if (platform === "INSTAGRAM") {
+        return graphCall("POST", kind === "COMMENT" ? `${pageId}/messages` : "me/messages", { recipient: JSON.stringify(recipient), message: JSON.stringify({ text }) }, token);
+    }
+    return graphPostJson(`${pageId}/messages`, { recipient, ...(kind === "DM" ? { messaging_type: "RESPONSE" } : {}), message: { text } }, token);
+}
+
 async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<Outcome> {
     const account = row.trigger.socialAccount;
     const platform = account.platform as AccountPlatform;
@@ -417,10 +463,11 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     if (kind === "COMMENT" && age > PRIVATE_REPLY_MAX_AGE_MS) return skip("Meta only allows a private reply within 7 days of the comment.");
     if (kind === "DM" && age > REPLY_WINDOW_MS) return skip("Meta only allows replies within 24 hours of the person's message.");
     if (account.status !== "CONNECTED") return fail("The account is disconnected. Reconnect it in Settings.");
-    const missing = missingScopes(account.scopes, PRIVATE_SCOPES[kind][platform]);
+    const instagramLogin = isInstagramLogin(account);
+    const missing = missingScopes(account.scopes, privateScopesFor(kind, platform, instagramLogin));
     if (missing.length) return fail(`Reconnect the account and allow: ${missing.join(", ")}.`);
     const token = await pageTokenFor(account);
-    if (!token) return fail("The Facebook Page this account uses isn't connected.");
+    if (!token) return fail(instagramLogin ? "The account's connection is missing. Reconnect it." : "The Facebook Page this account uses isn't connected.");
     // The post this reply is about: the trigger's own, or the one the comment was on (when CMf
     // published it). Tags the link (utm_content) and becomes the lead's first touch.
     const postId = row.trigger.contentPostId ?? (await commentedPost(row));
@@ -435,19 +482,10 @@ async function sendPrivate(row: ReplyRow, now: Date, flagOn: boolean): Promise<O
     const claimed = await setStatus(row.id, "PENDING", { status: "SENDING" });
     if (claimed.count !== 1) return null;
 
-    const pageId = encodeURIComponent(platform === "INSTAGRAM" ? (account.parentExternalId as string) : account.externalId);
     const recipient = kind === "COMMENT" ? { comment_id: row.commentId } : { id: row.personKey };
     let result: any;
     try {
-        result =
-            platform === "INSTAGRAM"
-                ? await graphCall(
-                      "POST",
-                      kind === "COMMENT" ? `${pageId}/messages` : "me/messages",
-                      { recipient: JSON.stringify(recipient), message: JSON.stringify({ text }) },
-                      token
-                  )
-                : await graphPostJson(`${pageId}/messages`, { recipient, ...(kind === "DM" ? { messaging_type: "RESPONSE" } : {}), message: { text } }, token);
+        result = await sendMessageRequest(account, token, kind, recipient, text);
     } catch (error) {
         const uncertain = error instanceof GraphError && error.uncertain;
         await setStatus(row.id, "SENDING", {
@@ -513,7 +551,8 @@ async function sendPublic(row: ReplyRow, flagOn: boolean) {
     }
     const failPublic = (reason: string) => setPublicStatus(row.id, "PENDING", { publicStatus: "FAILED", lastError: `Public reply: ${reason}` });
     if (account.status !== "CONNECTED") return failPublic("the account is disconnected.");
-    if (!account.scopes.includes(PUBLIC_REPLY_SCOPE[platform])) return failPublic(`reconnect and allow ${PUBLIC_REPLY_SCOPE[platform]}.`);
+    const publicScope = publicReplyScopeFor(platform, isInstagramLogin(account));
+    if (!account.scopes.includes(publicScope)) return failPublic(`reconnect and allow ${publicScope}.`);
     // Instagram comment replies use the account's own User token; Facebook uses the Page token.
     const token =
         platform === "INSTAGRAM"
@@ -525,7 +564,7 @@ async function sendPublic(row: ReplyRow, flagOn: boolean) {
     if (claimed.count !== 1) return;
     const commentId = encodeURIComponent(row.commentId);
     try {
-        await graphCall("POST", platform === "INSTAGRAM" ? `${commentId}/replies` : `${commentId}/comments`, { message }, token);
+        await graphCall("POST", platform === "INSTAGRAM" ? `${commentId}/replies` : `${commentId}/comments`, { message }, token, ...graphBaseArg(account));
         await setPublicStatus(row.id, "SENDING", { publicStatus: "SENT" });
     } catch (error) {
         const uncertain = error instanceof GraphError && error.uncertain;
@@ -582,6 +621,13 @@ export async function sendPendingAutoReplies(now = new Date()) {
         } catch (error) {
             console.error(`[KeywordTriggers] Auto-reply ${row.id} failed:`, errorText(error));
         }
+    }
+    // DM flows run on the same tick (dmFlowRuns.ts). A failure there must not stop keyword replies.
+    try {
+        const { processPendingFlowEvents } = await import("./dmFlowRuns");
+        await processPendingFlowEvents(now);
+    } catch (error) {
+        console.error("[KeywordTriggers] Flow pass failed:", errorText(error));
     }
     return { handled };
 }

@@ -1,0 +1,871 @@
+{
+  "valid": {
+    "email-only": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox."
+    },
+    "full": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Label name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "label": "Label phone",
+          "type": "tel",
+          "required": false
+        },
+        {
+          "key": "company",
+          "label": "Label company",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "title",
+          "label": "Label title",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "goal",
+          "label": "Label goal",
+          "type": "textarea",
+          "required": false
+        },
+        {
+          "key": "budget",
+          "label": "Label budget",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Under $1k",
+            "$1k-$5k",
+            "Over $5k"
+          ]
+        },
+        {
+          "key": "consent",
+          "label": "Label consent",
+          "type": "checkbox",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Get my plan",
+      "successMessage": "Thanks! We will be in touch.",
+      "redirectUrl": "https://example.com/thanks"
+    },
+    "phone-instead-of-email": {
+      "fields": [
+        {
+          "key": "phone",
+          "label": "Label phone",
+          "type": "tel",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Call me",
+      "successMessage": "Thanks!"
+    },
+    "max-fields": {
+      "fields": [
+        {
+          "key": "field_1",
+          "label": "Label field_1",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_2",
+          "label": "Label field_2",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_3",
+          "label": "Label field_3",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_4",
+          "label": "Label field_4",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_5",
+          "label": "Label field_5",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_6",
+          "label": "Label field_6",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_7",
+          "label": "Label field_7",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "redirect-with-path": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "redirectUrl": "https://example.com/a/b?x=1"
+    },
+    "with-instagram": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "brand.shop_2"
+    },
+    "with-booking": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "https://cal.example.com/team/intro?x=1"
+    },
+    "consent-default": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "required": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy."
+      }
+    },
+    "consent-full": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "required": false,
+        "text": "Send me tips.",
+        "privacyUrl": "https://example.com/privacy",
+        "deletionUrl": "https://example.com/delete",
+        "deletionSteps": "Email us.\nWe delete within 30 days.",
+        "contactEmail": "privacy@example.com"
+      },
+      "redirectUrl": "https://example.com/thanks"
+    },
+    "consent-disabled": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": false,
+        "text": "Not shown"
+      }
+    },
+    "consent-text-300": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  },
+  "invalid": {
+    "nine-fields": {
+      "fields": [
+        {
+          "key": "field_1",
+          "label": "Label field_1",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_2",
+          "label": "Label field_2",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_3",
+          "label": "Label field_3",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_4",
+          "label": "Label field_4",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_5",
+          "label": "Label field_5",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_6",
+          "label": "Label field_6",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_7",
+          "label": "Label field_7",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_8",
+          "label": "Label field_8",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "field_9",
+          "label": "Label field_9",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "empty-fields": {
+      "fields": [],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "duplicate-key": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "bad-type": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "field_2",
+          "label": "Label field_2",
+          "type": "dropdown",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "no-email-or-phone": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Label name",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "email-type-with-other-key": {
+      "fields": [
+        {
+          "key": "work_email",
+          "label": "Label work_email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "bad-key-uppercase": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "Name",
+          "label": "Label Name",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "bad-key-leading-digit": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "1name",
+          "label": "Label 1name",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "key-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "label": "Label aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "label-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "select-without-options": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "budget",
+          "label": "Label budget",
+          "type": "select",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "select-too-many-options": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "budget",
+          "label": "Label budget",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Option 1",
+            "Option 2",
+            "Option 3",
+            "Option 4",
+            "Option 5",
+            "Option 6",
+            "Option 7",
+            "Option 8",
+            "Option 9",
+            "Option 10",
+            "Option 11"
+          ]
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "option-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "budget",
+          "label": "Label budget",
+          "type": "select",
+          "required": false,
+          "options": [
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          ]
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "options-on-text": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "Label name",
+          "type": "text",
+          "required": false,
+          "options": [
+            "a"
+          ]
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "button-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "successMessage": "Thanks!"
+    },
+    "success-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "redirect-http": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "redirectUrl": "http://example.com/thanks"
+    },
+    "redirect-javascript": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "redirectUrl": "javascript:alert(1)"
+    },
+    "redirect-data": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "redirectUrl": "data:text/html,hi"
+    },
+    "redirect-relative": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "redirectUrl": "/thanks"
+    },
+    "unknown-extra-field-type": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "x",
+          "label": "X",
+          "type": "text",
+          "required": false,
+          "onclick": "x()"
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!"
+    },
+    "instagram-with-at": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "@brand"
+    },
+    "instagram-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "instagram-with-slash": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "instagramHandle": "brand/x"
+    },
+    "booking-http": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "http://cal.example.com/intro"
+    },
+    "booking-javascript": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "javascript:alert(1)"
+    },
+    "booking-too-long": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Label email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it to me",
+      "successMessage": "Thanks! Check your inbox.",
+      "bookingUrl": "https://cal.example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "consent-privacy-http": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "privacyUrl": "http://example.com/privacy"
+      }
+    },
+    "consent-privacy-javascript": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "privacyUrl": "javascript:alert(1)"
+      }
+    },
+    "consent-deletion-data": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "deletionUrl": "data:text/html,hi"
+      }
+    },
+    "consent-text-301": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "consent-text-markup": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "<b>I agree</b>"
+      }
+    },
+    "consent-empty-text": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": ""
+      }
+    },
+    "consent-steps-2001": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "deletionSteps": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "consent-contact-invalid": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "contactEmail": "not-an-email"
+      }
+    },
+    "consent-unknown-key": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send it",
+      "successMessage": "Thanks!",
+      "consent": {
+        "enabled": true,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy.",
+        "extra": 1
+      }
+    }
+  }
+}

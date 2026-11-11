@@ -366,13 +366,15 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        const [strings, userId, planId] = mockTx.$queryRaw.mock.calls[0];
+        const [strings, userId, planId, periodDays] = mockTx.$queryRaw.mock.calls[0];
         const sql = strings.join("");
         expect(userId).toBe("user-1");
         expect(planId).toBe("plan-growth");
         expect(sql).toContain("ON CONFLICT");
         expect(sql).toContain("GREATEST");
-        expect(sql).toContain("INTERVAL '30 days'");
+        // The period length is a parameter now (30 days for a monthly order, 365 for a yearly one).
+        expect(sql).toContain("* INTERVAL '1 day'");
+        expect(periodDays).toBe(30);
     });
 
     it("ignores a subscription payment whose planId does not match a known plan", async () => {
@@ -482,6 +484,7 @@ describe("/webhooks/razorpay", () => {
         it("does not re-publish when the order is no longer PENDING or the amount differs (no-op)", async () => {
             mockPrisma.order.findFirst.mockResolvedValue({ id: "order-2" });
             mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-2", teamId: "team-1", gatewayPaymentId: "pay_route_2" });
 
             const { POST } = await import("./route");
             const response = await POST(signedRequest({
@@ -494,8 +497,109 @@ describe("/webhooks/razorpay", () => {
             }) as any);
 
             expect(response.status).toBe(200);
-            expect(mockTx.order.findUnique).not.toHaveBeenCalled();
             expect(mockTx.outboxEvent.create).not.toHaveBeenCalled();
+            // A retry of an already-applied payment is not a problem worth recording.
+            expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
         });
+
+        it("records a durable audit entry when a captured payment could not be applied to its order", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-4" });
+            mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-4", teamId: "team-1", status: "PENDING", gatewayPaymentId: null, amount: 9999 });
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_route_4", order_id: "rzp_order_4", amount: 5000, currency: "INR", notes: {} } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({ action: "WEBHOOK_ORDER_NOT_APPLIED", orgId: "team-1" }),
+            }));
+        });
+
+        it("500s (so Razorpay retries) when that audit entry cannot be written", async () => {
+            mockPrisma.order.findFirst.mockResolvedValue({ id: "order-5" });
+            mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+            mockTx.order.findUnique.mockResolvedValue({ id: "order-5", teamId: "team-1", status: "PENDING", gatewayPaymentId: null, amount: 9999 });
+            mockPrisma.auditLog.create.mockRejectedValue(new Error("db unavailable"));
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_route_5", order_id: "rzp_order_5", amount: 5000, notes: {} } } },
+            }) as any);
+
+            expect(response.status).toBe(500);
+        });
+
+        it("does not crash on a captured payment that has no notes at all", async () => {
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: { payment: { entity: { id: "pay_no_notes", order_id: "rzp_none", amount: 100 } } },
+            }) as any);
+
+            expect(response.status).toBe(200);
+        });
+    });
+});
+
+describe("/webhooks/razorpay yearly subscriptions", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
+        mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
+        mockPrisma.order.findFirst.mockResolvedValue(null);
+        mockPrisma.$transaction.mockImplementation((cb: any) => cb(mockTx));
+        mockTx.team.update.mockResolvedValue({});
+        mockTx.creditTransaction.create.mockResolvedValue({});
+        mockTx.invoice.create.mockResolvedValue({});
+        mockTx.$queryRaw.mockResolvedValue([{ id: "sub-1" }]);
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
+    });
+
+    const payment = (interval?: string) => signedRequest({
+        event: "payment.captured",
+        payload: {
+            payment: {
+                entity: {
+                    id: "pay_year", order_id: "order_year", amount: 6265682, currency: "INR",
+                    notes: {
+                        teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "IN", state: "Delhi",
+                        taxableValue: 5309900, taxAmount: 955782, taxType: "CGST_SGST", taxRate: 18,
+                        ...(interval ? { interval } : {}),
+                    },
+                },
+            },
+        },
+    });
+
+    // Values of the Subscription upsert, in the order they appear in the SQL.
+    const upsertValues = () => {
+        const [, userId, planId, periodDays, interval, isYearly, grantDays, teamId, renewDays] = mockTx.$queryRaw.mock.calls[0];
+        return { userId, planId, periodDays, interval, isYearly, grantDays, teamId, renewDays };
+    };
+
+    it("extends a yearly order by 365 days, grants only the first month's credits, and schedules the next grant", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(payment("year") as any);
+
+        expect(response.status).toBe(200);
+        expect(upsertValues()).toMatchObject({ periodDays: 365, renewDays: 365, interval: "YEAR", isYearly: true, grantDays: 30, teamId: "team-1" });
+        expect(mockTx.team.update).toHaveBeenCalledTimes(1);
+        expect(mockTx.team.update).toHaveBeenCalledWith(expect.objectContaining({ data: { credits: { increment: 500 } } }));
+        expect(mockTx.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ description: expect.stringContaining("yearly subscription"), amount: 6265682 }),
+        }));
+    });
+
+    it("treats an order with no interval in its notes as monthly: 30 days, no scheduled grant", async () => {
+        const { POST } = await import("./route");
+        await POST(payment() as any);
+
+        expect(upsertValues()).toMatchObject({ periodDays: 30, renewDays: 30, interval: "MONTH", isYearly: false });
     });
 });

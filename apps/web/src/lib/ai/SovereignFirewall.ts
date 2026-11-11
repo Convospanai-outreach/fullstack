@@ -196,7 +196,9 @@ export class SovereignFirewall {
                     : String(pii);
                 resolutions.set(fullToken, replacement);
             } catch (e) {
-                console.warn(`[SovereignFirewall] Failed to resolve token ${fullToken}:`, e);
+                // Log the entity type only: the token resolves to a lead's personal data.
+                const entityType = fullToken.match(/[A-Z]+/)?.[0] ?? "UNKNOWN";
+                console.warn(`[SovereignFirewall] Failed to resolve a ${entityType} token: ${(e as Error)?.message ?? "unknown error"}`);
             }
         }));
 

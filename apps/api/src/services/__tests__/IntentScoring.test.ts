@@ -17,11 +17,8 @@ vi.mock("@/lib/notifications", () => ({
     },
 }));
 
-vi.mock("@/lib/aiService", () => ({
-    aiService: {
-        askAI: vi.fn(),
-    },
-}));
+const { mockJudgeFriction } = vi.hoisted(() => ({ mockJudgeFriction: vi.fn() }));
+vi.mock("@/lib/ai/jev", () => ({ judgeFriction: mockJudgeFriction }));
 
 global.fetch = vi.fn() as Mock;
 
@@ -65,5 +62,41 @@ describe("IntentScoringService.processWebhookData", () => {
 
         expect(prisma.user.findMany).not.toHaveBeenCalled();
         expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+    });
+
+    describe("when the edge node is unavailable", () => {
+        beforeEach(() => {
+            (global.fetch as Mock).mockRejectedValueOnce(new Error("ECONNREFUSED"));
+            (prisma.user.findMany as Mock).mockResolvedValue([{ id: "admin-1" }]);
+        });
+
+        it("scores the strongest Jev friction judgment and alerts above 80", async () => {
+            mockJudgeFriction.mockResolvedValueOnce({ hostile: 0.2, rejecting: 0.93, spam: 0.1 });
+
+            await new IntentScoringService().processWebhookData({ content: "No. Never contact us again." });
+
+            expect(mockJudgeFriction).toHaveBeenCalledWith("No. Never contact us again.");
+            expect(NotificationDispatcher.send).toHaveBeenCalledWith(
+                "admin-1", "SYSTEM", "High Friction Detected", "High Karmic Friction Detected (Score: 93.0)", expect.objectContaining({ score: 93 })
+            );
+        });
+
+        it("does not alert when no Jev judgment passes 0.8", async () => {
+            mockJudgeFriction.mockResolvedValueOnce({ hostile: 0.5, rejecting: 0.6, spam: 0.1 });
+
+            await new IntentScoringService().processWebhookData({ content: "Maybe next quarter." });
+
+            expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+        });
+
+        it("falls back to the sentiment heuristic when Jev fails", async () => {
+            mockJudgeFriction.mockRejectedValueOnce(new Error("JEV_API_KEY is not set"));
+
+            await new IntentScoringService().processWebhookData({ content: "awful", sentiment: { score: -0.9 } });
+
+            expect(NotificationDispatcher.send).toHaveBeenCalledWith(
+                "admin-1", "SYSTEM", "High Friction Detected", "High Karmic Friction Detected (Score: 90.0)", expect.objectContaining({ score: 90 })
+            );
+        });
     });
 });

@@ -1,20 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole } = vi.hoisted(() => ({
+const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole, mockSendInviteEmail, mockCookieGet } = vi.hoisted(() => ({
+    mockCookieGet: vi.fn(),
     mockGetServerSession: vi.fn(),
+    mockSendInviteEmail: vi.fn().mockResolvedValue(false),
     mockAudit: vi.fn(),
     mockIsSuperAdminRole: vi.fn().mockReturnValue(true),
     mockPrisma: {
         user: { findUnique: vi.fn() },
         inviteRequest: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
         team: { create: vi.fn() },
-        userInvitation: { create: vi.fn(), findMany: vi.fn() },
-        teamMember: { create: vi.fn(), findFirst: vi.fn() },
+        userInvitation: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+        teamMember: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
         $transaction: vi.fn(),
     },
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: mockCookieGet }) }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
     canInviteUsers: () => true,
@@ -28,7 +31,7 @@ vi.mock("@/lib/invitations", () => ({
     hashInviteToken: (token: string) => `hashed-${token}`,
     INVITE_TTL_MS: 7 * 24 * 60 * 60 * 1000,
     isAssignableInviteRole: () => true,
-    maybeSendInviteEmail: vi.fn().mockResolvedValue(false),
+    maybeSendInviteEmail: mockSendInviteEmail,
 }));
 
 function patchRequest(body: unknown) {
@@ -170,7 +173,7 @@ describe("POST /api/admin/invites - bulk invite (setup wizard)", () => {
         mockPrisma.user.findUnique.mockResolvedValue({
             id: "founder-1",
             enterpriseRole: "ORG_ADMIN",
-            memberships: [{ teamId: "team-1", status: "active" }],
+            memberships: [{ teamId: "team-1", status: "active", role: "owner" }],
         });
         mockPrisma.userInvitation.create.mockImplementation(({ data }: any) =>
             Promise.resolve({ id: `invite-${data.email}`, ...data })
@@ -226,5 +229,290 @@ describe("POST /api/admin/invites - bulk invite (setup wizard)", () => {
         expect(ok.ok).toBe(true);
         expect(bad.ok).toBe(false);
         expect(bad.error).toBe("db exploded");
+    });
+});
+
+describe("/api/admin/invites - the actor's role in the target team", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsSuperAdminRole.mockReturnValue(false);
+        mockSendInviteEmail.mockResolvedValue(false);
+        mockGetServerSession.mockResolvedValue({ user: { id: "org-admin-1" } });
+        // ORG_ADMIN globally, but only a plain member of team-b.
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "org-admin-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [
+                { teamId: "team-b", status: "active", role: "member" },
+                { teamId: "team-a", status: "active", role: "admin" },
+            ],
+        });
+        mockPrisma.userInvitation.create.mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: `invite-${data.email}`, ...data })
+        );
+        mockPrisma.userInvitation.findMany.mockResolvedValue([]);
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+        mockPrisma.teamMember.create.mockResolvedValue({});
+        mockPrisma.teamMember.update.mockResolvedValue({});
+        mockAudit.mockResolvedValue(undefined);
+    });
+
+    it("refuses a single invite into a team where the actor is not owner or admin", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com", teamId: "team-b" }));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockPrisma.teamMember.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a bulk invite into a team where the actor is not owner or admin", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["new@example.com"], teamId: "team-b" }));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+    });
+
+    it("allows an invite into a team where the actor is admin", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com", teamId: "team-a" }));
+
+        expect(response.status).toBe(201);
+        expect(mockPrisma.teamMember.create).toHaveBeenCalledWith({
+            data: { teamId: "team-a", email: "new@example.com", role: "member", status: "invited" },
+        });
+    });
+
+    it("defaults to a team the actor administers, not just the first membership", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["new@example.com"] }));
+
+        expect(response.status).toBe(201);
+        expect(mockPrisma.userInvitation.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-a" }) })
+        );
+    });
+
+    it("defaults to the workspace the user has selected when they administer it", async () => {
+        mockCookieGet.mockReturnValue({ value: "team-a" });
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "org-admin-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [
+                { teamId: "team-c", status: "active", role: "admin" },
+                { teamId: "team-a", status: "active", role: "admin" },
+            ],
+        });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(201);
+        expect(mockPrisma.userInvitation.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-a" }) })
+        );
+        mockCookieGet.mockReset();
+    });
+
+    it("finds an existing seat regardless of email case", async () => {
+        const { POST } = await import("./route");
+
+        await POST(postRequest({ email: "Mixed@Example.com", teamId: "team-a" }));
+
+        expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
+            where: { teamId: "team-a", email: { equals: "mixed@example.com", mode: "insensitive" } },
+        });
+    });
+
+    it("lists only invitations for teams the actor administers", async () => {
+        const { GET } = await import("./route");
+
+        await GET();
+
+        expect(mockPrisma.userInvitation.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: { in: ["team-a"] } } })
+        );
+    });
+
+    it("refuses to revoke an invitation for a team the actor does not administer", async () => {
+        mockPrisma.userInvitation.findUnique.mockResolvedValue({ id: "inv-1", teamId: "team-b" });
+        const { PATCH } = await import("./route");
+
+        const response = await PATCH(patchRequest({ id: "inv-1", status: "revoked" }));
+
+        expect(response.status).toBe(403);
+        expect(mockPrisma.userInvitation.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["an active member", { id: "m-1", status: "active", userId: "user-2", role: "member" }],
+        ["the owner", { id: "m-1", status: "active", userId: "user-2", role: "owner" }],
+        ["a founder's reserved owner seat", { id: "m-1", status: "invited", userId: null, role: "owner" }],
+    ])("does not touch %s when inviting their email", async (_label, member) => {
+        mockPrisma.teamMember.findFirst.mockResolvedValue(member);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "taken@example.com", teamId: "team-a", role: "VIEWER" }));
+
+        expect(response.status).toBe(409);
+        expect(mockPrisma.teamMember.update).not.toHaveBeenCalled();
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("reports an existing member as a per-email failure in a bulk invite and leaves them alone", async () => {
+        mockPrisma.teamMember.findFirst.mockImplementation(({ where }: any) =>
+            Promise.resolve(where.email.equals === "taken@example.com"
+                ? { id: "m-1", status: "active", userId: "user-2", role: "owner" }
+                : null)
+        );
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["taken@example.com", "new@example.com"], teamId: "team-a" }));
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.results.find((r: any) => r.email === "taken@example.com").ok).toBe(false);
+        expect(body.results.find((r: any) => r.email === "new@example.com").ok).toBe(true);
+        expect(mockPrisma.teamMember.update).not.toHaveBeenCalled();
+        expect(mockPrisma.userInvitation.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("refreshes the role on a still-pending invited seat", async () => {
+        mockPrisma.teamMember.findFirst.mockResolvedValue({ id: "m-1", status: "invited", userId: null, role: "member" });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "pending@example.com", teamId: "team-a", role: "VIEWER" }));
+
+        expect(response.status).toBe(201);
+        expect(mockPrisma.teamMember.update).toHaveBeenCalledWith({
+            where: { id: "m-1" },
+            data: { role: "viewer", status: "invited" },
+        });
+    });
+});
+
+describe("POST /api/admin/invites - invitation email quotas", () => {
+    // Invitations already sent in the last 24 hours, by team and by address.
+    let sentByTeam = 0;
+    let sentToAddress = 0;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        sentByTeam = 0;
+        sentToAddress = 0;
+        mockIsSuperAdminRole.mockReturnValue(false);
+        mockSendInviteEmail.mockResolvedValue(true);
+        mockGetServerSession.mockResolvedValue({ user: { id: "owner-1" } });
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "owner-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [{ teamId: "team-1", status: "active", role: "owner" }],
+        });
+        mockPrisma.userInvitation.count.mockImplementation(({ where }: any) =>
+            Promise.resolve(where.teamId ? sentByTeam : sentToAddress)
+        );
+        mockPrisma.userInvitation.create.mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: `invite-${data.email}`, ...data })
+        );
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+        mockPrisma.teamMember.create.mockResolvedValue({});
+        mockAudit.mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        mockPrisma.userInvitation.count.mockReset();
+        mockPrisma.userInvitation.count.mockResolvedValue(0);
+    });
+
+    it("sends an invite while the team and the address are under their limits", async () => {
+        sentByTeam = 99;
+        sentToAddress = 2;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(201);
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a single invite once the team has used its daily budget", async () => {
+        sentByTeam = 100;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "new@example.com" }));
+
+        expect(response.status).toBe(429);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("counts every invitation the team created in the last day, whatever its status", async () => {
+        const { POST } = await import("./route");
+
+        await POST(postRequest({ email: "new@example.com" }));
+
+        const teamQuery = mockPrisma.userInvitation.count.mock.calls.find(([arg]: any) => arg.where.teamId)?.[0];
+        expect(teamQuery.where).toEqual({ teamId: "team-1", createdAt: { gte: expect.any(Date) } });
+        // A revoked invitation still sent an email, so revoking must not hand the budget back.
+        expect(teamQuery.where.status).toBeUndefined();
+    });
+
+    it("refuses the whole bulk batch when it would exceed what is left of the budget", async () => {
+        sentByTeam = 98;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["a@example.com", "b@example.com", "c@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(429);
+        expect(body.error).toContain("2");
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("lets a new team's first bulk batch of 50 through", async () => {
+        const { POST } = await import("./route");
+
+        const emails = Array.from({ length: 50 }, (_, i) => `teammate${i}@example.com`);
+        const response = await POST(postRequest({ emails }));
+
+        expect(response.status).toBe(201);
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(50);
+    });
+
+    it("refuses a single invite to an address that already got its daily limit, from any team", async () => {
+        sentToAddress = 3;
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ email: "Victim@Example.com" }));
+
+        expect(response.status).toBe(429);
+        expect(mockPrisma.userInvitation.count).toHaveBeenCalledWith({
+            where: { email: "victim@example.com", createdAt: { gte: expect.any(Date) } },
+        });
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+        expect(mockSendInviteEmail).not.toHaveBeenCalled();
+    });
+
+    it("reports an address at its daily limit as a per-email failure in a bulk invite", async () => {
+        mockPrisma.userInvitation.count.mockImplementation(({ where }: any) =>
+            Promise.resolve(where.teamId ? 0 : where.email === "victim@example.com" ? 3 : 0)
+        );
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["victim@example.com", "fresh@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.results.find((r: any) => r.email === "victim@example.com")).toMatchObject({ ok: false });
+        expect(body.results.find((r: any) => r.email === "fresh@example.com")).toMatchObject({ ok: true });
+        expect(mockSendInviteEmail).toHaveBeenCalledTimes(1);
+        expect(mockSendInviteEmail).toHaveBeenCalledWith("fresh@example.com", expect.any(String));
     });
 });

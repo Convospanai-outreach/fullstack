@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { BullsEyeRAG } from "@/modules/rag/service/BullsEyeRAG";
+import { internalErrorMessage } from "@/lib/internalError";
 
 /**
  * POST /api/v1/intelligence/sync
@@ -27,6 +28,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true, message: "Market intelligence sync initiated" });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -104,13 +104,9 @@ function sanitizeSentence(
     return next.trim();
 }
 
-export function enforceAgentOutputGuardrails(
-    rawText: string,
-    options: GuardrailOptions = {}
-): GuardrailResult {
+function sanitizeText(rawText: string, options: GuardrailOptions, issues: GuardrailIssue[]): string {
     const sourceContext = options.sourceContext || "";
     const strictGrounding = options.strictGrounding ?? true;
-    const issues: GuardrailIssue[] = [];
     const contextNumbers = getContextNumberSet(sourceContext);
 
     const sentences = rawText
@@ -118,7 +114,28 @@ export function enforceAgentOutputGuardrails(
         .map((sentence) => sanitizeSentence(sentence, { sourceContext, strictGrounding }, contextNumbers, issues))
         .filter((sentence) => sentence.length > 0);
 
-    const cleaned = sentences.join(" ").trim();
+    return sentences.join(" ").trim();
+}
+
+// For text with paragraphs (an email body). enforceAgentOutputGuardrails joins everything into
+// one line and substitutes an "I do not have enough grounded evidence" sentence when nothing is
+// left; this keeps the line breaks and simply drops a line that is removed entirely, so the
+// result can be empty.
+export function enforceMultilineGuardrails(
+    rawText: string,
+    options: GuardrailOptions = {}
+): GuardrailResult {
+    const issues: GuardrailIssue[] = [];
+    const lines = rawText.split("\n").map((line) => (line.trim() ? sanitizeText(line, options, issues) : ""));
+    return { text: lines.join("\n").replace(/\n{3,}/g, "\n\n").trim(), issues };
+}
+
+export function enforceAgentOutputGuardrails(
+    rawText: string,
+    options: GuardrailOptions = {}
+): GuardrailResult {
+    const issues: GuardrailIssue[] = [];
+    const cleaned = sanitizeText(rawText, options, issues);
     if (cleaned.length > 0) {
         return { text: cleaned, issues };
     }

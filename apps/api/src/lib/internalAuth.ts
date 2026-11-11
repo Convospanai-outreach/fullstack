@@ -3,14 +3,13 @@
 // Shared by the server.ts gate, auth.ts and admin.ts, which used to carry three
 // identical copies.
 //
-// Two formats are accepted (roadmap 3.5 / S-13):
-//   - v1 (legacy): HMAC over `v1.ts.userId.email.role`. No method, path or nonce,
-//     so a captured header set replays against any route for 5 minutes. Still
-//     accepted only because web builds from before this change send nothing else
-//     and web/api deploy independently. Remove once no such web build can be live.
-//   - v2: HMAC also binds method, path and a single-use nonce. Sent alongside v1
-//     (x-craftmyfunnel-auth-nonce + x-craftmyfunnel-auth-signature-v2). When
-//     either v2 header is present, v2 must verify; there is no fallback to v1.
+// Only v2 is accepted (roadmap 3.5 / S-13): an HMAC binding timestamp, method,
+// path, a single-use nonce and the identity (x-craftmyfunnel-auth-nonce +
+// x-craftmyfunnel-auth-signature-v2). The legacy v1 signature
+// (x-craftmyfunnel-auth-signature, over `v1.ts.userId.email.role`) bound no method,
+// path or nonce, so a captured header set replayed against any route for 5 minutes;
+// it is no longer accepted. Its header name stays in INTERNAL_AUTH_HEADER_NAMES so
+// server.ts still strips it from unauthenticated requests.
 //
 // Imports stay relative/builtin-only: apps/web/tests/unit imports this file to
 // check the web signer against it.
@@ -43,8 +42,7 @@ export interface InternalIdentity {
     email: string;
     enterpriseRole: string;
     issuedAt: number;
-    /** Present only for the v2 format. */
-    nonce?: string;
+    nonce: string;
 }
 
 /** The path the v2 signature binds, derived the same way at every call site. */
@@ -83,7 +81,6 @@ export function verifyInternalAuthHeaders(
     const email = readHeader(headers, "x-craftmyfunnel-user-email");
     const role = readHeader(headers, "x-craftmyfunnel-user-role");
     const timestamp = readHeader(headers, "x-craftmyfunnel-auth-ts");
-    const signature = readHeader(headers, "x-craftmyfunnel-auth-signature");
     const nonce = readHeader(headers, "x-craftmyfunnel-auth-nonce");
     const signatureV2 = readHeader(headers, "x-craftmyfunnel-auth-signature-v2");
 
@@ -94,28 +91,21 @@ export function verifyInternalAuthHeaders(
         return null;
     }
 
-    if (nonce || signatureV2) {
-        if (!nonce || !signatureV2) return null;
-        // JSON array, not a dot-join: email and path are user-influenced and
-        // must not be able to shift field boundaries.
-        const payload = JSON.stringify([
-            "v2",
-            timestamp,
-            nonce,
-            request.method.toUpperCase(),
-            request.path,
-            userId,
-            email,
-            role,
-        ]);
-        if (!signatureMatches(secret, payload, signatureV2)) return null;
-        return { sub: userId, email, enterpriseRole: role, issuedAt, nonce };
-    }
-
-    if (!signature) return null;
-    const legacyPayload = `v1.${timestamp}.${userId}.${email}.${role}`;
-    if (!signatureMatches(secret, legacyPayload, signature)) return null;
-    return { sub: userId, email, enterpriseRole: role, issuedAt };
+    if (!nonce || !signatureV2) return null;
+    // JSON array, not a dot-join: email and path are user-influenced and
+    // must not be able to shift field boundaries.
+    const payload = JSON.stringify([
+        "v2",
+        timestamp,
+        nonce,
+        request.method.toUpperCase(),
+        request.path,
+        userId,
+        email,
+        role,
+    ]);
+    if (!signatureMatches(secret, payload, signatureV2)) return null;
+    return { sub: userId, email, enterpriseRole: role, issuedAt, nonce };
 }
 
 export interface NonceCache {
@@ -142,10 +132,7 @@ export async function authenticateInternalRequest(
 ): Promise<InternalIdentity | null> {
     const identity = verifyInternalAuthHeaders(headers, request, now);
     if (!identity) return null;
-    if (
-        identity.nonce !== undefined &&
-        !(await nonces.claim(identity.nonce, identity.issuedAt + INTERNAL_AUTH_MAX_SKEW_MS, now))
-    ) {
+    if (!(await nonces.claim(identity.nonce, identity.issuedAt + INTERNAL_AUTH_MAX_SKEW_MS, now))) {
         return null;
     }
     return identity;

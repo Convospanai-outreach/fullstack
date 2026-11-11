@@ -1,0 +1,3 @@
+{
+  "reservedPaths": ["api", "assets", "data-deletion", "event", "health", "landing-assets", "lead", "p", "thank-you", "track"]
+}

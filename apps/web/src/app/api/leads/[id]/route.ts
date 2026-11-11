@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(
     request: Request,
@@ -33,7 +34,7 @@ export async function GET(
         return NextResponse.json(lead);
     } catch (error: any) {
         console.error("GET /api/leads/[id] error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -78,7 +79,7 @@ export async function PATCH(
         return NextResponse.json(lead);
     } catch (error: any) {
         console.error("PATCH /api/leads/[id] error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }
 
@@ -109,6 +110,6 @@ export async function DELETE(
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("DELETE /api/leads/[id] error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

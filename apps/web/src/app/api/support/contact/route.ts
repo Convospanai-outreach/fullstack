@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { clientIpFromRequest, verifyTurnstile } from "@/lib/botCheck";
 import { randomUUID } from "crypto";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 
 type SupportPayload = {
     name: string;
@@ -8,6 +11,7 @@ type SupportPayload = {
     subject: string;
     message: string;
     website_url?: string;
+    turnstileToken?: string;
     ga_client_id?: string;
 };
 
@@ -37,11 +41,12 @@ async function sendGa4MeasurementProtocolEvent(params: {
 }) {
     const measurementId = process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] || process.env["GA_MEASUREMENT_ID"];
     const apiSecret = process.env["GA_API_SECRET"];
-    if (!measurementId || !apiSecret) return;
+    // Only the browser can supply a client id, and it exists only after analytics consent.
+    if (!measurementId || !apiSecret || !params.clientId) return;
 
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
     const body = {
-        client_id: params.clientId || `server.${randomUUID()}`,
+        client_id: params.clientId,
         events: [
             {
                 name: "generate_lead",
@@ -71,7 +76,7 @@ function getSmtpConfig() {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
     const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
-    const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+    const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
 
     if (!host || !user || !password || !fromEmail) {
         return null;
@@ -96,6 +101,10 @@ function generateTicketId(): string {
 }
 
 export async function POST(req: Request) {
+    // One bucket for both public contact endpoints: every accepted submission emails the team inbox.
+    const limited = await applyRateLimit(req as NextRequest, RATE_LIMITS.CONTACT_FORM, "contact-form");
+    if (limited) return limited;
+
     let payload: SupportPayload;
 
     try {
@@ -120,8 +129,33 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
+    if (!(await verifyTurnstile(payload.turnstileToken, clientIpFromRequest(req)))) {
+        return NextResponse.json(
+            { error: "Please complete the verification and try again.", status: "verification_failed" },
+            { status: 403 },
+        );
+    }
+
     const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
     const ticketId = generateTicketId();
+
+    // Kept for the superadmin dashboard before anything else can fail. Saving must never stop the email,
+    // and the log line names the ticket only, never what the visitor typed.
+    try {
+        const { prisma } = await import("@/lib/db");
+        await prisma.enquiry.create({
+            data: {
+                ticketId,
+                name: payload.name.trim(),
+                email: payload.email.trim(),
+                subject: payload.subject.trim(),
+                message: payload.message.trim(),
+                source: "support-contact",
+            },
+        });
+    } catch {
+        console.error("Support contact could not be saved", { ticketId });
+    }
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());
@@ -136,19 +170,12 @@ export async function POST(req: Request) {
 
     const smtpConfig = getSmtpConfig();
     if (!smtpConfig) {
-        console.info("Support ticket queued without SMTP delivery", {
-            name: safeName,
-            email: safeEmail,
-            subject: safeSubject,
-        });
-
-        return NextResponse.json({
-            success: true,
-            ticketId,
-            status: "queued",
-            delivery: "queued",
-            message: "Support request captured. SMTP is not configured in this environment.",
-        });
+        // Never report success or log the submitter's details when nothing can deliver the message.
+        console.error("Support contact unavailable: SMTP is not configured", { ticketId });
+        return NextResponse.json(
+            { error: "Contact form is temporarily unavailable. Please email contact.us@craftmyfunnel.live.", ticketId, status: "unavailable" },
+            { status: 503 },
+        );
     }
 
     const html = `
@@ -168,6 +195,8 @@ export async function POST(req: Request) {
     });
 
     if (!result.success) {
+        // The ticket id and the transport's error only; nothing the visitor typed.
+        console.error("Support contact delivery failed", { ticketId, error: result.error });
         return NextResponse.json({ error: "Failed to deliver message", ticketId, status: "failed" }, { status: 502 });
     }
 

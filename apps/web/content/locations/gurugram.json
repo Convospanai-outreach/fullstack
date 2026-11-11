@@ -1,0 +1,26 @@
+{
+  "slug": "gurugram",
+  "name": "Gurugram",
+  "state": "Haryana",
+  "stateCode": "IN-HR",
+  "placename": "Gurugram, Haryana, India",
+  "position": "28.4595;77.0266",
+  "icbm": "28.4595, 77.0266",
+  "latitude": "28.4595",
+  "longitude": "77.0266",
+  "corridors": [
+    "Cyber City",
+    "Udyog Vihar",
+    "Golf Course Road",
+    "Sohna Road",
+    "Manesar"
+  ],
+  "industryFocus": [
+    "Enterprise SaaS",
+    "Consulting & BFSI",
+    "Managed IT & GCCs",
+    "Commercial Real Estate"
+  ],
+  "summary": "Fueling B2B outreach and qualified sales pipelines across Cyber City, Golf Course Road, and NCR enterprise corridors.",
+  "order": 1
+}

@@ -1,10 +1,18 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { judgeStalledEnrollments, StallCandidate } from "./deepseekClient";
+import { isOptedOutStatus } from "@/lib/leadOptOut";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { toPlainText } from "@/modules/inbox/actionInboxService";
+import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode } from "./stallJudgment";
+import type { StallThreadMessage } from "@/lib/ai/jev";
+import { STRATEGY_STALL, stallRuleFor } from "./strategyStall";
 
 const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS"] || "5");
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const STALL_THREAD_MESSAGES = 5;
+// How many of a lead's latest inbound messages and replies are read to pair a reply with an enrollment.
+const RECENT_REPLIES = 10;
 
 /**
  * Overseer v0, primary job (see OVERSEER_ARCHITECTURE_PLAN.md §02): finds ACTIVE
@@ -34,7 +42,17 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     });
     const throttledTeamIds = throttledTeams.map((t) => t.teamId);
 
-    const stalled = await prisma.sequenceEnrollment.findMany({
+    // A campaign whose strategy sets its own rhythm (strategyStall.ts) stalls sooner than the usual
+    // threshold, so those enrollments are also matched at the strategy's shorter cutoff.
+    const strategyClauses = Object.entries(STRATEGY_STALL).map(([id, rule]) => {
+        const strategyCutoff = new Date(Date.now() - rule.days * MS_PER_DAY);
+        return {
+            sequence: { campaign: { aiConfig: { path: ["strategies"], array_contains: [id] } } },
+            OR: [{ lastRunAt: { lt: strategyCutoff } }, { lastRunAt: null, startedAt: { lt: strategyCutoff } }]
+        };
+    });
+
+    const stalledRows = await prisma.sequenceEnrollment.findMany({
         where: {
             status: "ACTIVE",
             nextRunAt: null,
@@ -42,7 +60,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             teamId: { notIn: throttledTeamIds },
             OR: [
                 { lastRunAt: { lt: cutoff } },
-                { lastRunAt: null, startedAt: { lt: cutoff } }
+                { lastRunAt: null, startedAt: { lt: cutoff } },
+                ...strategyClauses
             ]
         },
         take: BATCH_SIZE,
@@ -54,9 +73,37 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             currentStepOrder: true,
             lastRunAt: true,
             startedAt: true,
-            sequence: { select: { name: true, _count: { select: { steps: true } } } },
-            lead: { select: { phone: true, whatsappConsent: true } }
+            sequence: { select: { name: true, campaign: { select: { aiConfig: true } }, _count: { select: { steps: true } } } },
+            lead: {
+                select: {
+                    status: true,
+                    phone: true,
+                    whatsappConsent: true,
+                    messages: {
+                        where: { direction: "INBOUND" },
+                        orderBy: { createdAt: "desc" },
+                        take: RECENT_REPLIES,
+                        select: { id: true, createdAt: true }
+                    },
+                    replies: {
+                        orderBy: { receivedAt: "desc" },
+                        take: RECENT_REPLIES,
+                        select: { emailId: true, receivedAt: true, aiClassification: true, humanCorrection: true }
+                    }
+                }
+            }
         }
+    });
+
+    // Each enrollment must have been quiet for its own campaign's threshold.
+    const nowMs = Date.now();
+    const noteByEnrollmentId = new Map<string, string>();
+    const stalled = stalledRows.filter((enrollment) => {
+        const rule = stallRuleFor(enrollment.sequence.campaign?.aiConfig, STALL_THRESHOLD_DAYS);
+        const quietDays = (nowMs - (enrollment.lastRunAt || enrollment.startedAt).getTime()) / MS_PER_DAY;
+        if (quietDays < rule.days) return false;
+        if (rule.note) noteByEnrollmentId.set(enrollment.id, rule.note);
+        return true;
     });
 
     if (stalled.length === 0) {
@@ -74,22 +121,72 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     });
     const wabaTeamIds = new Set(teams.filter((t) => !!t.whatsappPhoneNumberId && !!t.whatsappAccessTokenEnc).map((t) => t.id));
 
+    // Per-team Jev switches (see stallJudgment.ts): one read for the whole tick.
+    const jevFlags = await prisma.featureFlag.findMany({
+        where: { isEnabled: true, key: { in: teamIds.flatMap((id) => Object.values(stallJevFlagKeys(id))) } },
+        select: { key: true }
+    });
+    const jevFlagKeys = new Set(jevFlags.map((f) => f.key));
+    const jevModeByTeam = new Map(
+        teamIds.map((id) => {
+            const keys = stallJevFlagKeys(id);
+            return [id, stallJevMode({ on: jevFlagKeys.has(keys.on), shadow: jevFlagKeys.has(keys.shadow) })] as const;
+        })
+    );
+
     const now = Date.now();
     const candidates: StallCandidate[] = stalled.map((enrollment) => {
         const anchor = enrollment.lastRunAt || enrollment.startedAt;
         const stallDays = (now - anchor.getTime()) / MS_PER_DAY;
         const totalSteps = enrollment.sequence._count.steps;
+        // Only a reply since this enrollment started says anything about it.
+        const lastInbound = enrollment.lead?.messages?.[0]?.createdAt;
+        // receivedAt is stamped when the classifier saves the row, so it can postdate an older reply;
+        // the inbound message time is what places the reply inside this enrollment. A reply names its
+        // message in emailId, so the newest reply whose message arrived since the enrollment started
+        // counts; an older reply with no message id falls back to the newest-reply timing check.
+        const inboundSinceStart = new Set((enrollment.lead?.messages ?? []).filter((m) => m.createdAt >= enrollment.startedAt).map((m) => m.id));
+        const replies = enrollment.lead?.replies ?? [];
+        const replyInEnrollment =
+            replies.find((reply) => (reply.emailId ? inboundSinceStart.has(reply.emailId) : false)) ??
+            (replies[0] && !replies[0].emailId && replies[0].receivedAt >= enrollment.startedAt && !!lastInbound && lastInbound >= enrollment.startedAt ? replies[0] : null);
         return {
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,
             stage: totalSteps > 0 ? `step ${enrollment.currentStepOrder + 1} of ${totalSteps}` : `step ${enrollment.currentStepOrder + 1}`,
             stallDays,
-            whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true
+            whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true,
+            replied: !!replyInEnrollment || (!!lastInbound && lastInbound >= enrollment.startedAt),
+            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null,
+            optedOut: isOptedOutStatus(enrollment.lead?.status)
         };
     });
 
-    const judgments = await judgeStalledEnrollments(candidates);
     const byEnrollmentId = new Map(stalled.map((e) => [e.id, e]));
+
+    // Teams with the Jev judgment on (or in shadow) go through judgeStalledEnrollmentsWithJev; every
+    // other candidate gets the rules exactly as before.
+    const rulesOnly: StallCandidate[] = [];
+    const jevInputs: StallJevInput[] = [];
+    for (const candidate of candidates) {
+        const enrollment = byEnrollmentId.get(candidate.enrollmentId)!;
+        const mode: StallJevMode = jevModeByTeam.get(enrollment.teamId) ?? "off";
+        // A lead who opted out is judged by the rules alone: their thread is not sent to Jev.
+        if (mode === "off" || candidate.optedOut) {
+            rulesOnly.push(candidate);
+            continue;
+        }
+        jevInputs.push({ candidate, teamId: enrollment.teamId, thread: await loadStallThread(enrollment.teamId, enrollment.leadId), mode });
+    }
+
+    const judgments = judgeStalledEnrollments(rulesOnly);
+    if (jevInputs.length > 0) {
+        const jev = await judgeStalledEnrollmentsWithJev(jevInputs);
+        judgments.push(...jev.judgments);
+        for (const log of jev.logs) {
+            logger.info("[Overseer] Stall judgment", { ...log });
+        }
+    }
 
     let created = 0;
     for (const judgment of judgments) {
@@ -106,7 +203,7 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
                 stage: candidate.stage,
                 stallDays: candidate.stallDays,
                 nudgeType: judgment.nudgeType,
-                suggestion: judgment.suggestion
+                suggestion: noteByEnrollmentId.has(enrollment.id) ? `${judgment.suggestion} ${noteByEnrollmentId.get(enrollment.id)}` : judgment.suggestion
             }
         });
         created += 1;
@@ -114,4 +211,46 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
 
     logger.info("[Overseer] Tick complete", { candidates: stalled.length, nudgesCreated: created });
     return { candidates: stalled.length, nudgesCreated: created };
+}
+
+/**
+ * The last few messages of one lead, oldest first, masked for Jev. Team-scoped: a lead that
+ * isn't on this team reads as an empty thread. Inbound messages are the lead's side; our sent
+ * messages come from both Message (outbound) and Email (sequence sends).
+ */
+async function loadStallThread(teamId: string, leadId: string): Promise<StallThreadMessage[]> {
+    const lead = await prisma.lead.findFirst({
+        where: { id: leadId, teamId },
+        select: {
+            fullName: true,
+            company: true,
+            messages: {
+                orderBy: { createdAt: "desc" },
+                take: STALL_THREAD_MESSAGES,
+                select: { direction: true, content: true, createdAt: true }
+            },
+            emails: {
+                orderBy: { createdAt: "desc" },
+                take: STALL_THREAD_MESSAGES,
+                select: { subject: true, body: true, createdAt: true }
+            }
+        }
+    });
+    if (!lead) return [];
+
+    const entries = [
+        ...lead.messages.map((m) => ({ at: m.createdAt, from: m.direction === "INBOUND" ? ("lead" as const) : ("us" as const), text: toPlainText(m.content) })),
+        ...lead.emails.map((e) => ({ at: e.createdAt, from: "us" as const, text: `Subject: ${e.subject}\n${toPlainText(e.body)}` }))
+    ]
+        .sort((a, b) => a.at.getTime() - b.at.getTime())
+        .slice(-STALL_THREAD_MESSAGES);
+
+    const names = { person: lead.fullName, company: lead.company };
+    return Promise.all(entries.map(async (e) => ({ from: e.from, text: await maskForJev(e.text, names) })));
+}
+
+// Same masking as the reply analyzer: this text goes to a third-party model.
+async function maskForJev(text: string, names: { person?: string | null; company?: string | null }): Promise<string> {
+    const { safeContext } = await SovereignFirewall.mask(text, "GLOBAL", undefined, { alwaysMask: true });
+    return SovereignFirewall.maskKnownNames(safeContext, names).safeContext;
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
 import { logger } from "@/lib/logger";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: Request) {
     try {
@@ -47,6 +48,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error("Failed to process draft:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

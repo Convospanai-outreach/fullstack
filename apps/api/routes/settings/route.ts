@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { settingsService } from "@/modules/settings/service/settingsService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     const { userId } = await getCurrentContextFromRequest(req);
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
         await settingsService.updateSettings(userId, data);
         return NextResponse.json({ success: true });
     } catch (error: unknown) {
-        return new NextResponse((error as Error).message, { status: 500 });
+        return new NextResponse(internalErrorMessage(error), { status: 500 });
     }
 }
 
@@ -26,12 +27,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const settings = await settingsService.getSettings(userId);
-
-    // Mask keys for security?
-    const masked = { ...settings };
-    if (masked.apiKeyOpenAI) masked.apiKeyOpenAI = "sk-..." + masked.apiKeyOpenAI.slice(-4);
-    if (masked.apiKeyGemini) masked.apiKeyGemini = "AI..." + masked.apiKeyGemini.slice(-4);
+    const masked = await settingsService.getSettingsForClient(userId);
 
     return NextResponse.json(masked);
 }

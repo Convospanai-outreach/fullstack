@@ -4,6 +4,8 @@ interface RequestContextData {
     correlationId: string;
     userId?: string;
     teamId?: string;
+    // Set only by the authenticated, one-use MCP relay; never from a header.
+    mcpIdentity?: { userId: string; teamId: string };
 }
 
 export class RequestContext {

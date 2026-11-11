@@ -19,11 +19,40 @@ const EXPLICITLY_WRAPPED_AI_INTEGRATIONS = new Set(["OpenAI", "Anthropic_AI"]);
 
 const DEFAULT_TRACES_SAMPLE_RATE = 0.1;
 
-const URL_KEYS = new Set(["url", "url.full", "http.url", "http.target"]);
+const URL_KEYS = new Set(["url", "url.full", "http.url", "http.target", "from", "to"]);
 const DROPPED_KEYS = new Set(["http.query", "url.query", "http.client_ip", "client.address"]);
+const MAX_DEPTH = 5;
+
+// Same rules as apps/web/src/lib/sentryScrub.ts.
+const REDACTIONS: Array<[RegExp, string]> = [
+    // Query strings on URLs inside text, and credential-like parameters anywhere.
+    [/(https?:\/\/[^\s?#"']+)\?[^\s#"']*/g, "$1?[redacted]"],
+    [/([?&](?:token|key|api_key|apikey|secret|code|password|signature|sig|access_token)=)[^&\s#"']+/gi, "$1[redacted]"],
+    [/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]"],
+    [/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[jwt]"],
+    [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]"],
+    // International phone numbers (leading +). Bare digit runs are left alone so ids and
+    // epoch timestamps survive.
+    [/\+\d[\d\s().-]{6,}\d/g, "[phone]"],
+    // Long opaque secrets (API keys, hex tokens). No hyphen, so UUIDs survive.
+    [/\b[A-Za-z0-9_]{32,}\b/g, "[secret]"],
+];
+
+export function redactText(value: string): string {
+    return REDACTIONS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+}
 
 function stripQuery(value: unknown): unknown {
     return typeof value === "string" ? value.split("?")[0] : value;
+}
+
+function redactDeep(value: unknown, depth = 0): unknown {
+    if (typeof value === "string") return redactText(value);
+    if (depth >= MAX_DEPTH || value === null || typeof value !== "object") return value;
+    if (Array.isArray(value)) return value.map((item) => redactDeep(item, depth + 1));
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) out[key] = redactDeep(item, depth + 1);
+    return out;
 }
 
 function scrubData(data: Record<string, unknown> | undefined): void {
@@ -33,6 +62,8 @@ function scrubData(data: Record<string, unknown> | undefined): void {
             delete data[key];
         } else if (URL_KEYS.has(key)) {
             data[key] = stripQuery(data[key]);
+        } else {
+            data[key] = redactDeep(data[key]);
         }
     }
 }
@@ -42,16 +73,40 @@ function scrubData(data: Record<string, unknown> | undefined): void {
  * (Authorization, Cookie, x-api-key, the internal HMAC headers), cookies and query
  * strings to events, and some unfiltered headers, client IPs and query strings to
  * span data. Query strings can carry lead emails and third-party API keys. Keep
- * only method + path.
+ * only method + path, and redact emails, phone numbers, tokens and query strings
+ * from messages, exception text, extras, tags and breadcrumbs. Captured local
+ * variables (off today) could hold whole lead records, so they are dropped too.
  */
 export function scrubEvent<T extends Sentry.Event>(event: T): T {
     if (event.request) {
         event.request = { method: event.request.method, url: stripQuery(event.request.url) as string | undefined };
     }
+    if (typeof event.message === "string") event.message = redactText(event.message);
+    for (const exception of event.exception?.values ?? []) {
+        if (typeof exception.value === "string") exception.value = redactText(exception.value);
+        for (const frame of exception.stacktrace?.frames ?? []) delete frame.vars;
+    }
+    if (event.extra) event.extra = redactDeep(event.extra) as Record<string, unknown>;
+    if (event.tags) {
+        for (const [key, tag] of Object.entries(event.tags)) {
+            if (typeof tag === "string") event.tags[key] = redactText(tag);
+        }
+    }
     scrubData(event.contexts?.trace?.data as Record<string, unknown> | undefined);
     for (const span of event.spans ?? []) scrubData(span.data as Record<string, unknown> | undefined);
-    for (const breadcrumb of event.breadcrumbs ?? []) scrubData(breadcrumb.data);
+    for (const breadcrumb of event.breadcrumbs ?? []) {
+        if (typeof breadcrumb.message === "string") breadcrumb.message = redactText(breadcrumb.message);
+        scrubData(breadcrumb.data);
+    }
     return event;
+}
+
+/** Console output is free text full of ids, emails and phone numbers: never sent. */
+export function scrubBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Breadcrumb | null {
+    if (breadcrumb.category === "console") return null;
+    if (typeof breadcrumb.message === "string") breadcrumb.message = redactText(breadcrumb.message);
+    scrubData(breadcrumb.data);
+    return breadcrumb;
 }
 
 function parseSampleRate(raw: string | undefined): number {
@@ -76,6 +131,7 @@ export function initSentry(env: NodeJS.ProcessEnv = process.env): boolean {
             sendDefaultPii: false,
             beforeSend: scrubEvent,
             beforeSendTransaction: scrubEvent,
+            beforeBreadcrumb: scrubBreadcrumb,
             // Routes are dynamically imported after init; don't chain
             // import-in-the-middle onto tsx's loader for them. AI clients are
             // wrapped explicitly, so the loader hooks aren't needed.

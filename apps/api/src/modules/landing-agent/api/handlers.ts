@@ -11,9 +11,17 @@ import {
     landingLeadPayloadSchema,
     publishCampaignSchema,
     selectWireframeSchema,
+    setPageSlugSchema,
+    createExperimentSchema,
+    pickWinnerSchema,
+    instantConfirmationSchema,
 } from "../schemas";
+import { createExperiment, endExperiment, getExperimentResults, listExperiments, pauseExperiment, pickWinner, startExperiment } from "../experimentService";
 import { pageTrackingSchema } from "../tracking";
 import { landingAgentService } from "../service";
+import { isLandingImageStorageConfigured, putLandingImage } from "../service/imageGenerationService";
+import { MAX_LANDING_IMAGE_BYTES, checkLandingImageUpload } from "../imageUpload";
+import { checkApiRateLimit, rateLimitResponse } from "@/lib/apiRateLimit";
 import { sanitizeRenderedJsonHtml } from "../rendering";
 import { whatsappOptInText } from "@/modules/creator-funnel/whatsappOptIn";
 
@@ -53,7 +61,7 @@ function getClientMeta(req: Request) {
     return { ipAddress, userAgent };
 }
 
-async function requireTeamContext(req: Request, minRole: TeamRole) {
+export async function requireTeamContext(req: Request, minRole: TeamRole) {
     const ctx = await getCurrentContextFromRequest(req);
     if (!ctx.userId || !ctx.teamId) {
         throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
@@ -84,11 +92,12 @@ export async function postCampaigns(req: Request) {
 export async function getCampaigns(req: Request) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.VIEWER);
-        const [campaigns, liveDomain] = await Promise.all([
+        const [campaigns, domains] = await Promise.all([
             landingAgentService.listCampaigns(teamId),
-            landingAgentService.getLiveDomain(teamId),
+            landingAgentService.getActiveDomains(teamId),
         ]);
-        return successResponse({ campaigns, liveDomain });
+        // liveDomain is still the oldest active domain, for callers that read only one.
+        return successResponse({ campaigns, liveDomain: domains[0] ?? null, domains });
     } catch (error) {
         return handleAPIError(error);
     }
@@ -184,13 +193,15 @@ export async function postSelectWireframe(req: Request, ctx?: ParamContext) {
         const body = await req.json();
         const parsed = selectWireframeSchema.safeParse(body);
         if (!parsed.success) {
-            throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+            const pathIssue = parsed.error.issues.find((issue) => issue.path[0] === "path");
+            throw new APIError(pathIssue?.message ?? "Invalid input", 400, "VALIDATION_ERROR");
         }
 
         const page = await landingAgentService.selectWireframe({
             teamId,
             campaignId,
             wireframeId: parsed.data.wireframeId,
+            path: parsed.data.path,
         });
         return successResponse(page);
     } catch (error) {
@@ -218,9 +229,54 @@ export async function postGenerateImages(req: Request, ctx?: ParamContext) {
     }
 }
 
-export async function putEditorState(req: Request, ctx?: ParamContext) {
+// Uploads one image from the editor (multipart field "file") to the public landing-images
+// bucket under <teamId>/<uuid>.<ext>. The type comes from the file's bytes; the name and
+// Content-Type sent by the browser are ignored. The server never fetches a URL.
+export async function postLandingImage(req: Request) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+
+        const limit = await checkApiRateLimit(`landing-image-upload:${teamId}`);
+        if (!limit.success) {
+            return rateLimitResponse(limit.resetIn ?? 60);
+        }
+
+        // Reject oversize bodies before parsing them; the multipart envelope adds a little overhead.
+        const declaredBytes = Number(req.headers.get("content-length") ?? 0);
+        if (declaredBytes > MAX_LANDING_IMAGE_BYTES + 64 * 1024) {
+            throw new APIError("The image must be 2MB or smaller", 413, "PAYLOAD_TOO_LARGE");
+        }
+
+        if (!isLandingImageStorageConfigured()) {
+            throw new APIError("Image storage is not configured", 503, "SERVICE_UNAVAILABLE");
+        }
+
+        const form = await req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File)) {
+            throw new APIError("An image file is required", 400, "VALIDATION_ERROR");
+        }
+        if (file.size > MAX_LANDING_IMAGE_BYTES) {
+            throw new APIError("The image must be 2MB or smaller", 413, "PAYLOAD_TOO_LARGE");
+        }
+
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const check = checkLandingImageUpload(bytes);
+        if (!check.ok) {
+            throw new APIError(check.error, check.status, "INVALID_IMAGE");
+        }
+
+        const objectPath = `${teamId}/${crypto.randomUUID()}.${check.format.extension}`;
+        const url = await putLandingImage(objectPath, bytes, check.format.contentType);
+        return successResponse({ url }, 201);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function putEditorState(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId, userId } = await requireTeamContext(req, TeamRole.MEMBER);
         const campaignId = await resolveParam(req, ctx, "id", "campaigns");
         if (!campaignId) {
             throw new APIError("Campaign ID is required", 400, "VALIDATION_ERROR");
@@ -233,6 +289,7 @@ export async function putEditorState(req: Request, ctx?: ParamContext) {
 
         const page = await landingAgentService.saveEditorState({
             teamId,
+            userId,
             campaignId,
             title: parsed.data.title,
             editorState: parsed.data.editorState,
@@ -265,6 +322,71 @@ export async function putPageTracking(req: Request, ctx?: ParamContext) {
             tracking: parsed.data,
         });
         return successResponse(result);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// GET /landing-agent/instant-confirmation/sequences: the team's sequences the page settings can pick from.
+export async function getInstantConfirmationSequences(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        return successResponse(await landingAgentService.listInstantConfirmationSequences(teamId));
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// PUT .../pages/:pageId/instant-confirmation: the page's optional message to a lead right after the form is stored.
+export async function putPageInstantConfirmation(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const parsed = instantConfirmationSchema.safeParse(await req.json().catch(() => null));
+        if (!parsed.success) {
+            throw new APIError("Choose the sequence to send, or switch instant confirmation off.", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.savePageInstantConfirmation({ teamId, campaignId, pageId, setting: parsed.data });
+        return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// PATCH .../pages/:pageId/slug: change a page's path name until it is first published.
+export async function patchPageSlug(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const parsed = setPageSlugSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            throw new APIError("Use 2 to 63 letters, numbers or hyphens, starting with a letter or number.", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.setPageSlug({ teamId, campaignId, pageId, path: parsed.data.path });
+        return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function postDiscardDraft(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+        const page = await landingAgentService.discardPageDraft({ teamId, campaignId, pageId });
+        return successResponse(page);
     } catch (error) {
         return handleAPIError(error);
     }
@@ -322,6 +444,27 @@ export async function getPublicPage(req: Request, ctx?: ParamContext) {
     }
 }
 
+// Do Not Track or Global Privacy Control: the visit is recorded without an A/B variant (see service.ts abVariantFor).
+function doNotTrackRequested(req: Request): boolean {
+    return req.headers.get("dnt") === "1" || req.headers.get("sec-gpc") === "1";
+}
+
+// Meta's click and browser IDs, set by the Pixel on the visitor's own domain. Only well-formed values are kept.
+function metaCookiesFrom(req: Request): { fbc?: string; fbp?: string } {
+    const cookieHeader = req.headers.get("cookie") ?? "";
+    const read = (name: string): string | undefined => {
+        const pair = cookieHeader.split(";").map((c) => c.trim()).find((c) => c.startsWith(name + "="));
+        let value = "";
+        try {
+            value = pair ? decodeURIComponent(pair.slice(name.length + 1)) : "";
+        } catch {
+            return undefined;
+        }
+        return /^[\w.-]{1,200}$/.test(value) ? value : undefined;
+    };
+    return { fbc: read("_fbc"), fbp: read("_fbp") };
+}
+
 export async function postPublicLead(req: Request, ctx?: ParamContext) {
     try {
         const slug = await resolveParam(req, ctx, "slug", "public");
@@ -345,6 +488,9 @@ export async function postPublicLead(req: Request, ctx?: ParamContext) {
             payload: parsed.data,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
+            metaCookies: metaCookiesFrom(req),
         });
 
         return successResponse({
@@ -387,9 +533,72 @@ export async function postPublicEvent(req: Request, ctx?: ParamContext) {
             utmContent: parsed.data.utmContent,
             ipAddress,
             userAgent,
+            doNotTrack: doNotTrackRequested(req),
+            cookieHeader: req.headers.get("cookie"),
         });
 
         return successResponse({ ok: true, eventId: event.id }, 201);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+// A/B tests between two landing pages (phase 6B). Team scoping happens in experimentService.
+export async function postCreateExperiment(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const parsed = createExperimentSchema.safeParse(await req.json().catch(() => ({})));
+        if (!parsed.success) {
+            throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+        }
+        const experiment = await createExperiment({ teamId, ...parsed.data });
+        return successResponse(experiment);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function getExperiments(req: Request) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        return successResponse(await listExperiments({ teamId }));
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function getExperiment(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const experimentId = await resolveParam(req, ctx, "id", "experiments");
+        if (!experimentId) {
+            throw new APIError("Experiment ID is required", 400, "VALIDATION_ERROR");
+        }
+        return successResponse(await getExperimentResults({ teamId, experimentId }));
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+export async function postExperimentAction(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const experimentId = await resolveParam(req, ctx, "id", "experiments");
+        const action = await resolveParam(req, ctx, "action");
+        if (!experimentId) {
+            throw new APIError("Experiment ID is required", 400, "VALIDATION_ERROR");
+        }
+        if (action === "start") return successResponse(await startExperiment({ teamId, experimentId }));
+        if (action === "pause") return successResponse(await pauseExperiment({ teamId, experimentId }));
+        if (action === "end") return successResponse(await endExperiment({ teamId, experimentId }));
+        if (action === "winner") {
+            const parsed = pickWinnerSchema.safeParse(await req.json().catch(() => ({})));
+            if (!parsed.success) {
+                throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
+            }
+            return successResponse(await pickWinner({ teamId, experimentId, pageId: parsed.data.pageId }));
+        }
+        throw new APIError("Not found", 404, "NOT_FOUND");
     } catch (error) {
         return handleAPIError(error);
     }

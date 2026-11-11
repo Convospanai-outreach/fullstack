@@ -218,6 +218,27 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
 // the per-team set is delivered to the client via /api/settings/hidden-features, which
 // also seeds the proxy-gate cookie. This env-only set stays as an ops override that
 // force-enables features everywhere regardless of readiness.
+
+// Outreach and automation are part of the main product: a team that has never customised
+// its features gets these on regardless of readiness. A stored Team.enabledFeatures choice
+// and the superadmin platform switches still win. The admin and infrastructure surfaces
+// (edge, data residency, web scraper, AI runtime, marketplace, creator funnel, personality
+// insights) stay readiness-gated.
+export const DEFAULT_ON_HIDDEN_FEATURES: HiddenFeatureKey[] = [
+    "linkedin-runner",
+    "whatsapp",
+    "caller",
+    "playbooks",
+    "studio",
+    "hunter-email-finder",
+    "csv-ingestion",
+    "workflows",
+    "agents",
+    "jobs",
+    "knowledge",
+    "command-center",
+];
+
 const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
     ...parseEnabledHiddenFeatureKeys(process.env["NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES"] || ""),
 ]);

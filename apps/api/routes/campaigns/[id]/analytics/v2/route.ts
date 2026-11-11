@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { analyticsService } from "@/modules/analytics/analyticsService";
 import { prisma } from "@/lib/prisma";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(
     _req: NextRequest,
@@ -42,6 +43,6 @@ export async function GET(
             }
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

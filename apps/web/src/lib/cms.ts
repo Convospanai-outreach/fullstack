@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { parseFrontmatter } from './frontmatter';
 
 const CONTENT_DIR = path.join(process.cwd(), 'content');
 
@@ -20,25 +21,9 @@ export function getContent(filePath: string): ParsedContent {
 
   const raw = fs.readFileSync(fullPath, 'utf8');
 
-  // Simple frontmatter parser
-  if (raw.startsWith('---')) {
-    const parts = raw.split('---');
-    if (parts.length >= 3) {
-      const frontmatterRaw = parts[1];
-      const content = parts.slice(2).join('---').trim();
-      const metadata: Record<string, string> = {};
-
-      frontmatterRaw.split('\n').forEach(line => {
-        const colonIndex = line.indexOf(':');
-        if (colonIndex > -1) {
-          const key = line.slice(0, colonIndex).trim();
-          const value = line.slice(colonIndex + 1).trim().replace(/^["']|["']$/g, '');
-          if (key) metadata[key] = value;
-        }
-      });
-
-      return { metadata, content };
-    }
+  const { data, content } = parseFrontmatter(raw);
+  if (Object.keys(data).length > 0) {
+    return { metadata: data, content: content.trim() };
   }
 
   return { metadata: {}, content: raw };

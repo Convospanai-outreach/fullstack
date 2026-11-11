@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { verifySmtpConfig } from "@/lib/email/smtpClient";
 import { z } from "zod";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const SmtpVerifySchema = z.object({
     host: z.string().min(1),
@@ -34,6 +35,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: result.error }, { status: 400 });
         }
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { nextStepId, previousStepId, readOutreachMode, visibleStepIds } from "./setupSteps";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { DATA_RESPONSIBILITY_VERSION, hasDataResponsibilityAck, nextStepId, previousStepId, readOutreachMode, visibleStepIds } from "./setupSteps";
 
 const ALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
@@ -29,5 +31,20 @@ describe("setup steps by outreach mode", () => {
         expect(readOutreachMode({ outreachMode: "agency" })).toBeNull();
         expect(readOutreachMode({})).toBeNull();
         expect(readOutreachMode(null)).toBeNull();
+    });
+});
+
+describe("data responsibility acknowledgement", () => {
+    // The API route (apps/api/routes/setup/save) keeps the same version; both are read from this fixture.
+    it("uses the version in the shared fixture", () => {
+        const fixture = JSON.parse(readFileSync(resolve(__dirname, "../../tests/fixtures/data-responsibility.json"), "utf8")) as { version: string };
+        expect(DATA_RESPONSIBILITY_VERSION).toBe(fixture.version);
+    });
+
+    it("counts only an acknowledgement of the current notice version", () => {
+        expect(hasDataResponsibilityAck({ dataResponsibility: { version: "2026-11", acknowledgedBy: "user-1", acknowledgedAt: "2026-11-01T10:00:00.000Z" } })).toBe(true);
+        expect(hasDataResponsibilityAck({ dataResponsibility: { version: "2026-10", acknowledgedBy: "user-1", acknowledgedAt: "2026-10-01T10:00:00.000Z" } })).toBe(false);
+        expect(hasDataResponsibilityAck({ outreachMode: "company" })).toBe(false);
+        expect(hasDataResponsibilityAck(null)).toBe(false);
     });
 });

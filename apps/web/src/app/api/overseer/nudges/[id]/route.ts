@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(
   req: NextRequest,
@@ -29,6 +30,6 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Failed to update overseer nudge:", error);
-    return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
   }
 }
