@@ -377,6 +377,31 @@ describe("/webhooks/razorpay", () => {
         expect(periodDays).toBe(30);
     });
 
+    it("acknowledges malformed notes with 200 and performs no database work", async () => {
+        const { POST } = await import("./route");
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_bad_notes",
+                        order_id: "order_bad_notes",
+                        amount: 9900,
+                        notes: { teamId: "x'; DROP TABLE \"Team\";--", type: "topup", credits: "DROP TABLE" },
+                    },
+                },
+            },
+        }) as any);
+        errorSpy.mockRestore();
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.order.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.creditTransaction.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.plan.findUnique).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("ignores a subscription payment whose planId does not match a known plan", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue(null);
 

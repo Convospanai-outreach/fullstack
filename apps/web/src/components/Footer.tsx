@@ -27,7 +27,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                                 <li><Link href="/products/buyer-signals" className="hover:text-white transition-colors">Buyer Signals</Link></li>
                                 <li><Link href="/products/ai-outreach" className="hover:text-white transition-colors">AI Outreach</Link></li>
                                 <li><Link href="/products/human-layer" className="hover:text-white transition-colors">Human Layer</Link></li>
-                                <li><Link href="/products/covospan-edge" className="hover:text-white transition-colors">Covospan EDGE</Link></li>
+                                <li><Link href="/products/covospan-edge" className="hover:text-white transition-colors">Covospan EDGE — AI call layer</Link></li>
                                 <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                                 <li><Link href="/use-cases" className="hover:text-white transition-colors">Use Cases</Link></li>
                                 <li><Link href="/vs" className="hover:text-white transition-colors">Comparisons</Link></li>

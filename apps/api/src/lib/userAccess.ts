@@ -10,8 +10,8 @@ const MAX_ENTRIES = 10_000;
 const cache = new Map<string, { at: number; access: UserAccess | null }>();
 
 /** null when the user doesn't exist. Throws on a DB error so callers can decide. */
-export async function getUserAccess(userId: string): Promise<UserAccess | null> {
-    const hit = cache.get(userId);
+export async function getUserAccess(userId: string, opts?: { bypassCache?: boolean }): Promise<UserAccess | null> {
+    const hit = opts?.bypassCache ? undefined : cache.get(userId);
     if (hit && Date.now() - hit.at < TTL_MS) return hit.access;
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { suspendedAt: true, sessionVersion: true } });
@@ -20,6 +20,9 @@ export async function getUserAccess(userId: string): Promise<UserAccess | null> 
     cache.set(userId, { at: Date.now(), access });
     return access;
 }
+
+/** Routes where a just-suspended account must be refused at once rather than within the cache window. */
+export const isFreshAccessRoute = (path: string) => /^\/(billing|checkout|admin)(\/|$)/.test(path);
 
 /** Drops the cached entry so this process sees a change immediately. */
 export function forgetUserAccess(userId: string) {
