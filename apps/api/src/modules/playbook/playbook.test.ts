@@ -111,7 +111,7 @@ describe("syncPlaybook", () => {
         mockPrisma.knowledgeItem.findMany.mockResolvedValue([]);
         mockPrisma.knowledgeItem.create.mockResolvedValue({ id: "item" });
         mockPrisma.knowledgeItem.deleteMany.mockResolvedValue({ count: 0 });
-        mockEmbed.mockResolvedValue([0.1, 0.2]);
+        mockEmbed.mockResolvedValue(Array(1536).fill(0.1));
     });
 
     it("a dry run reads and plans but writes and embeds nothing, even when the knowledge base is missing", async () => {
@@ -141,7 +141,7 @@ describe("syncPlaybook", () => {
     });
 
     it("drops a chunk that could not be embedded so the next sync retries it, and keeps going", async () => {
-        mockEmbed.mockRejectedValueOnce(new Error("no key")).mockResolvedValue([0.1]);
+        mockEmbed.mockRejectedValueOnce(new Error("no key")).mockResolvedValue(Array(1536).fill(0.1));
         mockPrisma.$executeRawUnsafe.mockResolvedValueOnce(1).mockRejectedValueOnce(new Error("db")).mockResolvedValue(1);
 
         const result = await syncPlaybook(chunks, "team1", { dryRun: false });
@@ -166,7 +166,7 @@ describe("syncPlaybook", () => {
 describe("searchPlaybook", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockEmbed.mockResolvedValue([0.1, 0.2]);
+        mockEmbed.mockResolvedValue(Array(1536).fill(0.1));
     });
 
     it("returns nothing for an empty query or no team, without calling anything", async () => {
