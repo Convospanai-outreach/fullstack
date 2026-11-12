@@ -30,6 +30,7 @@ import InstagramSourceLine, { type InstagramLeadSource } from "@/components/crm/
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import LeadCustomFieldsPanel from "./LeadCustomFieldsPanel";
 import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
+import { formatProbability } from "@/lib/formatProbability";
 
 interface Lead {
     id: string;
@@ -902,14 +903,17 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                     <TrendingUp className="w-4 h-4 text-rose-400" />
                                     <span className="text-white/80">Churn Risk Probability</span>
                                 </div>
-                                <span className={`font-mono font-bold ${
-                                    (lead.churnRisk || 0.12) > 0.5 ? 'text-red-400' : 'text-emerald-400'
-                                }`}>
-                                    {lead.churnRisk !== undefined && lead.churnRisk !== null
-                                        ? `${Math.round(lead.churnRisk * 100)}%`
-                                        : '12%'
-                                    }
-                                </span>
+                                {(() => {
+                                    const enough = timeline.length >= 3 && typeof lead.churnRisk === "number";
+                                    return (
+                                        <span
+                                            className={`font-mono font-bold ${!enough ? 'text-white/50' : (lead.churnRisk as number) > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}
+                                            title={enough ? undefined : "Insufficient data"}
+                                        >
+                                            {enough ? formatProbability(lead.churnRisk) : "—"}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                             <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-2">
