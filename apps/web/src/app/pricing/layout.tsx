@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     },
     openGraph: {
         title: "CraftMyFunnel Pricing & Plans",
-        description: "Transparent pricing for governed B2B outreach across Pilot, Growth, and Enterprise tiers.",
+        description: "Transparent pricing for governed B2B outreach across Pilot, Growth Autopilot, and Enterprise / Partner tiers.",
         url: "https://craftmyfunnel.live/pricing",
         images: [
             {
