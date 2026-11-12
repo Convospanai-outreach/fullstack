@@ -65,6 +65,7 @@ export function FinalSignup() {
             ))}
           </div>
           <p className="scope-note">{current.hint}</p>
+          <p className="scope-note">Pilot available. Start with one campaign, one ICP, one offer. No lock-in.</p>
           <label htmlFor="v8-signup-email">Email address <span aria-hidden="true">*</span></label>
           <input
             id="v8-signup-email"
