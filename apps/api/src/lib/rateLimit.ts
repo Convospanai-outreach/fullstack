@@ -197,7 +197,8 @@ export async function checkRateLimit(
   }
 
   // 2. Fallback to LRU (In-Memory)
-  if (process.env["NODE_ENV"] === "production" && now - lastFallbackLogAt > 60_000) {
+  // Silent when Redis is switched off on purpose (DISABLE_REDIS=true): the operator already chose this.
+  if (process.env["NODE_ENV"] === "production" && process.env["DISABLE_REDIS"] !== "true" && now - lastFallbackLogAt > 60_000) {
     lastFallbackLogAt = now;
     logger.error("rate_limit_fallback_inmemory", { message: "Redis not available - rate limiting is process-local. This is unsafe with more than one instance." });
   }
