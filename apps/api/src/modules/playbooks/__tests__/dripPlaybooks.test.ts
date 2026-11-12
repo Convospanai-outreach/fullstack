@@ -36,6 +36,21 @@ describe("recommendDripPlaybooks", () => {
         expect(score("linkClickFollowUp")).toBeGreaterThan(0);
     });
 
+    it("has unique kinds, and only manual playbooks are non-automatic", () => {
+        expect(new Set(DRIP_PLAYBOOKS.map((p) => p.kind)).size).toBe(DRIP_PLAYBOOKS.length);
+        for (const p of DRIP_PLAYBOOKS) expect(p.trigger.automatic).toBe(p.trigger.kind !== "manual");
+    });
+
+    it("recommends event reminders for a webinar site and trial nudges for a SaaS trial", () => {
+        const score = (r: ReturnType<typeof recommendDripPlaybooks>, k: string) => r.find((x) => x.kind === k)!.score;
+        const event = recommendDripPlaybooks({ cta_language: ["Register for the webinar"] });
+        expect(score(event, "eventReminders")).toBeGreaterThan(0);
+        expect(score(recommendDripPlaybooks({}), "eventReminders")).toBe(0);
+        const saas = recommendDripPlaybooks({ industry_vertical: "B2B SaaS", cta_language: ["Start free trial"] });
+        expect(score(saas, "trialOnboarding")).toBeGreaterThan(0);
+        expect(score(recommendDripPlaybooks({ industry_vertical: "Dental clinic" }), "trialOnboarding")).toBe(0);
+    });
+
     it("every playbook stops on reply, booking and unsubscribe", () => {
         for (const p of DRIP_PLAYBOOKS) expect(p.exits).toEqual(expect.arrayContaining(["replied", "meeting_booked", "unsubscribed"]));
     });
