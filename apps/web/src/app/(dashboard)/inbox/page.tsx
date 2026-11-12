@@ -329,7 +329,7 @@ export default function InboxPage() {
     const [loadingMore, setLoadingMore] = useState(false);
     const { data, error, mutate } = useSWR<InboxResponse>(getBrowserApiUrl(`/inbox?page=1&limit=${PAGE_SIZE}`), fetcher);
     const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher);
-    const { data: held, mutate: refreshHeld } = useSWR<{ items: HeldEmail[] }>(getBrowserApiUrl("/inbox/held-emails"), fetcher);
+    const { data: held, error: heldError, mutate: refreshHeld } = useSWR<{ items: HeldEmail[]; total?: number }>(getBrowserApiUrl("/inbox/held-emails"), fetcher);
     const heldAction = (action: "approve" | "retry") => async (runId: string) => {
         await postJson(`/inbox/held-emails/${runId}/${action}`);
         toast.success(action === "approve" ? "Approved. It will send shortly." : "Checking again. It will send shortly if nothing is missing.");
@@ -389,13 +389,17 @@ export default function InboxPage() {
                 <TabsList>
                     <TabsTrigger value="replies">Replies ({counts?.unreadReplies ?? 0})</TabsTrigger>
                     <TabsTrigger value="approvals">Approvals ({approvals?.requests?.length ?? 0})</TabsTrigger>
-                    <TabsTrigger value="held">Held emails ({held?.items?.length ?? 0})</TabsTrigger>
+                    <TabsTrigger value="held">Held emails{held ? ` (${held.total ?? held.items.length})` : ""}</TabsTrigger>
                 </TabsList>
             </Tabs>
 
             {tab === "approvals" && <ApprovalsPage />}
 
-            {tab === "held" && <HeldEmails items={held?.items ?? []} onApprove={heldAction("approve")} onRetry={heldAction("retry")} />}
+            {tab === "held" && heldError && (
+                <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load held emails: {heldError.message}</GlassCard>
+            )}
+            {tab === "held" && !heldError && !held && <GlassCard className="p-6 text-sm text-muted-foreground">Loading held emails...</GlassCard>}
+            {tab === "held" && held && <HeldEmails items={held.items} total={held.total} onApprove={heldAction("approve")} onRetry={heldAction("retry")} />}
 
             {tab === "replies" && error && (
                 <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load your inbox: {error.message}</GlassCard>

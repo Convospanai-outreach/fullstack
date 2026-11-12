@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { isOptedOutStatus } from "@/lib/leadOptOut";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { toPlainText } from "@/modules/inbox/actionInboxService";
 import { judgeStalledEnrollments, judgeStalledEnrollmentsWithJev, stallJevFlagKeys, stallJevMode, StallCandidate, StallJevInput, StallJevMode } from "./stallJudgment";
@@ -10,6 +11,8 @@ const STALL_THRESHOLD_DAYS = parseInt(process.env["OVERSEER_STALL_THRESHOLD_DAYS
 const BATCH_SIZE = parseInt(process.env["OVERSEER_BATCH_SIZE"] || "20");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const STALL_THREAD_MESSAGES = 5;
+// How many of a lead's latest inbound messages and replies are read to pair a reply with an enrollment.
+const RECENT_REPLIES = 10;
 
 /**
  * Overseer v0, primary job (see OVERSEER_ARCHITECTURE_PLAN.md §02): finds ACTIVE
@@ -73,18 +76,19 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             sequence: { select: { name: true, campaign: { select: { aiConfig: true } }, _count: { select: { steps: true } } } },
             lead: {
                 select: {
+                    status: true,
                     phone: true,
                     whatsappConsent: true,
                     messages: {
                         where: { direction: "INBOUND" },
                         orderBy: { createdAt: "desc" },
-                        take: 1,
-                        select: { createdAt: true }
+                        take: RECENT_REPLIES,
+                        select: { id: true, createdAt: true }
                     },
                     replies: {
                         orderBy: { receivedAt: "desc" },
-                        take: 1,
-                        select: { receivedAt: true, aiClassification: true, humanCorrection: true }
+                        take: RECENT_REPLIES,
+                        select: { emailId: true, receivedAt: true, aiClassification: true, humanCorrection: true }
                     }
                 }
             }
@@ -136,11 +140,16 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
         const stallDays = (now - anchor.getTime()) / MS_PER_DAY;
         const totalSteps = enrollment.sequence._count.steps;
         // Only a reply since this enrollment started says anything about it.
-        const latestReply = enrollment.lead?.replies?.[0];
         const lastInbound = enrollment.lead?.messages?.[0]?.createdAt;
         // receivedAt is stamped when the classifier saves the row, so it can postdate an older reply;
-        // the inbound message time is what places the reply inside this enrollment.
-        const replyInEnrollment = latestReply && latestReply.receivedAt >= enrollment.startedAt && !!lastInbound && lastInbound >= enrollment.startedAt ? latestReply : null;
+        // the inbound message time is what places the reply inside this enrollment. A reply names its
+        // message in emailId, so the newest reply whose message arrived since the enrollment started
+        // counts; an older reply with no message id falls back to the newest-reply timing check.
+        const inboundSinceStart = new Set((enrollment.lead?.messages ?? []).filter((m) => m.createdAt >= enrollment.startedAt).map((m) => m.id));
+        const replies = enrollment.lead?.replies ?? [];
+        const replyInEnrollment =
+            replies.find((reply) => (reply.emailId ? inboundSinceStart.has(reply.emailId) : false)) ??
+            (replies[0] && !replies[0].emailId && replies[0].receivedAt >= enrollment.startedAt && !!lastInbound && lastInbound >= enrollment.startedAt ? replies[0] : null);
         return {
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,
@@ -148,7 +157,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             stallDays,
             whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true,
             replied: !!replyInEnrollment || (!!lastInbound && lastInbound >= enrollment.startedAt),
-            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null
+            replyClassification: replyInEnrollment ? replyInEnrollment.humanCorrection || replyInEnrollment.aiClassification : null,
+            optedOut: isOptedOutStatus(enrollment.lead?.status)
         };
     });
 
@@ -161,7 +171,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     for (const candidate of candidates) {
         const enrollment = byEnrollmentId.get(candidate.enrollmentId)!;
         const mode: StallJevMode = jevModeByTeam.get(enrollment.teamId) ?? "off";
-        if (mode === "off") {
+        // A lead who opted out is judged by the rules alone: their thread is not sent to Jev.
+        if (mode === "off" || candidate.optedOut) {
             rulesOnly.push(candidate);
             continue;
         }

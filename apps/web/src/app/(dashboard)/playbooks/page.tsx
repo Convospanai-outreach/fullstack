@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { PlaybookCard } from "@/components/playbooks/PlaybookCard"
+import { DripPlaybooks } from "@/components/playbooks/DripPlaybooks"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { Loader2, Plus } from "lucide-react"
 import { SectionHeader } from "@/components/ui/SectionHeader"
@@ -69,6 +70,7 @@ export default function PlaybooksPage() {
 
     return (
         <div className="space-y-6">
+            <DripPlaybooks />
             <div className="flex justify-between items-center mb-8">
                 <SectionHeader title="Playbooks" subtitle="Standardized templates for your team." />
                 <PrimaryButton onClick={handleCreate} disabled={creating}>

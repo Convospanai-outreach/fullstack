@@ -21,6 +21,12 @@ const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
 // B-05). Bound the time-to-response-headers to 15s; the timer is cleared once the
 // upstream responds, so a legitimately long response body still streams through.
 const PROXY_TIMEOUT_MS = 15_000;
+// The website scan reads up to 6 pages and then calls the model, and a drip playbook draft writes
+// several emails with the model, so both take longer than 15s.
+const SLOW_PROXY_TIMEOUT_MS = 90_000;
+const SLOW_PROXY_PATHS = new Set(["setup/scan", "drip-playbooks/draft"]);
+const timeoutFor = (pathParts: string[] | undefined) =>
+    SLOW_PROXY_PATHS.has(pathParts?.join("/") ?? "") ? SLOW_PROXY_TIMEOUT_MS : PROXY_TIMEOUT_MS;
 
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
@@ -219,6 +225,7 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers, method
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
+    const startedAt = Date.now();
     try {
         if (!pathParts || pathParts.length === 0) {
             throw new Error("Proxy path is required");
@@ -259,7 +266,7 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
                 : await req.arrayBuffer();
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), timeoutFor(pathParts));
 
         const requestInit: RequestInit = {
             method,
@@ -289,13 +296,17 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
     } catch (error) {
         // The detail (internal origin, config or socket errors) stays in the server log: the browser only
         // needs to know the upstream API did not answer.
+        // Path only: the query string can carry OAuth parameters.
         console.error("[proxy] upstream request failed", {
+            method: req.method,
+            path: req.nextUrl.pathname,
+            elapsedMs: Date.now() - startedAt,
             upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
             error: error instanceof Error ? error.message : String(error),
         });
         if (error instanceof Error && error.name === "AbortError") {
             return NextResponse.json({
-                error: `Upstream API did not respond within ${PROXY_TIMEOUT_MS / 1000}s.`,
+                error: `Upstream API did not respond within ${timeoutFor(pathParts) / 1000}s.`,
                 code: "PROXY_UPSTREAM_TIMEOUT",
             }, { status: 504 });
         }

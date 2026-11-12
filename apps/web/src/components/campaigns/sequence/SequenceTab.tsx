@@ -39,6 +39,7 @@ const toItem = (s: SequenceStepFromApi): SequenceStepItem => ({
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [loading, setLoading] = useState(true);
     const [mergeCheckOpen, setMergeCheckOpen] = useState(false);
+    const [savedCount, setSavedCount] = useState(0);
     const [saving, setSaving] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [steps, setSteps] = useState<SequenceStepItem[]>([]);
@@ -167,6 +168,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             }
             const savedSteps: SequenceStepFromApi[] = data.steps || [];
             setSteps(savedSteps.map(toItem));
+            setSavedCount((n) => n + 1);
             toast.success("Sequence saved");
         } catch (error: any) {
             toast.error(error?.message || "Failed to save sequence");
@@ -261,7 +263,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         {saving ? "Saving..." : "Save sequence"}
                     </button>
                 </div>
-                {mergeCheckOpen && <MergeFieldCheck campaignId={campaignId} />}
+                {mergeCheckOpen && <MergeFieldCheck campaignId={campaignId} savedCount={savedCount} />}
                 {strategyOpen && (
                     <div className="max-h-80 space-y-3 overflow-auto border-b border-border bg-card p-4">
                         <StrategyPicker

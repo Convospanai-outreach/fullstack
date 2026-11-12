@@ -20,6 +20,7 @@ const MAX_EMAIL_SEND_ATTEMPTS = 20;
 export const TOKENS_HELD_STATUS = "AWAITING_TOKEN_APPROVAL";
 export const TOKENS_HELD_CODE = "MISSING_TOKENS";
 export const TOKENS_APPROVED_CODE = "TOKENS_APPROVED";
+const TOKENS_APPROVED_MARKER = "[tokens-approved] ";
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
 // "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
 const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
@@ -457,7 +458,8 @@ export class SequenceService {
             return { runId: run.id, status: "FAILED", errorCode: "MISSING_BODY" };
         }
 
-        const approved = run.errorCode === TOKENS_APPROVED_CODE;
+        // A failed send overwrites errorCode, so a retry keeps the approval through this marker in the message.
+        const approved = run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
         const resolvedSubject = resolveMessageTokens(subject, lead, { useSuggestedFallbacks: approved });
         const resolvedBody = resolveMessageTokens(body, lead, { useSuggestedFallbacks: approved, html: true });
         const problems = new Map<string, MissingToken>();
@@ -499,7 +501,7 @@ export class SequenceService {
             // duplicate send against the same (now stale) idempotency key.
             const retryable = this.isRetryableEmailError(result.error) && (run.attemptCount ?? 0) < MAX_EMAIL_SEND_ATTEMPTS;
             const errorCode = retryable ? "EMAIL_RETRYABLE" : this.isRetryableEmailError(result.error) ? "EMAIL_RETRY_LIMIT_EXCEEDED" : "EMAIL_SEND_FAILED";
-            await this.failRun(run.id, errorCode, result.error || "Email send failed.", retryable, now);
+            await this.failRun(run.id, errorCode, `${approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
             return { runId: run.id, status: retryable ? "RETRY_SCHEDULED" : "FAILED" };
         }
 
@@ -878,7 +880,7 @@ export class SequenceService {
     // property has to be fixed on the contact or in the step instead.
     static async approveTokenFallbacks(teamId: string, runId: string, now = new Date()) {
         const client = db();
-        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS } });
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS, enrollment: { status: "MANUAL_REVIEW" } } });
         if (!run) return { approved: false as const, reason: "NOT_WAITING" as const };
 
         let missing: MissingToken[] = [];
@@ -906,7 +908,8 @@ export class SequenceService {
     // field is still missing the email is held again with the current list.
     static async retryHeldTokens(teamId: string, runId: string, now = new Date()) {
         const client = db();
-        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS } });
+        // An enrollment that was stopped meanwhile (a reply, a manual stop) must not send this follow-up.
+        const run = await client.sequenceStepRun.findFirst({ where: { id: runId, teamId, status: TOKENS_HELD_STATUS, enrollment: { status: "MANUAL_REVIEW" } } });
         if (!run) return { retried: false as const };
         const taken = await client.sequenceStepRun.updateMany({
             where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },

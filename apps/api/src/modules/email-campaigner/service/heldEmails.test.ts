@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma } = vi.hoisted(() => ({ mockPrisma: { sequenceStepRun: { findMany: vi.fn() } } }));
+const { mockPrisma } = vi.hoisted(() => ({ mockPrisma: { sequenceStepRun: { findMany: vi.fn(), count: vi.fn() } } }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("./sequenceService", () => ({ TOKENS_HELD_STATUS: "AWAITING_TOKEN_APPROVAL" }));
 
-import { listHeldEmails } from "./heldEmails";
+import { countHeldEmails, listHeldEmails } from "./heldEmails";
 
 const run = (over: Record<string, unknown> = {}) => ({
     id: "r1",
@@ -20,6 +20,15 @@ const run = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => vi.clearAllMocks());
+
+describe("countHeldEmails", () => {
+    it("counts every held email for the team, not just the ones listed", async () => {
+        mockPrisma.sequenceStepRun.count.mockResolvedValue(240);
+
+        expect(await countHeldEmails("team-1")).toBe(240);
+        expect(mockPrisma.sequenceStepRun.count).toHaveBeenCalledWith({ where: { teamId: "team-1", status: "AWAITING_TOKEN_APPROVAL" } });
+    });
+});
 
 describe("listHeldEmails", () => {
     it("lists held runs for the team with what is missing, and says they can be approved", async () => {

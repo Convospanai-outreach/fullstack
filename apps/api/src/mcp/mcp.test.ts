@@ -8,18 +8,20 @@ import { registerMcp, executeMcpTool, describeTools } from './server';
 import { authenticateMcpToken, digest } from './oauth';
 import { getMcpConfig, parseScopes, redirectUriSchema } from './config';
 import { MCP_OPERATIONS } from './catalog';
+import { cleanupMcpRecords } from './maintenance';
 import { TeamRole } from '@/lib/permissions';
 import { verifyInternalAuthHeaders } from '@/lib/internalAuth';
 
 const mocks = vi.hoisted(() => ({
   db: {
-    mcpOAuthClient: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn() },
-    mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
-    mcpOAuthCode: { findUnique: vi.fn(), deleteMany: vi.fn() },
+    mcpOAuthClient: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), deleteMany: vi.fn() },
+    mcpOAuthGrant: { create: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
+    mcpOAuthCode: { findUnique: vi.fn(), deleteMany: vi.fn(), updateMany: vi.fn() },
     mcpOAuthRefreshUse: { create: vi.fn(), findUnique: vi.fn(), deleteMany: vi.fn() },
     team: { findMany: vi.fn() },
     teamMember: { findFirst: vi.fn(), findMany: vi.fn() }, user: { findUnique: vi.fn() },
-    mcpToolAction: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    mcpToolAction: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+    mcpRelayClaim: { deleteMany: vi.fn() },
     auditLog: { create: vi.fn() }, $transaction: vi.fn(), $executeRaw: vi.fn(),
   }, getToken: vi.fn(), rate: vi.fn(),
 }));
@@ -342,13 +344,34 @@ describe('OAuth connection lifecycle', () => {
   it('exchanges a PKCE code once and rejects its replay', async () => {
     const instance = await app(); grant.accessTokenHash = null;
     mocks.db.mcpOAuthCode.findUnique.mockResolvedValue({ hash: digest('code'), grant, redirectUri: auth.redirect_uri, codeChallenge: auth.code_challenge, expiresAt: new Date(Date.now() + 60000) });
-    mocks.db.mcpOAuthCode.deleteMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValue({ count: 0 });
+    mocks.db.mcpOAuthCode.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValue({ count: 0 });
     const input = { grant_type: 'authorization_code', client_id: auth.client_id, resource: config.resource, code: 'code', redirect_uri: auth.redirect_uri, code_verifier: verifier };
     expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: { ...input, code_verifier: 'x'.repeat(43) } })).statusCode).toBe(400);
     const response = await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: input });
     expect(response.statusCode).toBe(200); expect(response.headers['cache-control']).toBe('no-store');
     expect(grant.accessTokenHash).toBe(digest(response.json().access_token));
+    expect(mocks.db.mcpOAuthCode.updateMany).toHaveBeenCalledWith({ where: { hash: digest('code'), expiresAt: { gt: expect.any(Date) } }, data: { expiresAt: new Date(0) } });
     expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: input })).statusCode).toBe(400);
+  });
+  it('revokes the tokens from the first exchange when a spent code is replayed', async () => {
+    const instance = await app();
+    grant.revokedAt = null; grant.accessTokenHash = digest('live-access'); grant.refreshTokenHash = digest('live-refresh');
+    mocks.db.mcpOAuthCode.findUnique.mockResolvedValue({ hash: digest('code'), grantId: grant.id, grant, redirectUri: auth.redirect_uri, codeChallenge: auth.code_challenge, expiresAt: new Date(0) });
+    const input = { grant_type: 'authorization_code', client_id: auth.client_id, resource: config.resource, code: 'code', redirect_uri: auth.redirect_uri, code_verifier: verifier };
+    expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: input })).statusCode).toBe(400);
+    expect(grant.revokedAt).toBeInstanceOf(Date);
+    expect(grant.accessTokenHash).toBeNull(); expect(grant.refreshTokenHash).toBeNull();
+  });
+  it('does not revoke on a naturally expired code or a code presented by another client', async () => {
+    const instance = await app();
+    grant.revokedAt = null; grant.accessTokenHash = digest('live-access');
+    const input = { grant_type: 'authorization_code', client_id: auth.client_id, resource: config.resource, code: 'code', redirect_uri: auth.redirect_uri, code_verifier: verifier };
+    mocks.db.mcpOAuthCode.findUnique.mockResolvedValue({ hash: digest('code'), grantId: grant.id, grant, redirectUri: auth.redirect_uri, codeChallenge: auth.code_challenge, expiresAt: new Date(Date.now() - 1000) });
+    expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: input })).statusCode).toBe(400);
+    expect(grant.revokedAt).toBeNull();
+    mocks.db.mcpOAuthCode.findUnique.mockResolvedValue({ hash: digest('code'), grantId: grant.id, grant, redirectUri: auth.redirect_uri, codeChallenge: auth.code_challenge, expiresAt: new Date(0) });
+    expect((await instance.inject({ method: 'POST', url: '/mcp/oauth/token', payload: { ...input, client_id: 'other-client' } })).statusCode).toBe(400);
+    expect(grant.revokedAt).toBeNull();
   });
   it('rotates refresh tokens and rejects the old token', async () => {
     const instance = await app();
@@ -427,5 +450,14 @@ describe('OAuth connection lifecycle', () => {
     const instance = await app(); mocks.getToken.mockResolvedValue(null);
     expect((await instance.inject('/mcp/connections')).statusCode).toBe(401);
     expect(mocks.db.mcpOAuthGrant.findMany).not.toHaveBeenCalled();
+  });
+  it('marks a change left running by a crashed process as uncertain, and only once it is clearly stale', async () => {
+    const now = new Date('2026-11-08T12:00:00Z');
+    await cleanupMcpRecords(now);
+    const stuck = mocks.db.mcpToolAction.updateMany.mock.calls[0]![0];
+    expect(stuck.where.status).toBe('RUNNING');
+    expect(stuck.where.startedAt.lt).toEqual(new Date('2026-11-08T11:50:00Z'));
+    expect(stuck.data).toEqual({ status: 'UNKNOWN', completedAt: now });
+    expect(mocks.db.mcpToolAction.deleteMany).toHaveBeenCalled();
   });
 });

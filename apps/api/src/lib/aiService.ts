@@ -5,7 +5,15 @@ import { LLMProvider, TaskComplexity } from "@/ai/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { instrumentAnthropic, instrumentOpenAI } from "@/lib/sentry";
+import {
+    AIObservabilityContext,
+    captureLegacyGeminiEmbedding,
+    captureLegacyGeminiGeneration,
+    createAIObservabilityContext,
+    createAnthropicClient,
+    createOpenAIClient,
+    withAIProvider,
+} from "@/lib/aiObservability";
 import {
     enforceAgentOutputGuardrails,
     GuardrailOptions
@@ -446,6 +454,7 @@ async function escalateGenerationFailureToHuman(params: {
 async function callProvider(
     candidate: ProviderCandidate,
     prompt: string,
+    observability: AIObservabilityContext,
     systemPrompt?: string
 ): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
     if (candidate.provider === LLMProvider.GEMINI) {
@@ -459,25 +468,35 @@ async function callProvider(
             model: candidate.model,
             ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
         }, { timeout: LLM_TIMEOUT_MS });
+        const generationStart = Date.now();
         const result = await model.generateContent(prompt);
         const response = result.response;
         const usage = (response as any).usageMetadata || {};
+        const tokensIn = usage.promptTokenCount || 0;
+        const tokensOut = usage.candidatesTokenCount || 0;
+        captureLegacyGeminiGeneration({
+            context: observability,
+            model: candidate.model,
+            inputTokens: tokensIn,
+            outputTokens: tokensOut,
+            latencyMs: Date.now() - generationStart,
+        });
         return {
             text: response.text(),
-            tokensIn: usage.promptTokenCount || 0,
-            tokensOut: usage.candidatesTokenCount || 0
+            tokensIn,
+            tokensOut
         };
     }
 
     if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK) {
         // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
         // just a different base URL.
-        const client = instrumentOpenAI(new OpenAI({
+        const client = createOpenAIClient({
             apiKey: candidate.apiKey,
             timeout: LLM_TIMEOUT_MS,
             maxRetries: MAX_RETRIES_PER_PROVIDER,
             ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {})
-        }));
+        });
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
         // no explicit cache_control needed, just put the stable instructions
         // in their own leading message so the prefix is byte-identical
@@ -488,7 +507,10 @@ async function callProvider(
         const response = await client.chat.completions.create({
             model: candidate.model,
             messages,
-            temperature: 0.4
+            temperature: 0.4,
+            ...(candidate.provider === LLMProvider.DEEPSEEK
+                ? withAIProvider(observability, "deepseek")
+                : observability),
         });
         return {
             text: response.choices?.[0]?.message?.content || "",
@@ -497,7 +519,7 @@ async function callProvider(
         };
     }
 
-    const client = instrumentAnthropic(new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+    const client = createAnthropicClient({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
     const message = await client.messages.create({
         model: candidate.model,
         // Sonnet/Haiku 5.5 think adaptively, and thinking tokens count against this cap, so 800 could
@@ -510,7 +532,8 @@ async function callProvider(
         ...(systemPrompt
             ? { system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }] }
             : {}),
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: prompt }],
+        ...observability,
     });
     // A draft cut off at the cap, or one with no text at all, must not be handed back as if it were
     // finished: the caller would send or store it. Failing here moves on to the next provider.
@@ -537,14 +560,17 @@ async function callLLM(
         creditDescription?: string;
         actorId?: string;
         systemPrompt?: string;
+        /** false: use the team's key (else the platform's) but take no credits. Default true. */
+        chargeCredits?: boolean;
     }
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
+    const observability = createAIObservabilityContext(actorId);
     const providers = await loadTeamProviders(options.teamId);
     const chain = buildProviderChain(providers, options.complexity);
     const primary = chain[0];
     const start = Date.now();
-    const billedTeamId = isChargeableTeamId(options.teamId) ? options.teamId : undefined;
+    const billedTeamId = options.chargeCredits !== false && isChargeableTeamId(options.teamId) ? options.teamId : undefined;
     const estimatedCredits = estimateCreditsForPrompt(prompt, options.complexity);
     const billingDescription = options.creditDescription || "AI generation usage";
     const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, billingDescription, {
@@ -561,7 +587,7 @@ async function callLLM(
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
-                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, options.systemPrompt), LLM_TIMEOUT_MS);
+                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, observability, options.systemPrompt), LLM_TIMEOUT_MS);
                 recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
@@ -678,12 +704,17 @@ export class AIService {
              * model tier instead of the default strategic one.
              */
             complexity?: TaskComplexity;
+            /** false: take no credits for this call (key choice is unchanged). Default true. */
+            chargeCredits?: boolean;
+            /** Set only for prompts the server builds itself around fetched page text: the user-typing content rules are skipped and this size cap applies. */
+            maxPromptChars?: number;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
         const safePrompt = enforceAIPromptPolicy(prompt, {
             surface,
-            label: "AI prompt"
+            label: "AI prompt",
+            ...(taskContext?.maxPromptChars ? { maxChars: taskContext.maxPromptChars, skipContentRules: true } : {})
         });
         const safeSystemPrompt = taskContext?.systemPrompt
             ? enforceAIPromptPolicy(taskContext.systemPrompt, { surface, label: "AI system prompt" })
@@ -694,7 +725,8 @@ export class AIService {
             taskTypeLabel: taskContext?.taskType || surface,
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
             actorId: taskContext?.actorId,
-            systemPrompt: safeSystemPrompt
+            systemPrompt: safeSystemPrompt,
+            chargeCredits: taskContext?.chargeCredits
         });
 
         const expectsJson = !!taskContext?.expectsJson;
@@ -755,7 +787,7 @@ export class AIService {
         });
 
         try {
-            const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+            const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
             const batch = await client.messages.batches.create({
                 requests: prompts.map((request) => ({
                     custom_id: request.customId,
@@ -786,7 +818,7 @@ export class AIService {
         if (!providers.anthropic?.apiKey) {
             throw new Error(`Batch polling requires a configured Anthropic API key for team ${teamId}.`);
         }
-        const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+        const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
         const remote = await client.messages.batches.retrieve(providerBatchId);
         return remote.processing_status === "ended";
     }
@@ -801,7 +833,7 @@ export class AIService {
         if (!providers.anthropic?.apiKey) {
             throw new Error(`Batch results require a configured Anthropic API key for team ${teamId}.`);
         }
-        const client = instrumentAnthropic(new Anthropic({ apiKey: providers.anthropic.apiKey }));
+        const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
         const actorId = RequestContext.get()?.userId;
         const out: { customId: string; text: string | null; resultType: string }[] = [];
         for await (const line of await client.messages.batches.results(providerBatchId)) {
@@ -873,17 +905,19 @@ export class AIService {
         let settledCredits = false;
 
         const estimatedTokensIn = Math.ceil(safeText.length / 4);
+        const observability = createAIObservabilityContext(resolvedActorId);
 
         try {
         if (providers.openai?.apiKey) {
-            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+            const client = createOpenAIClient({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
             // providers.openai.model is the team's chat-completion model override
             // (e.g. "gpt-4o") - never a valid embeddings model, so it must not be
             // reused here the way it is for chat calls elsewhere in this file.
             const model = process.env["OPENAI_EMBEDDING_MODEL"] || "text-embedding-3-small";
             const response = await client.embeddings.create({
                 model,
-                input: safeText
+                input: safeText,
+                ...observability,
             });
             const tokensIn = response.usage?.prompt_tokens || estimatedTokensIn;
             const tokensOut = 0;
@@ -920,9 +954,16 @@ export class AIService {
             const model = genAI.getGenerativeModel({
                 model: embeddingModelName
             }, { timeout: LLM_TIMEOUT_MS });
+            const embeddingStart = Date.now();
             const result = await (model as any).embedContent(safeText);
             const tokensIn = estimatedTokensIn;
             const tokensOut = 0;
+            captureLegacyGeminiEmbedding({
+                context: observability,
+                model: embeddingModelName,
+                inputTokens: tokensIn,
+                latencyMs: Date.now() - embeddingStart,
+            });
             await logUsage({
                 teamId,
                 actorId: resolvedActorId,
@@ -1032,11 +1073,13 @@ export class AIService {
         let settledCredits = false;
 
         try {
-            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+            const client = createOpenAIClient({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
+            const observability = createAIObservabilityContext(resolvedActorId);
             const response = await client.images.generate({
                 model,
                 prompt: safePrompt,
                 size: "1536x1024",
+                ...observability,
             });
             const b64 = response.data?.[0]?.b64_json;
             if (!b64) {

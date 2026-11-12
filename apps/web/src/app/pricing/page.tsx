@@ -103,6 +103,10 @@ const pricingFaqs = [
     },
 ];
 
+// Checkout charges the monthly price whatever the visitor picks here, so the Annual toggle stays hidden until
+// annual billing exists on the server. With it hidden, isAnnual can never become true.
+const ANNUAL_BILLING_AVAILABLE = false;
+
 export default function PricingPage() {
     const router = useRouter();
     // Defaults to monthly: checkout always charges plan.monthlyPrice regardless of
@@ -274,7 +278,11 @@ export default function PricingPage() {
                     <p className="mx-auto max-w-2xl text-lg text-slate-300">
                         Start with a focused pilot, then scale the buyer-signal-to-meeting workflow with managed campaigns, follow-ups, and governance.
                     </p>
+                    <p className="mx-auto max-w-2xl text-sm text-slate-400">
+                        {plans.map((plan) => `${plan.displayName} $${plan.usdMonthly}/month`).join(", ")} (USD list prices; customers in India are billed in INR).
+                    </p>
 
+                    {ANNUAL_BILLING_AVAILABLE ? (
                     <div className="pt-4">
                         <div className="inline-flex items-center gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-2">
                             <span className={`text-sm font-semibold transition-colors ${!isAnnual ? "text-white" : "text-slate-400"}`}>Monthly</span>
@@ -291,6 +299,7 @@ export default function PricingPage() {
                             </div>
                         </div>
                     </div>
+                    ) : null}
                 </div>
 
                 <div className="mb-10 flex flex-col items-center justify-center gap-3 text-sm text-slate-300 sm:flex-row">

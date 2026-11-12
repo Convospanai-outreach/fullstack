@@ -7,8 +7,8 @@
       "body": "A scroll. A search. A referral. Your next customer is already somewhere in the crowd.",
       "punch": "Make the shortlist. Not the sidelines.",
       "note": "Scroll to activate the engine",
-      "primary": "Build my funnel ↗",
-      "secondary": "Follow the signal ↓"
+      "primary": "See how it works ↓",
+      "secondary": ""
     },
     {
       "eyebrow": "02 / THE BREAK",
@@ -406,7 +406,7 @@
     "individual": {
       "label": "Individual / Creator",
       "hint": "Build your own lead-to-client journey.",
-      "cta": "Build my funnel ↗"
+      "cta": "Get started ↗"
     },
     "team": {
       "label": "Business / Team",

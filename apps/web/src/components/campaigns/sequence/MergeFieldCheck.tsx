@@ -31,7 +31,7 @@ const who = (s: { name: string | null; email: string | null }) => s.name || s.em
 
 // Runs before Enroll: lists the merge fields (such as {{firstName}}) that would be empty or mistyped for the
 // campaign's contacts, so they can be fixed now instead of finding the emails held later. Checks the saved sequence.
-export default function MergeFieldCheck({ campaignId }: { campaignId: string }) {
+export default function MergeFieldCheck({ campaignId, savedCount = 0 }: { campaignId: string; savedCount?: number }) {
     const [report, setReport] = useState<Report | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +51,7 @@ export default function MergeFieldCheck({ campaignId }: { campaignId: string }) 
         return () => {
             cancelled = true;
         };
-    }, [campaignId]);
+    }, [campaignId, savedCount]);
 
     if (error) return <div className="border-b border-border bg-card p-4 text-sm text-red-500">{error}</div>;
     if (!report) {

@@ -14,7 +14,7 @@ import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
-import { getUserAccess, sessionVersionMatches } from '@/lib/userAccess';
+import { getUserAccess, isFreshAccessRoute, sessionVersionMatches } from '@/lib/userAccess';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 import { rateLimitBackstopOptions } from '@/lib/rateLimitBackstop';
 import { keepRawJsonBody } from '@/lib/rawJsonBody';
@@ -126,11 +126,27 @@ function forwardResponseHeaders(responseHeaders: Headers, reply: any) {
 }
 
 // Middleware
-fastify.register(helmet);
+// The API serves JSON plus one static unsubscribe page (inline styles, same-origin form, no scripts),
+// so no script may run in any response. Helmet's defaults still apply for the other directives.
+fastify.register(helmet, {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'none'"],
+      scriptSrcAttr: ["'none'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+});
 const allowedOrigins = (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  fastify.log.warn('CORS_ORIGIN and ALLOWED_ORIGINS are both unset: all browser-originated cross-origin requests will be blocked. Set CORS_ORIGIN to a comma-separated list of allowed origins.');
+}
 
 function isLoopbackDevOrigin(origin: string) {
   if (process.env.NODE_ENV === 'production') return false;
@@ -283,7 +299,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // Suspended accounts, and browser sessions ended from the superadmin panel
       // (lib/userAccess.ts: cached up to 30s per user; a DB error lets the request through).
       if (authUserId) {
-        const access = await getUserAccess(authUserId).catch(() => undefined);
+        const access = await getUserAccess(authUserId, { bypassCache: isFreshAccessRoute(registeredPath) }).catch(() => undefined);
         if (access?.suspended) {
           reply.status(403).send({ error: 'Account suspended' });
           return;

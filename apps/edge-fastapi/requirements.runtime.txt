@@ -4,6 +4,11 @@
 fastapi
 uvicorn
 pydantic
+pydantic-settings
+posthog>=7.69.0
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp
 cryptography
 httpx
 sqlalchemy

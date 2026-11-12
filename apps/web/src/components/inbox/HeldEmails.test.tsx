@@ -24,9 +24,9 @@ let root: Root;
 const onApprove = vi.fn();
 const onRetry = vi.fn();
 
-async function render(items: HeldEmail[]) {
+async function render(items: HeldEmail[], total?: number) {
     await act(async () => {
-        root.render(<HeldEmails items={items} onApprove={onApprove} onRetry={onRetry} />);
+        root.render(<HeldEmails items={items} total={total} onApprove={onApprove} onRetry={onRetry} />);
     });
 }
 
@@ -91,5 +91,12 @@ describe("HeldEmails", () => {
             button("Approve and send").click();
         });
         expect(container.textContent).toContain("These fields have no fallback");
+    });
+
+    it("says so when the list is cut off, and not otherwise", async () => {
+        await render([item()], 240);
+        expect(container.textContent).toContain("Showing the newest 1 of 240 held emails");
+        await render([item()], 1);
+        expect(container.textContent).not.toContain("Showing the newest");
     });
 });

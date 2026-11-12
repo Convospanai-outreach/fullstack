@@ -58,4 +58,15 @@ describe("resolveMessageTokens", () => {
         expect(resolveMessageTokens("{{fullName}}", odd, { html: true }).text).toBe("A&lt;b&gt; &amp; &quot;Q&quot;");
         expect(resolveMessageTokens("{{fullName}}", odd).text).toBe('A<b> & "Q"');
     });
+
+    it("escapes an apostrophe in an HTML body so it cannot close a single-quoted attribute", () => {
+        const r = resolveMessageTokens("<a title='{{company}}'>x</a>", { company: "x' onclick='bad" }, { html: true });
+        expect(r.text).toBe("<a title='x&#39; onclick=&#39;bad'>x</a>");
+    });
+
+    it("finds a custom property when the token is written in capitals", () => {
+        const r = resolveMessageTokens("Plan {{property.PLAN}}", lead);
+        expect(r.text).toBe("Plan Pro");
+        expect(r.missing).toEqual([]);
+    });
 });

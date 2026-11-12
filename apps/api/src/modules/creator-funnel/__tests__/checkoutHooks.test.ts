@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
     order: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
-    lead: { findFirst: vi.fn(), create: vi.fn() },
+    lead: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
     connectedMailbox: { findFirst: vi.fn() },
     message: { create: vi.fn() },
 }));
@@ -199,7 +199,7 @@ describe("checkoutHooks", () => {
 
             it("ends the buyer's sequences, finding the lead by email, and does nothing else", async () => {
                 mockDb.order.findFirst.mockResolvedValue({ customerEmail: " Buyer@Example.com ", leadId: null });
-                mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+                mockDb.lead.findMany.mockResolvedValue([{ id: "lead-1" }]);
 
                 await onOrderCaptured("team-a", "order-1");
 
@@ -207,6 +207,15 @@ describe("checkoutHooks", () => {
                 expect(mockDb.lead.create).not.toHaveBeenCalled();
                 expect(applyFunnelEvent).not.toHaveBeenCalled();
                 expect(mail.sendViaGmailMailbox).not.toHaveBeenCalled();
+            });
+
+            it("ends the sequences of every duplicate lead with the buyer's email", async () => {
+                mockDb.order.findFirst.mockResolvedValue({ customerEmail: "buyer@example.com", leadId: "lead-1" });
+                mockDb.lead.findMany.mockResolvedValue([{ id: "lead-1" }, { id: "lead-2" }]);
+
+                await onOrderCaptured("team-a", "order-1");
+
+                expect(stopEnrollmentsForLead.mock.calls.map((call) => call[1])).toEqual(["lead-1", "lead-2"]);
             });
 
             it("uses the lead already linked to the order", async () => {
@@ -217,7 +226,7 @@ describe("checkoutHooks", () => {
 
             it("does nothing when the buyer is not one of the team's leads or the order is not captured", async () => {
                 mockDb.order.findFirst.mockResolvedValue({ customerEmail: "x@y.test", leadId: null });
-                mockDb.lead.findFirst.mockResolvedValue(null);
+                mockDb.lead.findMany.mockResolvedValue([]);
                 await onOrderCaptured("team-a", "order-1");
                 mockDb.order.findFirst.mockResolvedValue(null);
                 await onOrderCaptured("team-a", "order-2");

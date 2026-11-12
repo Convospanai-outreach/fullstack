@@ -27,6 +27,11 @@ function parseMissing(raw: string | null): MissingToken[] {
     }
 }
 
+// How many emails are held in all, since the list below shows at most 200.
+export async function countHeldEmails(teamId: string): Promise<number> {
+    return prisma.sequenceStepRun.count({ where: { teamId, status: TOKENS_HELD_STATUS } });
+}
+
 export async function listHeldEmails(teamId: string, limit = 200): Promise<HeldEmail[]> {
     const runs = await prisma.sequenceStepRun.findMany({
         where: { teamId, status: TOKENS_HELD_STATUS },

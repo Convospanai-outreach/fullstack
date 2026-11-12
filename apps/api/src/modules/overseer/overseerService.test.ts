@@ -325,6 +325,33 @@ describe("runOverseerTick", () => {
             expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: false, replyClassification: null })]);
         });
 
+        it("does not count an older message's late-classified reply when a newer message is still unclassified", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false,
+                messages: [{ id: "m-new", createdAt: replyAt(1) }, { id: "m-old", createdAt: replyAt(30) }],
+                replies: [{ emailId: "m-old", receivedAt: replyAt(0.5), aiClassification: "DNC", humanCorrection: null }]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replied: true, replyClassification: null })]);
+        });
+
+        it("uses the reply that belongs to a message since the enrollment started, even when a later-classified reply is for an older message", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({
+                phone: null, whatsappConsent: false,
+                messages: [{ id: "m-new", createdAt: replyAt(2) }, { id: "m-old", createdAt: replyAt(30) }],
+                replies: [
+                    { emailId: "m-old", receivedAt: replyAt(0.5), aiClassification: "DNC", humanCorrection: null },
+                    { emailId: "m-new", receivedAt: replyAt(1.5), aiClassification: "INTERESTED", humanCorrection: null },
+                ]
+            })]);
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ replyClassification: "INTERESTED" })]);
+        });
+
         it("marks a reply with no classification yet as replied", async () => {
             mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([stalledEnrollment({ phone: null, whatsappConsent: false, messages: [{ createdAt: replyAt(1) }], replies: [] })]);
 
@@ -359,6 +386,20 @@ describe("runOverseerTick", () => {
             });
             mockJudge.mockReturnValue([{ enrollmentId: "enr-b", nudgeType: "ROUTE_MANUAL", suggestion: "rule for b" }]);
             mockJevJudge.mockResolvedValue({ judgments: [{ enrollmentId: "enr-a", nudgeType: "ROUTE_MANUAL", suggestion: "jev for a" }], logs: [] });
+        });
+
+        it("judges a lead who opted out by the rules alone, without reading or sending their thread to Jev", async () => {
+            mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([
+                { ...enrollment("enr-a", "team-1", "lead-a"), lead: { status: "unsubscribed", phone: null, whatsappConsent: false, messages: [], replies: [] } },
+            ]);
+            mockJudge.mockReturnValue([]);
+            mockJevJudge.mockResolvedValue({ judgments: [], logs: [] });
+
+            await runOverseerTick();
+
+            expect(mockJudge).toHaveBeenCalledWith([expect.objectContaining({ enrollmentId: "enr-a", optedOut: true })]);
+            expect(mockJevJudge).not.toHaveBeenCalled();
+            expect(mockPrisma.lead.findFirst).not.toHaveBeenCalled();
         });
 
         it("consults Jev only for the team that turned the feature on, and reads that team's lead only", async () => {
