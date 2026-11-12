@@ -39,7 +39,7 @@ export type HomeText = {
 
 export const HOME_DEFAULTS: HomeText = {
   story: [
-    { eyebrow: "01 / THE OPENING", title: "Someone is ready to buy.", accent: "Are you in the picture?", body: "A scroll. A search. A referral. Your next customer is already somewhere in the crowd.", punch: "Make the shortlist. Not the sidelines.", note: "Scroll to activate the engine", primary: "Build my funnel ↗", secondary: "Follow the signal ↓" },
+    { eyebrow: "01 / THE OPENING", title: "Someone is ready to buy.", accent: "Are you in the picture?", body: "A scroll. A search. A referral. Your next customer is already somewhere in the crowd.", punch: "Make the shortlist. Not the sidelines.", note: "Scroll to activate the engine", primary: "See how it works ↓", secondary: "" },
     { eyebrow: "02 / THE BREAK", title: "The lead came in.", accent: "Then went missing.", body: "An Instagram DM here. A LinkedIn reply there. A form filled. A WhatsApp unread.", punch: "Plenty of interest. Precious little follow-through.", note: "The problem isn’t traffic. It’s the handoff.", primary: "", secondary: "" },
     { eyebrow: "03 / THE GUIDE", title: "A hundred touchpoints.", accent: "One firm grip.", body: "Bring social, forms, email and outreach into one organised journey. Let AI assist. Keep people in charge.", punch: "Connected channels. Clear ownership. No lead left to guesswork.", note: "Automation with brakes, not blinders.", primary: "", secondary: "" },
     { eyebrow: "04 / THE PLAN", title: "Catch the signal.", accent: "Keep the momentum.", body: "Three moves. One moving pipeline.", punch: "No channel should be a dead end.", note: "", primary: "", secondary: "" },
@@ -142,7 +142,7 @@ export const HOME_DEFAULTS: HomeText = {
     formEyebrow: "YOUR NEXT MOVE STARTS HERE",
     formTitle: "One good lead deserves a next move.",
     formIntro: "Choose your path. Then get started.",
-    individual: { label: "Individual / Creator", hint: "Build your own lead-to-client journey.", cta: "Build my funnel ↗" },
+    individual: { label: "Individual / Creator", hint: "Build your own lead-to-client journey.", cta: "Get started ↗" },
     team: { label: "Business / Team", hint: "Explore a governed sales-team pilot.", cta: "Explore my pilot ↗" },
   },
 };
