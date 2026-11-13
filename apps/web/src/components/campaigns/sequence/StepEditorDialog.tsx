@@ -18,6 +18,7 @@ import type { SequenceStepItem } from "./SequenceCanvas";
 import { lintEmail } from "@/lib/campaigns/editorialLinter";
 import { SCORING_STRATEGY_IDS } from "@/lib/campaigns/strategies";
 import DraftScorePanel from "./DraftScorePanel";
+import DraftWithAiPanel from "./DraftWithAiPanel";
 
 type ConditionConfig = {
     leadStatusIn?: string[];
@@ -270,6 +271,9 @@ export default function StepEditorDialog({
                                 rows={def.hasSubject ? 8 : 4}
                                 placeholder={def.hasSubject ? "Email body" : "Message content"}
                             />
+                            {def.hasSubject && campaignId && (
+                                <DraftWithAiPanel campaignId={campaignId} subject={subject} body={body} onDraft={(d) => { setSubject(d.subject); setBody(d.body); }} />
+                            )}
                             {def.hasSubject && campaignId && strategies.some((id) => (SCORING_STRATEGY_IDS as readonly string[]).includes(id)) && (
                                 <DraftScorePanel campaignId={campaignId} subject={subject} body={body} />
                             )}
