@@ -272,7 +272,7 @@ export default function CallerPage() {
                                             }`}>
                                                 {activeLead.lead.churnRisk !== undefined && activeLead.lead.churnRisk !== null
                                                     ? `${Math.round(activeLead.lead.churnRisk * 100)}%`
-                                                    : 'Low (12%)'
+                                                    : 'Not enough data yet'
                                                 }
                                             </p>
                                         </div>
@@ -350,7 +350,7 @@ export default function CallerPage() {
                     <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-16 text-muted-foreground bg-muted/5 min-h-[500px]">
                         <Sparkles className="w-16 h-16 opacity-10 mb-4 animate-pulse" />
                         <p className="font-semibold">Select a lead to start calling</p>
-                        <p className="text-xs opacity-60 mt-1">HOT leads appear here when their intent score reaches 70%</p>
+                        <p className="text-xs opacity-60 mt-1">HOT and WARM leads appear here when their intent score reaches 40%</p>
                     </div>
                 )}
             </div>

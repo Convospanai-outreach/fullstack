@@ -61,6 +61,19 @@ function tierForScore(score: number, config: ScoringConfig): "HOT" | "WARM" | "C
     return score >= config.thresholds.hot ? "HOT" : score >= config.thresholds.warm ? "WARM" : "COLD";
 }
 
+// Which caller-queue tier, if any, a freshly scored lead belongs in. A lead is queued as HOT when it moves into
+// HOT, and as WARM when its score is in the WARM tier and it is still COLD or WARM. The state check matters: the
+// WARM stage is also what a lead gets for being emailed, so the score tier, not the stage, decides who is queued.
+export function callerQueueTier(
+    finalTier: "HOT" | "WARM" | "COLD",
+    currentState: string,
+    newPipelineState: string | null
+): "HOT" | "WARM" | null {
+    if (newPipelineState === "HOT") return "HOT";
+    if (finalTier === "WARM" && (currentState === "COLD" || currentState === "WARM")) return "WARM";
+    return null;
+}
+
 function deriveEmailEngagement(emails: Array<{ openedAt: Date | null; clickedAt: Date | null }>) {
     const realEmailClicks = emails.filter(e => e.clickedAt).length;
     let optimalSendHour = 10;
@@ -319,13 +332,14 @@ export class LeadScoringService {
 
         await prisma.lead.update({ where: { id: leadId }, data: updateData });
 
-        // Auto-enqueue HOT leads to the caller coordination queue
-        if (newPipelineState === "HOT") {
+        // Auto-enqueue HOT and WARM leads to the caller coordination queue
+        const queueTier = callerQueueTier(finalTier, currentState, newPipelineState);
+        if (queueTier) {
             try {
                 const { CallerService } = await import("@/modules/caller/CallerService");
-                await CallerService.ensureQueueEntry(leadId);
+                await CallerService.ensureQueueEntry(leadId, queueTier);
             } catch (qErr) {
-                console.warn(`[LeadScoring] Failed to enqueue HOT lead ${leadId}:`, qErr);
+                console.warn(`[LeadScoring] Failed to enqueue ${queueTier} lead ${leadId}:`, qErr);
             }
         }
 
@@ -361,7 +375,7 @@ export class LeadScoringService {
         let hot = 0;
         let warm = 0;
         let cold = 0;
-        const newHotLeadIds: string[] = [];
+        const queueLeads: Array<{ id: string; tier: "HOT" | "WARM" }> = [];
 
         for (const lead of leads) {
             try {
@@ -396,10 +410,8 @@ export class LeadScoringService {
                 // Determine pipeline state advancement
                 const currentState = lead.pipelineState ?? "COLD";
                 let newPipelineState: string | null = null;
-                let advancedToHot = false;
                 if (finalTier === "HOT" && currentState !== "HOT" && currentState !== "COORDINATING" && currentState !== "MEETING_CONFIRMED" && currentState !== "COMPLETED") {
                     newPipelineState = "HOT";
-                    advancedToHot = true;
                 } else if (finalTier === "WARM" && currentState === "COLD") {
                     newPipelineState = "WARM";
                 }
@@ -452,20 +464,21 @@ export class LeadScoringService {
                 }
 
                 await prisma.lead.update({ where: { id: lead.id }, data: updateData });
-                if (advancedToHot) newHotLeadIds.push(lead.id);
+                const queueTier = callerQueueTier(finalTier, currentState, newPipelineState);
+                if (queueTier) queueLeads.push({ id: lead.id, tier: queueTier });
             } catch (error: any) {
                 errors.push({ leadId: lead.id, error: error?.message ?? "Failed" });
             }
         }
 
-        // Auto-enqueue newly HOT leads
-        if (newHotLeadIds.length > 0) {
+        // Auto-enqueue newly HOT leads and WARM-scored leads
+        if (queueLeads.length > 0) {
             const { CallerService } = await import("@/modules/caller/CallerService");
-            for (const hotLeadId of newHotLeadIds) {
+            for (const { id: queueLeadId, tier } of queueLeads) {
                 try {
-                    await CallerService.ensureQueueEntry(hotLeadId);
+                    await CallerService.ensureQueueEntry(queueLeadId, tier);
                 } catch (qErr) {
-                    console.warn(`[BatchScoring] Failed to enqueue HOT lead ${hotLeadId}:`, qErr);
+                    console.warn(`[BatchScoring] Failed to enqueue ${tier} lead ${queueLeadId}:`, qErr);
                 }
             }
         }
