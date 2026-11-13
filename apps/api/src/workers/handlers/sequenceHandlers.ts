@@ -4,6 +4,7 @@ import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
+import { buildAudienceContext } from "@/modules/email-campaigner/service/audienceContext";
 import { linkedinProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
 import { linkedinCriticEnabled, reviewLinkedinDraft } from "@/modules/email-campaigner/service/linkedinCritic";
@@ -190,7 +191,7 @@ export async function handleSequenceAction(payload: JobPayload) {
             // We need to fetch the lead's email from DB first
             const lead = await prisma.lead.findUnique({
                 where: { id: leadId },
-                include: { campaign: { include: { team: true } } }
+                include: { campaign: { include: { team: true, icp: true } } }
             });
 
             const emailLeadTeamId = lead?.teamId ?? lead?.campaign?.teamId;
@@ -258,7 +259,8 @@ export async function handleSequenceAction(payload: JobPayload) {
                         greeting_style: style.greeting_style,
                         sign_off: style.sign_off,
                         cta_style: style.cta_style,
-                        constraints: style.constraints
+                        constraints: style.constraints,
+                        audience_context: buildAudienceContext({ icp: lead.campaign?.icp, lead }),
                     };
 
                     // 2. Compose via Autonomous Knowledge Engine

@@ -33,7 +33,7 @@ const context = { playbook: ["playbook-x"], examples: [{ subject: "subject-x", b
 
 const RENDERED: Record<PromptId, string> = {
     "email.nodeA.system": buildNodeASystemPrompt(nodeA),
-    "email.nodeA": buildNodeAPrompt({ ...nodeA, campaign_brief: "brief-x" }, context),
+    "email.nodeA": buildNodeAPrompt({ ...nodeA, campaign_brief: "brief-x", audience_context: "audience-x" }, context),
     "email.nodeB": buildNodeBPrompt(followUp, context),
     "email.nodeC": buildNodeCPrompt(followUp, context),
     "email.legacyDraft": buildLegacyDraftPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, knowledgeContext: "kb-x", personalityGuidance: "disc-x" }),
@@ -61,7 +61,7 @@ describe("prompt registry", () => {
     });
 
     it("names a prompt id@vN", () => {
-        expect(promptRef("email.nodeA")).toBe("email.nodeA@v3");
+        expect(promptRef("email.nodeA")).toBe("email.nodeA@v4");
         expect(allPromptRefs()["email.critique"]).toBe("email.critique@v1");
         expect(allPromptRefs()["email.critique.rubric"]).toBe("email.critique.rubric@v2");
         expect(Object.keys(allPromptRefs())).toEqual(Object.keys(PROMPT_REGISTRY));
