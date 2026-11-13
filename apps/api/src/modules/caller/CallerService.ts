@@ -1,26 +1,31 @@
 import { prisma } from "@/lib/db";
 import { ConversationState } from "@prisma/client";
 import { ConversationService } from "@/modules/conversation/ConversationService";
+import { calculateLeadTransition } from "@/lib/crm/leadStageTransitions";
 
 export class CallerService {
 
     /**
      * Helper to ensure coordination queue entry AND conversation thread exist for a lead.
-     * Called when a lead is promoted to HOT — creates the handoff scaffolding.
+     * Called when a lead scores HOT or WARM — creates the handoff scaffolding.
+     * HOT leads rank above WARM ones in the pool, and a WARM lead that later turns HOT is moved up.
      */
-    static async ensureQueueEntry(leadId: string) {
+    static async ensureQueueEntry(leadId: string, tier: "HOT" | "WARM" = "HOT") {
         const existing = await prisma.meetingCoordinationQueue.findUnique({
             where: { leadId }
         });
+        const priority = tier === "HOT" ? 1 : 0;
 
         if (!existing) {
             await prisma.meetingCoordinationQueue.create({
                 data: {
                     leadId,
                     status: "PENDING",
-                    priority: 0
+                    priority
                 }
             });
+        } else if (existing.status === "PENDING" && existing.priority < priority) {
+            await prisma.meetingCoordinationQueue.update({ where: { leadId }, data: { priority } });
         }
 
         // Ensure a ConversationThread exists and is in HANDOFF_REQUIRED state.
@@ -34,14 +39,14 @@ export class CallerService {
             // Create a new thread and advance it through the required states
             const thread = await ConversationService.startThread(leadId, "EMAIL");
             // INITIATED → ENGAGED → QUALIFIED → HANDOFF_REQUIRED
-            await ConversationService.transitionState(thread.id, ConversationState.ENGAGED, "Auto: Lead scored HOT");
+            await ConversationService.transitionState(thread.id, ConversationState.ENGAGED, `Auto: Lead scored ${tier}`);
             await ConversationService.transitionState(thread.id, ConversationState.QUALIFIED, "Auto: Intent threshold met");
             await ConversationService.transitionState(thread.id, ConversationState.HANDOFF_REQUIRED, "Auto: Queued for human caller");
         } else if (existingThread.state === ConversationState.INITIATED || existingThread.state === ConversationState.ENGAGED || existingThread.state === ConversationState.QUALIFIED) {
             // Thread exists but hasn't reached HANDOFF_REQUIRED yet — advance it
             try {
                 if (existingThread.state === ConversationState.INITIATED) {
-                    await ConversationService.transitionState(existingThread.id, ConversationState.ENGAGED, "Auto: Lead scored HOT");
+                    await ConversationService.transitionState(existingThread.id, ConversationState.ENGAGED, `Auto: Lead scored ${tier}`);
                 }
                 if (existingThread.state === ConversationState.INITIATED || existingThread.state === ConversationState.ENGAGED) {
                     const refreshed = await prisma.conversationThread.findUnique({ where: { id: existingThread.id } });
@@ -214,6 +219,8 @@ export class CallerService {
                 }
             });
         } else if (outcome === ConversationState.CLOSED) {
+            // The caller page sends CLOSED for "Not Interested", so this is a lost lead, not a win.
+            const lost = calculateLeadTransition({ id: leadId }, "LOST");
             await prisma.meetingCoordinationQueue.update({
                 where: { leadId },
                 data: { status: "COMPLETED" }
@@ -221,9 +228,10 @@ export class CallerService {
             await prisma.lead.updateMany({
                 where: { id: leadId, teamId },
                 data: {
-                    pipelineState: "COMPLETED",
+                    status: lost.status,
+                    pipelineState: lost.pipelineState,
                     pipelineStateChangedAt: new Date(),
-                    wonAt: new Date()
+                    lostAt: lost.lostAt
                 }
             });
         }
