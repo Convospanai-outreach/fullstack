@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { formatHeartbeatAge, type EdgeHeartbeat } from "@/lib/edgeHeartbeat";
 
 interface EdgeRuntimeStatus {
     configured: boolean;
@@ -28,14 +29,7 @@ interface EdgeRuntimeStatus {
     latencyMs?: number;
 }
 
-interface EdgeDetails {
-    reachable: boolean;
-    hardwareId?: string | null;
-    services?: string[];
-    capabilities?: { tokenize: boolean; classify: boolean; generate: boolean; execute: boolean };
-}
-
-const CAPABILITY_ROWS: { key: keyof NonNullable<EdgeDetails["capabilities"]>; label: string }[] = [
+const CAPABILITY_ROWS: { key: keyof NonNullable<EdgeHeartbeat["capabilities"]>; label: string }[] = [
     { key: "tokenize", label: "PII vault (sanitise and re-identify on the device)" },
     { key: "classify", label: "Local intent scoring and response critique" },
     { key: "generate", label: "Offline LLM drafts" },
@@ -75,7 +69,7 @@ export default function EdgeRuntimePage() {
         }
     };
 
-    const [details, setDetails] = useState<EdgeDetails | null>(null);
+    const [details, setDetails] = useState<EdgeHeartbeat | null>(null);
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<string | null>(null);
 
@@ -84,7 +78,7 @@ export default function EdgeRuntimePage() {
             const res = await fetch(getBrowserApiBase() + "/edge/details");
             if (res.ok) setDetails((await res.json()).data);
         } catch {
-            setDetails({ reachable: false });
+            setDetails({ configured: false });
         }
     };
 
@@ -168,10 +162,13 @@ export default function EdgeRuntimePage() {
                     Hardware fingerprint
                 </h3>
                 <p className="text-xs text-muted-foreground font-mono">
-                    {details?.hardwareId ?? (details ? "Not available while the node is unreachable" : "Checking...")}
+                    {details?.hardwareId ?? (details ? "No node paired yet" : "Checking...")}
                 </p>
-                {!!details?.services?.length && (
-                    <p className="text-xs text-muted-foreground">Services: {details.services.join(", ")}</p>
+                {details?.configured && (
+                    <p className="text-xs text-muted-foreground">
+                        Last heartbeat: {formatHeartbeatAge(details.lastSeenAt)}
+                        {details.runtimeVersion ? ` · runtime ${details.runtimeVersion}` : ""}
+                    </p>
                 )}
             </div>
 
