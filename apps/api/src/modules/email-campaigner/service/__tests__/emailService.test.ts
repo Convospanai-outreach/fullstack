@@ -281,6 +281,17 @@ describe("emailService mandatory email footer on send", () => {
 
         expect(sentHtml()).toContain("UNSUBSCRIBE");
     });
+
+    it("tells the reader they can reply with one line, that we will never spam them, and to forward a misdirected email", async () => {
+        (prisma.team.findUnique as Mock).mockResolvedValue({ mailingAddress: null, branding: null });
+
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        const html = sentHtml();
+        expect(html).toMatch(/reply with a one-line email/);
+        expect(html).toContain("never spam you");
+        expect(html).toContain("forward it to the right person");
+    });
 });
 
 describe("emailService Resend routing", () => {
