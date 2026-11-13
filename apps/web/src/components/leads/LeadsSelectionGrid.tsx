@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Globe, Loader2, Mail } from "lucide-react";
+import { IntentBadge } from "@/components/leads/IntentBadge";
 
 export interface SelectableLead {
     id: string;
@@ -12,17 +13,13 @@ export interface SelectableLead {
     company: string | null;
     status: string | null;
     intentScore: number | null;
+    dwellTimeMinutes?: number | null;
+    emailClicks?: number | null;
+    socialMentions?: number | null;
     icpFitScore?: number | null;
 }
 
 type Campaign = { id: string; name: string };
-
-function intentTier(intentScore?: number | null) {
-    const score = intentScore ?? 0;
-    if (score >= 0.7) return { label: "HOT", className: "text-destructive border-destructive/25 bg-destructive/5" };
-    if (score >= 0.4) return { label: "WARM", className: "text-warning border-warning/25 bg-warning/5" };
-    return { label: "COLD", className: "text-primary border-primary/25 bg-primary/5" };
-}
 
 function displayLeadStatus(status?: string | null) {
     if (!status) return "NEW STATE";
@@ -91,7 +88,6 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
         () => (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {leads.map((lead, index) => {
-                    const tier = intentTier(lead.intentScore);
                     const isSelected = selected.has(lead.id);
                     return (
                         <div
@@ -117,9 +113,12 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
                                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider bg-muted text-muted-foreground border-border">
                                                 {displayLeadStatus(lead.status)}
                                             </span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider ${tier.className}`}>
-                                                {tier.label} · {Math.round((lead.intentScore ?? 0) * 100)}%
-                                            </span>
+                                            <IntentBadge
+                                                intentScore={lead.intentScore}
+                                                dwellTimeMinutes={lead.dwellTimeMinutes}
+                                                emailClicks={lead.emailClicks}
+                                                socialMentions={lead.socialMentions}
+                                            />
                                             {lead.icpFitScore != null && (
                                                 <span
                                                     className={`text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider ${
