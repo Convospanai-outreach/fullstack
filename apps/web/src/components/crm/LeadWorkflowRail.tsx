@@ -13,6 +13,7 @@ interface Step {
     state: StepState;
     gated: boolean;
     detail: string | null;
+    rule: string;
 }
 
 interface Approval {
@@ -65,7 +66,7 @@ export function LeadWorkflowRail({ leadId }: { leadId: string }) {
         <div className="rounded-xl border border-border bg-card p-4 space-y-3" aria-label="Governed workflow">
             <ol className="flex flex-wrap gap-x-4 gap-y-3">
                 {steps.map((step, i) => (
-                    <li key={step.key} className="flex items-center gap-2 min-w-[8.5rem]" title={step.detail ?? undefined}>
+                    <li key={step.key} className="flex items-center gap-2 min-w-[8.5rem]" title={step.rule}>
                         <span className={`flex items-center justify-center w-6 h-6 rounded-full border ${DOT[step.state]}`}>
                             <StepIcon step={step} index={i} />
                         </span>
@@ -78,6 +79,18 @@ export function LeadWorkflowRail({ leadId }: { leadId: string }) {
                     </li>
                 ))}
             </ol>
+
+            <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer select-none">How each step is decided</summary>
+                <ul className="mt-2 space-y-1.5">
+                    {steps.map((step) => (
+                        <li key={step.key}>
+                            <span className="font-medium text-foreground">{step.label}: </span>
+                            {step.rule}
+                        </li>
+                    ))}
+                </ul>
+            </details>
 
             {approval?.status === "PENDING" && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
