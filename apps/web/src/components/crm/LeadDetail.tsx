@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { LeadWorkflowRail } from "@/components/crm/LeadWorkflowRail";
 import {
     WifiOff,
     Globe,
@@ -472,6 +473,8 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </Button>
                 </div>
             </div>
+
+            <LeadWorkflowRail leadId={lead.id} />
 
             <InstagramSourceLine source={lead.instagramSource} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
