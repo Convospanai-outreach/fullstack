@@ -25,6 +25,16 @@ describe("setup steps by outreach mode", () => {
         expect(previousStepId(personal, 1)).toBeNull();
     });
 
+    it("follows the wizard's order, not the id order: the scan step (15) sits between 2 and 3", () => {
+        const order = [1, 2, 15, 3, 4];
+        expect(nextStepId(order, 2)).toBe(15);
+        expect(nextStepId(order, 15)).toBe(3);
+        expect(nextStepId(order, 4)).toBeNull();
+        expect(previousStepId(order, 3)).toBe(15);
+        expect(previousStepId(order, 15)).toBe(2);
+        expect(nextStepId(order, 99)).toBeNull();
+    });
+
     it("reads only the two known answers from aiConfig", () => {
         expect(readOutreachMode({ outreachMode: "personal" })).toBe("personal");
         expect(readOutreachMode({ outreachMode: "company" })).toBe("company");
