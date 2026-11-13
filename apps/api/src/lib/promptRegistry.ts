@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 
 export const PROMPT_REGISTRY = {
     "email.nodeA.system": { version: 1, fingerprint: "1be63dc5222f" },
-    "email.nodeA": { version: 3, fingerprint: "3d3ab44a1f10" },
+    "email.nodeA": { version: 4, fingerprint: "7c9217b7a184" },
     "email.nodeB": { version: 2, fingerprint: "e8ba3a93fa99" },
     "email.nodeC": { version: 2, fingerprint: "188534d7f14d" },
     "email.legacyDraft": { version: 1, fingerprint: "9b37c1a1c58b" },

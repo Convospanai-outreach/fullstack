@@ -17,7 +17,7 @@ describe("summarizeOutcomes", () => {
         ]);
         expect(groups).toHaveLength(2);
         expect(groups[0]).toMatchObject({ sent: 3, opened: 2, replied: 1 });
-        expect(groups[0].key).toContain("email.nodeA@v3");
+        expect(groups[0].key).toContain("email.nodeA@v4");
         expect(groups[0].key).toContain("flags: none");
         expect(groups[1]).toMatchObject({ sent: 1, opened: 0, replied: 1 });
         expect(groups[1].key).toContain("flags: retrieval");

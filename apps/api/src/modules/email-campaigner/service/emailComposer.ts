@@ -18,6 +18,7 @@ import type { Rubric } from "@/evals/copy/evalData";
 import { briefEnabled, loadCampaignBrief } from "./copyBrief";
 import { buildProvenance, type CopyProvenance } from "./copyProvenance";
 import { jevScreenEnabled, screenDraft } from "./draftScreen";
+import { AUDIENCE_RULES } from "./audienceContext";
 import { loadCopyContext, renderCopyContext, retrievalEnabled, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
@@ -45,6 +46,7 @@ export interface NodeAInput {
     constraints?: string;
     knowledge_context?: string;
     campaign_brief?: string;
+    audience_context?: string;
     memories?: string[];
 }
 
@@ -187,6 +189,10 @@ Sender: ${input.sender_name} <${input.sender_email}>
 ${input.campaign_brief ? `## CAMPAIGN BRIEF
 The landing page this email leads to makes this case. Keep the email consistent with it: the same problem, the same promise. Add no claims beyond it.
 ${input.campaign_brief}
+
+` : ""}${input.audience_context ? `## AUDIENCE
+${input.audience_context}
+${AUDIENCE_RULES}
 
 ` : ""}## KNOWLEDGE_CONTEXT (TOON FORMAT)
 ${input.knowledge_context || "None available."}
