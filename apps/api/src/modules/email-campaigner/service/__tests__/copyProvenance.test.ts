@@ -8,7 +8,7 @@ describe("buildProvenance", () => {
         expect(buildProvenance(base)).toEqual({
             v: 1,
             node: "A",
-            prompts: { draft: "email.nodeA@v3", system: "email.nodeA.system@v1", critique: "email.critique@v1" },
+            prompts: { draft: "email.nodeA@v4", system: "email.nodeA.system@v1", critique: "email.critique@v1" },
             flags: { retrieval: true, brief: false, rubricCritic: false },
             context: { playbook: 2, examples: 1, brief: false },
             critique: "passed",
