@@ -1,3 +1,4 @@
+import { readIcpCriteria } from "@/modules/icp-builder/service/icpCriteria";
 import crypto from "node:crypto";
 import type { FunnelStage, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -197,12 +198,17 @@ type RunContext = {
     teamId: string;
     inputs: RunInputs;
     product: { name: string; description: string | null; priceAmount: number; currency: string } | null;
-    icp: { name: string; description: string | null } | null;
+    icp: { name: string; description: string | null; criteria?: unknown } | null;
     keyword?: string | null; // set when the plan gets a comment keyword auto-reply
 };
 
-const audienceText = (ctx: RunContext) =>
-    ctx.icp ? `${clamp(ctx.icp.name, 120)}${ctx.icp.description ? `: ${clamp(ctx.icp.description, 500)}` : ""}` : "";
+const audienceText = (ctx: RunContext) => {
+    if (!ctx.icp) return "";
+    const base = `${clamp(ctx.icp.name, 120)}${ctx.icp.description ? `: ${clamp(ctx.icp.description, 500)}` : ""}`;
+    const { geographies } = readIcpCriteria(ctx.icp.criteria);
+    // Markets only shape spelling and formality; they are never to be mentioned in the copy.
+    return geographies.length ? `${base}. Target markets: ${geographies.join(", ")} (use their spelling and business formality; do not mention the country, nationality, religion or culture)` : base;
+};
 
 function offerText(ctx: RunContext) {
     if (ctx.product) {
@@ -344,7 +350,7 @@ export async function generatePlaybookRun(runId: string, now = new Date()) {
         where: { id: runId, status: "GENERATING" },
         include: {
             product: { select: { name: true, description: true, priceAmount: true, currency: true } },
-            icp: { select: { name: true, description: true } },
+            icp: { select: { name: true, description: true, criteria: true } },
         },
     });
     if (!run) return { done: false };
