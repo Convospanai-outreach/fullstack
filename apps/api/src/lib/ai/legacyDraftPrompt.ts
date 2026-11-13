@@ -1,4 +1,5 @@
 import { TOON } from "@/lib/ai/TOON";
+import { AUDIENCE_RULES } from "@/modules/email-campaigner/service/audienceRules";
 
 // The prompts behind the older email draft path (email-worker): one for a live draft, one for a batch
 // draft. They live here, apart from aiService and batchDraftService, so the prompt registry can render
@@ -23,6 +24,9 @@ ${input.knowledgeContext || "None"}
 Personality guidance (DISC):
 ${input.personalityGuidance || "None"}
 
+How to use the lead's location, the ICP and the personality guidance:
+${AUDIENCE_RULES}
+
 Return JSON with keys: subject, body.
         `.trim();
 }
@@ -40,6 +44,9 @@ ${JSON.stringify(input.icp)}
 
 Personality guidance (DISC):
 ${input.personalityGuidance || "None"}
+
+How to use the lead's location, the ICP and the personality guidance:
+${AUDIENCE_RULES}
 
 Return JSON with keys: subject, body.
         `.trim();

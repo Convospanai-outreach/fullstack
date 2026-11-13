@@ -19,6 +19,7 @@ export default function ICPBuilderPage() {
         industry: "",
         role: "",
         size: "",
+        geographies: "",
         painPoints: ""
     });
 
@@ -61,7 +62,7 @@ export default function ICPBuilderPage() {
                 body: JSON.stringify({
                     name,
                     description: formData.painPoints || undefined,
-                    criteria: { ...formData, ...result },
+                    criteria: { ...formData, geographies: formData.geographies.split(/[,;]/).map((g) => g.trim()).filter(Boolean), ...result },
                 }),
             });
             const data = await res.json().catch(() => ({}));
@@ -139,6 +140,18 @@ export default function ICPBuilderPage() {
                                         <option value="500+">500+ employees</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1">Target Markets (optional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. India, UAE, United Kingdom"
+                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors"
+                                    value={formData.geographies}
+                                    onChange={(e) => setFormData({ ...formData, geographies: e.target.value })}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Shapes spelling, formality and examples in drafts when a lead has no location of its own.</p>
                             </div>
 
                             <div>
