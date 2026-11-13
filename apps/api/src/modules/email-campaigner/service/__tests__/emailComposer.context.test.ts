@@ -131,7 +131,7 @@ describe("Node A provenance", () => {
         mockLoadBrief.mockResolvedValue("Problem: x");
         const out = await run({ status: "PASS", critique: "ok" });
         expect(out.provenance).toMatchObject({ v: 1, node: "A", context: { playbook: 2, examples: 1, brief: true }, critique: "passed", flags: { rubricCritic: false } });
-        expect(out.provenance?.prompts.draft).toBe("email.nodeA@v4");
+        expect(out.provenance?.prompts.draft).toBe("email.nodeA@v5");
     });
 
     it("records a corrected draft and an unreviewed one", async () => {

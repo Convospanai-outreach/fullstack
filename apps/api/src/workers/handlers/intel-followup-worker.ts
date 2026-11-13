@@ -5,6 +5,7 @@ import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { ApprovalTier, computeAutoDenyAt } from "@/modules/governance/approvalPolicy";
 import { getBreakerState } from "@/modules/overseer/breakerService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
+import { loadAudienceContext } from "@/modules/email-campaigner/service/audienceContext";
 import {
     NormalizedNetjanaSignal,
     findLeadForSignal,
@@ -222,6 +223,7 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
             sign_off: style.sign_off,
             cta_style: style.cta_style,
             constraints: style.constraints,
+            audience_context: await loadAudienceContext(teamId, { leadId: lead.id, campaignId: campaign.id }),
         };
 
         let generatedDraft;

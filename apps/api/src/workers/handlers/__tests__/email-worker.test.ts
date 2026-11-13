@@ -242,14 +242,14 @@ describe("email-worker", () => {
 
         it("records which prompt wrote a live draft, on the held message and on the sent email", async () => {
             await handleEmailSend(job, "job-3");
-            const expected = expect.objectContaining({ node: "legacy", prompts: expect.objectContaining({ draft: "email.legacyDraft@v1" }) });
+            const expected = expect.objectContaining({ node: "legacy", prompts: expect.objectContaining({ draft: "email.legacyDraft@v2" }) });
             expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: expected }));
             expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", expect.anything(), expect.anything(), expect.objectContaining({ copyProvenance: expected }));
         });
 
         it("names the batch prompt for a precomputed draft", async () => {
             await handleEmailSend({ ...job, precomputedDraft: { subject: "S", body: "B" } }, "job-4");
-            expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.objectContaining({ copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "email.legacyBatch@v1" }) }) }));
+            expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "S", "B", expect.objectContaining({ copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "email.legacyBatch@v2" }) }) }));
         });
 
         it("carries the provenance of an approved message through to the send", async () => {
@@ -267,7 +267,7 @@ describe("email-worker", () => {
                 (reviewLegacyDraft as any).mockResolvedValue(reviewed);
                 await handleEmailSend(job, "job-6");
                 expect(reviewLegacyDraft).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), null, expect.any(Object), "team-a");
-                const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "email.critique@v1" }) });
+                const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "email.critique@v2" }) });
                 expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ subject: "Fixed subject", body: "Fixed body", copyProvenance: provenance }));
                 expect(emailService.sendEmail).toHaveBeenCalledWith("a@b.com", "Fixed subject", "Fixed body", expect.objectContaining({ copyProvenance: provenance }));
             });

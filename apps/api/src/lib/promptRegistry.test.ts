@@ -21,11 +21,11 @@ const style = { tone: "tone-x", voice: "voice-x", formulation: "form-x", greetin
 const nodeA = {
     prospect_name: "P", prospect_title: "T", prospect_company: "C", pain_context: "pain", outreach_timing: "timing",
     avoid_topics: ["avoid"], hypothesis: "hyp", signal_type: "sig", extracted_signal: "signal", sender_name: "S", sender_email: "s@example.com",
-    knowledge_context: "kb", memories: ["memory"], ...style,
+    knowledge_context: "kb", audience_context: "audience-x", memories: ["memory"], ...style,
 };
 const followUp = {
     prospect_name: "P", prospect_title: "T", prospect_company: "C", original_subject: "os", original_body: "ob",
-    hypothesis: "hyp", pain_context: "pain", days_since_send: 3, signal_type: "sig", memories: ["memory"], ...style,
+    hypothesis: "hyp", pain_context: "pain", days_since_send: 3, signal_type: "sig", audience_context: "audience-x", memories: ["memory"], ...style,
 };
 const draft = { subject: "s", body: "b" };
 // The retrieval sections are part of the draft prompts, so they are rendered here with placeholders.
@@ -33,7 +33,7 @@ const context = { playbook: ["playbook-x"], examples: [{ subject: "subject-x", b
 
 const RENDERED: Record<PromptId, string> = {
     "email.nodeA.system": buildNodeASystemPrompt(nodeA),
-    "email.nodeA": buildNodeAPrompt({ ...nodeA, campaign_brief: "brief-x", audience_context: "audience-x" }, context),
+    "email.nodeA": buildNodeAPrompt({ ...nodeA, campaign_brief: "brief-x" }, context),
     "email.nodeB": buildNodeBPrompt(followUp, context),
     "email.nodeC": buildNodeCPrompt(followUp, context),
     "email.legacyDraft": buildLegacyDraftPrompt({ lead: { id: "lead-x" }, icp: { industry: "icp-x" }, knowledgeContext: "kb-x", personalityGuidance: "disc-x" }),
@@ -61,9 +61,9 @@ describe("prompt registry", () => {
     });
 
     it("names a prompt id@vN", () => {
-        expect(promptRef("email.nodeA")).toBe("email.nodeA@v4");
-        expect(allPromptRefs()["email.critique"]).toBe("email.critique@v1");
-        expect(allPromptRefs()["email.critique.rubric"]).toBe("email.critique.rubric@v2");
+        expect(promptRef("email.nodeA")).toBe("email.nodeA@v5");
+        expect(allPromptRefs()["email.critique"]).toBe("email.critique@v2");
+        expect(allPromptRefs()["email.critique.rubric"]).toBe("email.critique.rubric@v3");
         expect(Object.keys(allPromptRefs())).toEqual(Object.keys(PROMPT_REGISTRY));
     });
 

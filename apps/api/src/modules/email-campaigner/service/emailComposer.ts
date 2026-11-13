@@ -18,7 +18,7 @@ import type { Rubric } from "@/evals/copy/evalData";
 import { briefEnabled, loadCampaignBrief } from "./copyBrief";
 import { buildProvenance, type CopyProvenance } from "./copyProvenance";
 import { jevScreenEnabled, screenDraft } from "./draftScreen";
-import { AUDIENCE_RULES } from "./audienceContext";
+import { renderAudienceSection } from "./audienceRules";
 import { loadCopyContext, renderCopyContext, retrievalEnabled, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
 
@@ -70,6 +70,7 @@ export interface NodeBInput {
     hypothesis: string;
     pain_context: string;
     days_since_send: number; // always 3
+    audience_context?: string;
     tone?: string;
     voice?: string;
     formulation?: string;
@@ -97,6 +98,7 @@ export interface NodeCInput {
     original_body: string;
     hypothesis: string;
     signal_type: string;
+    audience_context?: string;
     tone?: string;
     voice?: string;
     formulation?: string;
@@ -190,11 +192,7 @@ ${input.campaign_brief ? `## CAMPAIGN BRIEF
 The landing page this email leads to makes this case. Keep the email consistent with it: the same problem, the same promise. Add no claims beyond it.
 ${input.campaign_brief}
 
-` : ""}${input.audience_context ? `## AUDIENCE
-${input.audience_context}
-${AUDIENCE_RULES}
-
-` : ""}## KNOWLEDGE_CONTEXT (TOON FORMAT)
+` : ""}${renderAudienceSection(input.audience_context)}## KNOWLEDGE_CONTEXT (TOON FORMAT)
 ${input.knowledge_context || "None available."}
 
 ## OUTPUT REQUIREMENTS
@@ -227,7 +225,8 @@ export function buildCritiquePrompt(input: any, draft: any): string {
     4. Friction: Is the CTA too aggressive? (Must be low-friction)
     5. Hallucination: Does it mention things NOT in the provided signal/context?
     6. Masking Violation: Does it contain raw emails/phones? (Tokens like [EMAIL_HASH] are OK).
-
+${input?.audience_context ? `    7. Audience: Does it mention the prospect's country, region, nationality, religion or culture when the signal does not, stereotype them, or name or hint at a personality type or profiling? (Must not.)
+    ` : ""}
     ## STYLE REQUIREMENTS
     ${buildStyleGuidance(input)}
     
@@ -272,7 +271,7 @@ ${input.original_body}
 Hypothesis: ${input.hypothesis}
 Pain context: ${input.pain_context}
 
-## STYLE SETTINGS
+${renderAudienceSection(input.audience_context)}## STYLE SETTINGS
 ${buildStyleGuidance(input)}
 
 ## OUTPUT FORMAT
@@ -312,7 +311,7 @@ Original subject: ${input.original_subject}
 Hypothesis: ${input.hypothesis}
 Signal type: ${input.signal_type}
 
-## STYLE SETTINGS
+${renderAudienceSection(input.audience_context)}## STYLE SETTINGS
 ${buildStyleGuidance(input)}
 
 ## OUTPUT FORMAT
