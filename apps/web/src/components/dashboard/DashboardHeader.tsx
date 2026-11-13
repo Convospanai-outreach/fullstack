@@ -19,6 +19,7 @@
 import { Menu, Search } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
+import { EdgeStatusChip } from "@/components/dashboard/EdgeStatusChip";
 import { WorkspaceHelpPanel } from "@/components/dashboard/WorkspaceHelpPanel";
 
 interface DashboardHeaderProps {
@@ -54,6 +55,7 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
 
       {/* Right zone: status (only when unhealthy) + bell + help */}
       <div className="ml-auto flex items-center gap-2">
+        <EdgeStatusChip />
         <ConnectionStatusBar inline onlyWhenUnhealthy />
 
         <NotificationBell />
