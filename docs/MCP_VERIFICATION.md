@@ -123,8 +123,11 @@ Tool series — 2026-11-10 (production, Claude connection, one test workspace). 
 | Cross-grant retry | `create_task` staged and approved on the Claude connection. The same `requestId` and arguments sent from a different connection (throwaway client, `cmf:read cmf:write`) did not use that approval: it returned 202 and staged its own new PENDING action under its own grant. The Claude connection's action stayed APPROVED, unused, and no task was written. The throwaway grant was revoked afterwards. |
 | Approve after the review window | `create_task` staged; the database clock was confirmed past the 10-minute expiry before the user clicked Approve. The action stayed PENDING with `approvedAt` empty, so the approval did not land. A retry with the same `requestId` returned "The review window closed before this change was approved, so nothing was changed" and no task was written. (A first attempt was discarded: the approval came inside the window, so it only showed the normal success path.) |
 | Revoked token | After `/mcp/oauth/revoke`, the old access token was refused (401, "Authentication required") and the old refresh token returned 400 `invalid_grant`. No grant for the test client was left with live tokens. |
+| Session invalidation ("Sign out everywhere" in the superadmin panel, 2026-11-13) | Run on a separate throwaway user with its own workspace, so the real Claude and ChatGPT connections were not affected. A `cmf:read` grant was made and `get_pipeline_stats` returned 200. After the user's `sessionVersion` was bumped (grant 0, user 2; the audit log shows one `USER_SIGN_OUT`), `tools/call` and `tools/list` with the old access token returned 401, and a refresh with the old refresh token returned 400 `invalid_grant`. The refused refresh did not revoke the grant; the row stayed until it was revoked by hand. |
 
 Not tested in this series: `create_campaign` and `update_campaign_details`. The test workspace has no saved ICPs and no campaigns, and no MCP tool creates an ICP, so there was nothing safe to run them against.
+
+Also not tested: the consent-time check that refuses a stale web session, after "Sign out everywhere", when it tries to approve a new connection; and suspended users, viewer roles, and ids from another workspace.
 
 Observations, not defects:
 
