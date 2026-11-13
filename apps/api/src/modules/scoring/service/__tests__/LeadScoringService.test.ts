@@ -21,7 +21,7 @@ vi.mock("@/modules/caller/CallerService", () => ({
 
 import { prisma } from "@/lib/db";
 import { CallerService } from "@/modules/caller/CallerService";
-import { LeadScoringService } from "../LeadScoringService";
+import { LeadScoringService, callerQueueTier } from "../LeadScoringService";
 
 describe("LeadScoringService", () => {
     let service: LeadScoringService;
@@ -103,7 +103,35 @@ describe("LeadScoringService", () => {
             expect(data.churnRisk).toBeCloseTo(0.08, 5);
             expect(data.pipelineState).toBe("HOT");
             expect(data.hotAt).toBeInstanceOf(Date);
-            expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1");
+            expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1", "HOT");
+        });
+
+        it("queues a WARM-scored lead that an email send has already moved to the WARM stage", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1", teamId: "team-1", consentObtained: true, dwellTimeMinutes: 0, emailClicks: 0, socialMentions: 0,
+                intentScore: 0.5, pipelineState: "WARM", hotAt: null, pipelineStateChangedAt: null,
+                fullName: null, email: null, company: null, jobTitle: null, isEnriched: false, value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1", "WARM");
+        });
+
+        it("does not queue a WARM-scored lead that is already with a caller", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1", teamId: "team-1", consentObtained: true, dwellTimeMinutes: 0, emailClicks: 0, socialMentions: 0,
+                intentScore: 0.5, pipelineState: "COORDINATING", hotAt: null, pipelineStateChangedAt: null,
+                fullName: null, email: null, company: null, jobTitle: null, isEnriched: false, value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            expect(CallerService.ensureQueueEntry).not.toHaveBeenCalled();
         });
 
         it("never fabricates optimalSendHour when there's no real email-open data (OPEN-72)", async () => {
@@ -242,7 +270,7 @@ describe("LeadScoringService", () => {
             expect(result.successful).toBe(2);
             expect(result.tierDistribution).toEqual({ hot: 1, warm: 0, cold: 1 });
             expect(result.averageScore).toBeCloseTo(0.5, 5);
-            expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1");
+            expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1", "HOT");
         });
 
         it("records a per-lead error and keeps processing the rest of the batch", async () => {
@@ -257,5 +285,30 @@ describe("LeadScoringService", () => {
             expect(result.successful).toBe(1);
             expect(result.errors).toEqual([{ leadId: "lead-1", error: "db down" }]);
         });
+    });
+});
+
+describe("callerQueueTier", () => {
+    it("queues a lead that moves into HOT as HOT", () => {
+        expect(callerQueueTier("HOT", "WARM", "HOT")).toBe("HOT");
+    });
+
+    it("queues a WARM-scored lead that is COLD or WARM as WARM", () => {
+        expect(callerQueueTier("WARM", "COLD", "WARM")).toBe("WARM");
+        expect(callerQueueTier("WARM", "WARM", null)).toBe("WARM");
+    });
+
+    it("never queues a COLD-scored lead, however far it is in the pipeline", () => {
+        expect(callerQueueTier("COLD", "WARM", null)).toBeNull();
+    });
+
+    it("does not queue leads a caller already has or that are finished", () => {
+        for (const state of ["COORDINATING", "MEETING_CONFIRMED", "COMPLETED", "CLOSED_WON", "CLOSED_LOST"]) {
+            expect(callerQueueTier("WARM", state, null)).toBeNull();
+        }
+    });
+
+    it("does not re-queue a lead that is already HOT unless it just moved into HOT", () => {
+        expect(callerQueueTier("HOT", "HOT", null)).toBeNull();
     });
 });
