@@ -54,6 +54,8 @@ interface Lead {
     leadScore?: number;
     pipelineState?: string;
     lastScoredAt?: string | Date;
+    /** True when the edge node computed the intent score; false when the cloud did; unset when unknown. */
+    scoredOnEdge?: boolean | null;
     dwellTimeMinutes?: number;
     emailClicks?: number;
     socialMentions?: number;
@@ -642,6 +644,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 <Flame className="w-5 h-5 text-orange-500" />
                                 Lead Intent Scoring Breakdown
                             </h3>
+                            {typeof lead.scoredOnEdge === "boolean" && (
+                                <Badge className={lead.scoredOnEdge ? "bg-cyan-600/30 text-cyan-300 border border-cyan-600/20 text-[10px]" : "bg-white/10 text-white/60 border border-white/10 text-[10px]"}>
+                                    {lead.scoredOnEdge ? "Scored on-device" : "Cloud estimate"}
+                                </Badge>
+                            )}
                             {lead.lastScoredAt && (
                                 <span className="text-xs text-white/40">
                                     Last scored: {new Date(lead.lastScoredAt).toLocaleDateString()} at {new Date(lead.lastScoredAt).toLocaleTimeString()}
