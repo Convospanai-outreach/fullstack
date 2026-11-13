@@ -42,4 +42,10 @@ describe("deriveLeadWorkflow", () => {
     it("a lead already past coordinating shows Advance Lead as done", () => {
         expect(states(base({}, { pipelineState: "MEETING_CONFIRMED" }))[5]).toBe("done");
     });
+
+    it("every step carries a plain rule sentence", () => {
+        const rules = deriveLeadWorkflow(base()).steps.map((x) => x.rule);
+        expect(rules).toHaveLength(6);
+        expect(rules.every((r) => r.length > 20)).toBe(true);
+    });
 });

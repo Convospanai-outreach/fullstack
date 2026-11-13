@@ -10,7 +10,18 @@ export interface WorkflowStep {
     state: StepState;
     gated: boolean;
     detail: string | null;
+    /** Plain sentence saying exactly when this step counts as done. */
+    rule: string;
 }
+
+export const STEP_RULES: Record<StepKey, string> = {
+    signal: "Done when this lead has been enriched or scored, has an ICP fit score, or has any website time, email clicks or social mentions.",
+    draft: "Done when at least one email or AI draft exists for this lead, or a channel is marked Drafted.",
+    channel: "Done when at least one email has been sent to this lead, or a channel is marked Contacted.",
+    reply: "Done when the lead has replied or a reply outcome is set. After outreach starts and before a reply, it shows Waiting for a reply.",
+    approve: "Waiting while a manager has not decided an approval for this lead. Done when approved. Blocked when rejected. Not started if no approval exists.",
+    advance: "Done when the lead's stage is Coordinating or later, or the lead is Won.",
+};
 
 export interface WorkflowApproval {
     requestId: string;
@@ -70,7 +81,7 @@ export function deriveLeadWorkflow(input: WorkflowInput): { steps: WorkflowStep[
     else if (approval?.status === "APPROVED") approveState = "done";
     else if (approval?.status === "REJECTED") approveState = "blocked";
 
-    const steps: WorkflowStep[] = [
+    const steps: Omit<WorkflowStep, "rule">[] = [
         { key: "signal", label: "Signal Review", state: hasSignal ? "done" : "todo", gated: false, detail: hasSignal ? "Engagement or fit data recorded" : "No signals yet" },
         { key: "draft", label: "Draft Prep", state: drafted ? "done" : "todo", gated: false, detail: drafted ? "Draft or email prepared" : "No draft yet" },
         { key: "channel", label: "Channel Connect", state: outreach ? "done" : "todo", gated: false, detail: outreach ? (emailCount > 0 ? `${plural(emailCount, "email")} sent` : "Outreach started") : "No outreach yet" },
@@ -90,7 +101,7 @@ export function deriveLeadWorkflow(input: WorkflowInput): { steps: WorkflowStep[
     if (firstOpen && firstOpen.state === "todo") firstOpen.state = "active";
 
     return {
-        steps,
+        steps: steps.map((s) => ({ ...s, rule: STEP_RULES[s.key] })),
         approval: approval
             ? {
                   requestId: approval.id,
