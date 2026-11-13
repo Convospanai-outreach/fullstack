@@ -8,7 +8,7 @@ describe("buildProvenance", () => {
         expect(buildProvenance(base)).toEqual({
             v: 1,
             node: "A",
-            prompts: { draft: "email.nodeA@v4", system: "email.nodeA.system@v1", critique: "email.critique@v1" },
+            prompts: { draft: "email.nodeA@v5", system: "email.nodeA.system@v1", critique: "email.critique@v2" },
             flags: { retrieval: true, brief: false, rubricCritic: false },
             context: { playbook: 2, examples: 1, brief: false },
             critique: "passed",
@@ -16,7 +16,7 @@ describe("buildProvenance", () => {
     });
 
     it("names the rubric critique prompt when the rubric critic ran", () => {
-        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v2");
+        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v3");
     });
 });
 
@@ -36,12 +36,12 @@ describe("legacyProvenance", () => {
         expect(legacyProvenance(false)).toEqual({
             v: 1,
             node: "legacy",
-            prompts: { draft: "email.legacyDraft@v1", system: "none", critique: "none" },
+            prompts: { draft: "email.legacyDraft@v2", system: "none", critique: "none" },
             flags: { retrieval: false, brief: false, rubricCritic: false },
             context: { playbook: 0, examples: 0, brief: false },
             critique: "unreviewed",
         });
-        expect(legacyProvenance(true).prompts.draft).toBe("email.legacyBatch@v1");
+        expect(legacyProvenance(true).prompts.draft).toBe("email.legacyBatch@v2");
     });
 
     it("reads back like any other provenance", () => {
@@ -52,7 +52,7 @@ describe("legacyProvenance", () => {
 describe("legacyProvenance with a critic", () => {
     it("names the critic prompt and the outcome", () => {
         const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
-        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v1", critique: "email.critique.rubric@v2" }, flags: { rubricCritic: true } });
+        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v2", critique: "email.critique.rubric@v3" }, flags: { rubricCritic: true } });
     });
 });
 
