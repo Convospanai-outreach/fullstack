@@ -1,0 +1,55 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { buildGovernanceLog } from "@/lib/campaignGovernanceLog";
+
+const MAX_ROWS = 200;
+const MAX_LEADS = 2000;
+const person = { select: { name: true, email: true } };
+
+// GET /api/campaigns/[id]/governance - who asked for what, who decided, and the outcome. Read-only.
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const ctx = await getCurrentContext();
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.MEMBER))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const campaign = await prisma.campaign.findFirst({ where: { id, teamId: ctx.teamId }, select: { id: true } });
+    if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+
+    const leads = await prisma.lead.findMany({
+        where: { campaignId: id, teamId: ctx.teamId },
+        orderBy: { createdAt: "desc" },
+        take: MAX_LEADS,
+        select: { id: true },
+    });
+
+    const [approvals, audits] = await Promise.all([
+        prisma.approvalRequest.findMany({
+            where: {
+                teamId: ctx.teamId,
+                OR: [
+                    { entityType: "Campaign", entityId: id },
+                    { entityType: "Lead", entityId: { in: leads.map((l) => l.id) } },
+                ],
+            },
+            orderBy: { createdAt: "desc" },
+            take: MAX_ROWS,
+            select: {
+                id: true, actionType: true, entityType: true, status: true, payload: true,
+                createdAt: true, reviewedAt: true, updatedAt: true, requester: person, reviewer: person,
+            },
+        }),
+        prisma.auditLog.findMany({
+            where: { orgId: ctx.teamId, entity: "Campaign", entityId: id },
+            orderBy: { createdAt: "desc" },
+            take: MAX_ROWS,
+            select: { id: true, action: true, correlationId: true, metadata: true, createdAt: true, user: person },
+        }),
+    ]);
+
+    return NextResponse.json({ success: true, data: { rows: buildGovernanceLog(approvals, audits, MAX_ROWS) } });
+}
