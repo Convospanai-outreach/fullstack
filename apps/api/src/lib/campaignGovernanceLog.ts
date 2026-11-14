@@ -48,7 +48,7 @@ export function buildGovernanceLog(approvals: ApprovalRecord[], audits: AuditRec
     const rows: GovernanceRow[] = [];
 
     for (const a of approvals) {
-        const subject = a.entityType === "Lead" ? "lead" : "campaign";
+        const subject = a.entityType === "Campaign" ? "campaign" : "lead";
         const argumentNames = fieldNames(a.payload);
         rows.push({
             id: `${a.id}:requested`,

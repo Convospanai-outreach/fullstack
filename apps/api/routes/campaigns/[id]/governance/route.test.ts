@@ -45,23 +45,22 @@ describe("GET /campaigns/[id]/governance", () => {
         expect(m.approvals).not.toHaveBeenCalled();
     });
 
-    it("reads approvals for the campaign and its own leads, inside the team", async () => {
-        await call();
-        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({
-            where: {
-                teamId: "t1",
-                OR: [
-                    { entityType: "Campaign", entityId: "c1" },
-                    { entityType: "Lead", entityId: { in: ["l1"] } },
-                ],
-            },
-        }));
+    it("reads approvals inside the team and keeps only this campaign's", async () => {
+        const base = { actionType: "MESSAGE_SEND", status: "PENDING", payload: {}, createdAt: new Date("2026-11-10T10:00:00Z"), reviewedAt: null, updatedAt: new Date("2026-11-10T10:00:00Z"), requester: null, reviewer: null };
+        m.approvals.mockResolvedValue([
+            { ...base, id: "held-message", entityType: "Message", entityId: "l1:whatsapp" },
+            { ...base, id: "other-campaign", entityType: "Campaign", entityId: "c2" },
+            { ...base, id: "other-lead", entityType: "Lead", entityId: "l9" },
+        ]);
+        const { data } = await (await call()).json();
+        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "t1" } }));
+        expect(data.rows.map((r: { requestId: string }) => r.requestId)).toEqual(["held-message"]);
         expect(m.audits).toHaveBeenCalledWith(expect.objectContaining({ where: { orgId: "t1", entity: "Campaign", entityId: "c1" } }));
     });
 
     it("returns rows without payload values", async () => {
         m.approvals.mockResolvedValue([{
-            id: "req-1", actionType: "SEND_EMAIL", entityType: "Lead", status: "PENDING", payload: { body: "secret draft text" },
+            id: "req-1", actionType: "SEND_EMAIL", entityType: "Lead", entityId: "l1", status: "PENDING", payload: { body: "secret draft text" },
             createdAt: new Date("2026-11-10T10:00:00Z"), reviewedAt: null, updatedAt: new Date("2026-11-10T10:00:00Z"),
             requester: { name: "Asha", email: "a@t.example" }, reviewer: null,
         }]);

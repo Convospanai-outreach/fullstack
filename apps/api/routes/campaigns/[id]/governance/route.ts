@@ -3,9 +3,12 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildGovernanceLog } from "@/lib/campaignGovernanceLog";
+import { belongsToCampaign } from "@/lib/campaignApprovals";
 
 const MAX_ROWS = 200;
 const MAX_LEADS = 2000;
+// Approvals are matched to the campaign in code (see belongsToCampaign), over the team's newest requests.
+const MAX_TEAM_APPROVALS = 2000;
 const person = { select: { name: true, email: true } };
 
 // GET /api/campaigns/[id]/governance - who asked for what, who decided, and the outcome. Read-only.
@@ -29,17 +32,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const [approvals, audits] = await Promise.all([
         prisma.approvalRequest.findMany({
-            where: {
-                teamId: ctx.teamId,
-                OR: [
-                    { entityType: "Campaign", entityId: id },
-                    { entityType: "Lead", entityId: { in: leads.map((l) => l.id) } },
-                ],
-            },
+            where: { teamId: ctx.teamId },
             orderBy: { createdAt: "desc" },
-            take: MAX_ROWS,
+            take: MAX_TEAM_APPROVALS,
             select: {
-                id: true, actionType: true, entityType: true, status: true, payload: true,
+                id: true, actionType: true, entityType: true, entityId: true, status: true, payload: true,
                 createdAt: true, reviewedAt: true, updatedAt: true, requester: person, reviewer: person,
             },
         }),
@@ -51,5 +48,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         }),
     ]);
 
-    return NextResponse.json({ success: true, data: { rows: buildGovernanceLog(approvals, audits, MAX_ROWS) } });
+    const leadIds = new Set(leads.map((l) => l.id));
+    const campaignApprovals = approvals.filter((a) => belongsToCampaign(a, id, leadIds));
+
+    return NextResponse.json({ success: true, data: { rows: buildGovernanceLog(campaignApprovals, audits, MAX_ROWS) } });
 }
