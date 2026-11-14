@@ -56,5 +56,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             };
         });
 
-    return NextResponse.json({ success: true, data: { canDecide, requests } });
+    // True when a cap may have hidden older requests, so the gate can say it shows the newest only.
+    const capped = leads.length >= MAX_LEADS || pending.length >= MAX_PENDING;
+
+    return NextResponse.json({ success: true, data: { canDecide, requests, capped } });
 }

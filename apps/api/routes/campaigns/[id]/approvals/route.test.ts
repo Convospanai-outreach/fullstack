@@ -54,4 +54,9 @@ describe("GET /campaigns/[id]/approvals", () => {
         expect(data.canDecide).toBe(false);
         expect(m.can).toHaveBeenCalledWith("u1", "t1", "resolve_approvals");
     });
+
+    it("flags when the lead cap may have hidden older requests", async () => {
+        m.leads.mockResolvedValue(Array.from({ length: 2000 }, (_, n) => ({ id: `l${n}` })));
+        expect((await (await GET(new Request("http://x"), { params: Promise.resolve({ id: "c1" }) })).json()).data.capped).toBe(true);
+    });
 });

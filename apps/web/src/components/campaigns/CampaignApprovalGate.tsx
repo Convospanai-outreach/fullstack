@@ -34,7 +34,7 @@ function Expiry({ expiresAt }: { expiresAt: string | null }) {
 // The approval gate for one campaign: what is waiting for a manager, with the request id and expiry.
 // Approve and Reject call the existing approvals endpoint, which enforces who may decide and does the sending.
 export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
-    const [data, setData] = useState<{ canDecide: boolean; requests: PendingRequest[] } | null>(null);
+    const [data, setData] = useState<{ canDecide: boolean; requests: PendingRequest[]; capped?: boolean } | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
 
     const load = useCallback(async (isStale: () => boolean = () => false) => {
@@ -89,6 +89,7 @@ export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
                 <ShieldAlert className="w-4 h-4 text-amber-500" />
                 {data.requests.length === 1 ? "1 action requires review" : `${data.requests.length} actions require review`}
             </h2>
+            {data.capped && <p className="text-xs text-amber-600">This campaign is large, so only the newest requests are shown. Older ones may be missing.</p>}
             <ul className="space-y-3">
                 {data.requests.map((request) => (
                     <li key={request.requestId} className="rounded-md border border-border bg-card p-3 text-xs space-y-2">
