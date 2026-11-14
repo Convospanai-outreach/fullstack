@@ -37,17 +37,26 @@ export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
     const [data, setData] = useState<{ canDecide: boolean; requests: PendingRequest[] } | null>(null);
     const [busy, setBusy] = useState<string | null>(null);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (isStale: () => boolean = () => false) => {
         try {
             const res = await fetch(`${getBrowserApiBase()}/campaigns/${campaignId}/approvals`, { cache: "no-store" });
-            if (res.ok) setData((await res.json()).data);
+            if (res.ok) {
+                const next = (await res.json()).data;
+                if (!isStale()) setData(next);
+            }
         } catch {
             /* leave the gate hidden */
         }
     }, [campaignId]);
 
     useEffect(() => {
-        void load();
+        // A late response for a previous campaign must not replace this campaign's requests.
+        let stale = false;
+        setData(null);
+        void load(() => stale);
+        return () => {
+            stale = true;
+        };
     }, [load]);
 
     async function decide(request: PendingRequest, action: "APPROVE" | "REJECT") {
@@ -102,7 +111,7 @@ export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
                             <div className="flex flex-wrap gap-2 pt-1">
                                 <button
                                     type="button"
-                                    disabled={busy === request.requestId}
+                                    disabled={busy === request.requestId || getExpiryState(request.expiresAt) === "expired"}
                                     onClick={() => void decide(request, "APPROVE")}
                                     className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground disabled:opacity-50"
                                 >

@@ -113,4 +113,24 @@ describe("CampaignApprovalGate", () => {
         expect(container.querySelectorAll("button")).toHaveLength(0);
         expect(container.textContent).toContain("Waiting for a manager");
     });
+    it("disables Approve once the request has expired, but still allows Reject", async () => {
+        pending = [{ ...request, expiresAt: "2020-01-01T00:00:00.000Z" }];
+        await render();
+        expect(button("Approve").disabled).toBe(true);
+        expect(button("Reject").disabled).toBe(false);
+    });
+
+    it("ignores a late response for a previous campaign", async () => {
+        let releaseOld: (v: unknown) => void = () => {};
+        fetchMock.mockImplementation((url: string) => {
+            if (url === "/api/proxy/campaigns/c1/approvals") return new Promise((r) => { releaseOld = r; });
+            if (url === "/api/proxy/campaigns/c2/approvals") return Promise.resolve({ ok: true, json: async () => ({ data: { canDecide: true, requests: [] } }) });
+            throw new Error(`unexpected fetch ${url}`);
+        });
+        await act(async () => { root.render(<CampaignApprovalGate campaignId="c1" />); });
+        await act(async () => { root.render(<CampaignApprovalGate campaignId="c2" />); });
+        await act(async () => { releaseOld({ ok: true, json: async () => ({ data: { canDecide: true, requests: [request] } }) }); });
+        await act(async () => {});
+        expect(container.innerHTML).toBe("");
+    });
 });
