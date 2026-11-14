@@ -19,7 +19,8 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
-import { tabFromQuery } from "@/lib/campaigns/campaignTabs";
+import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
+import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
 
@@ -398,7 +399,7 @@ export default function CampaignDetailPage({
                 {/* Tabs */}
                 <div className="border-b border-border mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        {["overview", "sequence", "leads", "activity", "timeline", "analytics"].map((tab) => (
+                        {CAMPAIGN_TABS.map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -654,6 +655,13 @@ export default function CampaignDetailPage({
                                 title="Recent Campaign Activity"
                                 emptyMessage="No activity logs for this campaign yet."
                             />
+                        </div>
+                    )}
+
+                    {/* GOVERNANCE TAB */}
+                    {activeTab === "governance" && (
+                        <div className="lg:col-span-3">
+                            <GovernanceLogTab campaignId={campaignId} />
                         </div>
                     )}
 

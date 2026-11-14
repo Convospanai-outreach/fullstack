@@ -1,7 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isWebOwnedPath, POST } from "../route";
+import { isApiOnlyCampaignPath, isWebOwnedPath, POST } from "../route";
 
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
+
+describe("isApiOnlyCampaignPath", () => {
+    it("leaves the campaign routes apps/web implements alone", () => {
+        expect(isApiOnlyCampaignPath(["campaigns"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "leads"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "sequence", "steps"])).toBe(false);
+    });
+
+    it("sends the apps/api-only campaign routes upstream", () => {
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "governance"])).toBe(true);
+    });
+});
 
 describe("isWebOwnedPath", () => {
     it("keeps smtp connect/test in apps/web but sends smtp domain-checks to apps/api", () => {

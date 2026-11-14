@@ -5,6 +5,7 @@ describe("tabFromQuery", () => {
     it("opens the tab named in the query when it is one of the campaign tabs", () => {
         expect(tabFromQuery("sequence")).toBe("sequence");
         expect(tabFromQuery("leads")).toBe("leads");
+        expect(tabFromQuery("governance")).toBe("governance");
     });
 
     it("falls back to the overview for a missing or unknown tab", () => {
@@ -13,7 +14,7 @@ describe("tabFromQuery", () => {
         expect(tabFromQuery("admin")).toBe("overview");
     });
 
-    it("lists the six tabs the campaign page renders", () => {
-        expect(CAMPAIGN_TABS).toEqual(["overview", "sequence", "leads", "activity", "timeline", "analytics"]);
+    it("lists the seven tabs the campaign page renders", () => {
+        expect(CAMPAIGN_TABS).toEqual(["overview", "sequence", "leads", "activity", "timeline", "analytics", "governance"]);
     });
 });
