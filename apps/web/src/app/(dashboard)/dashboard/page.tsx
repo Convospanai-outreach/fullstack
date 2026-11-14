@@ -30,6 +30,7 @@ import { BottomGrid } from "@/components/dashboard/BottomGrid";
 import { PipelineTrendCard } from "@/components/dashboard/PipelineTrendCard";
 import { RecentLeadsCard } from "@/components/dashboard/RecentLeadsCard";
 import { LeadDrilldown, type DrilldownLead } from "@/components/dashboard/LeadDrilldown";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -66,7 +67,6 @@ interface DashboardData {
   recentActivity: ActivityItem[];
   recentLeads: DrilldownLead[];
   pipelineTrend: number[];
-  setupPercent: number;
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -75,6 +75,9 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Launch readiness comes from /setup/status, the same figure the setup wizard shows.
+  // null = not known (still loading, or the status call failed): show no number rather than a wrong one.
+  const [setupPercent, setSetupPercent] = useState<number | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedLead, setSelectedLead] = useState<DrilldownLead | null>(null);
 
@@ -86,6 +89,9 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error('dashboard summary unavailable');
       const json: DashboardData = await res.json();
       setData(json);
+      const statusRes = await fetch(getBrowserApiUrl('/setup/status'), { cache: 'no-store' }).catch(() => null);
+      const status = statusRes?.ok ? await statusRes.json().catch(() => null) : null;
+      setSetupPercent(typeof status?.completionPercent === 'number' ? status.completionPercent : null);
     } catch {
       // Surface the failure instead of leaving the page looking like a fresh,
       // empty account (an outage and a zero-metric account must not look alike).
@@ -100,8 +106,8 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
-  const setupIncomplete = !loading && data !== null && data.setupPercent < 100;
-  const showBanner = setupIncomplete && !bannerDismissed;
+  const setupIncomplete = !loading && data !== null && setupPercent !== 100;
+  const showBanner = setupIncomplete && setupPercent !== null && !bannerDismissed;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -147,9 +153,9 @@ export default function DashboardPage() {
       {/* Setup checklist — only while setup is incomplete */}
       {setupIncomplete && data && (
         <div className="mb-4">
-          {showBanner && (
+          {showBanner && setupPercent !== null && (
             <SetupBanner
-              percent={data.setupPercent}
+              percent={setupPercent}
               onDismiss={() => setBannerDismissed(true)}
             />
           )}
