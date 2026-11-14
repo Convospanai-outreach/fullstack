@@ -4,6 +4,12 @@ import { isWebOwnedPath, POST } from "../route";
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
 
 describe("isWebOwnedPath", () => {
+    it("keeps smtp connect/test in apps/web but sends smtp domain-checks to apps/api", () => {
+        expect(isWebOwnedPath(["integrations", "smtp", "connect"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "test"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "domain-checks"])).toBe(false);
+    });
+
     describe("settings", () => {
         it("keeps branding and hidden-features web-owned", () => {
             expect(isWebOwnedPath(["settings", "branding"])).toBe(true);
