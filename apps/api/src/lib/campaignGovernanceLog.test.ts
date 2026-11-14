@@ -59,4 +59,17 @@ describe("buildGovernanceLog", () => {
         const many = Array.from({ length: 5 }, (_, i) => approval({ id: `r${i}`, createdAt: new Date(`2026-11-0${i + 1}T00:00:00Z`) }));
         expect(buildGovernanceLog(many, [], 2).map((r) => r.requestId)).toEqual(["r4", "r3"]);
     });
+
+    it("names the subject from the entity type, so email requests are not called leads", () => {
+        const rows = buildGovernanceLog([approval({ entityType: "Email" }), approval({ id: "r2", entityType: "Campaign" })], [], 50);
+        const actions = rows.map((r) => r.action);
+        expect(actions).toContain("Requested approval: send email (email)");
+        expect(actions).toContain("Requested approval: send email (campaign)");
+    });
+
+    it("does not report a needs-attention request as rejected", () => {
+        const rows = buildGovernanceLog([approval({ status: "NEEDS_ATTENTION", updatedAt: new Date("2026-11-10T12:00:00Z") })], [], 50);
+        expect(rows[0].outcome).toBe("Needs attention (not sent)");
+        expect(JSON.stringify(rows)).not.toContain("Rejected");
+    });
 });

@@ -43,12 +43,21 @@ export interface AuditRecord {
 const person = (p: Person | null) => p?.name || p?.email || "System";
 const fieldNames = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort() : []);
 const readable = (action: string) => action.replaceAll("_", " ").toLowerCase();
+// What the request was about, taken from its own entity type rather than guessed.
+const subjectOf = (entityType: string) => (entityType ? readable(entityType.replace(/([a-z])([A-Z])/g, "$1_$2")) : "request");
+
+function outcomeOf(a: ApprovalRecord): string {
+    if (a.status === "APPROVED") return "Approved";
+    if (a.status === "REJECTED") return a.reviewer ? "Rejected" : "Rejected (expired without review)";
+    if (a.status === "NEEDS_ATTENTION") return "Needs attention (not sent)";
+    return readable(a.status);
+}
 
 export function buildGovernanceLog(approvals: ApprovalRecord[], audits: AuditRecord[], limit: number): GovernanceRow[] {
     const rows: GovernanceRow[] = [];
 
     for (const a of approvals) {
-        const subject = a.entityType === "Campaign" ? "campaign" : "lead";
+        const subject = subjectOf(a.entityType);
         const argumentNames = fieldNames(a.payload);
         rows.push({
             id: `${a.id}:requested`,
@@ -68,7 +77,7 @@ export function buildGovernanceLog(approvals: ApprovalRecord[], audits: AuditRec
                 action: `Reviewed: ${readable(a.actionType)} (${subject})`,
                 argumentNames,
                 requestId: a.id,
-                outcome: a.status === "APPROVED" ? "Approved" : a.reviewer ? "Rejected" : "Rejected (expired without review)",
+                outcome: outcomeOf(a),
             });
         }
     }

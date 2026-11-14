@@ -70,4 +70,13 @@ describe("GET /campaigns/[id]/governance", () => {
         expect(text).toContain("req-1");
         expect(text).not.toContain("secret draft text");
     });
+
+    it("flags when the lead cap may have hidden older approvals", async () => {
+        m.leads.mockResolvedValue(Array.from({ length: 2000 }, (_, n) => ({ id: `l${n}` })));
+        expect((await (await call()).json()).data.capped).toBe(true);
+    });
+
+    it("does not flag small campaigns", async () => {
+        expect((await (await call()).json()).data.capped).toBe(false);
+    });
 });

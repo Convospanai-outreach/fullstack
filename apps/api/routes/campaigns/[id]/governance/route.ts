@@ -51,5 +51,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const leadIds = new Set(leads.map((l) => l.id));
     const campaignApprovals = approvals.filter((a) => belongsToCampaign(a, id, leadIds));
 
-    return NextResponse.json({ success: true, data: { rows: buildGovernanceLog(campaignApprovals, audits, MAX_ROWS) } });
+    // True when a cap may have hidden older entries, so the page can say the log shows the newest only.
+    const capped = leads.length >= MAX_LEADS || approvals.length >= MAX_TEAM_APPROVALS;
+
+    return NextResponse.json({ success: true, data: { rows: buildGovernanceLog(campaignApprovals, audits, MAX_ROWS), capped } });
 }

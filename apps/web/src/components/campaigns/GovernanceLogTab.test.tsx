@@ -9,8 +9,8 @@ import GovernanceLogTab from "./GovernanceLogTab";
 
 const row = { id: "req-1:requested", at: "2026-11-10T10:00:00.000Z", actor: "Asha", action: "Requested approval: send email (lead)", argumentNames: ["body", "subject"], requestId: "req-1", outcome: "Sent for review" };
 
-function mockFetch(response: { ok: boolean; rows?: unknown[] }) {
-    const fetchMock = vi.fn(async () => ({ ok: response.ok, json: async () => ({ data: { rows: response.rows } }) }));
+function mockFetch(response: { ok: boolean; rows?: unknown[]; capped?: boolean }) {
+    const fetchMock = vi.fn(async () => ({ ok: response.ok, json: async () => ({ data: { rows: response.rows, capped: response.capped } }) }));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
 }
@@ -52,7 +52,8 @@ describe("GovernanceLogTab", () => {
     it("always states what the log leaves out", async () => {
         mockFetch({ ok: true, rows: [] });
         await render();
-        expect(container.textContent).toContain("not message content or personal data");
+        expect(container.textContent).toContain("not message content or lead details");
+        expect(container.textContent).toContain("names or emails");
         expect(container.textContent).toContain("No approvals or campaign changes have been recorded");
     });
 
@@ -61,5 +62,17 @@ describe("GovernanceLogTab", () => {
         await render();
         expect(container.textContent).toContain("Couldn't load the governance log");
         expect(container.textContent).not.toContain("No approvals or campaign changes");
+    });
+
+    it("says so when the log may be missing older entries", async () => {
+        mockFetch({ ok: true, rows: [row], capped: true });
+        await render();
+        expect(container.textContent).toContain("newest entries only");
+    });
+
+    it("does not warn when nothing was capped", async () => {
+        mockFetch({ ok: true, rows: [row] });
+        await render();
+        expect(container.textContent).not.toContain("newest entries only");
     });
 });
