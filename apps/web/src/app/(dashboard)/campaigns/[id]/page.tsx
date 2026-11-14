@@ -19,6 +19,7 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
+import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
 import { tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
@@ -421,6 +422,7 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
+                                <CampaignWorkflowRail campaignId={campaignId} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
