@@ -68,6 +68,16 @@ describe("Dashboard launch readiness", () => {
         expect(container.querySelector('[data-testid="workflow"]')).not.toBeNull();
     });
 
+    it("shows the rest of the dashboard without waiting for setup status", async () => {
+        vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+            if (url === "/api/dashboard/summary") return { ok: true, json: async () => summary };
+            return new Promise(() => undefined); // setup status never answers
+        }));
+        await render();
+        expect(container.querySelector('[data-testid="workflow"]')).not.toBeNull();
+        expect(container.textContent).not.toContain("Launch readiness");
+    });
+
     it("hides the setup section once setup is complete", async () => {
         mockFetch({ ok: true, body: { completionPercent: 100 } });
         await render();

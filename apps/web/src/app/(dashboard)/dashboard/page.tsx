@@ -89,9 +89,6 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error('dashboard summary unavailable');
       const json: DashboardData = await res.json();
       setData(json);
-      const statusRes = await fetch(getBrowserApiUrl('/setup/status'), { cache: 'no-store' }).catch(() => null);
-      const status = statusRes?.ok ? await statusRes.json().catch(() => null) : null;
-      setSetupPercent(typeof status?.completionPercent === 'number' ? status.completionPercent : null);
     } catch {
       // Surface the failure instead of leaving the page looking like a fresh,
       // empty account (an outage and a zero-metric account must not look alike).
@@ -105,6 +102,20 @@ export default function DashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Separate from load(): a slow setup-status call must not hold the rest of the dashboard in its loading state.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(getBrowserApiUrl('/setup/status'), { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((status) => {
+        if (!cancelled) setSetupPercent(typeof status?.completionPercent === 'number' ? status.completionPercent : null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setupIncomplete = !loading && data !== null && setupPercent !== 100;
   const showBanner = setupIncomplete && setupPercent !== null && !bannerDismissed;
