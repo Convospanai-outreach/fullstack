@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({ ctx: vi.fn(), allowed: vi.fn(), campaign: vi.fn(), leads: vi.fn(), approvals: vi.fn(), audits: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: m.ctx }));
-vi.mock("@/lib/permissions", () => ({ checkTeamPermission: m.allowed, TeamRole: { MEMBER: "member" } }));
+vi.mock("@/lib/permissions", () => ({ hasPermission: m.allowed, Permission: { VIEW_AUDIT: "view_audit" } }));
 vi.mock("@/lib/db", () => ({
     prisma: {
         campaign: { findFirst: m.campaign },
@@ -32,9 +32,10 @@ describe("GET /campaigns/[id]/governance", () => {
         expect((await call()).status).toBe(401);
     });
 
-    it("refuses viewers", async () => {
+    it("refuses callers without VIEW_AUDIT", async () => {
         m.allowed.mockResolvedValue(false);
         expect((await call()).status).toBe(403);
+        expect(m.allowed).toHaveBeenCalledWith("u1", "t1", "view_audit");
         expect(m.campaign).not.toHaveBeenCalled();
     });
 
