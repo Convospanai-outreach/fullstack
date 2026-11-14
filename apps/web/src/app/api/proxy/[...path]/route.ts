@@ -140,7 +140,9 @@ export function isWebOwnedPath(pathParts: string[]): boolean {
         // are entirely web-owned. Under integrations/google, apps/api owns domain-checks,
         // mailboxes/sync, and pubsub; apps/web owns oauth/{start,callback} and the base
         // mailboxes endpoint.
-        if (second === "fbl" || second === "microsoft" || second === "smtp") return true;
+        // The one exception: smtp/domain-checks (DNS readiness for a team's own SMTP domain) is an apps/api route.
+        if (second === "smtp") return third !== "domain-checks";
+        if (second === "fbl" || second === "microsoft") return true;
         if (second === "google") {
             if (third === "oauth") return true;
             if (third === "mailboxes") return pathParts.length === 3; // base only, not mailboxes/sync
