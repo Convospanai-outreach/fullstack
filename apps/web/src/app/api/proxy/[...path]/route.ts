@@ -112,6 +112,7 @@ const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import", "org-chart"
 // which exist only in apps/api. Sent to apps/web they would hit a nonexistent route and 404.
 const CAMPAIGNS_API_SEGMENTS = new Set([
     "governance",
+    "approvals",
 ]);
 
 export function isApiOnlyCampaignPath(pathParts: string[]): boolean {
