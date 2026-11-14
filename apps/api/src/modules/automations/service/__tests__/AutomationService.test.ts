@@ -11,10 +11,10 @@ vi.mock("@/lib/db", () => ({
             update: vi.fn(),
         },
         campaign: {
-            update: vi.fn(),
+            updateMany: vi.fn(),
         },
         lead: {
-            update: vi.fn(),
+            updateMany: vi.fn(),
         },
     },
 }));
@@ -42,7 +42,7 @@ describe("automationService", () => {
             expect(prisma.automationLog.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({ automationId: "auto-1", status: "pending_approval" }),
             });
-            expect(prisma.campaign.update).not.toHaveBeenCalled();
+            expect(prisma.campaign.updateMany).not.toHaveBeenCalled();
             expect(result).toEqual({
                 success: true,
                 results: [{ automationId: "auto-1", status: "PENDING_APPROVAL", logId: "log-1" }],
@@ -54,11 +54,12 @@ describe("automationService", () => {
                 { id: "auto-2", teamId: "team-1", trigger: "lead.replied", action: "campaign.stop", requiresApproval: false, isActive: true },
             ]);
             (prisma.automationLog.create as any).mockResolvedValue({ id: "log-2" });
+            (prisma.campaign.updateMany as any).mockResolvedValue({ count: 1 });
 
             const result = await automationService.evaluate("team-1", "lead.replied", { campaignId: "c1" });
 
-            expect(prisma.campaign.update).toHaveBeenCalledWith({
-                where: { id: "c1" },
+            expect(prisma.campaign.updateMany).toHaveBeenCalledWith({
+                where: { id: "c1", teamId: "team-1" },
                 data: { status: "paused" },
             });
             expect(prisma.automationLog.create).toHaveBeenCalledWith({
@@ -71,7 +72,7 @@ describe("automationService", () => {
             (prisma.automation.findMany as any).mockResolvedValue([
                 { id: "auto-3", teamId: "team-1", trigger: "lead.replied", action: "campaign.stop", requiresApproval: false, isActive: true },
             ]);
-            (prisma.campaign.update as any).mockRejectedValue(new Error("campaign not found"));
+            (prisma.campaign.updateMany as any).mockRejectedValue(new Error("campaign not found"));
             (prisma.automationLog.create as any).mockResolvedValue({ id: "log-3" });
 
             const result = await automationService.evaluate("team-1", "lead.replied", { campaignId: "c1" });
@@ -80,6 +81,38 @@ describe("automationService", () => {
                 data: expect.objectContaining({ automationId: "auto-3", status: "failed" }),
             });
             expect(result.results).toEqual([{ automationId: "auto-3", status: "FAILED", logId: "log-3" }]);
+        });
+
+        it("fails instead of pausing a campaign that belongs to another team", async () => {
+            (prisma.automation.findMany as any).mockResolvedValue([
+                { id: "auto-4", teamId: "team-1", trigger: "lead.replied", action: "campaign.stop", requiresApproval: false, isActive: true },
+            ]);
+            (prisma.campaign.updateMany as any).mockResolvedValue({ count: 0 });
+            (prisma.automationLog.create as any).mockResolvedValue({ id: "log-4" });
+
+            const result = await automationService.evaluate("team-1", "lead.replied", { campaignId: "campaign-of-team-2" });
+
+            expect(prisma.campaign.updateMany).toHaveBeenCalledWith({
+                where: { id: "campaign-of-team-2", teamId: "team-1" },
+                data: { status: "paused" },
+            });
+            expect(result.results).toEqual([{ automationId: "auto-4", status: "FAILED", logId: "log-4" }]);
+        });
+
+        it("tags a lead only inside the automation's own team", async () => {
+            (prisma.automation.findMany as any).mockResolvedValue([
+                { id: "auto-5", teamId: "team-1", trigger: "lead.replied", action: "lead.tag", requiresApproval: false, isActive: true },
+            ]);
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 0 });
+            (prisma.automationLog.create as any).mockResolvedValue({ id: "log-5" });
+
+            const result = await automationService.evaluate("team-1", "lead.replied", { leadId: "lead-of-team-2", tag: "hot" });
+
+            expect(prisma.lead.updateMany).toHaveBeenCalledWith({
+                where: { id: "lead-of-team-2", teamId: "team-1" },
+                data: { tags: { push: "hot" } },
+            });
+            expect(result.results).toEqual([{ automationId: "auto-5", status: "FAILED", logId: "log-5" }]);
         });
     });
 

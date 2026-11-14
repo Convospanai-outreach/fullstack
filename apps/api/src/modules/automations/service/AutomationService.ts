@@ -29,16 +29,20 @@ class AutomationService {
 
             let status = "success";
             try {
+                // context ids are caller-supplied: scope by teamId so an automation can
+                // never touch another team's campaign or lead.
                 if (automation.action === "campaign.stop" && context?.campaignId) {
-                    await prisma.campaign.update({
-                        where: { id: context.campaignId },
+                    const { count } = await prisma.campaign.updateMany({
+                        where: { id: context.campaignId, teamId },
                         data: { status: "paused" }
                     });
+                    if (count === 0) throw new Error("campaign not found");
                 } else if (automation.action === "lead.tag" && context?.leadId && context?.tag) {
-                    await prisma.lead.update({
-                        where: { id: context.leadId },
+                    const { count } = await prisma.lead.updateMany({
+                        where: { id: context.leadId, teamId },
                         data: { tags: { push: context.tag } }
                     });
+                    if (count === 0) throw new Error("lead not found");
                 }
             } catch (e) {
                 status = "failed";
