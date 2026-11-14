@@ -20,6 +20,7 @@ import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
 import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
+import { CampaignApprovalGate } from "@/components/campaigns/CampaignApprovalGate";
 import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
@@ -422,6 +423,7 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
+                                <CampaignApprovalGate campaignId={campaignId} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
