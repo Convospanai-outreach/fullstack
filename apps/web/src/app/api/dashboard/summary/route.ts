@@ -39,7 +39,6 @@ export async function GET() {
         recentActivity: [],
         recentLeads: [],
         pipelineTrend: [],
-        setupPercent: 0,
       });
     }
 
@@ -232,19 +231,6 @@ export async function GET() {
       };
     });
 
-    // Calculate setup completion percent
-    const [mailboxesCount, campaignsCount, policy] = await Promise.all([
-      prisma.connectedMailbox.count({ where: { teamId, status: "CONNECTED" } }),
-      prisma.campaign.count({ where: { teamId } }),
-      prisma.organizationPolicy.findUnique({ where: { organizationId: teamId } }),
-    ]);
-
-    let setupPercent = 0;
-    if (mailboxesCount > 0) setupPercent += 25;
-    if (totalLeads > 0) setupPercent += 25;
-    if (campaignsCount > 0) setupPercent += 25;
-    if (policy) setupPercent += 25;
-
     // Signal capture open rate calculation or default 0%
     const openRatePct = sentEmailsCount > 0 ? Math.round((signalsCount / sentEmailsCount) * 100) : 0;
 
@@ -270,7 +256,6 @@ export async function GET() {
       recentActivity,
       recentLeads,
       pipelineTrend,
-      setupPercent,
     });
 
   } catch (error) {
