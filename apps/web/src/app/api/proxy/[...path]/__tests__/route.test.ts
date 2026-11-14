@@ -1,7 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isWebOwnedPath, POST } from "../route";
+import { isApiOnlyCampaignPath, isWebOwnedPath, POST } from "../route";
 
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
+
+describe("isApiOnlyCampaignPath", () => {
+    it("leaves the campaign routes apps/web implements alone", () => {
+        expect(isApiOnlyCampaignPath(["campaigns"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "leads"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "sequence", "steps"])).toBe(false);
+    });
+
+    it("sends the apps/api-only campaign routes upstream", () => {
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "workflow"])).toBe(true);
+    });
+});
 
 describe("isWebOwnedPath", () => {
     it("keeps smtp connect/test in apps/web but sends smtp domain-checks to apps/api", () => {
@@ -35,6 +48,10 @@ describe("isWebOwnedPath", () => {
             expect(isWebOwnedPath(["email", "compose"])).toBe(false);
             expect(isWebOwnedPath(["email", "track", "open", "abc123"])).toBe(false);
         });
+    });
+
+    it("proxies the batch lead workflow route to apps/api instead of treating it as a lead id", () => {
+        expect(isWebOwnedPath(["leads", "workflow"])).toBe(false);
     });
 
     describe("leads", () => {
