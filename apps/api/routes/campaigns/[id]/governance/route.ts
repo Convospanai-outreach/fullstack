@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
-import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { hasPermission, Permission } from "@/lib/permissions";
 import { buildGovernanceLog } from "@/lib/campaignGovernanceLog";
 import { belongsToCampaign } from "@/lib/campaignApprovals";
 
@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (!(await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.MEMBER))) {
+    if (!(await hasPermission(ctx.userId, ctx.teamId, Permission.VIEW_AUDIT))) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
