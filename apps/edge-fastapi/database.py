@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, String, Float, Integer, JSON, DateTime, Text
+from sqlalchemy import create_engine, inspect, Column, String, Float, Integer, JSON, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pgvector.sqlalchemy import Vector
@@ -38,6 +38,9 @@ class PIITokenMap(Base):
     original_text = Column(Text)
     token_type = Column(String) # PERSON, EMAIL, etc.
     session_id = Column(String, index=True)
+    # The team whose text this token stands for. Re-identification only returns a row to the
+    # same tenant; rows from before this column existed have none and can no longer be read.
+    tenant_id = Column(String, index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class WorkflowRecord(Base):
@@ -74,6 +77,12 @@ def init_db():
         with engine.begin() as connection:
             connection.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
     Base.metadata.create_all(bind=engine)
+    # create_all never alters a table that already exists on a node.
+    with engine.begin() as connection:
+        columns = {c["name"] for c in inspect(connection).get_columns("pii_token_map")}
+        if "tenant_id" not in columns:
+            connection.exec_driver_sql("ALTER TABLE pii_token_map ADD COLUMN tenant_id VARCHAR")
+            connection.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_pii_token_map_tenant_id ON pii_token_map (tenant_id)")
 
 def get_db():
     db = SessionLocal()
