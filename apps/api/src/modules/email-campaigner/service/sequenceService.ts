@@ -8,6 +8,8 @@ import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
+import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { logger } from "@/lib/logger";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -34,6 +36,7 @@ type SequencePrisma = {
     sequenceStepRun: any;
     lead: any;
     email: any;
+    team: any;
 };
 
 type ProcessDueOptions = {
@@ -393,6 +396,27 @@ export class SequenceService {
         return result.count === 1;
     }
 
+    // The reasons to hold this email, or null to send it. Team setting `sendSafety.mode`: off skips the
+    // check, warn logs the reasons and sends, hold returns them. Never throws: if the team cannot be read the
+    // email is sent, as it was before the gate existed.
+    private static async safetyHold(run: any, lead: any, subject: string, body: string): Promise<{ code: string; message: string }[] | null> {
+        try {
+            const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true, mailingAddress: true } });
+            const settings = resolveSendSafety(team?.sendSafety);
+            if (settings.mode === "off") return null;
+            const result = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
+            if (result.ok) return null;
+            if (settings.mode === "warn") {
+                logger.warn("[SequenceService] Pre-send check would hold this email", { runId: run.id, teamId: run.teamId, codes: result.reasons.map((r) => r.code) });
+                return null;
+            }
+            return result.reasons;
+        } catch (error) {
+            logger.warn("[SequenceService] Pre-send check skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
     private static async executeEmailRun(run: any, lead: any, now: Date) {
         const client = db();
         if (!lead?.email) {
@@ -481,6 +505,23 @@ export class SequenceService {
                 data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
             });
             return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
+        }
+
+        // Deterministic pre-send gate on the composed text (before tracking, pixel and footer). A sender's
+        // approval of a held email is the human decision, so an approved run is not checked again.
+        if (!approved) {
+            const held = await this.safetyHold(run, lead, resolvedSubject.text, resolvedBody.text);
+            if (held) {
+                await client.sequenceStepRun.update({
+                    where: { id: run.id },
+                    data: { status: TOKENS_HELD_STATUS, completedAt: now, errorCode: TOKENS_HELD_CODE, errorMessage: JSON.stringify({ missing: [], safety: held }) },
+                });
+                await client.sequenceEnrollment.update({
+                    where: { id: run.enrollmentId },
+                    data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+                });
+                return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
+            }
         }
 
         const result = await emailService.sendEmail(lead.email, resolvedSubject.text, resolvedBody.text, {
