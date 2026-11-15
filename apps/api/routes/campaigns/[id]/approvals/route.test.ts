@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ ctx: vi.fn(), can: vi.fn(), campaign: vi.fn(), leads: vi.fn(), approvals: vi.fn() }));
+const m = vi.hoisted(() => ({ ctx: vi.fn(), can: vi.fn(), campaign: vi.fn(), ids: vi.fn(), approvals: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: m.ctx }));
 vi.mock("@/lib/permissions", () => ({ hasPermission: m.can, Permission: { RESOLVE_APPROVALS: "resolve_approvals" } }));
 vi.mock("@/lib/db", () => ({
-    prisma: { campaign: { findFirst: m.campaign }, lead: { findMany: m.leads }, approvalRequest: { findMany: m.approvals } },
+    prisma: { campaign: { findFirst: m.campaign }, $queryRaw: m.ids, approvalRequest: { findMany: m.approvals } },
 }));
 
 import { GET } from "./route";
@@ -21,7 +21,7 @@ beforeEach(() => {
     m.ctx.mockResolvedValue({ userId: "u1", teamId: "t1" });
     m.can.mockResolvedValue(true);
     m.campaign.mockResolvedValue({ id: "c1" });
-    m.leads.mockResolvedValue([{ id: "l1" }]);
+    m.ids.mockResolvedValue([]);
     m.approvals.mockResolvedValue([]);
 });
 
@@ -38,14 +38,22 @@ describe("GET /campaigns/[id]/approvals", () => {
         expect(m.approvals).not.toHaveBeenCalled();
     });
 
-    it("returns only this campaign's pending requests, inside the team", async () => {
-        m.approvals.mockResolvedValue([request({}), request({ id: "r2", entityId: "l9:email" }), request({ id: "r3", entityType: "Campaign", entityId: "c2", payload: {} })]);
+    it("asks the database for this campaign's pending requests, inside the team, and returns them", async () => {
+        m.ids.mockResolvedValue([{ id: "r1" }]);
+        m.approvals.mockResolvedValue([request({})]);
         const { data } = await (await call()).json();
-        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "t1", status: "PENDING" } }));
+        expect(m.ids.mock.calls[0][0].values).toEqual(expect.arrayContaining(["t1", "c1", "PENDING"]));
+        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "t1", status: "PENDING", id: { in: ["r1"] } } }));
         expect(data.requests).toHaveLength(1);
         expect(data.requests[0]).toMatchObject({
             requestId: "r1", requestedBy: "Asha", expiresAt: "2026-11-15T10:00:00.000Z", draft: { subject: "Intro", body: "Hello there" },
         });
+    });
+
+    it("skips the approvals read when nothing is pending", async () => {
+        const { data } = await (await call()).json();
+        expect(data.requests).toEqual([]);
+        expect(m.approvals).not.toHaveBeenCalled();
     });
 
     it("tells the page whether this user may decide", async () => {
@@ -55,8 +63,7 @@ describe("GET /campaigns/[id]/approvals", () => {
         expect(m.can).toHaveBeenCalledWith("u1", "t1", "resolve_approvals");
     });
 
-    it("flags when the lead cap may have hidden older requests", async () => {
-        m.leads.mockResolvedValue(Array.from({ length: 2000 }, (_, n) => ({ id: `l${n}` })));
-        expect((await (await GET(new Request("http://x"), { params: Promise.resolve({ id: "c1" }) })).json()).data.capped).toBe(true);
+    it("never reports a cap: nothing is truncated", async () => {
+        expect((await (await call()).json()).data.capped).toBe(false);
     });
 });
