@@ -41,6 +41,9 @@ vi.mock("../socialInbox", async (importOriginal) => ({ ...(await importOriginal<
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
 const setFirstTouchPost = vi.hoisted(() => vi.fn());
 vi.mock("../contentRoi", () => ({ setFirstTouchPost }));
+const queueFlowStart = vi.hoisted(() => vi.fn());
+const processPendingFlowEvents = vi.hoisted(() => vi.fn());
+vi.mock("../dmFlowRuns", () => ({ queueFlowStart, processPendingFlowEvents }));
 
 import {
     ACCOUNT_HOURLY_LIMIT,
@@ -171,6 +174,14 @@ describe("queueing", () => {
         expect(await queueCommentReplies(comment(), [account], NOW)).toBe(0);
     });
 
+    it("a trigger with a DM flow starts a flow run for the commenter instead of a single reply", async () => {
+        mockDb.keywordTrigger.findMany.mockResolvedValue([trigger({ flowId: "flow-1", landingPageId: "page-1" })]);
+        queueFlowStart.mockResolvedValueOnce(true);
+        expect(await queueCommentReplies(comment(), [account], NOW)).toBe(1);
+        expect(queueFlowStart).toHaveBeenCalledWith(account, { id: "trig-1", flowId: "flow-1", landingPageId: "page-1" }, { sourceKey: "comment:c1", personKey: "u9" }, NOW);
+        expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
+    });
+
     it("never answers the account's own comment, even if Instagram gives it a different id", async () => {
         expect(await queueCommentReplies(comment({ authorId: "other-id", authorHandle: "@Maker" }), [{ ...account, handle: "@maker" }], NOW)).toBe(0);
         expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
@@ -191,6 +202,23 @@ describe("queueing", () => {
         expect(mockDb.keywordTrigger.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
             where: expect.objectContaining({ scope: { in: ["DM", "BOTH"] } }),
         }));
+    });
+});
+
+describe("DM flows on the auto-reply tick", () => {
+    it("a DM with a flow trigger is not answered with a single reply", async () => {
+        mockDb.keywordTrigger.findMany.mockResolvedValue([trigger({ flowId: "flow-1" })]);
+        mockDb.keywordTriggerReply.create.mockClear();
+        expect(await queueDmReply(account, { mid: "mid-f", senderId: "igsid-9", text: "guide", leadId: "lead-1" }, NOW)).toBe(false);
+        expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
+    });
+
+    it("runs the flow pass after the keyword replies, and a flow failure does not stop them", async () => {
+        mockDb.keywordTriggerReply.groupBy.mockResolvedValue([]);
+        mockDb.keywordTriggerReply.findMany.mockResolvedValue([]);
+        processPendingFlowEvents.mockRejectedValueOnce(new Error("flow pass down"));
+        await expect(sendPendingAutoReplies(NOW)).resolves.toEqual({ handled: 0 });
+        expect(processPendingFlowEvents).toHaveBeenCalledWith(NOW);
     });
 });
 

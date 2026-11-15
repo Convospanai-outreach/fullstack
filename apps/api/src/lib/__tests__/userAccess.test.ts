@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: { user: { findUnique } } }));
 
-import { forgetUserAccess, getUserAccess, sessionVersionMatches } from "../userAccess";
+import { forgetUserAccess, getUserAccess, isFreshAccessRoute, sessionVersionMatches } from "../userAccess";
 
 describe("userAccess", () => {
     beforeEach(() => {
@@ -19,6 +19,23 @@ describe("userAccess", () => {
         forgetUserAccess("u-1");
         findUnique.mockResolvedValue({ suspendedAt: null, sessionVersion: 5 });
         expect(await getUserAccess("u-1")).toEqual({ suspended: false, sessionVersion: 5 });
+    });
+
+    it("bypassCache reads the database even when an entry is cached, and refreshes it", async () => {
+        findUnique.mockResolvedValue({ suspendedAt: null, sessionVersion: 1 });
+        expect((await getUserAccess("u-bypass")).suspended).toBe(false);
+        findUnique.mockResolvedValue({ suspendedAt: new Date(), sessionVersion: 1 });
+        expect((await getUserAccess("u-bypass")).suspended).toBe(false); // still the cached value
+        expect((await getUserAccess("u-bypass", { bypassCache: true })).suspended).toBe(true);
+        expect((await getUserAccess("u-bypass")).suspended).toBe(true);
+    });
+
+    it("flags billing, checkout and admin paths for a fresh read", () => {
+        expect(isFreshAccessRoute("/billing/topup")).toBe(true);
+        expect(isFreshAccessRoute("/checkout")).toBe(true);
+        expect(isFreshAccessRoute("/admin/super/users")).toBe(true);
+        expect(isFreshAccessRoute("/leads")).toBe(false);
+        expect(isFreshAccessRoute("/billingx")).toBe(false);
     });
 
     it("returns null for an unknown user and throws on a DB error", async () => {

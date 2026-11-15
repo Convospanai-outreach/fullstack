@@ -272,7 +272,7 @@ export default function CallerPage() {
                                             }`}>
                                                 {activeLead.lead.churnRisk !== undefined && activeLead.lead.churnRisk !== null
                                                     ? `${Math.round(activeLead.lead.churnRisk * 100)}%`
-                                                    : 'Low (12%)'
+                                                    : 'Not enough data yet'
                                                 }
                                             </p>
                                         </div>
@@ -280,6 +280,8 @@ export default function CallerPage() {
                                 </div>
                             </div>
                         </div>
+
+                        <CallBrief leadId={activeLead.lead.id} />
 
                         {/* Dialogue Thread */}
                         <div className="flex-1 flex flex-col bg-muted/20 p-4 rounded-xl border border-border min-h-[260px] max-h-[360px]">
@@ -350,10 +352,84 @@ export default function CallerPage() {
                     <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-16 text-muted-foreground bg-muted/5 min-h-[500px]">
                         <Sparkles className="w-16 h-16 opacity-10 mb-4 animate-pulse" />
                         <p className="font-semibold">Select a lead to start calling</p>
-                        <p className="text-xs opacity-60 mt-1">HOT leads appear here when their intent score reaches 70%</p>
+                        <p className="text-xs opacity-60 mt-1">HOT and WARM leads appear here when their intent score reaches 40%</p>
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function CallBrief({ leadId }: { leadId: string }) {
+    const [brief, setBrief] = useState<any>(null);
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        setBrief(null);
+        setFailed(false);
+        fetch(getBrowserApiBase() + "/caller/brief?leadId=" + encodeURIComponent(leadId))
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+            .then((d) => { if (!cancelled) setBrief(d); })
+            .catch(() => { if (!cancelled) setFailed(true); });
+        return () => { cancelled = true; };
+    }, [leadId]);
+
+    if (failed) return <p className="text-xs text-muted-foreground">Call brief unavailable.</p>;
+    if (!brief) return <p className="text-xs text-muted-foreground">Loading call brief...</p>;
+
+    const o = brief.outreach;
+    const l = brief.engagement.landing;
+    const c = brief.crystal;
+    return (
+        <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3 text-xs">
+            <h4 className="text-sm font-semibold">Call brief</h4>
+            <p>
+                <span className="font-semibold">Outreach:</span>{" "}
+                {o.emailsSent} emails sent, {o.opened} opened, {o.clicked} clicked, {o.replied} replied
+                {o.campaigns.length > 0 && <> (campaign: {o.campaigns.join(", ")})</>}
+                {o.ranBy.length > 0 && <> run by {o.ranBy.map((u: any) => u.name || u.email).join(", ")}</>}
+            </p>
+            <p>
+                <span className="font-semibold">Landing page:</span>{" "}
+                {l.pages.length === 0 ? "no landing page visit matched this lead" : `${l.pageViews} views, ${l.ctaClicks} CTA clicks, ${l.formSubmits} form submits`}
+                {" "}(file downloads are not tracked)
+            </p>
+            {brief.engagement.linkClicks.length > 0 && (
+                <div>
+                    <span className="font-semibold">Links clicked:</span>
+                    <ul className="list-disc ml-4">
+                        {brief.engagement.linkClicks.map((k: any, i: number) => (
+                            <li key={i} className="break-all">{k.destinationUrl} ({k.clickCount}x)</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            <div>
+                <span className="font-semibold">Personality (Crystal):</span>{" "}
+                {c ? [c.archetype, c.discType && `DISC ${c.discType}`].filter(Boolean).join(" / ") : "no Crystal profile for this lead"}
+                {c?.prompt && <p className="mt-1 whitespace-pre-wrap">{c.prompt}</p>}
+            </div>
+            {brief.callNotes.length > 0 && (
+                <div>
+                    <span className="font-semibold">Earlier call notes:</span>
+                    <ul className="list-disc ml-4">
+                        {brief.callNotes.map((n: any, i: number) => (
+                            <li key={i}>{new Date(n.at).toLocaleDateString()}: {n.reason}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {brief.timeline.length > 0 && (
+                <div>
+                    <span className="font-semibold">Recent activity:</span>
+                    <ul className="ml-1 space-y-0.5 max-h-40 overflow-y-auto">
+                        {brief.timeline.slice(0, 15).map((t: any, i: number) => (
+                            <li key={i}>{new Date(t.at).toLocaleDateString()} · {t.channel} {t.kind}: {t.summary}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 }

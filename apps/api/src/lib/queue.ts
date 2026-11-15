@@ -59,6 +59,7 @@ export type JobType =
     | "lead_scoring"
     | "lead_rescore"
     | "landing_lead_intake"
+    | "meta_capi_lead"
     | "order_captured"
     | "warmup_seed_reply"
     | "EMAIL_DRAFT_BATCH_SUBMIT"

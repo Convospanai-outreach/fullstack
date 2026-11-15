@@ -3,13 +3,13 @@ import { PRICING_TIERS, buildPricingSchema } from "@/lib/pricing";
 
 export const metadata: Metadata = {
     title: "Pricing & Plans | CraftMyFunnel",
-    description: "Transparent pricing for managed growth execution, campaign operations, and pipeline tracking across Pilot, Growth Autopilot, and Enterprise tiers.",
+    description: "Transparent pricing for managed growth execution, campaign operations, and pipeline tracking across Pilot, Growth Autopilot, and Enterprise / Partner tiers.",
     alternates: {
         canonical: "https://craftmyfunnel.live/pricing",
     },
     openGraph: {
         title: "CraftMyFunnel Pricing & Plans",
-        description: "Transparent pricing for governed B2B outreach across Pilot, Growth, and Enterprise tiers.",
+        description: "Transparent pricing for governed B2B outreach across Pilot, Growth Autopilot, and Enterprise / Partner tiers.",
         url: "https://craftmyfunnel.live/pricing",
         images: [
             {

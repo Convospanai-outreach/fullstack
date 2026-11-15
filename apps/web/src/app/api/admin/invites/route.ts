@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
@@ -45,7 +46,14 @@ function getAllowedTeamIds(actor: AdminActor) {
         .map((member) => member.teamId);
 }
 
-function defaultTeamId(actor: AdminActor, allowedTeamIds: string[] | null) {
+// The workspace the user has selected (same cookie getCurrentContext honours) wins when they may
+// invite into it; otherwise fall back to their first eligible membership.
+async function defaultTeamId(actor: AdminActor, allowedTeamIds: string[] | null) {
+    const selected = (await cookies()).get("convo-workspace-id")?.value;
+    const selectedUsable = selected && (allowedTeamIds
+        ? allowedTeamIds.includes(selected)
+        : actor.memberships.some((member) => member.status === "active" && member.teamId === selected));
+    if (selectedUsable) return selected;
     return allowedTeamIds ? allowedTeamIds[0] : actor.memberships.find((member) => member.status === "active")?.teamId;
 }
 
@@ -139,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || defaultTeamId(actor, allowedTeamIds);
+    const teamId = requestedTeamId || await defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -151,7 +159,7 @@ export async function POST(req: NextRequest) {
 
     const prisma = await loadPrisma();
     const existingMember = await prisma.teamMember.findFirst({
-        where: { teamId, email }
+        where: { teamId, email: { equals: email, mode: "insensitive" } }
     });
     if (existingMember && isTakenSeat(existingMember)) {
         return NextResponse.json({ error: "This person is already a member of the team." }, { status: 409 });
@@ -219,7 +227,7 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
     }
 
     const allowedTeamIds = getAllowedTeamIds(actor);
-    const teamId = requestedTeamId || defaultTeamId(actor, allowedTeamIds);
+    const teamId = requestedTeamId || await defaultTeamId(actor, allowedTeamIds);
 
     if (!teamId) {
         return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
@@ -257,7 +265,7 @@ async function handleBulkInvite(actor: AdminActor, body: any) {
 
     const results = await Promise.all(emails.map(async (email) => {
         try {
-            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
+            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email: { equals: email, mode: "insensitive" } } });
             if (existingMember && isTakenSeat(existingMember)) {
                 return { email, ok: false as const, error: "Already a member of this team" };
             }

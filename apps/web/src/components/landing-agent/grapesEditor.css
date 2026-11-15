@@ -1,0 +1,12 @@
+/* GrapesJS's own UI styles, plus text icons for the component toolbar. GrapesJS normally loads
+   Font Awesome from a CDN for these; the dashboard CSP does not allow that, so cssIcons is off. */
+.gjs-toolbar-item.fa::before,
+.gjs-toolbar-item .fa::before {
+    font-family: system-ui, sans-serif;
+    font-weight: 700;
+    font-style: normal;
+}
+.gjs-toolbar-item.fa-arrow-up::before { content: "\2191"; }
+.gjs-toolbar-item.fa-arrows::before { content: "\2725"; }
+.gjs-toolbar-item.fa-clone::before { content: "\29C9"; }
+.gjs-toolbar-item.fa-trash-o::before { content: "\2715"; }

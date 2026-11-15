@@ -3,6 +3,7 @@ import { getContent } from "@/lib/cms";
 import ReactMarkdown from "react-markdown";
 import { HelpCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Testimonials } from "@/components/marketing/Testimonials";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -146,6 +147,9 @@ export default function FAQPage() {
                         </Link>
                     </div>
                 </div>
+            </div>
+            <div className="max-w-4xl mx-auto px-4 pb-16">
+                <Testimonials />
             </div>
         </div>
     );

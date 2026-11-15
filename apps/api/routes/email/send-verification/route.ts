@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 
 function getSystemSmtpConfig() {
     const host = process.env.SMTP_HOST;
@@ -17,7 +18,7 @@ function getSystemSmtpConfig() {
         user,
         password,
         fromName: process.env.SMTP_FROM_NAME || "CraftMyFunnel",
-        fromEmail: process.env.SMTP_FROM_EMAIL || user
+        fromEmail: process.env.SMTP_FROM_EMAIL || SYSTEM_FROM_EMAIL
     };
 }
 

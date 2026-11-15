@@ -242,6 +242,15 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
         }));
     });
 
+    it("marks the sent email as replied, like the Gmail and IMAP paths", async () => {
+        await POST(request(receivedEvent));
+
+        expect(mockPrisma.email.updateMany).toHaveBeenCalledWith({
+            where: { id: expect.any(String), repliedAt: null },
+            data: { repliedAt: expect.any(Date), status: "replied" },
+        });
+    });
+
     it("falls back to the webhook's subject line when the body fetch fails", async () => {
         mockResendReceivingGet.mockResolvedValue({ data: null, error: { message: "not found" } });
 

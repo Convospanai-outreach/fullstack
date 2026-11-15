@@ -1,0 +1,56 @@
+{
+  "consent-default": {
+    "controls": [
+      {
+        "name": "email",
+        "tag": "input",
+        "type": "email",
+        "required": true,
+        "text": "Work email"
+      },
+      {
+        "name": "cmfConsent",
+        "tag": "input",
+        "type": "checkbox",
+        "required": false,
+        "text": "I agree to be contacted about my enquiry and to the privacy policy."
+      }
+    ],
+    "consentText": "I agree to be contacted about my enquiry and to the privacy policy.",
+    "links": [
+      {
+        "text": "Data deletion",
+        "href": "{deletion}"
+      }
+    ]
+  },
+  "consent-full": {
+    "controls": [
+      {
+        "name": "email",
+        "tag": "input",
+        "type": "email",
+        "required": true,
+        "text": "Work email"
+      },
+      {
+        "name": "cmfConsent",
+        "tag": "input",
+        "type": "checkbox",
+        "required": false,
+        "text": "Send me tips."
+      }
+    ],
+    "consentText": "Send me tips.",
+    "links": [
+      {
+        "text": "Privacy policy",
+        "href": "https://example.com/privacy"
+      },
+      {
+        "text": "Data deletion",
+        "href": "https://example.com/delete"
+      }
+    ]
+  }
+}

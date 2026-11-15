@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
+import { themeFromRenderedJson, themeWrapper } from "@/modules/landing-agent/theme";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { readUtm } from "@/lib/utm";
+import { hasLeadFormMarker, leadFormSuccessUrl, readLeadFormConfig, replaceLeadFormMarkers } from "@/modules/landing-agent/leadFormHtml";
+import { leadFormConsentRequired } from "@/modules/landing-agent/leadFormConfig";
 
 interface Props {
     slug: string;
@@ -26,8 +30,16 @@ async function trackEvent(slug: string, payload: { eventName: string; eventData?
     await fetch(`${API_BASE}/landing-agent/public/${slug}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        keepalive: true,
         body: JSON.stringify({ ...payload, ...utm }),
     }).catch(() => null);
+}
+
+// Pages with a lead form marker render a form built from the saved config (see leadFormHtml.ts).
+// Its events are handled here on the wrapper div; anything that is not a marker form is ignored.
+function customFormOf(target: EventTarget | null): HTMLFormElement | null {
+    const form = target instanceof Element ? target.closest("form") : null;
+    return form instanceof HTMLFormElement && form.hasAttribute("data-cmf-form") ? form : null;
 }
 
 export default function PublishedLandingRenderer({ slug, title, version, renderedJson, whatsappOptIn }: Props) {
@@ -36,6 +48,73 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
     const [formStarted, setFormStarted] = useState(false);
     const sessionId = useMemo(createSessionId, []);
     const payload = useMemo(() => getLandingRenderPayload(renderedJson), [renderedJson]);
+    // The theme's class and variables are the same ones the Worker puts on the body (theme.ts).
+    const wrapper = useMemo(() => themeWrapper(themeFromRenderedJson(renderedJson)), [renderedJson]);
+    const themed = Object.keys(wrapper.vars).length > 0;
+    // On themed pages the follow-up box uses the theme classes, as the Worker box does; un-themed pages keep Tailwind.
+    const fieldClass = themed ? undefined : "rounded-md border border-slate-300 px-3 py-2";
+    const leadHtml = useMemo(
+        () =>
+            hasLeadFormMarker(payload.html)
+                ? replaceLeadFormMarkers(payload.html, { slug, whatsappOptIn: whatsappOptIn ?? null, deletionHref: `/p/${slug}/data-deletion` })
+                : null,
+        [payload.html, slug, whatsappOptIn]
+    );
+
+    // The redirect comes from the validated config, not from the rendered page.
+    const leadRedirect = useMemo(() => readLeadFormConfig(payload.html)?.redirectUrl ?? null, [payload.html]);
+    // The consent box's rules come from the validated config, not from the rendered page.
+    const leadConsent = useMemo(() => readLeadFormConfig(payload.html)?.consent ?? null, [payload.html]);
+
+    async function submitCustomLeadForm(form: HTMLFormElement) {
+        const status = form.ownerDocument.getElementById("la-lead-form-status");
+        const button = form.querySelector("button[type=submit]") as HTMLButtonElement | null;
+        // A required consent box must be ticked before anything is sent.
+        const consentError = form.ownerDocument.getElementById("la-consent-error");
+        const consentGiven = form.querySelector<HTMLInputElement>('input[name="cmfConsent"]')?.checked === true;
+        if (consentError) consentError.textContent = "";
+        if (leadConsent && leadFormConsentRequired(leadConsent) && !consentGiven) {
+            if (consentError) consentError.textContent = "Please tick the consent box to send your details.";
+            return;
+        }
+        if (button) button.disabled = true;
+        if (status) status.textContent = "";
+        const data = new FormData(form);
+        const formFields: Record<string, string | boolean> = {};
+        for (const el of Array.from(form.querySelectorAll("input, select, textarea"))) {
+            const field = el as HTMLInputElement;
+            if (!field.name || field.name === "website" || field.name === "whatsappConsent" || field.name === "cmfConsent") continue;
+            formFields[field.name] = field.type === "checkbox" ? field.checked : field.value;
+        }
+        const url = new URL(window.location.href);
+        try {
+            const res = await fetch(`${API_BASE}/landing-agent/public/${slug}/lead`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sessionId,
+                    pageVersion: version,
+                    formFields,
+                    website: data.get("website") || undefined,
+                    utmSource: url.searchParams.get("utm_source") || undefined,
+                    utmMedium: url.searchParams.get("utm_medium") || undefined,
+                    utmCampaign: url.searchParams.get("utm_campaign") || undefined,
+                    utmTerm: url.searchParams.get("utm_term") || undefined,
+                    utmContent: url.searchParams.get("utm_content") || undefined,
+                    referrer: document.referrer || undefined,
+                    socialToken: url.searchParams.get("t") || undefined,
+                    whatsappConsent: data.get("whatsappConsent") === "on" || undefined,
+                    consent: leadConsent ? consentGiven : undefined,
+                }),
+            });
+            if (!res.ok) throw new Error("Submission failed");
+            await trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "form_submit" } });
+            window.location.href = leadFormSuccessUrl(leadRedirect, slug);
+        } catch {
+            if (status) status.textContent = "Submission failed. Please try again.";
+            if (button) button.disabled = false;
+        }
+    }
 
     useEffect(() => {
         trackEvent(slug, {
@@ -46,22 +125,52 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
         });
     }, [sessionId, slug, version]);
 
+    // Any a.la-cta anchor (solid or outline CTA) is a CTA click; the form's submit button is not an anchor,
+    // so the submit path above keeps its single cta_click. Only the event is sent; navigation is not delayed.
+    const onCtaClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (event.target instanceof Element && event.target.closest("a.la-cta")) {
+            trackEvent(slug, { eventName: "cta_click", sessionId, pageVersion: version, eventData: { cta: "anchor" } });
+        }
+    };
+
     return (
-        <div className="la-page min-h-screen bg-slate-100 text-slate-900">
+        <div
+            className={themed ? `${wrapper.className} min-h-screen` : "la-page min-h-screen bg-slate-100 text-slate-900"}
+            style={themed ? (wrapper.vars as CSSProperties) : undefined}
+            onClickCapture={onCtaClick}
+        >
             <div className="mx-auto max-w-6xl px-4 py-8">
                 {title ? <h1 className="mb-4 text-2xl font-semibold">{title}</h1> : null}
                 <style>{payload.css}</style>
-                <div dangerouslySetInnerHTML={{ __html: payload.html }} />
+                <div
+                    onFocus={(e) => {
+                        if (!customFormOf(e.target) || formStarted) return;
+                        setFormStarted(true);
+                        trackEvent(slug, { eventName: "form_start", sessionId, pageVersion: version });
+                    }}
+                    onSubmit={(e) => {
+                        const form = customFormOf(e.target);
+                        if (!form) return;
+                        e.preventDefault();
+                        void submitCustomLeadForm(form);
+                    }}
+                    dangerouslySetInnerHTML={{ __html: leadHtml ?? payload.html }}
+                />
 
-                <section className="mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm">
+                {leadHtml === null ? (
+                <section
+                    className={themed ? "la-section" : "mx-auto mt-10 max-w-2xl rounded-xl border border-slate-300 bg-white p-6 shadow-sm"}
+                    style={themed ? { maxWidth: "640px", margin: "40px auto" } : undefined}
+                >
                     <span id="lead-form" className="block -translate-y-6" aria-hidden="true" />
-                    <h2 className="text-xl font-semibold">Request a follow-up</h2>
-                    <p className="mt-2 text-sm text-slate-600">
+                    <h2 className={themed ? undefined : "text-xl font-semibold"}>Request a follow-up</h2>
+                    <p className={themed ? undefined : "mt-2 text-sm text-slate-600"}>
                         Share details and our team will reach out shortly.
                     </p>
 
                     <form
-                        className="mt-4 grid gap-3"
+                        className={themed ? undefined : "mt-4 grid gap-3"}
+                        style={themed ? { display: "grid", gap: "12px", marginTop: "16px" } : undefined}
                         onFocus={() => {
                             if (formStarted) return;
                             setFormStarted(true);
@@ -121,22 +230,22 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
                             }
                         }}
                     >
-                        <input type="text" name="name" placeholder="Name" className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="email" name="email" placeholder="Work email" required className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="text" name="phone" placeholder="Phone" className="rounded-md border border-slate-300 px-3 py-2" />
+                        <input type="text" name="name" placeholder="Name" className={fieldClass} />
+                        <input type="email" name="email" placeholder="Work email" required className={fieldClass} />
+                        <input type="text" name="phone" placeholder="Phone" className={fieldClass} />
                         {whatsappOptIn ? (
                             <label className="flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="whatsappConsent" className="mt-1" />
                                 {whatsappOptIn}
                             </label>
                         ) : null}
-                        <input type="text" name="company" placeholder="Company" className="rounded-md border border-slate-300 px-3 py-2" />
-                        <input type="text" name="title" placeholder="Title" className="rounded-md border border-slate-300 px-3 py-2" />
+                        <input type="text" name="company" placeholder="Company" className={fieldClass} />
+                        <input type="text" name="title" placeholder="Title" className={fieldClass} />
                         <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" />
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="rounded-md bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-60"
+                            className={themed ? "la-cta" : "rounded-md bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-60"}
                         >
                             {submitting ? "Submitting..." : "Submit"}
                         </button>
@@ -144,6 +253,7 @@ export default function PublishedLandingRenderer({ slug, title, version, rendere
 
                     {status ? <p className="mt-3 text-sm text-rose-600">{status}</p> : null}
                 </section>
+                ) : null}
             </div>
         </div>
     );

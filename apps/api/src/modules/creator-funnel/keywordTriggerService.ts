@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ContentPostError } from "./contentPostService";
+import { getDmFlowForAttach } from "./dmFlowService";
 import { REPLY_TEXT_MAX_BYTES, isMauticPageUrl, mauticReplyLink, privateScopesFor, publicReplyScopeFor, replyLink, words } from "./keywordTriggers";
 import { isInstagramLogin } from "./instagramLogin";
 import { LINK_TOKEN_MAX_LENGTH } from "./linkToken";
@@ -26,6 +27,7 @@ const fields = {
     publicCommentReply: z.string().trim().max(PUBLIC_REPLY_MAX).nullable(),
     landingPageId: z.string().max(64).nullable(),
     mauticPageUrl: z.string().trim().url().max(500).nullable(),
+    flowId: z.string().max(64).nullable(), // an Instagram DM flow (dmFlowRuns.ts) runs instead of the single reply
 };
 
 export const createTriggerSchema = z.object({
@@ -36,6 +38,7 @@ export const createTriggerSchema = z.object({
     publicCommentReply: fields.publicCommentReply.default(null),
     landingPageId: fields.landingPageId.default(null),
     mauticPageUrl: fields.mauticPageUrl.default(null),
+    flowId: fields.flowId.default(null),
 });
 export const updateTriggerSchema = z.object({ ...fields, active: z.boolean() }).partial();
 
@@ -104,6 +107,8 @@ ${link}`, "utf8") - INSTAGRAM_TEXT_MAX_BYTES;
         }
     }
 
+    if (input.flowId) await getDmFlowForAttach(teamId, input.flowId, { landingPageId: input.landingPageId });
+
     const { guardrailService } = await import("@/modules/governance/service/guardrailService");
     for (const text of [input.replyText, input.publicCommentReply]) {
         if (!text) continue;
@@ -147,6 +152,7 @@ const TRIGGER_SELECT = {
     publicCommentReply: true,
     landingPageId: true,
     mauticPageUrl: true,
+    flowId: true,
     active: true,
     activatedAt: true,
     createdAt: true,

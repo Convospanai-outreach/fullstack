@@ -1,0 +1,332 @@
+[
+  {
+    "id": "free-guide",
+    "name": "Free guide",
+    "audience": "Creators and small business owners who want to grow an email list with a free guide.",
+    "description": "Cover image, three things the guide covers, and one email form. Built for Instagram traffic.",
+    "accent": "#0e7490",
+    "imageVariants": [
+      "/landing-assets/gradient-1.svg",
+      "/landing-assets/gradient-5.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-top\">\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-1.svg\" alt=\"Blue gradient wave header\" loading=\"lazy\" /></div>\n<p class=\"la-eyebrow\">Free guide</p>\n<h1>Get the free guide: three steps you can start this week</h1>\n<p>A short, practical guide for busy people. Enter your email and the guide is sent to your inbox.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Send me the free guide</a>\n</section>\n<section class=\"la-section\">\n<h2>Inside the guide</h2>\n<ul>\n<li>The first step most people skip, and how to take it today</li>\n<li>A simple checklist you can reuse every week</li>\n<li>Common mistakes to avoid before you spend money</li>\n</ul>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Get your copy</h2>\n<p>No spam. Unsubscribe any time.</p>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send me the guide",
+      "successMessage": "Thanks! Check your inbox for the guide."
+    }
+  },
+  {
+    "id": "dm-keyword-offer",
+    "name": "DM keyword offer",
+    "audience": "Instagram creators and businesses who reply to a comment keyword with a free resource.",
+    "description": "A headline that repeats the keyword people commented, an image, one email form and an Instagram follow button.",
+    "accent": "#7c3aed",
+    "imageVariants": [
+      "/landing-assets/gradient-2.svg",
+      "/landing-assets/gradient-7.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-top\">\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-2.svg\" alt=\"Teal gradient glow header\" loading=\"lazy\" /></div>\n<p class=\"la-eyebrow\">Your free resource</p>\n<h1>You commented GUIDE. Here it is.</h1>\n<p>Enter your email below and we will send it straight to your inbox.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Send it to my email</a>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Where should we send it?</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "First name",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Send it to my email",
+      "successMessage": "Sent! Check your inbox. Thanks for commenting."
+    }
+  },
+  {
+    "id": "webinar-signup",
+    "name": "Webinar sign-up",
+    "audience": "Coaches, teachers and experts running a free live session or class.",
+    "description": "Date and host blocks, three things people will learn, and one sign-up form.",
+    "accent": "#1d4ed8",
+    "imageVariants": [
+      "/landing-assets/gradient-3.svg",
+      "/landing-assets/gradient-6.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-with-image\">\n<div class=\"la-hero-copy\">\n<p class=\"la-eyebrow\">Free live session</p>\n<h1>Join our free live session</h1>\n<p>Bring your questions. You will leave with one clear next step.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Reserve my seat</a>\n</div>\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-3.svg\" alt=\"Dark slate background with dots\" loading=\"lazy\" /></div>\n</section>\n<section class=\"la-section\">\n<h2>Date and time</h2>\n<p>Add the date, start time and time zone here.</p>\n<h2>Your host</h2>\n<p>Add the host name and one line about their experience.</p>\n</section>\n<section class=\"la-section\">\n<h2>What you will learn</h2>\n<ul>\n<li>The one idea that matters most for your goal</li>\n<li>A simple exercise you try during the session</li>\n<li>A plan you can start using this week</li>\n</ul>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Reserve your seat</h2>\n<p>The joining link is sent to your email.</p>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Reserve my seat",
+      "successMessage": "You are registered. The joining link is on its way to your inbox."
+    }
+  },
+  {
+    "id": "discount-offer",
+    "name": "Limited offer",
+    "audience": "Shops and service sellers running a time-limited offer they can honour.",
+    "description": "An offer image, what is included, a plain end date you fill in, and one form. No countdown.",
+    "accent": "#b45309",
+    "imageVariants": [
+      "/landing-assets/gradient-4.svg",
+      "/landing-assets/gradient-7.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-bg\">\n<img class=\"la-hero-bg-img la-focus-center\" src=\"/landing-assets/gradient-4.svg\" alt=\"Warm amber sunrise gradient\" loading=\"lazy\" />\n<div class=\"la-overlay la-overlay-40\"></div>\n<div class=\"la-hero-bg-content\">\n<p class=\"la-eyebrow\">Limited offer</p>\n<h1>Our offer for new customers</h1>\n<p>Describe the offer here: what is included and why it is good value.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Claim the offer</a>\n</div>\n</section>\n<section class=\"la-section\">\n<h2>The price</h2>\n<p>Add the full price and the offer price here.</p>\n<ul>\n<li>Add the first thing that is included</li>\n<li>Add the second thing that is included</li>\n<li>Add the third thing that is included</li>\n</ul>\n<p><strong>Offer ends:</strong> add the end date here.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Claim your offer</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "name",
+          "label": "First name",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Claim the offer",
+      "successMessage": "Thanks! We will be in touch about your offer."
+    }
+  },
+  {
+    "id": "book-a-call",
+    "name": "Book a call",
+    "audience": "Consultants and service providers who want a short call with people who are interested.",
+    "description": "A short pitch, a calendar button, three things the call gives people, and a phone form.",
+    "accent": "#0f766e",
+    "imageVariants": [
+      "/landing-assets/gradient-5.svg",
+      "/landing-assets/gradient-8.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-with-image\">\n<div class=\"la-hero-copy\">\n<p class=\"la-eyebrow\">Free call</p>\n<h1>Let us talk about your next step</h1>\n<p>Tell us a little about your situation. We use the call to suggest a practical next step.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Book my free call</a>\n</div>\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-5.svg\" alt=\"Mint gradient with grid lines\" loading=\"lazy\" /></div>\n</section>\n<section class=\"la-section\">\n<h2>What you get from the call</h2>\n<ul>\n<li>Practical advice for your situation</li>\n<li>Plain-language next steps</li>\n<li>A short written summary after the call</li>\n</ul>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Prefer that we call you?</h2>\n<p>Leave your number and we will call you to arrange a time.</p>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone number",
+          "type": "tel",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Ask for a call back",
+      "successMessage": "Thanks! We will call you to arrange a time."
+    }
+  },
+  {
+    "id": "waitlist-launch",
+    "name": "Waitlist launch",
+    "audience": "Founders and creators opening a waitlist before a launch.",
+    "description": "A full-width image, one sentence about the launch, a space for your own waitlist count, and one email form.",
+    "accent": "#4338ca",
+    "imageVariants": [
+      "/landing-assets/gradient-8.svg",
+      "/landing-assets/gradient-3.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-bg\">\n<img class=\"la-hero-bg-img la-focus-top\" src=\"/landing-assets/gradient-8.svg\" alt=\"Ocean blue gradient with concentric rings\" loading=\"lazy\" />\n<div class=\"la-overlay la-overlay-60\"></div>\n<div class=\"la-hero-bg-content\">\n<p class=\"la-eyebrow\">Coming soon</p>\n<h1>Be first in line when we launch</h1>\n<p>One sentence about what it is and who it is for.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Join the waitlist</a>\n</div>\n</section>\n<section class=\"la-section\">\n<p class=\"la-eyebrow\">Waitlist</p>\n<p>Add your current waitlist count here, or delete this line.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Save your place</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Join the waitlist",
+      "successMessage": "You are on the list. We will email you when doors open."
+    }
+  },
+  {
+    "id": "quiz-checklist",
+    "name": "Checklist",
+    "audience": "Coaches and advisers who give a checklist to show someone where they stand.",
+    "description": "A short checklist in one column, with the email form at the end.",
+    "accent": "#15803d",
+    "imageVariants": [
+      "/landing-assets/gradient-6.svg",
+      "/landing-assets/gradient-2.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-top\">\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-6.svg\" alt=\"Slate gradient with diagonal lines\" loading=\"lazy\" /></div>\n<p class=\"la-eyebrow\">Free checklist</p>\n<h1>Find out where you stand</h1>\n<p>Work through this short checklist and see what to fix first.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Show me the checklist</a>\n</section>\n<section class=\"la-section\">\n<h2>The checklist</h2>\n<ul>\n<li>Do you know exactly who this page is for?</li>\n<li>Does your offer make sense in the first sentence?</li>\n<li>Is there one thing for the visitor to do next?</li>\n<li>Does the form ask only for what you really need?</li>\n<li>Does the page read well on a phone?</li>\n<li>Do you know how you will follow up with people who join?</li>\n</ul>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Get the checklist by email</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Send me the checklist",
+      "successMessage": "Thanks! The checklist is on its way to your inbox."
+    }
+  },
+  {
+    "id": "saas-launch",
+    "name": "Software launch",
+    "audience": "Software teams launching a product that people can sign up for on their own.",
+    "description": "A product headline with an image, three reasons to switch, a testimonial to fill in and a demo form.",
+    "accent": "#0891b2",
+    "imageVariants": [
+      "/landing-assets/gradient-2.svg",
+      "/landing-assets/gradient-8.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-with-image\">\n<div class=\"la-hero-copy\">\n<p class=\"la-eyebrow\">Product launch</p>\n<h1>Ship faster with a platform built for your team</h1>\n<p>Everything you need to launch, measure and improve in one place.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Request a demo</a>\n</div>\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-2.svg\" alt=\"Teal gradient glow header\" loading=\"lazy\" /></div>\n</section>\n<section class=\"la-section\">\n<h2>Stop stitching tools together</h2>\n<p>Most teams lose time to disconnected workflows. Describe your version of this problem here.</p>\n</section>\n<section class=\"la-section\">\n<h2>Why teams switch</h2>\n<ul>\n<li>Guided setup for your first project</li>\n<li>Built-in reporting that shows what is working</li>\n<li>Grows from one user to a full team</li>\n</ul>\n</section>\n<section class=\"la-section la-testimonial\">\n<p class=\"la-eyebrow\">Testimonial</p>\n<p>Add your customer's words here.</p>\n</section>\n<section class=\"la-section\">\n<h2>Common questions</h2>\n<p>Answer your questions about pricing, setup and data here.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>See it in action</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Request a demo",
+      "successMessage": "Thanks! We will be in touch to arrange your demo."
+    }
+  },
+  {
+    "id": "online-course",
+    "name": "Online course",
+    "audience": "Teachers and coaches enrolling people in a course, cohort or paid community.",
+    "description": "Who it is for, the modules to fill in, a testimonial placeholder and an enrolment form.",
+    "accent": "#be185d",
+    "imageVariants": [
+      "/landing-assets/gradient-5.svg",
+      "/landing-assets/gradient-7.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-top\">\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-5.svg\" alt=\"Mint gradient with grid lines\" loading=\"lazy\" /></div>\n<p class=\"la-eyebrow\">Next cohort</p>\n<h1>Learn the skill that moves your career forward</h1>\n<p>A practical, step-by-step program with live sessions, real projects and a community to keep you going.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Save my place</a>\n</section>\n<section class=\"la-section\">\n<h2>Is this for you?</h2>\n<ul>\n<li>You have watched many tutorials and made little progress</li>\n<li>You want feedback on work you have actually done</li>\n<li>You want a finished project to show</li>\n</ul>\n</section>\n<section class=\"la-section\">\n<h2>How the program runs</h2>\n<ul>\n<li>Part 1: add the name of the first module</li>\n<li>Part 2: add the name of the second module</li>\n<li>Part 3: add the name of the final module</li>\n</ul>\n<p>Start date: add the date here.</p>\n</section>\n<section class=\"la-section la-testimonial\">\n<p class=\"la-eyebrow\">Testimonial</p>\n<p>Add your customer's words here.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Save your place</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true
+        }
+      ],
+      "buttonLabel": "Save my place",
+      "successMessage": "Thanks! We will send the enrolment details to your inbox."
+    }
+  },
+  {
+    "id": "agency-done-for-you",
+    "name": "Done-for-you service",
+    "audience": "Agencies and freelancers selling a done-for-you service.",
+    "description": "Problems you solve, how the work runs, a testimonial to fill in and a free audit form.",
+    "accent": "#a16207",
+    "imageVariants": [
+      "/landing-assets/gradient-7.svg",
+      "/landing-assets/gradient-4.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-bg\">\n<img class=\"la-hero-bg-img la-focus-center\" src=\"/landing-assets/gradient-7.svg\" alt=\"Soft amber gradient with rings\" loading=\"lazy\" />\n<div class=\"la-overlay la-overlay-40\"></div>\n<div class=\"la-hero-bg-content\">\n<p class=\"la-eyebrow\">Done for you</p>\n<h1>We run your marketing so you can run your business</h1>\n<p>A done-for-you service with clear deliverables and a regular report on progress.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Get a free audit</a>\n</div>\n</section>\n<section class=\"la-section\">\n<h2>Growth should not depend on your spare time</h2>\n<ul>\n<li>Marketing gets pushed to evenings and weekends</li>\n<li>Past help came and went without clear results</li>\n<li>No clear view of what is working</li>\n</ul>\n</section>\n<section class=\"la-section\">\n<h2>How we work</h2>\n<ul>\n<li>Start with a free audit of where you are today</li>\n<li>Agree on a plan with clear targets</li>\n<li>We do the work and report progress every month</li>\n</ul>\n</section>\n<section class=\"la-section la-proof\">\n<h2>Progress you can see</h2>\n<p>Every project starts with agreed targets, and progress is shown against them in a regular report.</p>\n</section>\n<section class=\"la-section la-testimonial\">\n<p class=\"la-eyebrow\">Testimonial</p>\n<p>Add your customer's words here.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Get your free audit</h2>\n<p>Tell us about your business and we will send back a short, honest assessment.</p>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Work email",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "company",
+          "label": "Company (optional)",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Get my free audit",
+      "successMessage": "Thanks! Your audit request is in. We will be in touch soon."
+    }
+  },
+  {
+    "id": "local-business",
+    "name": "Local business",
+    "audience": "Local shops, clinics, studios and home services that take bookings.",
+    "description": "A friendly headline, what you offer, a testimonial to fill in, visit details and a booking form with a phone field.",
+    "accent": "#b91c1c",
+    "imageVariants": [
+      "/landing-assets/gradient-4.svg",
+      "/landing-assets/gradient-2.svg"
+    ],
+    "html": "<section class=\"la-section la-hero la-hero-with-image\">\n<div class=\"la-hero-copy\">\n<p class=\"la-eyebrow\">Local business</p>\n<h1>Friendly, reliable service right in your neighbourhood</h1>\n<p>Send your request and we will confirm a time that suits you.</p>\n<a class=\"la-cta\" href=\"#lead-form\">Request an appointment</a>\n</div>\n<div class=\"la-hero-media\"><img src=\"/landing-assets/gradient-4.svg\" alt=\"Warm amber sunrise gradient\" loading=\"lazy\" /></div>\n</section>\n<section class=\"la-section\">\n<h2>What we offer</h2>\n<ul>\n<li>Add your first service</li>\n<li>Add your second service</li>\n<li>Add your third service</li>\n</ul>\n</section>\n<section class=\"la-section la-testimonial\">\n<p class=\"la-eyebrow\">Testimonial</p>\n<p>Add your customer's words here.</p>\n</section>\n<section class=\"la-section\">\n<h2>Easy to find, easy to reach</h2>\n<p>Add your address, opening hours and parking information here.</p>\n</section>\n<section class=\"la-section\">\n<h2>Good to know</h2>\n<p>Answer your questions about pricing, payment, cancellations and what to bring.</p>\n</section>\n<section class=\"la-section\" id=\"lead-form\">\n<h2>Book your visit</h2>\n{{LEAD_FORM}}\n</section>",
+    "leadForm": {
+      "fields": [
+        {
+          "key": "name",
+          "label": "Your name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone number",
+          "type": "tel",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": false
+        }
+      ],
+      "buttonLabel": "Request an appointment",
+      "successMessage": "Thanks! We will confirm your time soon."
+    }
+  }
+]

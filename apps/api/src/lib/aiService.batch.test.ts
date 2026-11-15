@@ -119,4 +119,22 @@ describe("AIService.isMessageBatchDone / readMessageBatchResults", () => {
         expect(mockPrisma.lLMUsageLog.create.mock.calls[0][0].data).toMatchObject({ teamId: TEAM, provider: "anthropic", taskType: "EMAIL_DRAFT_BATCH", tokensIn: 120, tokensOut: 40, success: true });
         expect(mockPrisma.lLMUsageLog.create.mock.calls[1][0].data).toMatchObject({ success: false, error: "errored" });
     });
+
+    it("reports a draft cut off at max_tokens, or with no text, as a failed item rather than text", async () => {
+        mockBatchesResults.mockResolvedValue({
+            async *[Symbol.asyncIterator]() {
+                yield { custom_id: "cut", result: { type: "succeeded", message: { model: "claude-test", stop_reason: "max_tokens", content: [{ type: "text", text: '{"subject":"Hi","body":"Hel' }], usage: { input_tokens: 1, output_tokens: 4096 } } } };
+                yield { custom_id: "empty", result: { type: "succeeded", message: { model: "claude-test", stop_reason: "end_turn", content: [{ type: "thinking", thinking: "" }], usage: { input_tokens: 1, output_tokens: 50 } } } };
+                yield { custom_id: "after-thinking", result: { type: "succeeded", message: { model: "claude-test", stop_reason: "end_turn", content: [{ type: "thinking", thinking: "" }, { type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 5 } } } };
+            },
+        });
+
+        const out = await aiService.readMessageBatchResults("msgbatch_1", TEAM, { taskType: "EMAIL_DRAFT_BATCH" });
+
+        expect(out).toEqual([
+            { customId: "cut", text: null, resultType: "truncated" },
+            { customId: "empty", text: null, resultType: "empty" },
+            { customId: "after-thinking", text: "ok", resultType: "succeeded" },
+        ]);
+    });
 });

@@ -15,6 +15,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 import {
     MESSAGE_APPROVAL_TTL_MS,
     approveMessageSend,
+    flagNeedsAttention,
     gateAiMessage,
     generateWithRetry,
     messageApprovalRequired,
@@ -190,6 +191,16 @@ describe("resolveApprovedMessage", () => {
         }));
     });
 
+    it("returns the provenance that was held with the text, and ignores a malformed one", async () => {
+        const provenance = { v: 1, node: "A", prompts: { draft: "email.nodeA@v3", system: "s", critique: "c" }, flags: { retrieval: false, brief: false, rubricCritic: false }, context: { playbook: 0, examples: 0, brief: false }, critique: "passed" };
+        prismaMock.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+        prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(Date.now() + 1000), payload: { ...heldPayload, copyProvenance: provenance } });
+        expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "ready", subject: "S", body: "B", copyProvenance: provenance });
+
+        prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(Date.now() + 1000), payload: { ...heldPayload, copyProvenance: { v: 9 } } });
+        expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "ready", subject: "S", body: "B" });
+    });
+
     it("finds nothing to send when a duplicate run arrives after the first claimed it", async () => {
         prismaMock.approvalRequest.updateMany.mockResolvedValue({ count: 0 });
         prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(), payload: heldPayload });
@@ -210,5 +221,30 @@ describe("resolveApprovedMessage", () => {
         prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "PENDING", autoDenyAt: new Date(Date.now() + 1000), payload: heldPayload });
 
         expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "not_approved" });
+    });
+});
+
+describe("flagNeedsAttention", () => {
+    it("keeps the job that failed to write the message so the approvals page can retry it", async () => {
+        prismaMock.approvalRequest.findFirst.mockResolvedValue(null);
+        prismaMock.user.findFirst.mockResolvedValue({ id: "owner-1" });
+
+        await flagNeedsAttention({
+            teamId: "team-1",
+            leadId: "lead-1",
+            channel: "EMAIL",
+            reason: "The email could not be written after 3 attempts.",
+            requesterHint: "owner-1",
+            job: { jobType: "email_sending", jobPayload: { leadId: "lead-1", campaignId: "campaign-1" } },
+        });
+
+        expect(prismaMock.approvalRequest.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    status: "NEEDS_ATTENTION",
+                    payload: { channel: "EMAIL", leadId: "lead-1", jobType: "email_sending", jobPayload: { leadId: "lead-1", campaignId: "campaign-1" } },
+                }),
+            }),
+        );
     });
 });

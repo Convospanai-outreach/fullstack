@@ -129,6 +129,69 @@ describe("/billing/checkout", () => {
         expect(mockCreateOrder).not.toHaveBeenCalled();
     });
 
+    it("charges the yearly INR price plus GST for a yearly order and records the interval in the order notes", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 559900, yearlyPrice: 5309900 });
+
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ planId: "pro", country: "IN", state: "Delhi", interval: "year" }) as any);
+
+        expect(response.status).toBe(200);
+        expect(mockCreateOrder).toHaveBeenCalledWith(
+            6265682, // 5309900 + 18% GST
+            expect.any(String),
+            expect.any(String),
+            expect.objectContaining({ interval: "year", taxableValue: 5309900, taxAmount: 955782 })
+        );
+    });
+
+    it("keeps an order with no interval monthly", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 559900, yearlyPrice: 5309900 });
+
+        const { POST } = await import("./route");
+        await POST(jsonRequest({ planId: "pro", country: "IN", state: "Delhi" }) as any);
+
+        expect(mockCreateOrder).toHaveBeenCalledWith(
+            expect.any(Number), expect.any(String), expect.any(String),
+            expect.objectContaining({ interval: "month", taxableValue: 559900 })
+        );
+    });
+
+    it("400s a yearly order for a plan with no yearly price, and for a yearly order without a plan", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 559900, yearlyPrice: null });
+
+        const { POST } = await import("./route");
+        const noYearly = await POST(jsonRequest({ planId: "pro", country: "IN", state: "Delhi", interval: "year" }) as any);
+        const noPlan = await POST(jsonRequest({ priceId: "price_pro_monthly", country: "IN", state: "Delhi", interval: "year" }) as any);
+
+        expect(noYearly.status).toBe(400);
+        expect(noPlan.status).toBe(400);
+        expect(mockCreateOrder).not.toHaveBeenCalled();
+    });
+
+    it("sends a non-India yearly order to the plan's yearly Stripe price, and 400s when none is set", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({
+            id: "plan-pro", name: "PRO", monthlyPrice: 4900,
+            stripePrices: { USD: { amount: 4900, stripePriceId: "price_pro_usd", yearly: { amount: 46800, stripePriceId: "price_pro_usd_year" } } },
+        });
+        mockCreateSubscriptionCheckoutSession.mockResolvedValue({ url: "https://checkout.stripe.com/session_y", sessionId: "cs_y" });
+
+        const { POST } = await import("./route");
+        const ok = await POST(jsonRequest({ planId: "pro", country: "US", interval: "year" }) as any);
+        expect(ok.status).toBe(200);
+        expect(mockCreateSubscriptionCheckoutSession).toHaveBeenCalledWith(
+            expect.objectContaining({ stripePriceId: "price_pro_usd_year", interval: "year" })
+        );
+
+        mockCreateSubscriptionCheckoutSession.mockClear();
+        mockPrisma.plan.findUnique.mockResolvedValue({
+            id: "plan-pro", name: "PRO", monthlyPrice: 4900,
+            stripePrices: { USD: { amount: 4900, stripePriceId: "price_pro_usd" } },
+        });
+        const missing = await POST(jsonRequest({ planId: "pro", country: "US", interval: "year" }) as any);
+        expect(missing.status).toBe(400);
+        expect(mockCreateSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    });
+
     it("400s when the plan has no Stripe price for the customer's currency", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 4900, stripePrices: null });
 

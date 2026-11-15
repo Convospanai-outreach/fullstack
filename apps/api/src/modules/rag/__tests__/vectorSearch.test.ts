@@ -24,7 +24,7 @@ describe("vectorStore.search", () => {
     });
 
     it("returns embedding-ranked results when a vector search hits", async () => {
-        mockGetRagEmbedding.mockResolvedValue([1, 0, 0]);
+        mockGetRagEmbedding.mockResolvedValue(Array(1536).fill(0.1));
         mockPrisma.$queryRawUnsafe.mockResolvedValue([
             { id: "item-1", content: "vector match", metadata: null, similarity: 0.98 },
         ]);
@@ -52,7 +52,7 @@ describe("vectorStore.search", () => {
     });
 
     it("falls back to lexical search when the vector query returns zero rows (nothing embedded yet)", async () => {
-        mockGetRagEmbedding.mockResolvedValue([1, 0, 0]);
+        mockGetRagEmbedding.mockResolvedValue(Array(1536).fill(0.1));
         mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
         mockPrisma.knowledgeItem.findMany.mockResolvedValue([
             { id: "item-1", content: "test query matching doc", metadata: null },
@@ -78,7 +78,7 @@ describe("vectorStore.addDocument", () => {
     it("creates the item and best-effort embeds it", async () => {
         mockPrisma.knowledgeItem.create.mockResolvedValue({ id: "item-1" });
         mockPrisma.knowledgeBase.findUnique.mockResolvedValue({ teamId: "team-1" });
-        mockGetRagEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
+        mockGetRagEmbedding.mockResolvedValue(Array(1536).fill(0.1));
 
         const result = await vectorStore.addDocument("hello world", "kb-1", { source: "test" });
 

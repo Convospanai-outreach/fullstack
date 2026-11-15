@@ -4,6 +4,7 @@ import { createCampaignSchema } from "@/lib/validation/schemas";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 import { internalErrorMessage } from "@/lib/internalError";
+import { applyStrategyInput, parseStrategyInput } from "@/lib/campaigns/strategies";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,11 @@ export async function POST(req: Request) {
         if (draftGenerationMode !== undefined && !DRAFT_GENERATION_MODES.includes(draftGenerationMode)) {
             return NextResponse.json({ error: "draftGenerationMode must be REALTIME or BATCH" }, { status: 400 });
         }
+        const strategyInput = parseStrategyInput(body);
+        if (!strategyInput.ok) {
+            return NextResponse.json({ error: strategyInput.error }, { status: 400 });
+        }
+        const aiConfig = applyStrategyInput(null, strategyInput.value);
         const icp = await prisma.iCP.findFirst({ where: { id: icpId, teamId } });
         if (!icp) {
             return NextResponse.json({ error: "ICP not found for this team" }, { status: 400 });
@@ -94,6 +100,7 @@ export async function POST(req: Request) {
                 sourcePipelineStage,
                 icpId,
                 ...(draftGenerationMode ? { draftGenerationMode } : {}),
+                ...(aiConfig ? { aiConfig } : {}),
             },
         });
 

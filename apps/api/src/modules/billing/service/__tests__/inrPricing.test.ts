@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
-    mockPrisma: { plan: { updateMany: vi.fn() } },
+    mockPrisma: { plan: { updateMany: vi.fn() }, $transaction: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { inrMonthlyPaise, refreshInrPlanPrices, roundUpToNinetyNine } from "../inrPricing";
+import { inrMonthlyPaise, inrYearlyPaise, refreshInrPlanPrices, roundUpToNinetyNine } from "../inrPricing";
 
 const rateResponse = (body: unknown, ok = true) =>
     ({ ok, status: ok ? 200 : 503, json: async () => body }) as Response;
@@ -32,10 +32,19 @@ describe("inrMonthlyPaise", () => {
     });
 });
 
+describe("inrYearlyPaise", () => {
+    it("converts the whole year once at the rate and uplift, rather than twelve rounded months", () => {
+        // $468 x 94.47 x 1.2 = Rs.53,056.00 -> Rs.53,099, not 12 x the rounded monthly price
+        expect(inrYearlyPaise(46800, 94.47)).toBe(5309900);
+        expect(inrYearlyPaise(46800, 94.47)).toBeLessThan(inrMonthlyPaise(4900, 94.47) * 12);
+    });
+});
+
 describe("refreshInrPlanPrices", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         mockPrisma.plan.updateMany.mockReset().mockResolvedValue({ count: 1 });
+        mockPrisma.$transaction.mockReset().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops));
     });
 
     it("writes each paid plan's INR price from the day's USD rate", async () => {
@@ -46,9 +55,18 @@ describe("refreshInrPlanPrices", () => {
         expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("base=USD&symbols=INR"), expect.anything());
         expect(result.rate).toBe(94.47);
         expect(mockPrisma.plan.updateMany).toHaveBeenCalledTimes(3);
-        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "PRO" }, data: { monthlyPrice: 559900 } });
-        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "GROWTH" }, data: { monthlyPrice: 1129900 } });
-        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "ENTERPRISE" }, data: { monthlyPrice: 5659900 } });
+        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "PRO" }, data: { monthlyPrice: 559900, yearlyPrice: 5309900 } });
+        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "GROWTH" }, data: { monthlyPrice: 1129900, yearlyPrice: 10749900 } });
+        expect(mockPrisma.plan.updateMany).toHaveBeenCalledWith({ where: { name: "ENTERPRISE" }, data: { monthlyPrice: 5659900, yearlyPrice: 54279900 } });
+    });
+
+    it("writes all plan prices in one transaction", async () => {
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(rateResponse({ rates: { INR: 94.47 } }));
+
+        await refreshInrPlanPrices();
+
+        expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.$transaction.mock.calls[0][0]).toHaveLength(3);
     });
 
     it("keeps the current prices when the rate source fails", async () => {

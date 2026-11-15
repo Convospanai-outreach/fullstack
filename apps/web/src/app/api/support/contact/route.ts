@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { clientIpFromRequest, verifyTurnstile } from "@/lib/botCheck";
 import { randomUUID } from "crypto";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 
 type SupportPayload = {
     name: string;
@@ -74,7 +76,7 @@ function getSmtpConfig() {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
     const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
-    const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+    const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
 
     if (!host || !user || !password || !fromEmail) {
         return null;
@@ -99,6 +101,10 @@ function generateTicketId(): string {
 }
 
 export async function POST(req: Request) {
+    // One bucket for both public contact endpoints: every accepted submission emails the team inbox.
+    const limited = await applyRateLimit(req as NextRequest, RATE_LIMITS.CONTACT_FORM, "contact-form");
+    if (limited) return limited;
+
     let payload: SupportPayload;
 
     try {
@@ -132,6 +138,24 @@ export async function POST(req: Request) {
 
     const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
     const ticketId = generateTicketId();
+
+    // Kept for the superadmin dashboard before anything else can fail. Saving must never stop the email,
+    // and the log line names the ticket only, never what the visitor typed.
+    try {
+        const { prisma } = await import("@/lib/db");
+        await prisma.enquiry.create({
+            data: {
+                ticketId,
+                name: payload.name.trim(),
+                email: payload.email.trim(),
+                subject: payload.subject.trim(),
+                message: payload.message.trim(),
+                source: "support-contact",
+            },
+        });
+    } catch {
+        console.error("Support contact could not be saved", { ticketId });
+    }
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());

@@ -252,7 +252,7 @@ describe("POST /api/approvals/[id] - held AI messages (MESSAGE_SEND)", () => {
 
     it("approving queues the send job instead of updating the row directly", async () => {
         const approve = vi.fn().mockResolvedValue(undefined);
-        vi.doMock("@/modules/governance/messageApproval", () => ({ approveMessageSend: approve, rejectMessageSend: vi.fn() }));
+        vi.doMock("@/modules/governance/messageApproval", () => ({ approveMessageSend: approve, rejectMessageSend: vi.fn(), resolveNeedsAttention: vi.fn() }));
         const { POST } = await import("./route");
 
         const response = await POST(postRequest({ action: "APPROVE", body: "Edited" }), paramsFor("req-1"));
@@ -267,11 +267,37 @@ describe("POST /api/approvals/[id] - held AI messages (MESSAGE_SEND)", () => {
         vi.doMock("@/modules/governance/messageApproval", () => ({
             approveMessageSend: vi.fn().mockRejectedValue(new Error("This message approval has expired or was already decided.")),
             rejectMessageSend: vi.fn(),
+            resolveNeedsAttention: vi.fn(),
         }));
         const { POST } = await import("./route");
 
         const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
 
         expect(response.status).toBe(409);
+    });
+
+    it("retry, write and skip go to the needs-attention resolver with the reviewer text", async () => {
+        const resolve = vi.fn().mockResolvedValue(undefined);
+        vi.doMock("@/modules/governance/messageApproval", () => ({ approveMessageSend: vi.fn(), rejectMessageSend: vi.fn(), resolveNeedsAttention: resolve }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "WRITE", subject: "Hi", body: "Mine" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(resolve).toHaveBeenCalledWith(held, "team-1", "user-1", "WRITE", { subject: "Hi", body: "Mine" });
+    });
+
+    it("answers 409 with the reason when the resolver refuses", async () => {
+        vi.doMock("@/modules/governance/messageApproval", () => ({
+            approveMessageSend: vi.fn(),
+            rejectMessageSend: vi.fn(),
+            resolveNeedsAttention: vi.fn().mockRejectedValue(new Error("This message was already handled.")),
+        }));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "RETRY" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBe("This message was already handled.");
     });
 });

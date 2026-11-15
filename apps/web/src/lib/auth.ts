@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { cookies, headers } from "next/headers";
+import { RequestContext } from "@/lib/requestContext";
 import { clientIp } from "@/lib/clientIp";
 
 import { getServerSession } from "next-auth";
@@ -363,6 +364,8 @@ export async function setupUser(user: { id: string, email: string, name?: string
 }
 
 export async function getCurrentContext() {
+    const mcpIdentity = RequestContext.get()?.mcpIdentity;
+    if (mcpIdentity) return mcpIdentity;
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
