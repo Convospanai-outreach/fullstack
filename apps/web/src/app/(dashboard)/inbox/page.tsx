@@ -113,6 +113,7 @@ const SUGGESTION_LABELS: Record<string, string> = {
     OOO: "Out of office",
     QUESTION: "Asked a question",
     DNC: "Asked not to be contacted",
+    UNSURE: "Could not be read automatically",
 };
 
 function SentimentDot({ score }: { score: number | null }) {
@@ -235,7 +236,7 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="info">AI suggestion</Badge>
                             <span className="font-medium text-foreground">{SUGGESTION_LABELS[suggestion.classification] ?? suggestion.classification}</span>
-                            <span className="text-xs text-muted-foreground">{Math.round(suggestion.confidence * 100)}% confident</span>
+                            {suggestion.classification !== "UNSURE" && <span className="text-xs text-muted-foreground">{Math.round(suggestion.confidence * 100)}% confident</span>}
                         </div>
                         {suggestion.askedNotToContact && (
                             <div className="flex flex-wrap items-center gap-2">
