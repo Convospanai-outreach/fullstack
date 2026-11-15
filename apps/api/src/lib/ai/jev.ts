@@ -1,6 +1,7 @@
 import { TypeSafeClient, choice, noul, type EntryType, type Questions, type RequestOptions, type SystemOneResult } from "@typesafe-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { readOptOut } from "@/lib/optOutReader";
 
 // Jev (TypeSafe's System One model) answers typed questions about text with calibrated
 // probabilities. It only supplies judgments: the callers of these helpers decide what to do
@@ -88,6 +89,12 @@ const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_in
  * response to the offer. `confidence` is the probability of the label returned.
  */
 export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ReplyClassification; confidence: number; reasoning: string }> {
+    // A clear request to stop, or an automatic message, is settled by plain phrase and header
+    // checks first: they hold when Jev is down and cost nothing. Everything else goes to Jev.
+    const plain = readOptOut({ subject: reply.subject, body: reply.body });
+    if (plain?.class === "OPT_OUT") return { classification: "DNC", confidence: 1, reasoning: "Clearly asks not to be contacted again." };
+    if (plain?.class === "AUTO_REPLY") return { classification: "OOO", confidence: 1, reasoning: "Automatic away message." };
+
     const answers = await ask(
         "REPLY_CLASSIFICATION",
         teamId,
