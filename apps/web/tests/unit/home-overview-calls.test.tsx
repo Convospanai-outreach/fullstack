@@ -25,3 +25,13 @@ describe("Home: calls row", () => {
         expect(html).toContain('href="/leads"');
     });
 });
+
+describe("Home: LinkedIn row", () => {
+    it("shows replies logged and the reply rate, labelled as logged by hand", () => {
+        const html = render([{ channel: "linkedin", sent: 8, replies: 2 }]);
+        expect(html).toContain("LinkedIn (logged by hand)");
+        expect(html).toContain(">2<");
+        expect(html).toContain("25%");
+        expect(html).not.toContain("Not tracked yet");
+    });
+});

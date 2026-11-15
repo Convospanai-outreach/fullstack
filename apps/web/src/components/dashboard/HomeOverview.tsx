@@ -19,7 +19,7 @@ const STAGE_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
 };
 
-const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn", whatsapp: "WhatsApp", call: "Logged calls" } as const;
+const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn (logged by hand)", whatsapp: "WhatsApp", call: "Logged calls" } as const;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
