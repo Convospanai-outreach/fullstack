@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { readIcpCriteria } from "@/modules/icp-builder/service/icpCriteria";
 
 // Who the campaign targets (the saved ICP), where this prospect is and how they like to be written
 // to (Crystal guidance), as a short block for the draft prompts. Plain facts only: AUDIENCE_RULES
@@ -9,30 +10,6 @@ import { prisma } from "@/lib/db";
 // older matcher shape { industries, jobTitles, companySize: {min,max} } is read too.
 
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text);
-
-// A list of strings, or one string that may hold a comma/semicolon separated list.
-function list(value: unknown, max: number): string[] {
-    const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,;]/) : [];
-    return raw
-        .filter((v): v is string => typeof v === "string" && v.trim() !== "")
-        .slice(0, max)
-        .map((v) => clip(v.trim(), 60));
-}
-
-const first = (c: Record<string, unknown>, keys: string[], max: number): string[] => {
-    for (const k of keys) {
-        const v = list(c[k], max);
-        if (v.length) return v;
-    }
-    return [];
-};
-
-function sizeText(c: Record<string, unknown>): string | undefined {
-    const s = c["companySize"] as { min?: unknown; max?: unknown } | undefined;
-    if (s && typeof s === "object" && typeof s.min === "number" && typeof s.max === "number") return `${s.min}-${s.max} employees`;
-    const text = first(c, ["size", "companySizes"], 3);
-    return text.length ? text.join(", ") : undefined;
-}
 
 export interface AudienceInput {
     icp?: { name?: string | null; description?: string | null; criteria?: unknown } | null;
@@ -59,16 +36,13 @@ export function buildAudienceContext({ icp, lead }: AudienceInput): string | und
     let targetMarkets: string[] = [];
 
     if (icp) {
-        const c = (icp.criteria && typeof icp.criteria === "object" ? icp.criteria : {}) as Record<string, unknown>;
-        const industries = first(c, ["industries", "industry"], 5);
-        const roles = first(c, ["buyerTitles", "jobTitles", "role"], 5);
-        const size = sizeText(c);
-        targetMarkets = first(c, ["geographies", "geography"], 6);
+        const facts = readIcpCriteria(icp.criteria);
+        targetMarkets = facts.geographies;
         if (icp.name?.trim()) lines.push(`Target audience: ${clip(icp.name.trim(), 80)}`);
         if (icp.description?.trim()) lines.push(`About them: ${clip(icp.description.trim(), 200)}`);
-        if (industries.length) lines.push(`Industries: ${industries.join(", ")}`);
-        if (roles.length) lines.push(`Typical roles: ${roles.join(", ")}`);
-        if (size) lines.push(`Company size: ${size}`);
+        if (facts.industries.length) lines.push(`Industries: ${facts.industries.join(", ")}`);
+        if (facts.roles.length) lines.push(`Typical roles: ${facts.roles.join(", ")}`);
+        if (facts.size) lines.push(`Company size: ${facts.size}`);
         if (targetMarkets.length) lines.push(`Target markets: ${targetMarkets.join(", ")}`);
     }
 

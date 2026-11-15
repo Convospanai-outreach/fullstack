@@ -239,7 +239,7 @@ export type FitProfile = {
     target_customer_profile?: { buyer_role?: string[] };
     icp_primary?: { buyer_title?: string; industry?: string };
 };
-export type FitIcp = { buyerTitles?: string[]; industries?: string[] } | null;
+export type FitIcp = { buyerTitles?: string[]; industries?: string[]; geographies?: string[] } | null;
 
 export type DripRecommendation = { kind: DripKind; score: number; reasons: string[] };
 

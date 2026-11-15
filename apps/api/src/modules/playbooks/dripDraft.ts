@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { readIcpCriteria } from "@/modules/icp-builder/service/icpCriteria";
 import { emailHtml } from "@/modules/creator-funnel/playbookSequences";
 import { getDripPlaybook, type DripEmail, type DripPlaybook, type FitIcp, type FitProfile } from "./dripPlaybooks";
 
@@ -43,8 +44,8 @@ export async function loadDripContext(teamId: string, icpId?: string | null) {
     const icpRow = icpId
         ? await prisma.iCP.findFirst({ where: { id: icpId, teamId }, select: { id: true, criteria: true } })
         : await prisma.iCP.findFirst({ where: { teamId, status: "active" }, orderBy: { createdAt: "desc" }, select: { id: true, criteria: true } });
-    const criteria = (icpRow?.criteria ?? {}) as { buyerTitles?: string[]; industries?: string[] };
-    const icp: TeamIcp = icpRow ? { id: icpRow.id, buyerTitles: criteria.buyerTitles, industries: criteria.industries } : null;
+    const facts = readIcpCriteria(icpRow?.criteria);
+    const icp: TeamIcp = icpRow ? { id: icpRow.id, buyerTitles: facts.roles, industries: facts.industries, geographies: facts.geographies } : null;
     return { profile: ai.companyProfile ?? null, icp, calendarLink: safeHttpUrl(ai.calendarLink) };
 }
 
@@ -56,6 +57,7 @@ function contextLines(profile: Profile | null, icp: TeamIcp): string[] {
         profile.value_proposition && `What they offer: ${clip(profile.value_proposition, 400)}`,
         (p.buyer_title || p.industry || icp?.buyerTitles?.length) &&
             `Who it is for: ${clip(p.buyer_title || icp?.buyerTitles?.[0], 80)} ${p.industry ? `in ${clip(p.industry, 80)}` : ""} ${p.company_size ? `(${clip(p.company_size, 30)})` : ""}`.replace(/\s+/g, " ").trim(),
+        icp?.geographies?.length && `Target markets: ${icp.geographies.map((g) => clip(g, 60)).join(", ")}. Use the spelling and level of formality normal for business email there, and never mention a country, nationality, religion or culture, or stereotype anyone.`,
         p.pain_statement && `Their problem before they buy: ${clip(p.pain_statement, 300)}`,
         p.trigger_event && `What usually makes them look: ${clip(p.trigger_event, 200)}`,
         profile.tone_of_voice && `Tone: ${clip(profile.tone_of_voice, 60)}`,

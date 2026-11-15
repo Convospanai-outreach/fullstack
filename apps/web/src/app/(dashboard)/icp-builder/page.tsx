@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import SavedProfileMarkets from "./SavedProfileMarkets";
 
 export default function ICPBuilderPage() {
     const [_step, setStep] = useState(1);
@@ -230,6 +231,7 @@ export default function ICPBuilderPage() {
                     </div>
                 </div>
             </div>
+            <SavedProfileMarkets />
         </div>
     );
 }
