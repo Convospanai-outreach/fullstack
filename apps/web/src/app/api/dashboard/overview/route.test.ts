@@ -5,7 +5,7 @@ const { mockPrisma, mockContext } = vi.hoisted(() => ({
     lead: { groupBy: vi.fn() },
     email: { count: vi.fn() },
     emailEvent: { count: vi.fn() },
-    leadActivity: { count: vi.fn() },
+    leadActivity: { count: vi.fn(), groupBy: vi.fn() },
     whatsAppMessage: { count: vi.fn() },
     approvalRequest: { findMany: vi.fn() },
   },
@@ -29,6 +29,7 @@ describe("GET /api/dashboard/overview", () => {
     mockPrisma.email.count.mockResolvedValue(12);
     mockPrisma.emailEvent.count.mockResolvedValue(3);
     mockPrisma.leadActivity.count.mockResolvedValue(5);
+    mockPrisma.leadActivity.groupBy.mockImplementation(async ({ where }: { where: { type: { in: string[] } } }) => (where.type.in.length === 2 ? [{ leadId: "l1" }, { leadId: "l2" }, { leadId: "l3" }] : [{ leadId: "l1" }]));
     mockPrisma.whatsAppMessage.count.mockImplementation(async ({ where }: { where: { direction: string } }) => (where.direction === "OUTBOUND" ? 4 : 1));
     mockPrisma.approvalRequest.findMany.mockResolvedValue([
       {
@@ -52,6 +53,7 @@ describe("GET /api/dashboard/overview", () => {
       { channel: "email", sent: 12, replies: 3 },
       { channel: "linkedin", sent: 5, replies: null },
       { channel: "whatsapp", sent: 4, replies: 1 },
+      { channel: "call", sent: 3, replies: 1 },
     ]);
   });
 
@@ -81,5 +83,33 @@ describe("GET /api/dashboard/overview", () => {
     mockPrisma.lead.groupBy.mockRejectedValue(new Error("db down"));
     const res = await GET();
     expect(res.status).toBe(500);
+  });
+});
+
+describe("GET /api/dashboard/overview calls", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+    mockPrisma.lead.groupBy.mockResolvedValue([]);
+    mockPrisma.email.count.mockResolvedValue(0);
+    mockPrisma.emailEvent.count.mockResolvedValue(0);
+    mockPrisma.leadActivity.count.mockResolvedValue(0);
+    mockPrisma.leadActivity.groupBy.mockResolvedValue([]);
+    mockPrisma.whatsAppMessage.count.mockResolvedValue(0);
+    mockPrisma.approvalRequest.findMany.mockResolvedValue([]);
+  });
+
+  it("counts logged calls per lead for the team, last 7 days: calls made and conversations", async () => {
+    await GET();
+    const wheres = mockPrisma.leadActivity.groupBy.mock.calls.map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where);
+    expect(wheres[0]).toMatchObject({ lead: { teamId: "team-1" }, channel: { in: ["CALL", "call"] }, type: { in: ["CALL_CONTACTED", "CALL_REPLIED"] } });
+    expect(wheres[1]).toMatchObject({ lead: { teamId: "team-1" }, type: { in: ["CALL_REPLIED"] } });
+    expect((wheres[0]!["createdAt"] as { gte: Date }).gte.getTime()).toBeGreaterThan(Date.now() - 7 * 86400000 - 60_000);
+  });
+
+  it("reports zero calls, not a made-up number, when none are logged", async () => {
+    const json = await (await GET()).json();
+    expect(json.channels.find((c: { channel: string }) => c.channel === "call")).toEqual({ channel: "call", sent: 0, replies: 0 });
   });
 });

@@ -14,12 +14,17 @@ export async function GET() {
     if (!teamId) return NextResponse.json({ stages: [], channels: [], record: [] });
 
     const since = new Date(Date.now() - 7 * 86400000);
-    const [byStage, emailSent, emailReplies, linkedinLogged, whatsappOut, whatsappIn, decisions] = await Promise.all([
+    const callWhere = (types: string[]) => ({ lead: { teamId }, channel: { in: ["CALL", "call"] }, type: { in: types }, createdAt: { gte: since } });
+    const [byStage, emailSent, emailReplies, linkedinLogged, callsMade, callsTalked, whatsappOut, whatsappIn, decisions] = await Promise.all([
       prisma.lead.groupBy({ by: ["pipelineState"], where: { teamId }, _count: { _all: true } }),
       // Email has no sent timestamp, so this is sent emails created in the window.
       prisma.email.count({ where: { lead: { teamId }, status: "sent", createdAt: { gte: since } } }),
       prisma.emailEvent.count({ where: { teamId, type: "REPLY_RECEIVED", createdAt: { gte: since } } }),
       prisma.leadActivity.count({ where: { lead: { teamId }, channel: { in: ["LINKEDIN", "linkedin"] }, createdAt: { gte: since } } }),
+      // Calls logged on a lead (the lead page and the journey API). One call per lead per window: a contacted-then-replied
+      // pair is the same call. Calls finished on the caller page are not logged here yet.
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_CONTACTED", "CALL_REPLIED"]) }),
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_REPLIED"]) }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "OUTBOUND", createdAt: { gte: since } } }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "INBOUND", createdAt: { gte: since } } }),
       prisma.approvalRequest.findMany({
@@ -38,6 +43,7 @@ export async function GET() {
         { channel: "email", sent: emailSent, replies: emailReplies },
         { channel: "linkedin", sent: linkedinLogged, replies: null },
         { channel: "whatsapp", sent: whatsappOut, replies: whatsappIn },
+        { channel: "call", sent: callsMade.length, replies: callsTalked.length },
       ],
       // Decisions only: never the payload, so no message text or lead data leaves here.
       record: decisions.map((d) => ({
