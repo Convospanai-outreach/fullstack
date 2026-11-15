@@ -9,6 +9,7 @@ import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { logger } from "@/lib/logger";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
@@ -419,6 +420,23 @@ export class SequenceService {
         }
     }
 
+    // When the recipient's window is closed, the time to try again (next window start plus jitter); null to send now.
+    // Team setting `sendSafety.sendWindow`, off unless enabled. Never throws: on any failure the email goes out as before.
+    private static async windowDelay(run: any, lead: any, now: Date): Promise<{ at: Date; timeZone: string; source: string } | null> {
+        try {
+            const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true } });
+            const raw = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+            const window = resolveSendWindow(raw);
+            if (!window.enabled) return null;
+            const { timeZone, source } = resolveRecipientTimeZone(lead, run.enrollment?.sequence?.timezone || window.timeZone);
+            const at = nextSendTime(now, timeZone, window, run.id);
+            return at ? { at, timeZone, source } : null;
+        } catch (error) {
+            logger.warn("[SequenceService] Send window skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
     private static async executeEmailRun(run: any, lead: any, now: Date) {
         const client = db();
         if (!lead?.email) {
@@ -471,6 +489,18 @@ export class SequenceService {
                 });
                 return { runId: run.id, status: "RETRY_SCHEDULED", retryAt };
             }
+        }
+
+        // Recipient send window: outside it the run waits for the next window start. A wait is not a failed attempt.
+        const wait = await this.windowDelay(run, lead, now);
+        if (wait) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                // errorCode / errorMessage are left alone: an approved held email keeps its approval through them.
+                data: { status: "SCHEDULED", scheduledAt: wait.at, attemptCount: { decrement: 1 } },
+            });
+            logger.info("[SequenceService] Outside the recipient's send window, rescheduled", { runId: run.id, retryAt: wait.at.toISOString(), timeZone: wait.timeZone, source: wait.source });
+            return { runId: run.id, status: "SCHEDULED", reason: "outside_send_window", retryAt: wait.at };
         }
 
         const subject = typeof run.step?.subject === "string" && run.step.subject.trim()

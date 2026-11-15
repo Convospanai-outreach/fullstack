@@ -8,6 +8,7 @@ import { pickWeightedVariant } from "@/lib/email/campaignVariants";
 import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
 import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -47,6 +48,32 @@ export async function handleEmailSending(payload: JobPayload) {
       logger.warn("[email_sending] Lead on suppression list, skipping", { leadId, email: lead.email });
       return { skipped: true, reason: "suppressed" };
     }
+  }
+
+  // 2b. Recipient send window (team setting sendSafety.sendWindow, off unless enabled). Outside the window the same
+  // job is queued again for the next window start, so nothing is dropped and no daily slot is used yet. If the
+  // settings cannot be read the email is sent, as it was before.
+  try {
+    const windowTeamId = (teamId || campaign.teamId) as string;
+    const team = await prisma.team.findUnique({ where: { id: windowTeamId }, select: { sendSafety: true } });
+    const rawWindow = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+    const sendWindow = resolveSendWindow(rawWindow);
+    if (sendWindow.enabled) {
+      const { timeZone, source } = resolveRecipientTimeZone(lead, sendWindow.timeZone);
+      const retryAt = nextSendTime(new Date(), timeZone, sendWindow, `${leadId}:${campaignId}`);
+      if (retryAt) {
+        const { JobQueue } = await import("@/lib/queue");
+        await JobQueue.enqueue("email_sending", payload, {
+          processAt: retryAt,
+          teamId: windowTeamId,
+          idempotencyKey: `email_sending_window_${leadId}_${campaignId}_${retryAt.getTime()}`,
+        });
+        logger.info("[email_sending] Outside the recipient's send window, queued again", { leadId, campaignId, retryAt: retryAt.toISOString(), timeZone, source });
+        return { skipped: true, reason: "outside_send_window", retryAt: retryAt.toISOString() };
+      }
+    }
+  } catch (err) {
+    logger.warn("[email_sending] Send window skipped", { leadId, error: err instanceof Error ? err.message : String(err) });
   }
 
   // 3. Find active connected mailbox for team

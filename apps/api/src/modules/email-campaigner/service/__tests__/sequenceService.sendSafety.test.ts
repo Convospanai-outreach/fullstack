@@ -20,7 +20,8 @@ function matches(where: any = {}, row: any): boolean {
 
 function applyData(row: any, data: any) {
     for (const [key, value] of Object.entries<any>(data)) {
-        row[key] = value && typeof value === "object" && "increment" in value ? (row[key] ?? 0) + value.increment : value;
+        row[key] = value && typeof value === "object" && "increment" in value ? (row[key] ?? 0) + value.increment
+            : value && typeof value === "object" && "decrement" in value ? (row[key] ?? 0) - value.decrement : value;
     }
 }
 
@@ -62,11 +63,13 @@ const now = new Date("2026-09-30T10:00:00Z");
 let stepBody = "<p>Hi Asha, a quick note about your support team.</p>";
 let leadName: string | null = "Asha Rao";
 let teamRow: any = { sendSafety: { mode: "hold" }, mailingAddress: "1 Main St, Pune" };
+let leadLocation: string | null = null;
+let sequenceZone: string | undefined;
 
 function seed() {
     // A lead a rep just marked not_interested: status LOST is not an exitReason, so only an
     // explicit stop keeps its already-scheduled follow-up from sending.
-    const lead = { id: "lead-1", teamId: "team-1", email: "lead@example.test", status: "NEW", pipelineState: "NEW", fullName: leadName, company: "Acme", customFields: {} };
+    const lead = { id: "lead-1", teamId: "team-1", email: "lead@example.test", status: "NEW", pipelineState: "NEW", fullName: leadName, company: "Acme", customFields: {}, location: leadLocation };
     tables["lead"] = [lead];
     tables["sequenceEnrollment"] = [
         { id: "enrollment-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", status: "ACTIVE", nextRunAt: null },
@@ -100,7 +103,7 @@ function seed() {
         return {
             ...run,
             step: { id: "step-1", stepType: "email", subject: "Following up", body: stepBody },
-            enrollment: { ...enrollment, lead, sequence: {}, campaign: { ownerId: "user-1" } },
+            enrollment: { ...enrollment, lead, sequence: { timezone: sequenceZone }, campaign: { ownerId: "user-1" } },
         };
     });
 }
@@ -195,5 +198,87 @@ describe("pre-send gate in the sequence engine", () => {
         seed();
         await SequenceService.processDue({ now });
         expect((emailService.sendEmail as any).mock.calls[0][2]).toBe("<p>Hi Asha, a quick note.</p>");
+    });
+});
+
+// `now` is Wed 2026-09-30 10:00Z: 15:30 in Kolkata (open), 19:00 in Tokyo (closed).
+describe("recipient send window in the sequence engine", () => {
+    const windowOn = { sendSafety: { mode: "off", sendWindow: { enabled: true } }, mailingAddress: null };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (emailService.sendEmail as any).mockResolvedValue({ success: true, deliveryProvider: "RESEND" });
+        stepBody = "<p>Hi Asha, a quick note about your support team.</p>";
+        leadName = "Asha Rao";
+        leadLocation = null;
+        sequenceZone = undefined;
+        teamRow = windowOn;
+    });
+
+    it("sends inside the recipient's window", async () => {
+        leadLocation = "Pune, India";
+        seed();
+        await SequenceService.processDue({ now });
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("moves a send outside the window to the next window start, with jitter, and does not count it as an attempt", async () => {
+        leadLocation = "Tokyo, Japan";
+        seed();
+        await SequenceService.processDue({ now });
+
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        const run = tables["sequenceStepRun"][0];
+        expect(run.status).toBe("SCHEDULED");
+        expect(run.attemptCount).toBe(0);
+        // Thu 08:00 Tokyo = Wed 23:00Z, plus under 90 minutes of jitter
+        expect(run.scheduledAt.getTime()).toBeGreaterThanOrEqual(new Date("2026-09-30T23:00:00Z").getTime());
+        expect(run.scheduledAt.getTime()).toBeLessThan(new Date("2026-10-01T00:30:00Z").getTime());
+    });
+
+    it("sends it when the window opens, and never dropped in between", async () => {
+        leadLocation = "Tokyo, Japan";
+        seed();
+        await SequenceService.processDue({ now });
+        await SequenceService.processDue({ now: new Date("2026-10-01T01:00:00Z") }); // 10:00 Tokyo Thursday
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the sequence's own timezone when nothing is known about the recipient", async () => {
+        sequenceZone = "Asia/Tokyo";
+        seed();
+        await SequenceService.processDue({ now });
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("does nothing unless the team turns it on", async () => {
+        leadLocation = "Tokyo, Japan";
+        teamRow = { sendSafety: { mode: "off" }, mailingAddress: null };
+        seed();
+        await SequenceService.processDue({ now });
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("sends when the team settings cannot be read", async () => {
+        leadLocation = "Tokyo, Japan";
+        seed();
+        mockDb.team.findUnique.mockRejectedValue(new Error("db"));
+        await SequenceService.processDue({ now });
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps a sender's approval of a held email through a wait for the window", async () => {
+        stepBody = "<p>Hi Asha, act now for a risk-free offer.</p>";
+        leadLocation = "Tokyo, Japan";
+        teamRow = { sendSafety: { mode: "hold" }, mailingAddress: "1 Main St" };
+        seed();
+        await SequenceService.processDue({ now }); // held for the banned phrase
+        await SequenceService.approveTokenFallbacks("team-1", "run-1", now);
+        teamRow = { sendSafety: { mode: "hold", sendWindow: { enabled: true } }, mailingAddress: "1 Main St" };
+        await SequenceService.processDue({ now }); // 19:00 in Tokyo: waits
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(tables["sequenceStepRun"][0].errorCode).toBe("TOKENS_APPROVED");
+        await SequenceService.processDue({ now: new Date("2026-10-01T01:00:00Z") });
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
     });
 });
