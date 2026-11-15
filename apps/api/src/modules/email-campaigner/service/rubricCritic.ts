@@ -17,6 +17,7 @@ import { parseJudgeReply, weightedScore } from "@/evals/copy/runCopyEval";
 const BLOCKERS = [
     "hallucination: the email mentions things that are not in the situation and context below.",
     "masking: the email contains a raw email address or phone number (tokens like [EMAIL_HASH] are fine).",
+    "audience: the email mentions the prospect's country, region, nationality, religion or culture when the situation's signal does not, stereotypes them, or names or hints at a personality type or profiling.",
 ];
 
 export interface RubricVerdict {

@@ -11,6 +11,7 @@ import StrategyPicker from "@/components/campaigns/StrategyPicker";
 import { preflightFromConfig, strategiesFromConfig } from "@/lib/campaigns/strategies";
 import type { PreflightBrief } from "@/lib/campaigns/preflight";
 import { SequenceMailbox } from "./SenderScheduleNode";
+import MergeFieldCheck from "./MergeFieldCheck";
 
 interface SequenceStepFromApi {
     id: string;
@@ -37,6 +38,8 @@ const toItem = (s: SequenceStepFromApi): SequenceStepItem => ({
 
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [loading, setLoading] = useState(true);
+    const [mergeCheckOpen, setMergeCheckOpen] = useState(false);
+    const [savedCount, setSavedCount] = useState(0);
     const [saving, setSaving] = useState(false);
     const [enrolling, setEnrolling] = useState(false);
     const [steps, setSteps] = useState<SequenceStepItem[]>([]);
@@ -165,6 +168,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             }
             const savedSteps: SequenceStepFromApi[] = data.steps || [];
             setSteps(savedSteps.map(toItem));
+            setSavedCount((n) => n + 1);
             toast.success("Sequence saved");
         } catch (error: any) {
             toast.error(error?.message || "Failed to save sequence");
@@ -235,6 +239,13 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                     </button>
                     <button
                         type="button"
+                        onClick={() => setMergeCheckOpen((open) => !open)}
+                        className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
+                    >
+                        Check merge fields
+                    </button>
+                    <button
+                        type="button"
                         onClick={handleEnroll}
                         disabled={saving || enrolling || steps.length === 0}
                         className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
@@ -252,6 +263,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         {saving ? "Saving..." : "Save sequence"}
                     </button>
                 </div>
+                {mergeCheckOpen && <MergeFieldCheck campaignId={campaignId} savedCount={savedCount} />}
                 {strategyOpen && (
                     <div className="max-h-80 space-y-3 overflow-auto border-b border-border bg-card p-4">
                         <StrategyPicker

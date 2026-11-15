@@ -10,6 +10,13 @@ export const PLAN_USD_MONTHLY_CENTS: Record<string, number> = {
     ENTERPRISE: 49900,
 };
 
+/** Yearly USD list price per Plan.name, in cents: 12 months billed once at the discounted monthly rate ($39, $79, $399 a month). */
+export const PLAN_USD_YEARLY_CENTS: Record<string, number> = {
+    PRO: 46800,
+    GROWTH: 94800,
+    ENTERPRISE: 478800,
+};
+
 const INDIA_UPLIFT = 1.2;
 
 // European Central Bank reference rates, published once per working day; no key needed.
@@ -29,6 +36,11 @@ export function inrMonthlyPaise(usdCents: number, usdInrRate: number): number {
     return roundUpToNinetyNine((usdCents / 100) * usdInrRate * INDIA_UPLIFT) * 100;
 }
 
+/** Yearly INR plan price in paise (Plan.yearlyPrice): the whole year converted and rounded once, not twelve rounded months. */
+export function inrYearlyPaise(usdCents: number, usdInrRate: number): number {
+    return roundUpToNinetyNine((usdCents / 100) * usdInrRate * INDIA_UPLIFT) * 100;
+}
+
 async function fetchUsdInrRate(): Promise<number> {
     const res = await fetch(USD_INR_RATE_URL, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`USD/INR rate request failed with status ${res.status}`);
@@ -40,15 +52,21 @@ async function fetchUsdInrRate(): Promise<number> {
 }
 
 /** Re-prices the paid plans in INR from today's USD rate. Throws, changing nothing, if the rate is unavailable. */
-export async function refreshInrPlanPrices(): Promise<{ rate: number; prices: Record<string, number> }> {
+export async function refreshInrPlanPrices(): Promise<{ rate: number; prices: Record<string, number>; yearlyPrices: Record<string, number> }> {
     const rate = await fetchUsdInrRate();
     const prices: Record<string, number> = {};
     for (const [name, usdCents] of Object.entries(PLAN_USD_MONTHLY_CENTS)) {
         prices[name] = inrMonthlyPaise(usdCents, rate);
     }
+    const yearlyPrices: Record<string, number> = {};
+    for (const [name, usdCents] of Object.entries(PLAN_USD_YEARLY_CENTS)) {
+        yearlyPrices[name] = inrYearlyPaise(usdCents, rate);
+    }
     // One transaction, so a failed write cannot leave some plans on today's rate and others on the old one.
     await prisma.$transaction(
-        Object.entries(prices).map(([name, monthlyPrice]) => prisma.plan.updateMany({ where: { name }, data: { monthlyPrice } }))
+        Object.entries(prices).map(([name, monthlyPrice]) =>
+            prisma.plan.updateMany({ where: { name }, data: { monthlyPrice, yearlyPrice: yearlyPrices[name] } })
+        )
     );
-    return { rate, prices };
+    return { rate, prices, yearlyPrices };
 }

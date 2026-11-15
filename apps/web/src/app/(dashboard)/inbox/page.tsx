@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import ApprovalsPage from "../approvals/page";
+import { HeldEmails, type HeldEmail } from "@/components/inbox/HeldEmails";
 
 interface InboxReply {
     id: string;
@@ -64,7 +65,7 @@ interface ThreadResponse {
     messages: { id: string; direction: string; sender: string | null; text: string; createdAt: string }[];
 }
 
-type Tab = "replies" | "approvals";
+type Tab = "replies" | "approvals" | "held";
 
 const PAGE_SIZE = 20;
 
@@ -319,14 +320,21 @@ export default function InboxPage() {
     // ?tab=approvals deep-links here; /approvals redirects to it. ?reply=<id> opens that thread.
     const router = useRouter();
     const searchParams = useSearchParams();
-    const tab: Tab = searchParams?.get("tab") === "approvals" ? "approvals" : "replies";
+    const tabParam = searchParams?.get("tab");
+    const tab: Tab = tabParam === "approvals" ? "approvals" : tabParam === "held" ? "held" : "replies";
     const replyParam = searchParams?.get("reply") ?? null;
-    const setTab = (next: Tab) => router.replace(next === "approvals" ? "/inbox?tab=approvals" : "/inbox");
+    const setTab = (next: Tab) => router.replace(next === "replies" ? "/inbox" : `/inbox?tab=${next}`);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [olderReplies, setOlderReplies] = useState<InboxReply[]>([]);
     const [loadingMore, setLoadingMore] = useState(false);
     const { data, error, mutate } = useSWR<InboxResponse>(getBrowserApiUrl(`/inbox?page=1&limit=${PAGE_SIZE}`), fetcher);
     const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher);
+    const { data: held, error: heldError, mutate: refreshHeld } = useSWR<{ items: HeldEmail[]; total?: number }>(getBrowserApiUrl("/inbox/held-emails"), fetcher);
+    const heldAction = (action: "approve" | "retry") => async (runId: string) => {
+        await postJson(`/inbox/held-emails/${runId}/${action}`);
+        toast.success(action === "approve" ? "Approved. It will send shortly." : "Checking again. It will send shortly if nothing is missing.");
+        await refreshHeld();
+    };
 
     const firstPage = data?.replies.items ?? [];
     const replies = [...firstPage, ...olderReplies.filter((r) => !firstPage.some((f) => f.id === r.id))];
@@ -381,10 +389,17 @@ export default function InboxPage() {
                 <TabsList>
                     <TabsTrigger value="replies">Replies ({counts?.unreadReplies ?? 0})</TabsTrigger>
                     <TabsTrigger value="approvals">Approvals ({approvals?.requests?.length ?? 0})</TabsTrigger>
+                    <TabsTrigger value="held">Held emails{held ? ` (${held.total ?? held.items.length})` : ""}</TabsTrigger>
                 </TabsList>
             </Tabs>
 
             {tab === "approvals" && <ApprovalsPage />}
+
+            {tab === "held" && heldError && (
+                <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load held emails: {heldError.message}</GlassCard>
+            )}
+            {tab === "held" && !heldError && !held && <GlassCard className="p-6 text-sm text-muted-foreground">Loading held emails...</GlassCard>}
+            {tab === "held" && held && <HeldEmails items={held.items} total={held.total} onApprove={heldAction("approve")} onRetry={heldAction("retry")} />}
 
             {tab === "replies" && error && (
                 <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load your inbox: {error.message}</GlassCard>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { LeadWorkflowRail } from "@/components/crm/LeadWorkflowRail";
 import {
     WifiOff,
     Globe,
@@ -30,6 +31,7 @@ import InstagramSourceLine, { type InstagramLeadSource } from "@/components/crm/
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import LeadCustomFieldsPanel from "./LeadCustomFieldsPanel";
 import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
+import { formatProbability } from "@/lib/formatProbability";
 
 interface Lead {
     id: string;
@@ -53,6 +55,8 @@ interface Lead {
     leadScore?: number;
     pipelineState?: string;
     lastScoredAt?: string | Date;
+    /** True when the edge node computed the intent score; false when the cloud did; unset when unknown. */
+    scoredOnEdge?: boolean | null;
     dwellTimeMinutes?: number;
     emailClicks?: number;
     socialMentions?: number;
@@ -470,6 +474,8 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                 </div>
             </div>
 
+            <LeadWorkflowRail leadId={lead.id} />
+
             <InstagramSourceLine source={lead.instagramSource} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Columns - Details & Scoring */}
@@ -641,6 +647,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 <Flame className="w-5 h-5 text-orange-500" />
                                 Lead Intent Scoring Breakdown
                             </h3>
+                            {typeof lead.scoredOnEdge === "boolean" && (
+                                <Badge className={lead.scoredOnEdge ? "bg-cyan-600/30 text-cyan-300 border border-cyan-600/20 text-[10px]" : "bg-white/10 text-white/60 border border-white/10 text-[10px]"}>
+                                    {lead.scoredOnEdge ? "Scored on-device" : "Cloud estimate"}
+                                </Badge>
+                            )}
                             {lead.lastScoredAt && (
                                 <span className="text-xs text-white/40">
                                     Last scored: {new Date(lead.lastScoredAt).toLocaleDateString()} at {new Date(lead.lastScoredAt).toLocaleTimeString()}
@@ -902,14 +913,17 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                     <TrendingUp className="w-4 h-4 text-rose-400" />
                                     <span className="text-white/80">Churn Risk Probability</span>
                                 </div>
-                                <span className={`font-mono font-bold ${
-                                    (lead.churnRisk || 0.12) > 0.5 ? 'text-red-400' : 'text-emerald-400'
-                                }`}>
-                                    {lead.churnRisk !== undefined && lead.churnRisk !== null
-                                        ? `${Math.round(lead.churnRisk * 100)}%`
-                                        : '12%'
-                                    }
-                                </span>
+                                {(() => {
+                                    const enough = timeline.length >= 3 && typeof lead.churnRisk === "number";
+                                    return (
+                                        <span
+                                            className={`font-mono font-bold ${!enough ? 'text-white/50' : (lead.churnRisk as number) > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}
+                                            title={enough ? undefined : "Insufficient data"}
+                                        >
+                                            {enough ? formatProbability(lead.churnRisk) : "—"}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                             <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-2">

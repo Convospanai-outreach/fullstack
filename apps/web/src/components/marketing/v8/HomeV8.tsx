@@ -5,6 +5,7 @@ import { DM_Sans, Space_Grotesk } from "next/font/google";
 import { OpportunityEngineSvg } from "./OpportunityEngineSvg";
 import { GovernedWorkflow } from "./GovernedWorkflow";
 import { FinalSignup } from "./FinalSignup";
+import { ProductPreview } from "./ProductPreview";
 import { CHANNELS, HOME, STORY_NAMES, type AudienceKey } from "./homeV8Content";
 import "./v8.css";
 
@@ -152,8 +153,9 @@ export default function HomeV8() {
                     {(i === 1 || i === 2) && <span className="tiny-tag">{p.note}</span>}
                     {(i === 0 || i === 4) && (
                       <div className="actions">
-                        <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>
-                        {i === 0 && <a className="secondary" href="#problem" onClick={(e) => { e.preventDefault(); goTo(1); }}>{p.secondary}</a>}
+                        {i === 0
+                          ? <a className="primary" href="#problem" onClick={(e) => { e.preventDefault(); goTo(1); }}>{p.primary}</a>
+                          : <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>}
                       </div>
                     )}
                     {i === 0 && <div className="hint"><span className="scroll-icon" aria-hidden="true" />{p.note}</div>}
@@ -172,6 +174,8 @@ export default function HomeV8() {
           </div>
           <p className="context-bridge">{HOME.closing.bridge} <strong>{HOME.closing.bridgeBold}</strong></p>
         </section>
+
+        <ProductPreview />
 
         <section className="addons" id="audiences" aria-labelledby="audience-heading">
           <div className="addon-kicker">{HOME.audiences.intro.kicker}</div>

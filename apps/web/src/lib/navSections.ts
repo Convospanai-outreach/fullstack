@@ -122,6 +122,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { label: "Audit log", href: "/settings/audit" },
             { label: "Firewall", href: "/governance/firewall" },
             { label: "Access control", href: "/governance/access" },
+            { label: "Edge node", href: "/edge" },
             { label: "Single sign-on", href: "/settings/sso" },
         ],
     },

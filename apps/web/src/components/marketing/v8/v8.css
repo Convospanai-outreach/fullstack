@@ -585,3 +585,51 @@ h3{font-size:20px}
   .v8 .arc-story .planlist{gap:6px;margin:10px 0}
   .v8 .arc-story .copy p{margin:10px 0}
 }
+
+/* ---- Product preview: a review-queue sample so visitors see the product, not only the metaphor ---- */
+.v8 .peek-window{max-width:880px;margin:8px auto 0;border:1px solid #6090bc55;border-radius:20px;background:linear-gradient(160deg,#102744,#0b1b31);box-shadow:0 30px 70px -26px #000c;overflow:hidden}
+.v8 .peek-bar{display:flex;align-items:center;gap:7px;padding:13px 18px;border-bottom:1px solid #5d8fbe33;background:#0b1d34}
+.v8 .peek-bar span{width:10px;height:10px;border-radius:50%;background:#35557a}
+.v8 .peek-bar b{margin-left:10px;font:700 11px var(--v8-display),'Space Grotesk';letter-spacing:.14em;text-transform:uppercase;color:#9ae8fb}
+.v8 .peek-list{list-style:none;margin:0;padding:14px;display:grid;gap:10px}
+.v8 .peek-list li{border:1px solid #44648a58;background:#122844;border-radius:14px;padding:15px 17px}
+.v8 .peek-list li.peek-open{border-color:#79daf4;background:linear-gradient(145deg,#12314d,#0f2239)}
+.v8 .peek-row{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}
+.v8 .peek-chan{display:inline-flex;align-items:center;gap:8px;font:700 11px var(--v8-display),'Space Grotesk';letter-spacing:.14em;color:#9ae8fb}
+.v8 .peek-chan svg{width:16px;height:16px;fill:currentColor}
+.v8 .peek-status{font-size:11px;font-weight:700;color:#ffd48a;background:#e9b35018;border:1px solid #e9b35033;border-radius:999px;padding:4px 10px}
+.v8 .peek-list strong{display:block;font-size:14px;color:#f3f8ff}
+.v8 .peek-list p{margin:6px 0 0;color:#c4d8ea;font-size:14px;line-height:1.55}
+.v8 .peek-actions{display:flex;gap:8px;margin-top:14px}
+.v8 .peek-actions span{border:1px solid #557ca7;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:700;color:#d4e7fa}
+.v8 .peek-actions .peek-approve{background:linear-gradient(115deg,#6ce2ee,#5486ff);border-color:transparent;color:#071326}
+@media(max-width:600px){.v8 .peek-list{padding:10px}.v8 .peek-list li{padding:13px 14px}}
+
+/* ---- Design critique fixes ---- */
+/* Chapter dots: a 24px+ hit area; the visible dot keeps its size. */
+.v8 .dot{min-height:24px;padding:6px 4px}
+.v8 .dot span{font-size:11px}
+/* AI voice is only available on some plans, so it stays readable and is labelled instead of faded. */
+.v8 .scene .voice-node{opacity:.85}
+.v8:is([data-active="4"],[data-active="5"],[data-active="6"]) .scene .voice-node{opacity:.85}
+.v8 .scene .voice-note{font-size:8px;letter-spacing:.9px;fill:#a9c8dc}
+/* Smallest text on the page stays at 11px or more. */
+.v8 .tiny-tag{font-size:12px}
+.v8 .signup-form .form-message{font-size:12px}
+.v8 .wf-node span{font-size:11px}
+.v8 .eyebrow,.v8 .arc-story .eyebrow{font-size:11px}
+/* First step: the engine sits further right so the Instagram node and its label clear the hero card. */
+@media(min-width:1101px) and (min-aspect-ratio:1/1) and (prefers-reduced-motion:no-preference){
+  .v8[data-active="0"] .transformation-arc .engine-svg{transform:translateX(8.5vw)}
+}
+/* Phones: a shorter engine so the headline and primary button fit on the first screen, no 5px labels,
+   and the secondary button reads as a link so the primary one clearly leads. */
+@media(max-width:760px){
+  .v8 .scene .source-label{display:none}
+  .v8 .transformation-arc .scene{height:34svh}
+  .v8 .transformation-arc .scene:after{font-size:10px;padding:6px 12px}
+  .v8 .arc-story{margin-top:-34svh}
+  .v8 .arc-story .panel{padding-top:38svh}
+  .v8 .transformation-arc .engine-svg{transform:translateY(10px) scale(1)}
+  .v8 .arc-story .secondary{border-color:transparent;background:none;padding-inline:8px;text-decoration:underline;text-underline-offset:4px}
+}

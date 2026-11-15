@@ -1895,6 +1895,11 @@ model Subscription {
   currentPeriodEnd       DateTime
   gateway                String    @default("RAZORPAY") // RAZORPAY | STRIPE
   externalSubscriptionId String? // Stripe subscription id ("sub_..."); null for Razorpay
+  billingInterval        String    @default("MONTH") // MONTH | YEAR
+  // Yearly subscriptions are paid once but credited monthly: the next month's credits fall due at this time.
+  nextCreditGrantAt      DateTime?
+  teamId                 String? // set for yearly subscriptions, so the monthly credit grant knows whom to credit
+  renewalReminderFor     DateTime? // the currentPeriodEnd a renewal reminder was already sent for
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   user                   User      @relation(fields: [userId], references: [id])
@@ -1902,17 +1907,20 @@ model Subscription {
   invoices               Invoice[]
 
   @@index([gateway, externalSubscriptionId])
+  @@index([billingInterval, nextCreditGrantAt])
 }
 
 model Plan {
   id              String         @id @default(uuid())
   name            String         @unique // FREE, PRO, ENTERPRISE
   monthlyPrice    Int // INR price, smallest unit (paise) - charged via Razorpay
+  yearlyPrice     Int? // INR price for 12 months billed once, paise, before GST. Null = no yearly billing in INR yet.
   creditsPerMonth Int
   maxAgents       Int
   features        Json
   // Non-INR pricing, e.g. {"USD": {"amount": 2900, "stripePriceId": "price_..."}, "EUR": {...}}.
   // amount is in the currency's smallest unit. Charged via Stripe. Null/missing currency = not sold there yet.
+  // A currency may also carry "yearly": {"amount": 46800, "stripePriceId": "price_..."} (12 months billed once).
   stripePrices    Json?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

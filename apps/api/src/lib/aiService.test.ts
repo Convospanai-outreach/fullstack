@@ -411,3 +411,28 @@ describe("AIService.askAI - Anthropic drafts that are cut off or empty", () => {
         await expect(aiService.askAI("Write a cold email", "team-1", { taskType: "GENERATION" })).rejects.toThrow(/no text/);
     });
 });
+
+describe("AIService - chargeCredits flag", () => {
+    const BILLED_TEAM = "11111111-1111-4111-8111-111111111111";
+    const reply = { choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 100, completion_tokens: 10 } };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o-mini" } } },
+        });
+        mockDeductCredits.mockResolvedValue(true);
+        mockOpenAICreate.mockResolvedValue(reply);
+    });
+
+    it("takes no credits when chargeCredits is false, and still uses the team's key", async () => {
+        await aiService.askAI("Summarize", BILLED_TEAM, { taskType: "GENERATION", chargeCredits: false });
+        expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
+        expect(mockDeductCredits).not.toHaveBeenCalled();
+    });
+
+    it("still charges by default", async () => {
+        await aiService.askAI("Summarize", BILLED_TEAM, { taskType: "GENERATION" });
+        expect(mockDeductCredits).toHaveBeenCalled();
+    });
+});

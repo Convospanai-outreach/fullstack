@@ -65,7 +65,7 @@ describe("LearningService.getMemories", () => {
     });
 
     it("with a queryText, returns embedding-ranked memories instead of every row", async () => {
-        mockGetRagEmbedding.mockResolvedValue([1, 0, 0]);
+        mockGetRagEmbedding.mockResolvedValue(Array(1536).fill(0.1));
         (prisma.$queryRawUnsafe as any).mockResolvedValue([
             { key: "tone_preference", value: "Always use emojis" },
         ]);
@@ -96,7 +96,7 @@ describe("LearningService.saveMemory", () => {
 
     it("creates the memory row and best-effort embeds it", async () => {
         (prisma.agentMemory.create as any).mockResolvedValue({ id: "mem-1" });
-        mockGetRagEmbedding.mockResolvedValue([0.1, 0.2]);
+        mockGetRagEmbedding.mockResolvedValue(Array(1536).fill(0.1));
 
         const memory = await LearningService.saveMemory("team-1", "tone_preference", "Always use emojis", 0.9);
 

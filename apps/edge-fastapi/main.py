@@ -1,14 +1,23 @@
+import atexit
 import os
 import uuid
 import logging
 import time
 import hmac
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 from enum import Enum
 from fastapi import FastAPI, HTTPException, Depends, Header
+from posthog import Posthog
+from posthog.integrations.asgi import PosthogASGIMiddleware
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from database import init_db, get_db, SessionLocal, WorkflowRecord, EdgeSetting, EdgeActivityLog
 
 # Logging
@@ -54,7 +63,47 @@ if EDGE_MODE and EDGE_REQUIRE_VAULT_KEY and not os.getenv("EDGE_VAULT_KEY"):
         "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
     )
 
+class Settings(BaseSettings):
+    """Environment-backed application settings."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    debug: bool = False
+    posthog_project_token: Optional[str] = None
+    posthog_host: Optional[str] = None
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings for application startup and dependencies."""
+    return Settings()
+
+
+settings = get_settings()
+posthog_client: Optional[Posthog] = None
+
+if settings.posthog_project_token and settings.posthog_host:
+    posthog_client = Posthog(
+        project_api_key=settings.posthog_project_token,
+        host=settings.posthog_host,
+        enable_exception_autocapture=True,
+    )
+    atexit.register(posthog_client.shutdown)
+elif settings.debug:
+    missing_variable = (
+        "POSTHOG_PROJECT_TOKEN"
+        if not settings.posthog_project_token
+        else "POSTHOG_HOST"
+    )
+    raise RuntimeError(
+        f"{missing_variable} variable required by PostHog is missing or un-configured, "
+        f"this causes events to be silently missed. This error stops appearing once "
+        f"{missing_variable} is configured"
+    )
+
 app = FastAPI(title="CraftMyFunnel Edge Node")
+if posthog_client:
+    app.add_middleware(PosthogASGIMiddleware, posthog_client=posthog_client)
 app.add_middleware(CorrelationMiddleware)
 
 # Inject correlation ID into logs
@@ -70,7 +119,34 @@ logging.basicConfig(
 for handler in logging.root.handlers:
     handler.addFilter(CorrelationLogFilter())
 
+posthog_log_provider: Optional[LoggerProvider] = None
+posthog_log_logger = logging.getLogger("posthog.export.edge")
+posthog_log_logger.propagate = False
+
+if settings.posthog_project_token and settings.posthog_host:
+    posthog_log_provider = LoggerProvider()
+    set_logger_provider(posthog_log_provider)
+    posthog_log_provider.add_log_record_processor(
+        BatchLogRecordProcessor(
+            OTLPLogExporter(
+                endpoint=f"{settings.posthog_host.rstrip('/')}/i/v1/logs",
+                headers={"Authorization": f"Bearer {settings.posthog_project_token}"},
+            )
+        )
+    )
+    posthog_log_handler = LoggingHandler(logger_provider=posthog_log_provider)
+    posthog_log_handler.addFilter(CorrelationLogFilter())
+    posthog_log_logger.addHandler(posthog_log_handler)
+    posthog_log_logger.setLevel(logging.INFO)
+
 logger = logging.getLogger(__name__)
+
+
+def capture_event(event: str, properties: Dict[str, Any]) -> None:
+    """Capture a personless edge operation when PostHog is configured."""
+    if posthog_client:
+        posthog_client.capture(event, properties=properties)
+
 
 # Hardware Signature
 HARDWARE_SIGNATURE = os.getenv("HARDWARE_SIGNATURE", "unix-default-sig")
@@ -188,6 +264,7 @@ def init_db_with_retry(retries=5, delay=3):
 def startup_event():
     logger.info("Initializing Edge Database...")
     init_db_with_retry()
+    posthog_log_logger.info("edge_database_initialized")
     if EDGE_MODE and local_intelligence:
         local_intelligence.warmup(os.getenv("EDGE_PRELOAD_MODELS", "none").lower())
         logger.info("Edge mode enabled.")
@@ -205,6 +282,11 @@ def startup_event():
 
 @app.on_event("shutdown")
 def shutdown_event():
+    if posthog_client:
+        posthog_client.flush()
+    if posthog_log_provider:
+        posthog_log_provider.force_flush()
+        posthog_log_provider.shutdown()
     if cloud_registration_client:
         cloud_registration_client.stop()
 
@@ -247,7 +329,15 @@ def sanitize_text(request: SanitizeRequest):
     enforce_text_limit(request.text)
     session_id = request.session_id or str(uuid.uuid4())
     sanitized_text, stats = local_intelligence.sanitize_and_tag(request.text, session_id)
-    
+    capture_event(
+        "text_sanitized",
+        {
+            "detected_entity_count": sum(stats.values()),
+            "detected_entity_type_count": len(stats),
+            "has_caller_session": request.session_id is not None,
+        },
+    )
+
     return {
         "sanitized_text": sanitized_text,
         "token_map_id": session_id,
@@ -261,6 +351,10 @@ def critique_response(request: CritiqueRequest):
         raise HTTPException(status_code=503, detail="Edge features disabled")
     enforce_text_limit(request.text)
     result = local_intelligence.critique_response(request.text)
+    capture_event(
+        "response_critiqued",
+        {"status": result["status"], "score": result["score"]},
+    )
     return {
         "status": result["status"],
         "score": result["score"],
@@ -274,6 +368,10 @@ def generate_offline(request: OfflineRequest):
         raise HTTPException(status_code=503, detail="Edge features disabled")
     enforce_text_limit(request.prompt)
     output = local_intelligence.generate_offline(request.prompt)
+    capture_event(
+        "offline_response_generated",
+        {"output_length": len(output)},
+    )
     return {"text": output}
 
 class ReidentifyRequest(BaseModel):
@@ -288,6 +386,10 @@ def reidentify_token(request: ReidentifyRequest):
     original = local_intelligence.reidentify_token(request.token, request.session_id)
     if not original:
         raise HTTPException(status_code=404, detail="Token not found or session mismatch")
+    capture_event(
+        "token_reidentified",
+        {"has_caller_session": request.session_id is not None},
+    )
     return {"original": original}
 
 class ScoreRequest(BaseModel):
@@ -303,6 +405,8 @@ def score_intent(request: ScoreRequest):
         raise HTTPException(status_code=503, detail="Edge features disabled")
     enforce_text_limit(request.text)
     score = local_intelligence.score_intent(request.text)
+    posthog_log_logger.info("intent_score_completed", extra={"score": score})
+    capture_event("intent_scored", {"score": score})
     return {"score": score}
 
 # --- Legacy/Integration Endpoints (Search & Execute) ---
@@ -336,7 +440,11 @@ def search_golden_records(request: SearchRequest, db: Session = Depends(get_db))
                 "score": float(row.similarity),
                 "metadata": {"quality": row.quality_score}
             })
-            
+
+        capture_event(
+            "golden_records_searched",
+            {"requested_limit": request.limit, "result_count": len(results)},
+        )
         return {"results": results}
         
     except Exception as e:
@@ -350,6 +458,7 @@ def save_workflow(request: WorkflowSaveRequest, db: Session = Depends(get_db)):
     workflow_id = workflow.id or str(uuid.uuid4())
 
     existing = db.query(WorkflowRecord).filter(WorkflowRecord.id == workflow_id).first()
+    is_update = existing is not None
     if existing:
         existing.name = workflow.name
         existing.steps = workflow.steps
@@ -363,6 +472,14 @@ def save_workflow(request: WorkflowSaveRequest, db: Session = Depends(get_db)):
         ))
 
     db.commit()
+    posthog_log_logger.info(
+        "workflow_persisted",
+        extra={"is_update": is_update, "step_count": len(workflow.steps)},
+    )
+    capture_event(
+        "workflow_saved",
+        {"is_update": is_update, "step_count": len(workflow.steps)},
+    )
     return {"status": "saved", "id": workflow_id}
 
 @app.get("/workflows", dependencies=[Depends(require_edge_api_key)])
@@ -419,6 +536,7 @@ def set_compliance_mode(request: ComplianceModeRequest, db: Session = Depends(ge
         db.add(EdgeSetting(key="compliance_mode", value=region))
 
     db.commit()
+    capture_event("compliance_mode_set", {"region": region})
     return {"status": "ok", "region": region}
 
 @app.post("/execute", dependencies=[Depends(require_edge_api_key)])
@@ -430,6 +548,10 @@ def execute_browser_action(request: ExecuteRequest):
         raise HTTPException(status_code=403, detail="Edge execution is disabled")
 
     logger.info(f"PHYSICAL ACTUATOR (STUB, NOT WIRED): Would execute {request.action} with {request.payload}")
+    capture_event(
+        "browser_action_stub_acknowledged",
+        {"action": request.action.value},
+    )
 
     return {
         "status": "SUCCESS",

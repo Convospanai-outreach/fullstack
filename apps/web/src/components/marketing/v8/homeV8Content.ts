@@ -29,6 +29,7 @@ export type HomeText = {
   story: Story[];
   plan: { n: string; title: string; body: string }[];
   closing: { eyebrow: string; title: string; accent: string; bridge: string; bridgeBold: string };
+  preview: Block & { note: string };
   audiences: { intro: Block; solo: { label: string; cards: Card[] }; teams: { label: string; cards: Card[] } };
   channels: { intro: Block; journey: Card[]; note: string };
   crm: { intro: Block; cards: Card[] };
@@ -38,12 +39,12 @@ export type HomeText = {
 
 export const HOME_DEFAULTS: HomeText = {
   story: [
-    { eyebrow: "01 / THE OPENING", title: "Someone is ready to buy.", accent: "Are you in the picture?", body: "A scroll. A search. A referral. Your next customer is already somewhere in the crowd.", punch: "Make the shortlist. Not the sidelines.", note: "Scroll to activate the engine", primary: "Build my funnel ↗", secondary: "Follow the signal ↓" },
+    { eyebrow: "01 / THE OPENING", title: "Someone is ready to buy.", accent: "Are you in the picture?", body: "A scroll. A search. A referral. Your next customer is already somewhere in the crowd.", punch: "Make the shortlist. Not the sidelines.", note: "Scroll to activate the engine", primary: "See how it works ↓", secondary: "" },
     { eyebrow: "02 / THE BREAK", title: "The lead came in.", accent: "Then went missing.", body: "An Instagram DM here. A LinkedIn reply there. A form filled. A WhatsApp unread.", punch: "Plenty of interest. Precious little follow-through.", note: "The problem isn’t traffic. It’s the handoff.", primary: "", secondary: "" },
     { eyebrow: "03 / THE GUIDE", title: "A hundred touchpoints.", accent: "One firm grip.", body: "Bring social, forms, email and outreach into one organised journey. Let AI assist. Keep people in charge.", punch: "Connected channels. Clear ownership. No lead left to guesswork.", note: "Automation with brakes, not blinders.", primary: "", secondary: "" },
     { eyebrow: "04 / THE PLAN", title: "Catch the signal.", accent: "Keep the momentum.", body: "Three moves. One moving pipeline.", punch: "No channel should be a dead end.", note: "", primary: "", secondary: "" },
-    { eyebrow: "05 / THE DECISION", title: "Your audience showed interest.", accent: "Make your move.", body: "One campaign. One landing page. One clear next step.", punch: "Turn the click into a conversation.", note: "Start with the people you actually want to reach.", primary: "Start my funnel ↗", secondary: "" },
-    { eyebrow: "06 / WHAT SLIPS AWAY", title: "An unread message", accent: "doesn’t send a warning.", body: "The DM cools. The form goes stale. The buyer finds someone faster.", punch: "Silence isn’t a sales strategy.", note: "", primary: "", secondary: "" },
+    { eyebrow: "05 / THE DECISION", title: "Your audience showed interest.", accent: "Make your move.", body: "Pick one audience, one offer and one landing page. Start there.", punch: "Turn the click into a conversation.", note: "Start with the people you actually want to reach.", primary: "Build my funnel ↗", secondary: "" },
+    { eyebrow: "06 / THE COST OF WAITING", title: "Every hour of silence", accent: "is a decision.", body: "Buyers rarely announce they’ve moved on. They just stop replying.", punch: "Silence isn’t a sales strategy.", note: "", primary: "", secondary: "" },
     { eyebrow: "07 / WHAT MOVES FORWARD", title: "From “seen”", accent: "to “let’s talk.”", body: "A captured enquiry. A relevant reply. A meeting with a name and a next step.", punch: "Less chasing ghosts. More genuine conversations.", note: "", primary: "", secondary: "" },
   ],
   plan: [
@@ -52,6 +53,13 @@ export const HOME_DEFAULTS: HomeText = {
     { n: "03", title: "ADVANCE", body: "Route replies to AI-assisted or human follow-up." },
   ],
   closing: { eyebrow: "THE TURNING POINT", title: "Same attention.", accent: "Different ending.", bridge: "Interest has a short shelf life.", bridgeBold: "Give it somewhere to go." },
+  preview: {
+    kicker: "WHAT IT LOOKS LIKE",
+    title: "Every next move,",
+    accent: "ready for your say.",
+    body: "Drafts, replies and follow-ups wait in one queue. You approve, edit or pause before anything goes out.",
+    note: "Illustrative preview with invented sample data. Not a live account.",
+  },
   audiences: {
     intro: { kicker: "BEYOND THE FIRST CLICK / THE ADDENDUM", title: "Different hustles.", accent: "Same missed chances.", body: "From a one-person practice to a sales floor, a better follow-up changes the story." },
     solo: {
@@ -76,7 +84,7 @@ export const HOME_DEFAULTS: HomeText = {
     journey: [
       { tag: "01 / ATTRACT", title: "Catch interest.", body: "Social, LinkedIn, email or campaigns." },
       { tag: "02 / CAPTURE", title: "Give it a destination.", body: "Landing pages and lead forms." },
-      { tag: "03 / ENGAGE", title: "Make contact count.", body: "Supported WhatsApp, email, LinkedIn, AI voice or human calls." },
+      { tag: "03 / ENGAGE", title: "Make contact count.", body: "Supported WhatsApp, email, LinkedIn or human calls." },
       { tag: "04 / ADVANCE", title: "Keep the next move clear.", body: "Qualified reply, meeting or follow-up task." },
     ],
     note: "Channels shown are the intended product journey. Availability, permissions, calling consent and supported automation depend on the live integration and account configuration.",
@@ -98,7 +106,7 @@ export const HOME_DEFAULTS: HomeText = {
         bullets: ["Capture form fills, campaign leads and supported channel responses in one place.", "Group signals with source context so the next move starts informed.", "Stop relying on memory, screenshots and scattered spreadsheets."],
         badges: ["Lead intake", "Source context", "Queue control"],
         mini: [{ label: "LANDING PAGES", text: "New form enquiry logged" }, { label: "LINKEDIN", text: "Prospect interaction captured" }, { label: "WHATSAPP", text: "Conversation flagged for follow-up" }] },
-      { node: "Drafts", meta: "STEP 2 / DRAFTS", short: "AI writes the first draft. Humans keep the final say.", title: "Prepare AI-assisted outreach drafts",
+      { node: "Drafts", meta: "STEP 2 / DRAFTS", short: "AI drafts. You review before outreach goes out.", title: "Prepare AI-assisted outreach drafts",
         text: "Turn raw interest into a usable first move. Draft messages faster, keep context intact and avoid starting from a blank page every time.",
         bullets: ["Generate first-pass outreach with the right account and source context.", "Keep tone, offer and next-step intent aligned to the funnel stage.", "Remove busywork without surrendering judgment."],
         badges: ["AI assist", "First drafts", "Message context"],
@@ -107,7 +115,7 @@ export const HOME_DEFAULTS: HomeText = {
         text: "Bring the contact, the channel and the context together. No more hopping between tabs to remember who said what and where.",
         bullets: ["Tie supported channels to the same opportunity record.", "See the conversation path across email, LinkedIn, WhatsApp and landing pages.", "Keep channel use aligned with supported integration rules and permissions."],
         badges: ["Unified records", "Channel map", "Context continuity"],
-        mini: [{ label: "CONTACT RECORD", text: "Source and owner matched" }, { label: "CHANNEL STATUS", text: "Email, social and voice view" }, { label: "AI VOICE", text: "Call path available where enabled" }] },
+        mini: [{ label: "CONTACT RECORD", text: "Source and owner matched" }, { label: "CHANNEL STATUS", text: "Email, social and call view" }, { label: "CALL HANDOFF", text: "Leads queued for your team to call" }] },
       { node: "Tracking", meta: "STEP 4 / TRACKING", short: "If a reply lands, the team should know what it means.", title: "Track replies and channel status",
         text: "Watch responses, delivery states and follow-up timing from one governed view. A reply should trigger momentum, not confusion.",
         bullets: ["Surface replies, opens and channel states in a shared workflow.", "Identify stalled conversations before they disappear.", "Give each active opportunity a visible status and next signal."],
@@ -115,8 +123,8 @@ export const HOME_DEFAULTS: HomeText = {
         mini: [{ label: "REPLY STATUS", text: "Positive response detected" }, { label: "CHANNEL VIEW", text: "Waiting, active or stalled" }, { label: "TASK CUE", text: "Next follow-up suggested" }] },
       { node: "Review", meta: "STEP 5 / REVIEW", short: "Not every next move should go out unchecked.", title: "Review and approve appropriate next actions",
         text: "Put control where it matters. Review drafts, approve the right next move and keep the workflow governed instead of guess-driven.",
-        bullets: ["Add human approvals before sensitive or high-value actions.", "Route uncertain cases to the right reviewer instead of auto-sending noise.", "Maintain oversight without slowing everything to a crawl."],
-        badges: ["Human approval", "Governance", "Quality control"],
+        bullets: ["Review recipients and messages before outreach.", "Hold uncertain drafts back for a person to check.", "Maintain oversight without slowing everything to a crawl."],
+        badges: ["Review step", "Governance", "Quality control"],
         mini: [{ label: "APPROVAL QUEUE", text: "Action pending review" }, { label: "RISK CHECK", text: "Low / medium / high sensitivity" }, { label: "NEXT MOVE", text: "Approve, edit or pause" }] },
       { node: "Advance", meta: "STEP 6 / ADVANCE", short: "The point is progress, not activity.", title: "Advance opportunities with human oversight",
         text: "Once the next move is approved, keep the opportunity advancing. The goal is a clearer conversation, a booked meeting or a live deal—not a busier dashboard.",
@@ -134,7 +142,7 @@ export const HOME_DEFAULTS: HomeText = {
     formEyebrow: "YOUR NEXT MOVE STARTS HERE",
     formTitle: "One good lead deserves a next move.",
     formIntro: "Choose your path. Then get started.",
-    individual: { label: "Individual / Creator", hint: "Build your own lead-to-client journey.", cta: "Build my funnel ↗" },
+    individual: { label: "Individual / Creator", hint: "Build your own lead-to-client journey.", cta: "Get started ↗" },
     team: { label: "Business / Team", hint: "Explore a governed sales-team pilot.", cta: "Explore my pilot ↗" },
   },
 };

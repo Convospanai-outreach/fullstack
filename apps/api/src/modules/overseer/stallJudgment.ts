@@ -14,6 +14,8 @@ export type StallCandidate = {
     // How the latest of those replies was classified (Jev, via ReplyAnalyzerAgent), or a rep's
     // correction of it. Null when there is no reply or it hasn't been classified.
     replyClassification: string | null;
+    // The lead is marked do not contact, unsubscribed or bounced.
+    optedOut: boolean;
 };
 
 export type StallJudgment = {
@@ -34,6 +36,10 @@ export function judgeStalledEnrollment(candidate: StallCandidate): StallJudgment
         nudgeType,
         suggestion
     });
+
+    if (candidate.optedOut) {
+        return judgment("LIKELY_DEAD", `${stalled}. This lead is marked do not contact, unsubscribed or bounced - end this enrollment.`);
+    }
 
     switch (candidate.replyClassification) {
         case "DNC":

@@ -59,7 +59,19 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
   const [approving, setApproving] = useState<string | null>(null);
 
   if (error || !data?.needsYou) return null;
-  const items = data.needsYou.filter((item) => item.count > 0);
+  // Approvals lead: signing off drafts is the one thing only the user can do.
+  const items = data.needsYou
+    .filter((item) => item.count > 0)
+    .sort((x, y) => Number(y.type === "approvals") - Number(x.type === "approvals"));
+  const approvals = items.find((item) => item.type === "approvals")?.count ?? 0;
+  const [headline, subline] =
+    approvals > 0
+      ? [`${approvals} ${approvals === 1 ? "draft waits" : "drafts wait"} for your sign-off.`, "Nothing is sent until you approve it."]
+      : items.length > 0
+        ? ["A few things need you today.", "Clear these and outreach keeps moving."]
+        : hasLeads
+          ? ["Nothing is waiting on you.", "Start a campaign and its drafts come here for your sign-off."]
+          : ["Add your first leads to get going.", "Import a list or capture profiles from LinkedIn. Your numbers fill in from there."];
 
   const approve = async (id: string) => {
     setApproving(id);
@@ -81,9 +93,10 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
 
   return (
     <section aria-labelledby="needs-you-heading" className="mb-4">
-      <p id="needs-you-heading" className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
-        Needs you
-      </p>
+      <h1 id="needs-you-heading" className="text-2xl lg:text-3xl font-medium tracking-tight text-foreground">
+        {headline}
+      </h1>
+      <p className="mt-1 mb-4 text-sm text-muted-foreground">{subline}</p>
 
       {items.length === 0 ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
