@@ -1466,6 +1466,7 @@ model Team {
   // Physical postal address shown in outbound marketing email footers.
   // Required for CAN-SPAM compliance; not set = no footer is injected.
   mailingAddress String?
+  sendSafety     Json? // pre-send gate settings (apps/api/src/lib/preSendCheck.ts resolveSendSafety); null = defaults (warn mode)
 
   // Per-team hidden-feature enablement (shared across members). null = team has
   // never customized, so readiness-gated defaults are computed at read time (see
