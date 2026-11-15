@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
+import { EdgeStatusPlate } from "@/components/dashboard/EdgeStatusPlate";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import { NAV_SECTIONS, SETTINGS_PREFIXES, isLinkActive, matchesPath } from "@/lib/navSections";
 
@@ -175,6 +176,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         </nav>
 
         <div className="px-2 pb-2 space-y-0.5">
+          <EdgeStatusPlate onClick={onClose} />
           <NavEntry
             href="/settings"
             label="Settings"
