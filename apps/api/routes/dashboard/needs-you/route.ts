@@ -12,8 +12,13 @@ export async function GET(req: NextRequest) {
         const { markActiveDay } = await import("@/lib/analytics/productEvents");
         void markActiveDay(userId, teamId);
 
+        // The full draft text goes only to people who can sign it off (the same permission the approve and
+        // reject actions need); everyone else still sees the counts and titles.
+        const { hasPermission, Permission } = await import("@/lib/permissions");
+        const includeDraft = await hasPermission(userId, teamId, Permission.RESOLVE_APPROVALS);
+
         const { collectNeedsYou } = await import("@/modules/inbox/needsYouService");
-        return NextResponse.json({ needsYou: await collectNeedsYou([teamId]) });
+        return NextResponse.json({ needsYou: await collectNeedsYou([teamId], new Date(), { includeDraft }) });
     } catch (error) {
         return handleAPIError(error);
     }
