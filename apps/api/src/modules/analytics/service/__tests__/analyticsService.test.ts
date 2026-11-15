@@ -79,7 +79,7 @@ describe("analyticsService", () => {
             const stats = await analyticsService.getFunnelStats("team-1");
 
             expect(prisma.lead.findMany).toHaveBeenCalledWith({
-                where: { teamId: "team-1", status: "CLOSED_WON" },
+                where: { teamId: "team-1", OR: [{ status: { in: ["WON", "CLOSED_WON"] } }, { pipelineState: "CLOSED_WON" }] },
                 select: { value: true },
             });
             expect(stats).toEqual({ outreach: 50, replied: 5, meetings: 3, deals: 2, revenue: 1500 });
@@ -157,15 +157,33 @@ describe("analyticsService", () => {
     describe("getForecastingStats", () => {
         it("weights open pipeline by intentScore and sums won-lead revenue", async () => {
             (prisma.lead.findMany as any).mockResolvedValue([
-                { status: "CLOSED_WON", value: 1000, intentScore: 0 },
-                { status: "NEW", value: 2000, intentScore: 0.5 },
-                { status: "CLOSED_LOST", value: 5000, intentScore: 0.9 },
+                { status: "WON", pipelineState: "CLOSED_WON", value: 1000, intentScore: 0 },
+                { status: "NEW", pipelineState: "COLD", value: 2000, intentScore: 0.5 },
+                { status: "LOST", pipelineState: "CLOSED_LOST", value: 5000, intentScore: 0.9 },
+                { status: "NEW", pipelineState: "CLOSED_WON", value: 300, intentScore: 0.9 },
+                { status: "CLOSED_LOST", pipelineState: "COLD", value: 4000, intentScore: 0.9 },
             ]);
 
             const stats = await analyticsService.getForecastingStats("team-1");
 
-            expect(stats.currentRevenue).toBe(1000);
+            expect(stats.currentRevenue).toBe(1300);
             expect(stats.weightedPipeline).toBe(1000);
+        });
+    });
+
+    describe("getCohortAnalysis", () => {
+        it("counts a lead as won when either its status or its pipeline state says so", async () => {
+            const now = new Date();
+            (prisma.lead.findMany as any).mockResolvedValue([
+                { createdAt: now, status: "WON", pipelineState: "CLOSED_WON" },
+                { createdAt: now, status: "NEW", pipelineState: "CLOSED_WON" },
+                { createdAt: now, status: "LOST", pipelineState: "CLOSED_LOST" },
+                { createdAt: now, status: "NEW", pipelineState: "COLD" },
+            ]);
+
+            const cohorts = await analyticsService.getCohortAnalysis("team-1");
+
+            expect(cohorts[cohorts.length - 1]).toMatchObject({ totalLeads: 4, won: 2 });
         });
     });
 });

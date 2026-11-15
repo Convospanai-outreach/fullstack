@@ -29,8 +29,11 @@ export async function enforcePolicy({
     if (!membership) throw new Error("NOT_A_TEAM_MEMBER");
 
     // Auto-create a permissive default policy if none exists (new teams)
-    const policy = existingPolicy ?? await prisma.organizationPolicy.create({
-        data: { organizationId: orgId },
+    // An upsert, so two first requests for the same team racing here do not fail on the unique row.
+    const policy = existingPolicy ?? await prisma.organizationPolicy.upsert({
+        where: { organizationId: orgId },
+        create: { organizationId: orgId },
+        update: {},
     });
 
     const role = membership.role.toUpperCase() as GovernanceRole;
@@ -58,12 +61,14 @@ export async function enforcePolicy({
         }
         // Must be scoped to this org AND this specific campaign - an unscoped lookup would let
         // any approvalId belonging to a DIFFERENT team's (or a different campaign's) approved
-        // request satisfy this org's approval gate.
+        // request satisfy this org's approval gate. It must also be a campaign start approval:
+        // an approved request for some other action on the campaign does not authorize a run.
         const approval = await prisma.approvalRequest.findFirst({
             where: {
                 id: payload.approvalId,
                 teamId: orgId,
                 entityType: "Campaign",
+                actionType: "CAMPAIGN_START",
                 ...(payload.campaignId ? { entityId: payload.campaignId } : {}),
             },
         });

@@ -37,4 +37,22 @@ describe("postPublicLead", () => {
             expect.objectContaining({ slug: "guide", payload: expect.objectContaining({ formFields: { name: "Ada", email: "ada@example.com" } }) })
         );
     });
+
+    it("passes the visitor's Meta _fbc and _fbp cookies to the service, dropping malformed values", async () => {
+        const req = new Request("https://api.example.test/landing-agent/public/guide/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Cookie: "theme=dark; _fbc=fb.1.1800000000000.IwAR-x_y; _fbp=fb.1.1800000000000.123; other=1" },
+            body: JSON.stringify({ name: "Ada" }),
+        });
+        await postPublicLead(req, ctx);
+        expect(submitLeadBySlug).toHaveBeenCalledWith(expect.objectContaining({ metaCookies: { fbc: "fb.1.1800000000000.IwAR-x_y", fbp: "fb.1.1800000000000.123" } }));
+
+        const bad = new Request("https://api.example.test/landing-agent/public/guide/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Cookie: "_fbc=%22%3Cscript%3E; _fbp=" },
+            body: JSON.stringify({ name: "Ada" }),
+        });
+        await postPublicLead(bad, ctx);
+        expect(submitLeadBySlug).toHaveBeenLastCalledWith(expect.objectContaining({ metaCookies: { fbc: undefined, fbp: undefined } }));
+    });
 });

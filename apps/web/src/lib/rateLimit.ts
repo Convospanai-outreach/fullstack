@@ -94,6 +94,12 @@ export const RATE_LIMITS = {
     maxRequests: 5,           // 5 attempts per hour
   },
 
+  // Public contact and support forms: each submission sends an email to the team inbox
+  CONTACT_FORM: {
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    maxRequests: 5,           // 5 messages per IP per 10 minutes
+  },
+
   // Error logging endpoint
   ERROR_LOGGING: {
     windowMs: 60 * 1000,      // 1 minute

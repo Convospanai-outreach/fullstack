@@ -191,6 +191,16 @@ describe("resolveApprovedMessage", () => {
         }));
     });
 
+    it("returns the provenance that was held with the text, and ignores a malformed one", async () => {
+        const provenance = { v: 1, node: "A", prompts: { draft: "email.nodeA@v3", system: "s", critique: "c" }, flags: { retrieval: false, brief: false, rubricCritic: false }, context: { playbook: 0, examples: 0, brief: false }, critique: "passed" };
+        prismaMock.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+        prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(Date.now() + 1000), payload: { ...heldPayload, copyProvenance: provenance } });
+        expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "ready", subject: "S", body: "B", copyProvenance: provenance });
+
+        prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(Date.now() + 1000), payload: { ...heldPayload, copyProvenance: { v: 9 } } });
+        expect(await resolveApprovedMessage("appr-1", "team-1")).toEqual({ state: "ready", subject: "S", body: "B" });
+    });
+
     it("finds nothing to send when a duplicate run arrives after the first claimed it", async () => {
         prismaMock.approvalRequest.updateMany.mockResolvedValue({ count: 0 });
         prismaMock.approvalRequest.findFirst.mockResolvedValue({ id: "appr-1", status: "EXECUTING", autoDenyAt: new Date(), payload: heldPayload });

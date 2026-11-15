@@ -138,6 +138,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "name": "CraftMyFunnel AI",
                     "url": "https://craftmyfunnel.live",
                     "logo": "https://craftmyfunnel.live/craftmyfunnel-logo.png",
+                    "parentOrganization": {
+                      "@type": "Organization",
+                      "name": "Sudhisha Digital Private Limited"
+                    },
                     "description": "Governed AI outreach and qualified meeting workflow platform for B2B service teams and revenue operations.",
                     "sameAs": [
                       "https://github.com/Convospanai-outreach/fullstack",

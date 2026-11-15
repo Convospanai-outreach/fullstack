@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockSessionCreate, mockSessionDeleteMany, mockGetCurrentContext, mockTeamFindUnique, mockAudit, mockTx } = vi.hoisted(() => ({
+const { mockSessionCreate, mockSessionDeleteMany, mockGetCurrentContext, mockTeamFindUnique, mockAudit, mockTx, mockGetToken, mockQueryRaw } = vi.hoisted(() => ({
+    mockGetToken: vi.fn(),
+    mockQueryRaw: vi.fn(),
     mockTeamFindUnique: vi.fn(),
     mockSessionCreate: vi.fn(),
     mockSessionDeleteMany: vi.fn(),
     mockGetCurrentContext: vi.fn(),
     mockAudit: vi.fn(),
     // What the route sees inside prisma.$transaction: the token change and its audit row use this client.
-    mockTx: { session: {} as Record<string, unknown> },
+    mockTx: { session: {} as Record<string, unknown>, $queryRaw: undefined as unknown },
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
+vi.mock("next/headers", () => ({ cookies: async () => ({}) }));
+vi.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
 vi.mock("@/lib/db", () => ({
     prisma: {
         session: { create: mockSessionCreate, deleteMany: mockSessionDeleteMany },
@@ -30,7 +34,34 @@ describe("POST /api/extension/token", () => {
         mockSessionDeleteMany.mockResolvedValue({ count: 0 });
         mockSessionCreate.mockResolvedValue({});
         mockAudit.mockResolvedValue(undefined);
+        mockGetToken.mockResolvedValue({ sessionVersion: 2 });
+        mockQueryRaw.mockResolvedValue([{ sessionVersion: 2, suspendedAt: null }]);
         mockTx.session = { create: mockSessionCreate, deleteMany: mockSessionDeleteMany };
+        mockTx.$queryRaw = mockQueryRaw;
+    });
+
+    it("mints no token when the account was signed out since this browser signed in", async () => {
+        mockQueryRaw.mockResolvedValue([{ sessionVersion: 3, suspendedAt: null }]);
+
+        const res = await POST();
+
+        expect(res.status).toBe(401);
+        expect(mockSessionCreate).not.toHaveBeenCalled();
+    });
+
+    it("mints no token for a suspended account", async () => {
+        mockQueryRaw.mockResolvedValue([{ sessionVersion: 2, suspendedAt: new Date() }]);
+
+        expect((await POST()).status).toBe(401);
+        expect(mockSessionCreate).not.toHaveBeenCalled();
+    });
+
+    it("counts a sign-in from before session versions existed as version 0", async () => {
+        mockGetToken.mockResolvedValue({});
+        mockQueryRaw.mockResolvedValue([{ sessionVersion: 0, suspendedAt: null }]);
+
+        expect((await POST()).status).toBe(200);
+        expect(mockSessionCreate).toHaveBeenCalled();
     });
 
     it("garbage-collects this user's expired tokens before minting a new one", async () => {
@@ -67,6 +98,9 @@ describe("POST /api/extension/token", () => {
 describe("extension token audit trail", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetToken.mockResolvedValue({ sessionVersion: 2 });
+        mockQueryRaw.mockResolvedValue([{ sessionVersion: 2, suspendedAt: null }]);
+        mockTx.$queryRaw = mockQueryRaw;
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
         mockTeamFindUnique.mockResolvedValue({ id: "team-a", name: "Acme Sales" });
         mockSessionDeleteMany.mockResolvedValue({ count: 2 });

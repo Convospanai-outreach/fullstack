@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockGetCurrentContext, mockAuthorizeRole, mockRecordLeadDataSources } = vi.hoisted(() => ({
+const { mockPrisma, mockGetCurrentContext, mockAuthorizeRole, mockRecordLeadDataSources, mockGetInstagramSourceForLead } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findFirst: vi.fn(), updateMany: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockAuthorizeRole: vi.fn(),
     mockRecordLeadDataSources: vi.fn().mockResolvedValue(undefined),
+    mockGetInstagramSourceForLead: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -16,8 +17,47 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { MEMBER: "MEMBER" },
 }));
 vi.mock("@/lib/crm/leadDataSource", () => ({ recordLeadDataSources: mockRecordLeadDataSources }));
+vi.mock("@/modules/creator-funnel/leadSource", () => ({ getInstagramSourceForLead: mockGetInstagramSourceForLead }));
 
-import { PATCH } from "./route";
+import { GET, PATCH } from "./route";
+
+describe("GET /leads/[id]", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ teamId: "team-1", userId: "user-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+    });
+
+    it("returns the lead with the Instagram keyword source it came from", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce({ id: "lead-1", fullName: "Asha" });
+        const source = { triggerId: "trigger-1", keyword: "GUIDE", contentPostId: "post-1", postTitle: "Free guide", platform: "INSTAGRAM" };
+        mockGetInstagramSourceForLead.mockResolvedValueOnce(source);
+
+        const res = await GET(new Request("http://localhost/leads/lead-1"), { params: Promise.resolve({ id: "lead-1" }) });
+        const body = await res.json();
+
+        expect(mockGetInstagramSourceForLead).toHaveBeenCalledWith("team-1", "lead-1");
+        expect(body).toEqual({ id: "lead-1", fullName: "Asha", instagramSource: source });
+    });
+
+    it("returns instagramSource null for a lead no keyword reply created", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce({ id: "lead-1" });
+        mockGetInstagramSourceForLead.mockResolvedValueOnce(null);
+
+        const res = await GET(new Request("http://localhost/leads/lead-1"), { params: Promise.resolve({ id: "lead-1" }) });
+
+        expect(await res.json()).toEqual({ id: "lead-1", instagramSource: null });
+    });
+
+    it("404s another team's lead without looking up its source", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce(null);
+
+        const res = await GET(new Request("http://localhost/leads/lead-9"), { params: Promise.resolve({ id: "lead-9" }) });
+
+        expect(res.status).toBe(404);
+        expect(mockGetInstagramSourceForLead).not.toHaveBeenCalled();
+    });
+});
 
 function patchRequest(body: any) {
     return new Request("http://localhost/leads/lead-1", { method: "PATCH", body: JSON.stringify(body) });

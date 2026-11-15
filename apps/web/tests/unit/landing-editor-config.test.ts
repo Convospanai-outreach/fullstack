@@ -7,6 +7,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
+    CANVAS_ONLY_CSS,
     canvasBaseCss,
     filterEditorStyle,
     isSafeEditorLink,
@@ -14,6 +15,16 @@ import {
     userCssFromSaved,
 } from "@/components/landing-agent/editorConfig";
 import { LANDING_PAGE_BASE_CSS, getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
+
+describe("canvas-only rules", () => {
+    it("give the divider a clickable height in the canvas", () => {
+        expect(CANVAS_ONLY_CSS).toMatch(/\.la-section\.la-divider \{[^}]*min-height: (1[6-9]|[2-9]\d)px/);
+    });
+
+    it("leave the published divider a 1px line", () => {
+        expect(LANDING_PAGE_BASE_CSS).toMatch(/\.la-section\.la-divider \{[^}]*height: 1px;[^}]*min-height: 0;/);
+    });
+});
 
 describe("canvas CSS matches the published page CSS", () => {
     it("the canvas stylesheet is exactly the base CSS the published page uses", () => {
@@ -140,11 +151,10 @@ describe("autosave", () => {
         expect(AUTOSAVE_INTERVAL_MS).toBe(10_000);
     });
 
-    it("saves draft pages with changes, not published ones", () => {
-        expect(shouldAutosave({ status: "draft", dirty: true, saving: false })).toBe(true);
-        expect(shouldAutosave({ status: "published", dirty: true, saving: false })).toBe(false);
-        expect(shouldAutosave({ status: "draft", dirty: false, saving: false })).toBe(false);
-        expect(shouldAutosave({ status: "draft", dirty: true, saving: true })).toBe(false);
+    it("saves changes on draft and published pages alike (published saves go to the draft columns)", () => {
+        expect(shouldAutosave({ dirty: true, saving: false })).toBe(true);
+        expect(shouldAutosave({ dirty: false, saving: false })).toBe(false);
+        expect(shouldAutosave({ dirty: true, saving: true })).toBe(false);
     });
 });
 
@@ -165,7 +175,10 @@ describe("editor blocks", () => {
         }
     });
 
-    it.each(publishedBlocks.map((b) => [b.id, b] as const))(
+    // The sticky bar and the end-of-offer line are page furniture, not sections. Their round-trip is
+    // checked on the real sanitizer in apps/api ctaMarkup.test.ts, through tests/fixtures/cta-markup.json.
+    const NOT_SECTIONS = ["cta_sticky_bar", "offer_end_date"];
+    it.each(publishedBlocks.filter((b) => !NOT_SECTIONS.includes(b.id)).map((b) => [b.id, b] as const))(
         "%s survives the sanitizer round-trip with its structure",
         (_id, block) => {
             const rendered = getLandingRenderPayload({ html: block.content, css: "" }).html;

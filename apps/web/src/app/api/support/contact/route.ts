@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { clientIpFromRequest, verifyTurnstile } from "@/lib/botCheck";
 import { randomUUID } from "crypto";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 
 type SupportPayload = {
     name: string;
@@ -74,7 +76,7 @@ function getSmtpConfig() {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
     const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
-    const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+    const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
 
     if (!host || !user || !password || !fromEmail) {
         return null;
@@ -99,6 +101,10 @@ function generateTicketId(): string {
 }
 
 export async function POST(req: Request) {
+    // One bucket for both public contact endpoints: every accepted submission emails the team inbox.
+    const limited = await applyRateLimit(req as NextRequest, RATE_LIMITS.CONTACT_FORM, "contact-form");
+    if (limited) return limited;
+
     let payload: SupportPayload;
 
     try {

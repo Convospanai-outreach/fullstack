@@ -1,7 +1,7 @@
-# Chrome Web Store submission notes (1.2.1)
+# Chrome Web Store submission notes (1.2.2)
 
 Text for the store form when uploading `dist/CraftMyFunnel-extension.zip` (archive it as
-`CraftMyFunnel-extension-1.2.1.zip`). The store only accepts a real zip file (a tar archive renamed
+`CraftMyFunnel-extension-1.2.2.zip`). The store only accepts a real zip file (a tar archive renamed
 .zip is rejected), and its version must be higher than the last one uploaded. Check each answer against the build before submitting.
 Do not put the reviewer's test account in this file; it goes in the dashboard's "Test instructions".
 

@@ -1,9 +1,13 @@
 import {
   decodeLeadFormMarkerId,
+  LEAD_FORM_CONSENT_CHECKBOX_NAME,
+  LEAD_FORM_DATA_DELETION_PATH,
   LEAD_FORM_MARKER_CLASS,
   LEAD_FORM_MARKER_ID_PREFIX,
+  leadFormConsentRequired,
   parseLeadFormConfig,
   type LeadFormConfig,
+  type LeadFormConsent,
   type LeadFormField,
 } from "./leadFormConfig";
 
@@ -22,6 +26,8 @@ export interface LeadFormHtmlOptions {
   slug: string;
   // Creator funnel pages: the WhatsApp opt-in text, or null for none.
   whatsappOptIn?: string | null;
+  // The data-deletion page address as the page is served (the app passes /p/<slug>/data-deletion). Default: /<slug>/data-deletion.
+  deletionHref?: string;
 }
 
 export function escapeLeadFormHtml(value: string): string {
@@ -80,6 +86,22 @@ function renderField(field: LeadFormField): string {
   return `<input type="${field.type}" name="${name}" placeholder="${label}" aria-label="${label}"${required} />`;
 }
 
+// The consent box, unticked by default. Its links open in a new tab. The error line is filled in by the lead
+// script (Worker) or the React renderer when a required box is not ticked.
+function renderConsent(consent: LeadFormConsent, options: LeadFormHtmlOptions): string {
+  const text = escapeLeadFormHtml(consent.text);
+  const privacy = consent.privacyUrl
+    ? `<a href="${escapeLeadFormHtml(consent.privacyUrl)}" target="_blank" rel="noopener noreferrer">Privacy policy</a> `
+    : "";
+  const deletion = escapeLeadFormHtml(consent.deletionUrl || options.deletionHref || `/${options.slug}/${LEAD_FORM_DATA_DELETION_PATH}`);
+  const required = leadFormConsentRequired(consent) ? ` aria-required="true"` : "";
+  return `
+        <div class="la-consent" style="display:grid;gap:6px;font-size:14px">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px"><input type="checkbox" name="${LEAD_FORM_CONSENT_CHECKBOX_NAME}" aria-label="${text}"${required} aria-describedby="la-consent-error" style="margin-top:3px" /><span>${text} ${privacy}<a href="${deletion}" target="_blank" rel="noopener noreferrer">Data deletion</a></span></label>
+        <p id="la-consent-error" role="alert" style="color:#e11d48;font-size:14px;margin:0"></p>
+        </div>`;
+}
+
 // Returns "" for an invalid config, so a bad marker renders nothing.
 export function buildLeadFormHtml(config: LeadFormConfig, options: LeadFormHtmlOptions, anchor = true): string {
   const valid = parseLeadFormConfig(config);
@@ -90,11 +112,12 @@ export function buildLeadFormHtml(config: LeadFormConfig, options: LeadFormHtmlO
   const whatsapp = options.whatsappOptIn && hasPhone
     ? `<label style="display:flex;gap:8px;align-items:flex-start;font-size:14px"><input type="checkbox" name="whatsappConsent" aria-label="${escapeLeadFormHtml(options.whatsappOptIn)}" style="margin-top:3px" />${escapeLeadFormHtml(options.whatsappOptIn)}</label>`
     : "";
+  const consent = valid.consent?.enabled ? renderConsent(valid.consent, options) : "";
   return `
 <section class="la-section" style="max-width:640px;margin:40px auto">
     ${anchor ? `<span id="lead-form"></span>` : ""}
     <form id="la-lead-form" data-cmf-form="1"${redirect} action="/${escapeLeadFormHtml(options.slug)}/lead" method="post" style="display:grid;gap:12px;margin-top:16px">
-        ${valid.fields.map(renderField).join("\n        ")}${whatsapp}
+        ${valid.fields.map(renderField).join("\n        ")}${whatsapp}${consent}
         <input type="text" name="website" tabindex="-1" autocomplete="off" style="display:none" />
         <button type="submit" class="la-cta">${escapeLeadFormHtml(valid.buttonLabel)}</button>
     </form>

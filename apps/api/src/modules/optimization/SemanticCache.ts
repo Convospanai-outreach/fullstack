@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { createHash } from "crypto";
 import { LRUCache } from "lru-cache";
+import { toVectorLiteral } from "@/lib/ai/vectorLiteral";
 
 export class SemanticCache {
     private readonly SIMILARITY_THRESHOLD = 0.95;
@@ -60,7 +61,7 @@ export class SemanticCache {
             const embedding = await aiService.getEmbeddings(prompt);
             if (!embedding || embedding.length === 0) return null;
 
-            const embeddingSql = `[${embedding.join(",")}]`;
+            const embeddingSql = toVectorLiteral(embedding);
 
             // Using raw query for vector similarity
             const results: any[] = await prisma.$queryRawUnsafe(
@@ -94,7 +95,7 @@ export class SemanticCache {
             this.lru.set(prompt, response);
             const promptHash = this.hashPrompt(prompt);
             const embedding = await aiService.getEmbeddings(prompt);
-            const embeddingSql = `[${embedding.join(",")}]`;
+            const embeddingSql = toVectorLiteral(embedding);
 
             // Using executeRaw to insert vector data
             await prisma.$executeRawUnsafe(

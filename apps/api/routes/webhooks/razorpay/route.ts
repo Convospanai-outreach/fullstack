@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { logWebhookRejected } from "@/lib/webhookRejection";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
@@ -6,6 +7,29 @@ import type { TransactionClient } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
 import { computeGstInclusive } from "@/lib/gst";
 import { OutboxService } from "@/lib/outboxService";
+import { MONTHLY_PERIOD_DAYS, YEARLY_PERIOD_DAYS } from "@/modules/billing/service/yearlyCredits";
+
+// Order notes are written server-side at checkout, but they reach the database layer through this
+// webhook, so their shape is checked before any branch uses them. Ids are restricted to a safe
+// character set rather than UUID-only because the checkout-order flow and older orders carry notes
+// without teamId/userId, and plan ids are not guaranteed to be UUIDs.
+const NoteId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+const NoteNumber = z.union([z.string().max(32), z.number()]);
+const WebhookNotesSchema = z.object({
+    teamId: NoteId.optional(),
+    userId: NoteId.optional(),
+    planId: NoteId.optional(),
+    checkoutOrderId: NoteId.optional(),
+    credits: z.coerce.number().int().positive().max(1_000_000).optional(),
+    type: z.string().max(32).optional(),
+    interval: z.string().max(16).optional(),
+    country: z.string().max(3).optional(),
+    state: z.string().max(100).optional(),
+    taxableValue: NoteNumber.nullable().optional(),
+    taxAmount: NoteNumber.nullable().optional(),
+    taxType: z.string().max(10).optional(),
+    taxRate: NoteNumber.nullable().optional(),
+});
 
 // GST is normally computed and added on top of the price at order-creation
 // time (checkout/topup), then snapshotted into the order notes so the
@@ -105,7 +129,15 @@ export async function POST(req: Request) {
 
         if (event === "payment.captured") {
             const payment = payload.payment.entity;
-            const notes = payment.notes ?? {};
+            // Razorpay sends notes as an empty array, not an object, when a payment has none.
+            const rawNotes = Array.isArray(payment.notes) && payment.notes.length === 0 ? {} : payment.notes ?? {};
+            const notesParsed = WebhookNotesSchema.safeParse(rawNotes);
+            if (!notesParsed.success) {
+                // Acknowledge so Razorpay stops retrying a body that will never parse, but leave a trace.
+                console.error("razorpay_webhook_invalid_notes", { paymentId: payment.id, errors: notesParsed.error.flatten() });
+                return NextResponse.json({ status: "ok" });
+            }
+            const notes = notesParsed.data;
 
             // Route (funnel checkout) orders are a separate flow from the platform's
             // own credit-grant/subscription billing below - they never create a
@@ -182,6 +214,8 @@ export async function POST(req: Request) {
             }
 
             if (notes.teamId) {
+                // Re-bind so teamId stays a string inside the transaction callbacks below.
+                const notes = { ...notesParsed.data, teamId: notesParsed.data.teamId! };
                 // Cheap early-exit for a known retry. Not the correctness guarantee
                 // by itself (two concurrent deliveries can both pass this read before
                 // either writes) - that comes from the unique constraints on
@@ -195,7 +229,7 @@ export async function POST(req: Request) {
 
                 if (!existing) {
                     if (notes.type === 'topup' && notes.credits) {
-                        const credits = parseInt(notes.credits);
+                        const credits = notes.credits;
                         if (credits > 0) {
                             const description = `${credits} credits top-up via Razorpay (ID: ${payment.id})`;
                             try {
@@ -249,9 +283,15 @@ export async function POST(req: Request) {
                             }
                         }
                     } else if (notes.planId && notes.userId) {
+                        const notes = { ...notesParsed.data, teamId: notesParsed.data.teamId!, userId: notesParsed.data.userId! };
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
                         if (plan) {
-                            const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
+                            // Order notes are set server-side at checkout. A yearly order is paid once for 12 months and
+                            // credited monthly (see yearlyCredits.ts); a missing interval, e.g. an order created before
+                            // yearly billing existed, is monthly.
+                            const yearly = notes.interval === "year";
+                            const periodDays = yearly ? YEARLY_PERIOD_DAYS : MONTHLY_PERIOD_DAYS;
+                            const description = `${plan.name} plan ${yearly ? "yearly " : ""}subscription via Razorpay (ID: ${payment.id})`;
                             try {
                                 // Same all-or-nothing transaction as the top-up branch,
                                 // covering the credit grant, the subscription extension, and
@@ -261,7 +301,8 @@ export async function POST(req: Request) {
                                 // read the same currentPeriodEnd and overwrite each other -
                                 // GREATEST(...)+30 days is computed by Postgres in a single
                                 // statement, so concurrent deliveries serialize on the row
-                                // instead of racing in application code.
+                                // instead of racing in application code. A yearly order adds a
+                                // year, credits the first month now and schedules the next one.
                                 await prisma.$transaction(async (tx) => {
                                     await addCredits(
                                         notes.teamId,
@@ -273,12 +314,15 @@ export async function POST(req: Request) {
                                     );
 
                                     const [subscription] = await tx.$queryRaw<{ id: string }[]>`
-                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", "createdAt", "updatedAt")
-                                        VALUES (gen_random_uuid(), ${notes.userId}, ${plan.id}, 'active', NOW() + INTERVAL '30 days', NOW(), NOW())
+                                        INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", "billingInterval", "nextCreditGrantAt", "teamId", "createdAt", "updatedAt")
+                                        VALUES (gen_random_uuid(), ${notes.userId}, ${plan.id}, 'active', NOW() + ${periodDays}::int * INTERVAL '1 day', ${yearly ? "YEAR" : "MONTH"}, CASE WHEN ${yearly}::boolean THEN NOW() + ${MONTHLY_PERIOD_DAYS}::int * INTERVAL '1 day' ELSE NULL END, ${notes.teamId}, NOW(), NOW())
                                         ON CONFLICT ("userId") DO UPDATE SET
                                             "planId" = EXCLUDED."planId",
                                             status = 'active',
-                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + INTERVAL '30 days',
+                                            "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + ${periodDays}::int * INTERVAL '1 day',
+                                            "billingInterval" = EXCLUDED."billingInterval",
+                                            "nextCreditGrantAt" = EXCLUDED."nextCreditGrantAt",
+                                            "teamId" = EXCLUDED."teamId",
                                             "updatedAt" = NOW()
                                         RETURNING id
                                     `;

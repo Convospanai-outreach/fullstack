@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { computeAutoDenyAt, resolveApprovalTier } from "@/modules/governance/approvalPolicy";
+import { getBreakerState } from "@/modules/governance/breakerState";
 
 export type CampaignStartGate =
     | { allowed: true }
@@ -32,31 +33,39 @@ export async function checkCampaignStartApproval({
     });
     if (!policy?.requiresApprovalForCampaign) return { allowed: true };
 
-    const latest = await prisma.approvalRequest.findFirst({
-        where: { teamId, entityType: "Campaign", entityId: campaignId, actionType: ACTION_TYPE },
-        orderBy: { createdAt: "desc" },
-    });
-    if (latest?.status === "APPROVED") return { allowed: true };
-    if (latest?.status === "PENDING") {
-        return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: latest.id, message: PENDING_MESSAGE } };
-    }
-
+    // Two simultaneous starts must not each file a request: look and create under a lock held for
+    // this campaign until the transaction ends, so the second start sees the first one's request.
+    // Read before the transaction: it uses its own connection, and nesting it inside could starve the pool.
     const tier = resolveApprovalTier(ACTION_TYPE);
-    const created = await prisma.approvalRequest.create({
-        data: {
-            teamId,
-            requesterId: userId,
-            entityType: "Campaign",
-            entityId: campaignId,
-            actionType: ACTION_TYPE,
-            status: "PENDING",
-            tier,
-            autoDenyAt: computeAutoDenyAt(tier),
-            reason: "Campaign start requires approval under this team's policy",
-            payload: { campaignId },
-        },
+    const breakerState = await getBreakerState(teamId);
+    return prisma.$transaction(async (tx): Promise<CampaignStartGate> => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(7402, hashtext(${campaignId}))`;
+
+        const latest = await tx.approvalRequest.findFirst({
+            where: { teamId, entityType: "Campaign", entityId: campaignId, actionType: ACTION_TYPE },
+            orderBy: { createdAt: "desc" },
+        });
+        if (latest?.status === "APPROVED") return { allowed: true };
+        if (latest?.status === "PENDING") {
+            return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: latest.id, message: PENDING_MESSAGE } };
+        }
+
+        const created = await tx.approvalRequest.create({
+            data: {
+                teamId,
+                requesterId: userId,
+                entityType: "Campaign",
+                entityId: campaignId,
+                actionType: ACTION_TYPE,
+                status: "PENDING",
+                tier,
+                autoDenyAt: computeAutoDenyAt(tier, new Date(), breakerState !== "CLOSED"),
+                reason: "Campaign start requires approval under this team's policy",
+                payload: { campaignId },
+            },
+        });
+        return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: created.id, message: PENDING_MESSAGE } };
     });
-    return { allowed: false, status: 202, body: { status: "pending_approval", approvalId: created.id, message: PENDING_MESSAGE } };
 }
 
 // Team roles that hold Permission.RESOLVE_APPROVALS (see lib/permissions).

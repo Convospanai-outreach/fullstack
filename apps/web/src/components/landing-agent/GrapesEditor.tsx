@@ -17,10 +17,17 @@ import {
     type OverlayStrength,
 } from "@/components/landing-agent/heroImageBlock";
 import { imageAltWarnings, imageSourceMessage, type ImageAltWarning } from "@/components/landing-agent/imageSources";
+import { mobilePageWarnings, type MobileCheckWarning } from "@/components/landing-agent/mobileChecks";
 import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
 import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
 import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
 import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPanel";
+import InstagramSettingsPanel from "@/components/landing-agent/InstagramSettingsPanel";
+import { instagramFollowOfSelection } from "@/components/landing-agent/instagramFollow";
+import CopyHelperPanel from "@/components/landing-agent/CopyHelperPanel";
+import PageThemePanel from "@/components/landing-agent/PageThemePanel";
+import { themeFromRenderedJson, themeWrapper, type LandingTheme } from "@/modules/landing-agent/theme";
+import { applyCopyToComponent } from "@/components/landing-agent/copyPatterns";
 import {
     AUTOSAVE_INTERVAL_MS,
     EDITOR_BLOCKS,
@@ -29,6 +36,7 @@ import {
     EDITOR_STYLE_PROPERTIES,
     EDITOR_TRAIT_NAMES,
     applyEditorLinkHref,
+    CANVAS_ONLY_CSS,
     canvasBaseCss,
     filterEditorStyle,
     shouldAutosave,
@@ -49,8 +57,12 @@ interface Props {
 type DeviceName = (typeof EDITOR_DEVICES)[number]["name"];
 type RenderedPage = { html: string; css: string };
 
-function buildPreviewDoc(html: string, css: string): string {
-    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="la-page">${html}</body></html>`;
+// The preview document carries the page theme the same way the published page does (class and variables on body).
+function buildPreviewDoc(html: string, css: string, theme: LandingTheme | null): string {
+    const wrapper = themeWrapper(theme);
+    const vars = Object.entries(wrapper.vars).map(([key, value]) => `${key}:${value}`).join(";").replace(/"/g, "&quot;");
+    const style = vars ? ` style="${vars}"` : "";
+    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="${wrapper.className}"${style}>${html}</body></html>`;
 }
 
 function toGrapesStyleProperty(prop: EditorStyleProperty) {
@@ -78,9 +90,33 @@ function cleanComponentStyles(editor: Editor) {
     }
 }
 
-function readRendered(editor: Editor): RenderedPage {
+function readRendered(editor: Editor, theme: LandingTheme | null): RenderedPage & { theme?: LandingTheme } {
     cleanComponentStyles(editor);
-    return { html: editor.getHtml(), css: withLandingBaseCss(editor.getCss() || "") };
+    const rendered: RenderedPage & { theme?: LandingTheme } = { html: editor.getHtml(), css: withLandingBaseCss(editor.getCss() || "") };
+    if (theme) rendered.theme = theme;
+    return rendered;
+}
+
+// The canvas body gets the same class and variables as the published page. The wrapper keeps the class
+// too, so GrapesJS does not drop it when it re-renders the body.
+function applyThemeToCanvas(editor: Editor | null, theme: LandingTheme | null) {
+    if (!editor) return;
+    const wrapper = themeWrapper(theme);
+    editor.getWrapper()?.addAttributes({ class: wrapper.className });
+    const body = editor.Canvas.getDocument()?.body;
+    if (!body) return;
+    // Only the theme's own classes and variables change; GrapesJS keeps its own body classes and styles.
+    for (const name of Array.from(body.classList)) {
+        if (name === "la-page" || name.startsWith("la-theme-")) body.classList.remove(name);
+    }
+    body.classList.add(...wrapper.className.split(" "));
+    for (let i = body.style.length - 1; i >= 0; i--) {
+        const prop = body.style.item(i);
+        if (prop.startsWith("--la-")) body.style.removeProperty(prop);
+    }
+    for (const [key, value] of Object.entries(wrapper.vars)) {
+        body.style.setProperty(key, value);
+    }
 }
 
 // The link trait writes href only for safe values (see isSafeEditorLink).
@@ -106,11 +142,13 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     // the prop, and remounting on each refresh would wipe undo history and selection.
     const initialRef = useRef(initialRenderedJson);
     const onSaveRef = useRef(onSave);
-    const pageStatusRef = useRef(pageStatus);
     const pageTitleRef = useRef(title || "Landing Page");
     const savedSnapshotRef = useRef("");
     const dirtyRef = useRef(false);
     const savingRef = useRef(false);
+    // Sizes of images uploaded in this editor session (url -> bytes). Other images are not measured.
+    const uploadedImageBytesRef = useRef<Record<string, number>>({});
+    const themeRef = useRef<LandingTheme | null>(themeFromRenderedJson(initialRenderedJson));
 
     const [loadingEditor, setLoadingEditor] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -126,6 +164,16 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [canRedo, setCanRedo] = useState(false);
     const [isEmpty, setIsEmpty] = useState(false);
     const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
+    const [mobileWarnings, setMobileWarnings] = useState<MobileCheckWarning[]>([]);
+    const [theme, setTheme] = useState<LandingTheme | null>(() => themeFromRenderedJson(initialRenderedJson));
+
+    // Theme changes reach the canvas at once; the next save stores them with the page.
+    function applyTheme(next: LandingTheme | null) {
+        themeRef.current = next;
+        setTheme(next);
+        applyThemeToCanvas(editorRef.current, next);
+        refreshRef.current?.();
+    }
     const [imageSrc, setImageSrc] = useState("");
     const [imageAlt, setImageAlt] = useState("");
     const [imageLayout, setImageLayout] = useState<HeroImageLayout>("background");
@@ -135,6 +183,15 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     const [imageError, setImageError] = useState<string | null>(null);
     const [leadForm, setLeadForm] = useState<{ key: number; config: LeadFormConfig | null } | null>(null);
     const leadFormComponentRef = useRef<Component | null>(null);
+    const [instagram, setInstagram] = useState<{ key: number } | null>(null);
+    const instagramComponentRef = useRef<Component | null>(null);
+
+    function applyInstagramHref(href: string) {
+        const component = instagramComponentRef.current;
+        if (!component) return;
+        component.addAttributes({ href });
+        refreshRef.current?.();
+    }
 
     function applyLeadForm(config: LeadFormConfig) {
         const component = leadFormComponentRef.current;
@@ -151,10 +208,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
     }, [onSave]);
 
     useEffect(() => {
-        pageStatusRef.current = pageStatus;
-    }, [pageStatus]);
-
-    useEffect(() => {
         let active = true;
         let previewTimer: ReturnType<typeof setTimeout> | null = null;
         let autosaveTimer: ReturnType<typeof setInterval> | null = null;
@@ -162,9 +215,9 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
         function refresh() {
             if (!editor || !active) return;
-            const rendered = readRendered(editor);
+            const rendered = readRendered(editor, themeRef.current);
             const payload = getLandingRenderPayload(rendered);
-            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css));
+            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css, themeRef.current));
             const nowDirty = JSON.stringify(rendered) !== savedSnapshotRef.current;
             dirtyRef.current = nowDirty;
             setDirty(nowDirty);
@@ -172,6 +225,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             setCanRedo(editor.UndoManager.hasRedo());
             setIsEmpty(editor.getWrapper()?.components().length === 0);
             setAltWarnings(imageAltWarnings(rendered.html));
+            setMobileWarnings(mobilePageWarnings({ html: payload.html, css: payload.css, imageBytes: uploadedImageBytesRef.current }));
         }
         refreshRef.current = refresh;
 
@@ -181,7 +235,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
             setSaving(true);
             setError(null);
             try {
-                const rendered = readRendered(editor);
+                const rendered = readRendered(editor, themeRef.current);
                 await onSaveRef.current({
                     title: pageTitleRef.current,
                     editorState: { components: editor.getComponents()?.toJSON?.() || null },
@@ -210,7 +264,6 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
         autosaveTimer = setInterval(() => {
             const shouldSave = shouldAutosave({
-                status: pageStatusRef.current ?? "",
                 dirty: dirtyRef.current,
                 saving: savingRef.current,
             });
@@ -267,20 +320,27 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 const selection = leadFormOfSelection({ id: String(component.getAttributes()["id"] ?? ""), classes });
                 leadFormComponentRef.current = selection ? component : null;
                 setLeadForm(selection ? { key: Date.now(), config: selection.config } : null);
+                const isInstagram = instagramFollowOfSelection(classes);
+                // The follow link is set only from a valid handle in the Instagram panel, never typed into the link trait.
+                if (isInstagram) component.removeTrait("href");
+                instagramComponentRef.current = isInstagram ? component : null;
+                setInstagram(isInstagram ? { key: Date.now() } : null);
             });
             created.on("component:deselected", () => {
                 leadFormComponentRef.current = null;
                 setLeadForm(null);
+                instagramComponentRef.current = null;
+                setInstagram(null);
             });
 
             created.onReady(() => {
                 if (!active) return;
-                created.getWrapper()?.addAttributes({ class: "la-page" });
+                applyThemeToCanvas(created, themeRef.current);
                 const frameDoc = created.Canvas.getDocument();
                 if (frameDoc) {
                     const base = frameDoc.createElement("style");
                     base.setAttribute("data-landing-base", "");
-                    base.textContent = canvasBaseCss();
+                    base.textContent = canvasBaseCss() + CANVAS_ONLY_CSS;
                     frameDoc.head.appendChild(base);
                     const leadFormStyle = frameDoc.createElement("style");
                     leadFormStyle.textContent = LEAD_FORM_CANVAS_CSS;
@@ -289,7 +349,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                 const initial = getLandingRenderPayload(initialRef.current);
                 created.setComponents(initial.html);
                 created.setStyle(userCssFromSaved(initial.css));
-                savedSnapshotRef.current = JSON.stringify(readRendered(created));
+                savedSnapshotRef.current = JSON.stringify(readRendered(created, themeRef.current));
                 setLoadingEditor(false);
                 refresh();
                 created.on("update", () => {
@@ -383,6 +443,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         setImageError(null);
         try {
             const { url } = await landingAgentApi.uploadImage(file);
+            uploadedImageBytesRef.current[url] = file.size;
             setImageSrc(url);
             setImageNote("Uploaded to your landing images.");
         } catch (err: any) {
@@ -407,6 +468,13 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         setImageNote("Built-in image.");
     }
 
+    // Writes a helper pattern into the selected text block. False when no text block is selected.
+    function handleUseCopy(text: string): boolean {
+        const applied = applyCopyToComponent(editorRef.current?.getSelected(), text);
+        if (applied) refreshRef.current?.();
+        return applied;
+    }
+
     function handleAddImage() {
         const html = buildHeroImageHtml({ layout: imageLayout, src: imageSrc, alt: imageAlt, focal: imageFocal, darken: imageDarken });
         if (!html) {
@@ -421,7 +489,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
         ? "Saving..."
         : dirty
           ? isPublished
-              ? "Unsaved changes. Publish to update the live page."
+              ? "Unsaved changes. Saves a draft every 10 seconds. Publish to update the live page."
               : "Unsaved changes. Saves automatically every 10 seconds."
           : "All changes saved";
 
@@ -493,6 +561,7 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Blocks</p>
                         <div ref={blocksRef} />
                     </div>
+                    <CopyHelperPanel onUse={handleUseCopy} />
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Images</p>
                         <label className="block text-xs text-slate-300">
@@ -620,6 +689,10 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
                 <div className="space-y-4">
                     <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Page theme</p>
+                        <PageThemePanel theme={theme} onChange={applyTheme} />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Style</p>
                         <div ref={stylesRef} />
                     </div>
@@ -631,6 +704,12 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
                             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lead form</p>
                             <LeadFormSettingsPanel key={leadForm.key} config={leadForm.config} onApply={applyLeadForm} />
+                        </div>
+                    ) : null}
+                    {instagram ? (
+                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Instagram follow</p>
+                            <InstagramSettingsPanel key={instagram.key} onApply={applyInstagramHref} />
                         </div>
                     ) : null}
                     <div className="hidden" ref={selectorsRef} />
@@ -655,6 +734,20 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         </Button>
                     </div>
                 </div>
+                {previewWidth === "mobile" ? (
+                    <div className="rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 space-y-1 text-sm text-amber-200">
+                        <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Phone checks (suggestions, not blocking)</p>
+                        {mobileWarnings.length === 0 ? (
+                            <p className="text-xs">No phone warnings for this page.</p>
+                        ) : (
+                            <ul className="list-disc pl-5 text-xs">
+                                {mobileWarnings.map((warning) => (
+                                    <li key={warning.kind}>{warning.message}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                ) : null}
                 <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
                     <iframe
                         title="Landing page preview"

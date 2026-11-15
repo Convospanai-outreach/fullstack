@@ -47,6 +47,10 @@ export default function ContactPage() {
                 throw new Error(message);
             }
 
+            if (data?.delivery === "queued" || data?.status === "queued") {
+                throw new Error("Your message could not be delivered. Please email contact.us@craftmyfunnel.live.");
+            }
+
             // Fire standard GA4 Lead Conversion Event
             trackCustomEvent("generate_lead", {
                 currency: "USD",
@@ -70,7 +74,7 @@ export default function ContactPage() {
 
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
+        <div className="relative min-h-screen bg-slate-950 text-white overflow-hidden">
             {/* Background */}
             <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />

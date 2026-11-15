@@ -18,6 +18,7 @@ import {
 } from './lib/markdownNegotiator';
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER, getBaseSiteUrl } from './lib/apiCatalog';
 import { isValidInternalRelay } from './lib/internalRelay';
+import { mcpAdmissionGrant } from './lib/mcpAdmission';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
 import {
@@ -256,9 +257,13 @@ async function appProxy(req: NextRequest) {
         && (await isValidInternalRelay(req, process.env['NEXTAUTH_SECRET'] || ''));
     if (path.startsWith("/api") && !isInternalRelay) {
         let rateLimitResponse: NextResponse | null = null;
+        const mcpGrant = path === '/api/mcp/execute' ? await mcpAdmissionGrant(req) : null;
 
         // 1. Passive session-check endpoints (polled far more often than real sign-ins)
-        if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
+        if (mcpGrant) {
+            rateLimitResponse = await applyRateLimit(req, { windowMs: 60_000, maxRequests: 60 }, 'mcp-relay', `mcp:${mcpGrant}`);
+        }
+        else if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
         }
         // 2. NextAuth's own OAuth round-trip endpoints - not brute-forceable
@@ -372,6 +377,8 @@ async function appProxy(req: NextRequest) {
 
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
+        // This exact route verifies a one-use signed API capability itself.
+        (path === "/api/mcp/execute" && req.method === "POST") || path === "/mcp/connect" ||
         path.startsWith("/p/") ||
         authApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         cleanPath.startsWith("/_next") ||
@@ -508,12 +515,18 @@ async function appProxy(req: NextRequest) {
         supabaseStorageOrigin = '';
     }
 
+    // PostHog's browser snippet loads its script from the assets host and sends events to the
+    // API host (the US cloud, matching NEXT_PUBLIC_POSTHOG_HOST). Without these origins the
+    // browser blocks both, so consented visitors produce no events.
+    const posthogScriptOrigin = 'https://us-assets.i.posthog.com';
+    const posthogApiOrigin = 'https://us.i.posthog.com';
+
     const cspValues = [
         "default-src 'self'",
         // Scripts: Allow self, Google Auth, Razorpay, Cloudflare Turnstile, Google Tag
-        // Manager/Analytics, and Cloudflare's own Web Analytics beacon (auto-injected by
-        // the Cloudflare proxy in front of this site)
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com",
+        // Manager/Analytics, PostHog's script host, and Cloudflare's own Web Analytics beacon
+        // (auto-injected by the Cloudflare proxy in front of this site)
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com ${posthogScriptOrigin}`,
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         // Images: Allow self, Google placeholders, and data URLs for icons
@@ -523,7 +536,7 @@ async function appProxy(req: NextRequest) {
         // Connect: Self, Analytics, Razorpay, Sentry ingest, plus Sovereign AI nodes. No
         // wss://* wildcard: nothing in apps/web opens a WebSocket since the Socket.IO
         // server was removed (OPEN-282); an edge node is allowed by its own origin above.
-        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com ${edgeNodeUri} ${onPremAI} ${publicApiOrigin} ${sentryIngestOrigin}`,
+        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com ${posthogApiOrigin} ${posthogScriptOrigin} ${edgeNodeUri} ${onPremAI} ${publicApiOrigin} ${sentryIngestOrigin}`,
         // Frames: Google Auth, Razorpay & Cloudflare Turnstile
         "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com",
         // Media/Workers: Stricter constraints
@@ -539,6 +552,13 @@ async function appProxy(req: NextRequest) {
         cspValues[1] += " https://unpkg.com";
         cspValues[3] += " https://*.githubusercontent.com";
         cspValues[5] += " https://api.github.com";
+    }
+
+    // The WhatsApp page can open Meta's Embedded Signup popup, which loads Meta's SDK and talks to Meta.
+    if (cleanPath === "/whatsapp" || cleanPath.startsWith("/whatsapp/")) {
+        cspValues[1] += " https://connect.facebook.net";
+        cspValues[5] += " https://graph.facebook.com https://www.facebook.com";
+        cspValues[6] += " https://www.facebook.com https://web.facebook.com";
     }
 
     if (process.env['NODE_ENV'] === 'production') {
@@ -567,7 +587,7 @@ async function appProxy(req: NextRequest) {
         const strictValues = [...cspValues];
         // 'strict-dynamic' trusts scripts loaded by nonce-bearing scripts, so modern browsers
         // ignore the host list; it stays as the fallback for CSP2-only browsers.
-        strictValues[1] = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com`
+        strictValues[1] = `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com ${posthogScriptOrigin}`
             + (process.env['NODE_ENV'] !== 'production' ? " 'unsafe-eval' localhost:* 127.0.0.1:*" : '');
         const reportUri = sentryCspReportUri(sentryDsn);
         if (reportUri) strictValues.push(`report-uri ${reportUri}`);

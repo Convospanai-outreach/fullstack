@@ -25,7 +25,7 @@ export function serializeTabularData(data: unknown): string {
                 const record = item as Record<string, unknown>;
                 const values = keys.map((key) => {
                     const value = record[key];
-                    return typeof value === "string" ? `"${value}"` : String(value);
+                    return typeof value === "string" ? `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"` : String(value);
                 });
                 return `(${values.join(",")})`;
             });

@@ -5,10 +5,14 @@ const { mockPrisma } = vi.hoisted(() => ({
         organizationPolicy: { findUnique: vi.fn() },
         approvalRequest: { findFirst: vi.fn(), create: vi.fn() },
         teamMember: { count: vi.fn() },
+        $executeRaw: vi.fn(),
+        $transaction: vi.fn(),
     },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const { mockBreakerState } = vi.hoisted(() => ({ mockBreakerState: vi.fn() }));
+vi.mock("@/modules/governance/breakerState", () => ({ getBreakerState: mockBreakerState }));
 
 import { checkCampaignStartApproval, isBlockedSelfApproval } from "./campaignStartApproval";
 
@@ -20,6 +24,20 @@ describe("checkCampaignStartApproval", () => {
         mockPrisma.organizationPolicy.findUnique.mockResolvedValue({ requiresApprovalForCampaign: true });
         mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
         mockPrisma.approvalRequest.create.mockResolvedValue({ id: "new-approval" });
+        mockBreakerState.mockResolvedValue("CLOSED");
+        mockPrisma.$executeRaw.mockResolvedValue(1);
+        mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma));
+    });
+
+    it("takes a per-campaign lock before looking for an existing request, so two starts cannot both file one", async () => {
+        const order: string[] = [];
+        mockPrisma.$executeRaw.mockImplementation(async () => { order.push("lock"); return 1; });
+        mockPrisma.approvalRequest.findFirst.mockImplementation(async () => { order.push("find"); return null; });
+        mockPrisma.approvalRequest.create.mockImplementation(async () => { order.push("create"); return { id: "new-approval" }; });
+
+        await checkCampaignStartApproval(args);
+
+        expect(order).toEqual(["lock", "find", "create"]);
     });
 
     it("allows the start when the team has no policy row", async () => {
@@ -70,6 +88,20 @@ describe("checkCampaignStartApproval", () => {
                 status: "PENDING",
             }),
         });
+    });
+
+    it("gives the request the extended timeout window while the breaker is not closed", async () => {
+        const hours = async (state: string) => {
+            mockBreakerState.mockResolvedValue(state);
+            mockPrisma.approvalRequest.create.mockClear();
+            await checkCampaignStartApproval(args);
+            const { autoDenyAt } = mockPrisma.approvalRequest.create.mock.calls[0][0].data;
+            return Math.round((autoDenyAt.getTime() - Date.now()) / 3_600_000);
+        };
+
+        expect(await hours("CLOSED")).toBe(24);
+        expect(await hours("OPEN")).toBe(72);
+        expect(await hours("HALF_OPEN")).toBe(72);
     });
 
     it.each(["REJECTED"])("files a fresh request after the previous one was %s, so a denial is not permanent", async (status) => {
