@@ -79,7 +79,10 @@ const percent = (p: number) => `${Math.round(p * 100)}%`;
 // --- Reply classification (Action Inbox suggestions) ---
 
 export const REPLY_CLASSIFICATIONS = ["INTERESTED", "NOT_INTERESTED", "OOO", "QUESTION", "DNC"] as const;
-export type ReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+// What Jev can answer. UNSURE is not an answer: it is stored when the reply could not be read
+// at all, so a person looks at it (see flagUnreadableReply).
+export type ModelReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+export type ReplyClassification = ModelReplyClassification | "UNSURE";
 
 const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_interested: "NOT_INTERESTED" } as const;
 
@@ -88,7 +91,7 @@ const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_in
  * A request to stop wins over everything, then an automatic away message, then the sender's
  * response to the offer. `confidence` is the probability of the label returned.
  */
-export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ReplyClassification; confidence: number; reasoning: string }> {
+export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ModelReplyClassification; confidence: number; reasoning: string }> {
     // A clear request to stop, or an automatic message, is settled by plain phrase and header
     // checks first: they hold when Jev is down and cost nothing. Everything else goes to Jev.
     const plain = readOptOut({ subject: reply.subject, body: reply.body });

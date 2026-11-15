@@ -58,6 +58,7 @@ describe("judgeStalledEnrollments", () => {
         ["INTERESTED", "ROUTE_MANUAL"],
         ["QUESTION", "ROUTE_MANUAL"],
         ["OOO", "RESEND_STEP"],
+        ["UNSURE", "ROUTE_MANUAL"],
     ])("a latest reply classified %s gives %s, even when WhatsApp is available", (replyClassification, nudgeType) => {
         expect(judge({ replied: true, replyClassification, whatsappEligible: true }).nudgeType).toBe(nudgeType);
     });
