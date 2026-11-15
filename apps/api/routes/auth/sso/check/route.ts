@@ -35,7 +35,9 @@ export async function GET(req: Request) {
             });
         }
 
-        return NextResponse.json({ sso: true, provider: "OIDC", teamId: ssoConfig.teamId });
+        // Unauthenticated endpoint: say only what the login page needs. The web sign-in route
+        // finds the team itself from the email, so the internal teamId is never handed out.
+        return NextResponse.json({ sso: true, provider: "OIDC" });
     } catch (error) {
         console.error("[SSO Check API] error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

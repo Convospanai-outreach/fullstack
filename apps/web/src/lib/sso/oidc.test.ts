@@ -10,7 +10,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { resolveOidcSsoForTeam, isOidcSignInAllowed, isSsoEnforcedForEmail } from "./oidc";
+import { resolveOidcSsoForTeam, resolveOidcSsoForEmail, isOidcSignInAllowed, isSsoEnforcedForEmail } from "./oidc";
 
 describe("resolveOidcSsoForTeam", () => {
     beforeEach(() => vi.clearAllMocks());
@@ -56,6 +56,33 @@ describe("resolveOidcSsoForTeam", () => {
         expect(resolved?.allowedDomains).toEqual(["enterprise.com"]);
         expect(resolved?.provider.id).toBe("oidc");
         expect(resolved?.provider.allowDangerousEmailAccountLinking).toBe(true);
+    });
+});
+
+describe("resolveOidcSsoForEmail", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("is null for an email with no domain, without touching the database", async () => {
+        expect(await resolveOidcSsoForEmail("nobody")).toBeNull();
+        expect(mockPrisma.ssoConfiguration.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("is null when no OIDC configuration allows the domain", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue(null);
+        expect(await resolveOidcSsoForEmail("a@nowhere.com")).toBeNull();
+    });
+
+    it("looks the domain up lowercased and resolves that team's provider", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({ teamId: "team-1" });
+        mockPrisma.ssoConfiguration.findUnique.mockResolvedValue({
+            teamId: "team-1", providerType: "OIDC", clientId: "cid", wellKnownUrl: "https://idp/.well-known",
+            clientSecret: null, allowedDomains: ["enterprise.com"],
+        });
+        await resolveOidcSsoForEmail("A@Enterprise.COM");
+        expect(mockPrisma.ssoConfiguration.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { allowedDomains: { has: "enterprise.com" }, providerType: "OIDC" } }),
+        );
+        expect(mockPrisma.ssoConfiguration.findUnique).toHaveBeenCalledWith({ where: { teamId: "team-1" } });
     });
 });
 
