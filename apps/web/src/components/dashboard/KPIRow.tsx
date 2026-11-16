@@ -1,8 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 interface KPIData {
   meetingsBooked: number;
@@ -14,50 +12,25 @@ interface KPIData {
   openRateDelta: number;
 }
 
-const transitionCurve = { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.8 } as const;
-
-function DeltaBadge({ value, unit = '' }: { value: number; unit?: string }) {
-  // The summary API does not yet compute a period-over-period baseline, so a zero
-  // delta means "nothing to compare", not a real 0 change. Show nothing rather than
-  // repeating the headline number under itself.
-  if (value === 0) return null;
-  const isPos = value > 0;
-  return (
-    <div className={cn(
-      "inline-flex items-center gap-1.5 border-[0.5px] px-1.5 py-0.5",
-      isPos ? "border-success/30 text-success bg-success/5" : "border-destructive/30 text-destructive bg-destructive/5"
-    )}>
-      <span className="font-mono text-[8px] uppercase tracking-[0.2em]">{isPos ? 'POS' : 'NEG'}</span>
-      <span className="font-mono text-[10px]">{Math.abs(value)}{unit}</span>
-    </div>
-  );
-}
-
-function SkeletonBlock() {
-  return (
-    <div className="relative h-32 border-[0.5px] border-border bg-muted overflow-hidden group">
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/[0.05] to-transparent -translate-x-full animate-[shimmer_1.5s_infinite] transition-all" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }} />
-    </div>
-  );
-}
-
 interface KPIRowProps {
   data: KPIData | null;
   loading?: boolean;
   error?: boolean;
 }
 
+const strip = "grid grid-cols-2 lg:grid-cols-4 gap-x-6 border-y border-border mb-6";
+
+// Home's four numbers. A metric with nothing behind it yet shows what will fill it and
+// the next step, instead of a bare 0.
 export function KPIRow({ data, loading, error }: KPIRowProps) {
   // An outage must not look like a fresh (all-zero) account: show an explicit
   // "unavailable" state that is distinct from both the loading shimmer and real
   // zero metrics.
   if (!loading && error) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border border-[0.5px] border-border mb-8 p-[1px]">
+      <div className={strip}>
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="relative h-32 border-[0.5px] border-destructive/30 bg-destructive/5 flex items-center justify-center">
-            <span className="text-destructive font-mono text-[9px] uppercase tracking-widest">Unavailable</span>
-          </div>
+          <div key={i} className="py-4 text-sm text-destructive">Unavailable</div>
         ))}
       </div>
     );
@@ -65,103 +38,82 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
 
   if (loading || !data) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border border-[0.5px] border-border mb-8 p-[1px]">
-        {[...Array(4)].map((_, i) => <SkeletonBlock key={i} />)}
+      <div className={strip}>
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="py-4">
+            <div className="h-3 w-24 rounded bg-muted animate-pulse mb-3" />
+            <div className="h-8 w-16 rounded bg-muted animate-pulse" />
+          </div>
+        ))}
       </div>
     );
   }
 
+  const hasLeads = data.activeLeads > 0;
   const kpis = [
     {
       id: "meetings",
-      label: "Meetings Secured",
-      tooltip: "Total qualified meetings booked across active campaigns",
-      value: data.meetingsBooked,
-      renderDelta: () => <DeltaBadge value={data.meetingsDelta} />,
-      isPrimary: true
+      label: "Meetings booked",
+      value: data.meetingsBooked > 0 ? String(data.meetingsBooked) : null,
+      note: null,
+      blank: "Your first booked meeting shows up here.",
+      href: "/calendar",
+      cta: null,
     },
     {
       id: "leads",
-      label: "Active Pipeline",
-      tooltip: "Leads currently in active outreach sequences",
-      value: data.activeLeads,
-      href: "/leads",
-      renderDelta: () => <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">In outreach</span>
+      label: "Leads in outreach",
+      value: hasLeads ? String(data.activeLeads) : null,
+      note: null,
+      blank: "No leads yet.",
+      href: hasLeads ? "/leads" : "/leads/import",
+      cta: "Import leads",
     },
     {
       id: "drafts",
-      label: "Drafts Queued",
-      tooltip: "Total AI-generated drafts in review pipeline across campaigns",
-      value: data.draftsReady,
-      href: "/inbox?tab=approvals",
-      renderDelta: () => (
-        data.draftsPendingSend > 0
-          ? <span className="text-warning font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-warning/20 px-1.5 bg-warning/5">Needs approval</span>
-          : <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">Nothing waiting</span>
-      )
+      label: "Drafts waiting",
+      value: data.draftsReady > 0 ? String(data.draftsReady) : null,
+      note: data.draftsPendingSend > 0 ? "Needs your approval" : null,
+      blank: hasLeads ? "Nothing to approve yet." : "Drafts come after you add leads.",
+      href: data.draftsReady > 0 ? "/inbox?tab=approvals" : "/campaigns/new",
+      cta: hasLeads ? "Start a campaign" : null,
     },
     {
       id: "open_rate",
-      label: "Signals captured",
-      tooltip: "Engagement and reply rate performance across outreach",
-      value: `${data.openRatePct}%`,
+      label: "Engagement rate",
+      value: data.openRatePct > 0 ? `${data.openRatePct}%` : null,
+      note: "Opens, clicks and replies per email sent",
+      blank: "Shows after your first emails go out.",
       href: "/analytics/roi",
-      renderDelta: () => <DeltaBadge value={data.openRateDelta} unit="%" />
-    }
+      cta: null,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border border-[0.5px] border-border mb-8 p-[1px]">
-      {kpis.map((kpi, idx) => {
-        const Wrapper = kpi.href ? Link : "div";
-        const wrapperProps = kpi.href ? { href: kpi.href } : {};
-        return (
-        <motion.div
-          key={kpi.id}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transitionCurve, delay: idx * 0.08 }}
-        >
-          <Wrapper
-            {...(wrapperProps as any)}
-            className={cn(
-              "relative flex flex-col justify-between p-5 bg-card overflow-hidden group hover:bg-accent/40 transition-colors duration-500 ease-out h-full",
-              kpi.href ? "cursor-pointer" : ""
-            )}
-          >
-          {kpi.isPrimary && (
-            <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          )}
-
-          <div className="flex items-start justify-between">
-            <h3 title={kpi.tooltip} className="text-[9px] text-muted-foreground uppercase tracking-[0.25em] font-medium cursor-help hover:text-foreground transition-colors">
-              {kpi.label}
-            </h3>
-            {kpi.href && (
-              <span className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">›</span>
-            )}
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3">
-            <motion.div
-              initial={{ scale: 0.95, filter: 'blur(4px)' }}
-              animate={{ scale: 1, filter: 'blur(0px)' }}
-              transition={{ ...transitionCurve, delay: (idx * 0.08) + 0.1 }}
-              className={cn(
-                "text-4xl lg:text-5xl font-light tracking-tighter leading-none font-mono",
-                kpi.isPrimary ? "text-primary" : "text-foreground"
+    <div className={strip}>
+      {kpis.map((kpi) => (
+        <div key={kpi.id} className="py-4">
+          <p className="text-sm text-muted-foreground mb-1">{kpi.label}</p>
+          {kpi.value ? (
+            <>
+              <Link href={kpi.href} className="block text-3xl font-medium tracking-tight text-foreground hover:text-primary">
+                {kpi.value}
+              </Link>
+              {kpi.note && <p className="mt-1 text-xs text-muted-foreground">{kpi.note}</p>}
+            </>
+          ) : (
+            <p className="text-sm text-foreground">
+              {kpi.blank}
+              {kpi.cta && (
+                <>
+                  {" "}
+                  <Link href={kpi.href} className="font-medium text-primary hover:underline">{kpi.cta}</Link>
+                </>
               )}
-            >
-              {kpi.value}
-            </motion.div>
-            <div className="flex items-center min-h-[20px]">
-              {kpi.renderDelta()}
-            </div>
-          </div>
-          </Wrapper>
-        </motion.div>
-        );
-      })}
+            </p>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
