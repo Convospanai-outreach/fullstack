@@ -81,6 +81,7 @@ describe("GET /campaigns/[id]/governance", () => {
         expect((await (await call()).json()).data.capped).toBe(true);
     });
 
+it("flags a log cut by rows even when fewer than 200 requests were read", async () => {        const t = new Date("2026-11-10T10:00:00Z");        const resolved = (n: number) => ({ id: `r${n}`, actionType: "SEND_EMAIL", entityType: "Lead", entityId: "l1", status: "APPROVED", payload: {}, createdAt: t, reviewedAt: t, updatedAt: t, requester: null, reviewer: null });        m.ids.mockResolvedValue(Array.from({ length: 101 }, (_, n) => ({ id: `r${n}` })));        m.approvals.mockResolvedValue(Array.from({ length: 101 }, (_, n) => resolved(n)));        m.audits.mockResolvedValue([{ id: "a1", action: "UPDATE", correlationId: null, metadata: null, createdAt: t, user: null }]);        const { data } = await (await call()).json();        expect(data.rows).toHaveLength(200);        expect(data.capped).toBe(true);    });
     it("does not flag small campaigns", async () => {
         expect((await (await call()).json()).data.capped).toBe(false);
     });

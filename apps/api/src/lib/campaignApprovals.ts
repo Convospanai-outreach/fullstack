@@ -6,12 +6,13 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 //   1. payload.campaignId is the campaign, or
 //   2. the request is about the Campaign itself (entityId is the campaign), or
 //   3. otherwise its lead (payload.leadId when a string, else the entityId before ":") is in the campaign.
+// byActivity orders by the latest event (request or decision) instead of the request time.
 // Supported by the expression indexes on ApprovalRequest from migration 20261115100000-20261115100200.
 export async function findCampaignApprovalIds(
     db: Pick<PrismaClient, "$queryRaw">,
     teamId: string,
     campaignId: string,
-    opts: { status?: string; limit?: number } = {},
+    opts: { status?: string; limit?: number; byActivity?: boolean } = {},
 ): Promise<string[]> {
     const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT a."id" FROM "ApprovalRequest" a
@@ -27,7 +28,7 @@ export async function findCampaignApprovalIds(
                     (SELECT l."id" FROM "Lead" l WHERE l."campaignId" = ${campaignId} AND l."teamId" = ${teamId}))
             ))
           )
-        ORDER BY a."createdAt" DESC
+        ORDER BY (CASE WHEN ${opts.byActivity ?? false} THEN GREATEST(a."createdAt", COALESCE(a."reviewedAt", a."createdAt")) ELSE a."createdAt" END) DESC
         LIMIT ${opts.limit ?? null}::bigint`);
     return rows.map((r) => r.id);
 }
