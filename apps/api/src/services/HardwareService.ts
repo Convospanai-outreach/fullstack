@@ -214,7 +214,7 @@ export class HardwareService {
             const response = await fetch(`${baseUrl}/v1/sanitize`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ text }),
+                body: JSON.stringify({ text, tenant_id: teamId }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -370,7 +370,7 @@ export class HardwareService {
             const response = await fetch(`${baseUrl}/v1/reidentify`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ token: maskedId }),
+                body: JSON.stringify({ token: maskedId, tenant_id: teamId }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
