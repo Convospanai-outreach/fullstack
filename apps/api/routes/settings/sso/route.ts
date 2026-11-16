@@ -54,8 +54,12 @@ export async function PUT(req: Request) {
             clientSecret,
             wellKnownUrl,
             enforced,
-            allowedDomains
+            allowedDomains: rawAllowedDomains
         } = body;
+        // Sign-in looks domains up lower-cased, so store them lower-cased.
+        const allowedDomains = Array.isArray(rawAllowedDomains)
+            ? rawAllowedDomains.map((d) => String(d).trim().toLowerCase()).filter(Boolean)
+            : rawAllowedDomains;
 
         // The client only ever sees a redacted placeholder for the stored secret (GET),
         // so an empty value or the placeholder itself means "leave it unchanged" - only

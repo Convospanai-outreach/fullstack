@@ -13,6 +13,8 @@ describe("isApiOnlyCampaignPath", () => {
 
     it("sends the apps/api-only campaign routes upstream", () => {
         expect(isApiOnlyCampaignPath(["campaigns", "c1", "workflow"])).toBe(true);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "governance"])).toBe(true);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "approvals"])).toBe(true);
     });
 });
 
