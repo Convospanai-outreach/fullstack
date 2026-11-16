@@ -24,6 +24,8 @@ export interface HeldEmail {
     subject: string | null;
     heldAt: string | null;
     missing: HeldMissingToken[];
+    // Why the pre-send check held it; absent from older API responses.
+    safety?: { code: string; message: string }[];
     canApprove: boolean;
 }
 
@@ -97,11 +99,17 @@ export function HeldEmails({
                                     </span>
                                 </li>
                             ))}
+                            {(item.safety ?? []).map((r) => (
+                                <li key={r.code} className="flex gap-2 text-sm">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                                    <span>{r.message}</span>
+                                </li>
+                            ))}
                         </ul>
 
                         <div className="flex flex-wrap items-center gap-3">
                             <Button size="sm" disabled={!item.canApprove || busy === item.runId} onClick={() => run(item.runId, onApprove)}>
-                                {busy === item.runId ? "Approving..." : "Approve and send with the suggested fallback"}
+                                {busy === item.runId ? "Approving..." : item.missing.length === 0 ? "Approve and send as it is" : "Approve and send with the suggested fallback"}
                             </Button>
                             <Button size="sm" variant="outline" disabled={busy === item.runId} onClick={() => run(item.runId, onRetry)}>
                                 I fixed it, check again
