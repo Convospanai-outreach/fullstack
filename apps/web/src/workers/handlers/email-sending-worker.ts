@@ -8,6 +8,7 @@ import { pickWeightedVariant } from "@/lib/email/campaignVariants";
 import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 
 function stripHtmlTags(input: string): string {
   let previous: string;

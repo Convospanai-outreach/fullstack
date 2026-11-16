@@ -9,6 +9,7 @@ import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { isValidTimeZone, nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { logger } from "@/lib/logger";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
@@ -418,6 +419,25 @@ export class SequenceService {
             return result.reasons;
         } catch (error) {
             logger.warn("[SequenceService] Pre-send check skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
+    // When the recipient's window is closed, the time to try again (next window start plus jitter); null to send now.
+    // Team setting `sendSafety.sendWindow`, off unless enabled. Never throws: on any failure the email goes out as before.
+    private static async windowDelay(run: any, lead: any, now: Date): Promise<{ at: Date; timeZone: string; source: string } | null> {
+        try {
+            const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true } });
+            const raw = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+            const window = resolveSendWindow(raw);
+            if (!window.enabled) return null;
+            // The sequence's own zone is the fallback only when it is a real zone; otherwise the team's window zone.
+            const sequenceZone = run.enrollment?.sequence?.timezone;
+            const { timeZone, source } = resolveRecipientTimeZone(lead, isValidTimeZone(sequenceZone) ? sequenceZone : window.timeZone);
+            const at = nextSendTime(now, timeZone, window, run.id);
+            return at ? { at, timeZone, source } : null;
+        } catch (error) {
+            logger.warn("[SequenceService] Send window skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
             return null;
         }
     }
