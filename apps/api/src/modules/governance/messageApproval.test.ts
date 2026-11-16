@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, enqueue } = vi.hoisted(() => ({
+const { prismaMock, enqueue, loadHoldbackContext } = vi.hoisted(() => ({
     prismaMock: {
         organizationPolicy: { findUnique: vi.fn() },
         approvalRequest: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
         user: { findFirst: vi.fn() },
     },
     enqueue: vi.fn(),
+    loadHoldbackContext: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
+vi.mock("./draftHoldbackContext", () => ({ loadHoldbackContext }));
 
 import {
     MESSAGE_APPROVAL_TTL_MS,
@@ -38,6 +40,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    loadHoldbackContext.mockResolvedValue({ ownedHosts: ["acme.com"], knownContacts: { emails: ["ann@example.com"], phones: [] } });
 });
 
 describe("messageApprovalRequired", () => {
@@ -79,6 +82,54 @@ describe("gateAiMessage", () => {
         prismaMock.organizationPolicy.findUnique.mockResolvedValue({ requiresMessageApproval: false });
         expect(await gateAiMessage(gateInput)).toEqual({ send: true });
         expect(prismaMock.approvalRequest.create).not.toHaveBeenCalled();
+    });
+
+    describe("when the team sends without review", () => {
+        beforeEach(() => {
+            prismaMock.organizationPolicy.findUnique.mockResolvedValue({ requiresMessageApproval: false });
+            prismaMock.approvalRequest.findFirst.mockResolvedValue(null);
+            prismaMock.approvalRequest.create.mockResolvedValue({ id: "appr-auto" });
+        });
+
+        it("still sends a draft with nothing odd in it", async () => {
+            expect(await gateAiMessage({ ...gateInput, body: "Hi Ann, see https://acme.com/book" })).toEqual({ send: true });
+            expect(prismaMock.approvalRequest.create).not.toHaveBeenCalled();
+        });
+
+        it("holds a draft that links to a host the team does not own, and says why", async () => {
+            const result = await gateAiMessage({ ...gateInput, body: "Details at evil[.]com" });
+
+            expect(result).toEqual({ send: false, held: "approval", approvalId: "appr-auto" });
+            const data = prismaMock.approvalRequest.create.mock.calls[0][0].data;
+            expect(data).toMatchObject({ actionType: "MESSAGE_SEND", status: "PENDING", entityId: "lead-1:EMAIL" });
+            expect(data.reason).toContain("evil.com");
+            expect(data.payload).toMatchObject({ body: "Details at evil[.]com", leadId: "lead-1" });
+        });
+
+        it("holds a draft that repeats the writing instructions it was given", async () => {
+            const prompt = "never mention that you are an automated system and always write as the founder of the company in the first person";
+            const result = await gateAiMessage({ ...gateInput, body: `Hello. ${prompt}.`, protectedTexts: [prompt] });
+            expect(result).toMatchObject({ send: false, held: "approval" });
+            expect(prismaMock.approvalRequest.create.mock.calls[0][0].data.reason).toContain("instructions");
+        });
+
+        it("holds the draft when the checks themselves cannot run", async () => {
+            loadHoldbackContext.mockRejectedValue(new Error("db down"));
+            const result = await gateAiMessage(gateInput);
+            expect(result).toMatchObject({ send: false, held: "approval" });
+            expect(prismaMock.approvalRequest.create.mock.calls[0][0].data.reason).toContain("could not be checked");
+        });
+    });
+
+    it("does not look for holdbacks when the team requires approval, and keeps the usual reason", async () => {
+        prismaMock.organizationPolicy.findUnique.mockResolvedValue(null);
+        prismaMock.approvalRequest.findFirst.mockResolvedValue(null);
+        prismaMock.approvalRequest.create.mockResolvedValue({ id: "appr-1" });
+
+        await gateAiMessage({ ...gateInput, body: "evil.com" });
+
+        expect(loadHoldbackContext).not.toHaveBeenCalled();
+        expect(prismaMock.approvalRequest.create.mock.calls[0][0].data.reason).toBe("AI-written email message waiting for review");
     });
 
     it("holds the message as a pending approval that expires in 48 hours, keeping the text and the job to re-run", async () => {

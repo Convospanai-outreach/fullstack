@@ -31,12 +31,15 @@ describe("GET /auth/sso/check", () => {
         expect(data.redirectUrl).toBeUndefined();
     });
 
-    it("returns the teamId for OIDC-configured teams", async () => {
+it("returns sso:false for an invalid or legacy providerType, since the web sign-in would reject it", async () => {        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({ teamId: "team-1", providerType: "LEGACY" });        const res = await GET(new Request("http://localhost/auth/sso/check?email=user@enterprise.com"));        expect(await res.json()).toEqual({ sso: false });    });
+    it("tells an unauthenticated caller only that OIDC SSO applies, never the internal teamId", async () => {
         mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({
             teamId: "team-1",
             providerType: "OIDC",
         });
         const res = await GET(new Request("http://localhost/auth/sso/check?email=user@enterprise.com"));
-        expect(await res.json()).toEqual({ sso: true, provider: "OIDC", teamId: "team-1" });
+        const data = await res.json();
+        expect(data).toEqual({ sso: true, provider: "OIDC" });
+        expect(JSON.stringify(data)).not.toContain("team-1");
     });
 });

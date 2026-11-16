@@ -80,6 +80,20 @@ describe("settings/sso route - client secret handling", () => {
         expect(upsertArgs.update).not.toHaveProperty("clientSecret");
     });
 
+    it("PUT stores allowed domains trimmed and lower-cased, so the sign-in lookup matches", async () => {
+        mockPrisma.ssoConfiguration.upsert.mockResolvedValue({ id: "sso-1", clientSecret: "" });
+
+        await PUT(
+            new Request("http://localhost", {
+                method: "PUT",
+                body: JSON.stringify({ providerType: "OIDC", allowedDomains: [" Acme.COM ", ""] }),
+            })
+        );
+
+        const upsertArgs = mockPrisma.ssoConfiguration.upsert.mock.calls[0][0];
+        expect(upsertArgs.update.allowedDomains).toEqual(["acme.com"]);
+    });
+
     it("PUT leaves the stored secret unchanged when clientSecret is omitted", async () => {
         mockPrisma.ssoConfiguration.upsert.mockResolvedValue({ id: "sso-1", clientSecret: "encrypted(real-secret)" });
 

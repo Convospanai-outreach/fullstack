@@ -72,4 +72,19 @@ describe("listHeldEmails", () => {
         const [item] = await listHeldEmails("team-1");
         expect(item).toMatchObject({ missing: [], canApprove: false });
     });
+
+    it("lists the pre-send check's reasons and lets the sender approve a safety-only hold", async () => {
+        mockPrisma.sequenceStepRun.findMany.mockResolvedValue([
+            run({ errorMessage: JSON.stringify({ missing: [], safety: [{ code: "BANNED_PHRASE", message: "The email contains \"act now\"." }] }) }),
+        ]);
+
+        const [item] = await listHeldEmails("team-1");
+
+        expect(item).toMatchObject({ missing: [], safety: [{ code: "BANNED_PHRASE", message: "The email contains \"act now\"." }], canApprove: true });
+    });
+
+    it("has no safety reasons for a merge-field hold", async () => {
+        mockPrisma.sequenceStepRun.findMany.mockResolvedValue([run()]);
+        expect((await listHeldEmails("team-1"))[0]!.safety).toEqual([]);
+    });
 });
