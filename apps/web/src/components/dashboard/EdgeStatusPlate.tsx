@@ -16,13 +16,13 @@ export function EdgeStatusPlate({ onClick = () => {} }: { onClick?: () => void }
   const edge = useEdgeStatus();
   if (!edge) return null;
 
-  const base = "block rounded-md border border-border bg-muted/50 px-2 py-1.5 hover:bg-accent transition-colors";
+  const base = "block rounded-md border border-sidebar-border bg-sidebar-foreground/5 px-2 py-1.5 hover:bg-sidebar-foreground/10 transition-colors";
 
   if (!edge.configured || !edge.state) {
     return (
       <Link href="/edge" onClick={onClick} className={base}>
-        <p className="text-[11.5px] font-medium text-foreground">Not paired</p>
-        <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+        <p className="text-[11.5px] font-medium text-sidebar-foreground">Not paired</p>
+        <p className="mt-0.5 text-[10.5px] leading-snug text-sidebar-foreground/75">
           Pair a node to keep personal data on your own device
         </p>
       </Link>
@@ -31,12 +31,12 @@ export function EdgeStatusPlate({ onClick = () => {} }: { onClick?: () => void }
 
   return (
     <Link href="/edge" onClick={onClick} className={base}>
-      <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-foreground">
+      <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-sidebar-foreground">
         <span className={`h-2 w-2 rounded-full ${EDGE_DOT[edge.state]}`} aria-hidden />
         {EDGE_LABEL[edge.state]}
       </p>
-      <p className="mt-0.5 text-[10.5px] text-muted-foreground">Last heartbeat {formatHeartbeatAge(edge.lastSeenAt)}</p>
-      <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">{MEANING[edge.state]}</p>
+      <p className="mt-0.5 text-[10.5px] text-sidebar-foreground/75">Last heartbeat {formatHeartbeatAge(edge.lastSeenAt)}</p>
+      <p className="mt-0.5 text-[10.5px] leading-snug text-sidebar-foreground/75">{MEANING[edge.state]}</p>
     </Link>
   );
 }

@@ -123,7 +123,7 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
                 <Link href={item.href} className="text-sm font-medium text-foreground hover:text-primary">
                   {LABELS[item.type]}
                 </Link>
-                <span className="text-lg font-medium text-foreground">{item.count}</span>
+                <span className="font-display text-lg font-medium text-foreground">{item.count}</span>
               </div>
               <ul className="space-y-1.5">
                 {item.top.map((entry) => (
