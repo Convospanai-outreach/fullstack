@@ -122,6 +122,7 @@ export function isApiOnlyCampaignPath(pathParts: string[]): boolean {
 // which exist only in apps/api. Sent to apps/web they would hit a nonexistent route and 404.
 const CAMPAIGNS_API_SEGMENTS = new Set([
     "governance",
+    "approvals",
 ]);
 
 export function isApiOnlyCampaignPath(pathParts: string[]): boolean {
