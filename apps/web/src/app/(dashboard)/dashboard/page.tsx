@@ -25,6 +25,7 @@ import { DomainHealthBanner } from "@/components/dashboard/DomainHealthBanner";
 import { NeedsYou } from "@/components/dashboard/NeedsYou";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { KPIRow } from "@/components/dashboard/KPIRow";
+import { HomeOverview } from "@/components/dashboard/HomeOverview";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
 import { BottomGrid } from "@/components/dashboard/BottomGrid";
 import { PipelineTrendCard } from "@/components/dashboard/PipelineTrendCard";
@@ -130,6 +131,9 @@ export default function DashboardPage() {
 
       {/* KPI row — always visible, north-star metrics */}
       <KPIRow data={data?.kpis ?? null} loading={loading} error={error} />
+
+      {/* Pipeline stages, per-channel activity, approval record (own API, hides on failure) */}
+      <HomeOverview />
 
       {/* Tier 2 — pipeline trend + recent leads (row click opens drill-down) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-4">

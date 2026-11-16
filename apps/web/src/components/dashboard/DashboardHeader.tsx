@@ -8,8 +8,8 @@
  * - Removed: bannerOffset prop — setup banner is now inline in page content, not fixed
  * - Removed: Ask AI button, QuickActions, separate identity widget
  * - Added: Single search trigger (⌘K → Omnibox) — replaces dual search surfaces
- * - Four items: ⌘K search, connection status (only when unhealthy), notification bell,
- *   one Help menu (page guide, help center, Labs, theme)
+ * - Four items: ⌘K search, connection status dropdown (always visible), notification bell,
+ *   one Help menu (page guide, help center, Labs)
  * - Removed: Tools menu (Labs lives in the Help menu and ⌘K) and the static "Manual mode"
  *   badge, which had no mode source behind it
  * - Kept: Mobile hamburger
@@ -20,6 +20,7 @@ import { Menu, Search } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
 import { EdgeStatusChip } from "@/components/dashboard/EdgeStatusChip";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { WorkspaceHelpPanel } from "@/components/dashboard/WorkspaceHelpPanel";
 
 interface DashboardHeaderProps {
@@ -53,10 +54,11 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
         <kbd className="ml-auto text-[10px] bg-muted rounded px-1.5 hidden sm:inline">⌘K</kbd>
       </button>
 
-      {/* Right zone: status (only when unhealthy) + bell + help */}
+      {/* Right zone: status dropdown + theme toggle + bell + help */}
       <div className="ml-auto flex items-center gap-2">
         <EdgeStatusChip />
-        <ConnectionStatusBar inline onlyWhenUnhealthy />
+        <ConnectionStatusBar inline />
+        <ThemeToggle />
 
         <NotificationBell />
 
