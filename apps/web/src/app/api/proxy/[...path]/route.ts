@@ -106,7 +106,17 @@ const WEB_OWNED_API_ROOTS = new Set([
 // "org-chart" is also apps/api-only (routes/leads/org-chart/route.ts) - without this,
 // /leads/org-chart gets misclassified as /leads/[id] with id="org-chart" and served
 // (wrongly, 404) by apps/web's own /api/leads/[id] route instead of being proxied.
-const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import", "org-chart"]);
+const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import", "org-chart", "workflow"]);
+
+// The campaigns root is web-owned (WEB_OWNED_API_ROOTS) except these /campaigns/[id]/<segment> routes,
+// which exist only in apps/api. Sent to apps/web they would hit a nonexistent route and 404.
+const CAMPAIGNS_API_SEGMENTS = new Set([
+    "workflow",
+]);
+
+export function isApiOnlyCampaignPath(pathParts: string[]): boolean {
+    return pathParts[0] === "campaigns" && pathParts.length === 3 && CAMPAIGNS_API_SEGMENTS.has(pathParts[2] || "");
+}
 
 export function isWebOwnedPath(pathParts: string[]): boolean {
     const [root, second, third] = pathParts;
@@ -196,6 +206,8 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
         }
         return null;
     }
+
+    if (isApiOnlyCampaignPath(pathParts)) return null;
 
     if (WEB_OWNED_API_ROOTS.has(root) || isWebOwnedPath(pathParts)) {
         const apiPath = pathParts.join("/");

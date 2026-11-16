@@ -2846,7 +2846,12 @@ model LLMCache {
   // Cleanup policy
   expiresAt DateTime?
 
+  // The team whose prompt produced this answer; a cached answer is never served to another team.
+  // Null on rows from before this column, which no lookup matches.
+  teamId String?
+
   @@index([createdAt])
+  @@index([teamId])
 }
 
 // --- Advanced System Architecture (Tasks 1, 2, 3, 6, 7) ---
