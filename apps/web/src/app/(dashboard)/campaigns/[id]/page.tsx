@@ -20,6 +20,7 @@ import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
 import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
+import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
 import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
