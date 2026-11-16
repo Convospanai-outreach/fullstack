@@ -251,6 +251,15 @@ describe("recipient send window in the sequence engine", () => {
         expect(emailService.sendEmail).not.toHaveBeenCalled();
     });
 
+    it("falls back to the window's own zone, not UTC, when the sequence's zone is not a real one", async () => {
+        sequenceZone = "Not/AZone";
+        // 10:00Z is inside a UTC window but 19:00 in Tokyo, so only the window's zone holds this send back.
+        teamRow = { sendSafety: { mode: "off", sendWindow: { enabled: true, timeZone: "Asia/Tokyo" } }, mailingAddress: null };
+        seed();
+        await SequenceService.processDue({ now });
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+    });
+
     it("does nothing unless the team turns it on", async () => {
         leadLocation = "Tokyo, Japan";
         teamRow = { sendSafety: { mode: "off" }, mailingAddress: null };
@@ -277,7 +286,7 @@ describe("recipient send window in the sequence engine", () => {
         teamRow = { sendSafety: { mode: "hold", sendWindow: { enabled: true } }, mailingAddress: "1 Main St" };
         await SequenceService.processDue({ now }); // 19:00 in Tokyo: waits
         expect(emailService.sendEmail).not.toHaveBeenCalled();
-        expect(tables["sequenceStepRun"][0].errorCode).toBe("TOKENS_APPROVED");
+        expect(tables["sequenceStepRun"][0].errorCode).toBe("SAFETY_APPROVED");
         await SequenceService.processDue({ now: new Date("2026-10-01T01:00:00Z") });
         expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
     });

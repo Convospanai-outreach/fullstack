@@ -127,6 +127,21 @@ describe("email_sending recipient send window", () => {
         expect(options.idempotencyKey).toContain("l1_c1");
     });
 
+    it("treats a duplicate-key insert as already queued, and does not send now", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        enqueue.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+        const result = await handleEmailSending(payload);
+        expect(result).toMatchObject({ skipped: true, reason: "outside_send_window" });
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("fails the job, rather than sending out of window, when the delayed job cannot be queued", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        enqueue.mockRejectedValue(new Error("queue down"));
+        await expect(handleEmailSending(payload)).rejects.toThrow("queue down");
+        expect(send).not.toHaveBeenCalled();
+    });
+
     it("does nothing unless the team turns it on", async () => {
         db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
         db.team.findUnique.mockResolvedValue({ sendSafety: null, mailingAddress: null });

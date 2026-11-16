@@ -142,9 +142,16 @@ function instantAtLocal(year: number, month: number, day: number, hour: number, 
         const p = localParts(new Date(at), timeZone);
         return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, 0) - Math.floor(at / 60000) * 60000;
     };
-    let guess = naive - offsetOf(naive);
-    guess = naive - offsetOf(guess); // re-resolve once against the shifted instant, for DST edges
-    return new Date(guess);
+    // Try the offsets in force a day before and a day after, which straddle any DST change that day.
+    const candidates = [naive - offsetOf(naive - 86400000), naive - offsetOf(naive + 86400000)];
+    const reads = (at: number) => {
+        const p = localParts(new Date(at), timeZone);
+        return p.hour === hour % 24 && p.minute === 0;
+    };
+    const valid = candidates.filter(reads);
+    // Clocks repeated (fall back): the first occurrence. Clocks skipped (spring forward, so this wall time never
+    // happens): the first instant after the gap, not an hour before it.
+    return new Date(valid.length > 0 ? Math.min(...valid) : Math.max(...candidates));
 }
 
 export function isInsideSendWindow(now: Date, timeZone: string, window: SendWindowSettings): boolean {

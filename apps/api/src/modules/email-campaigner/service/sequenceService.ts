@@ -9,7 +9,7 @@ import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
-import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
+import { isValidTimeZone, nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { logger } from "@/lib/logger";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
@@ -428,7 +428,9 @@ export class SequenceService {
             const raw = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
             const window = resolveSendWindow(raw);
             if (!window.enabled) return null;
-            const { timeZone, source } = resolveRecipientTimeZone(lead, run.enrollment?.sequence?.timezone || window.timeZone);
+            // The sequence's own zone is the fallback only when it is a real zone; otherwise the team's window zone.
+            const sequenceZone = run.enrollment?.sequence?.timezone;
+            const { timeZone, source } = resolveRecipientTimeZone(lead, isValidTimeZone(sequenceZone) ? sequenceZone : window.timeZone);
             const at = nextSendTime(now, timeZone, window, run.id);
             return at ? { at, timeZone, source } : null;
         } catch (error) {

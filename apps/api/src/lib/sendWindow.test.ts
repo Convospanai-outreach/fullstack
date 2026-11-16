@@ -100,6 +100,14 @@ describe("send window clock", () => {
         expect(next.getTime()).toBeLessThan(start + 90 * 60_000);
     });
 
+    it("a start hour that does not exist on a spring-forward day opens after the gap, not an hour before it", () => {
+        // New York springs forward on Sun 2026-03-08: 02:00 never happens, the clock goes 01:59 -> 03:00 EDT (07:00Z).
+        const sundays = { ...win, days: [0, 1, 2, 3, 4, 5, 6], startHour: 2, endHour: 10, timeZone: "America/New_York" };
+        const next = nextSendTime(at("2026-03-08T05:00:00Z"), "America/New_York", sundays, "run1")!; // 00:00 EST
+        expect(next.getTime()).toBeGreaterThanOrEqual(at("2026-03-08T07:00:00Z").getTime());
+        expect(next.getTime()).toBeLessThan(at("2026-03-08T07:00:00Z").getTime() + 90 * 60_000);
+    });
+
     it("spreads a batch: different jobs get different times, the same job always gets the same one", () => {
         const now = at("2026-11-20T13:30:00Z");
         const times = new Set(Array.from({ length: 30 }, (_, i) => nextSendTime(now, "Asia/Kolkata", win, `run${i}`)!.getTime()));
