@@ -122,7 +122,8 @@ function escapeRegExp(s: string): string {
 
 function webLinks(body: string): string[] {
     const found: string[] = [];
-    for (const m of body.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) found.push(m[1]!.trim());
+    // Quoted or unquoted values: href="u", href='u' and href=u are all valid HTML.
+    for (const m of body.matchAll(/href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)) found.push((m[1] ?? m[2] ?? m[3] ?? "").trim());
     // Bare URLs in the text. Anchor text is dropped first so a linked URL is not counted twice.
     const loose = toText(body.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, " "));
     for (const m of loose.matchAll(/https?:\/\/[^\s<>"')]+/gi)) found.push(m[0]);

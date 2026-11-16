@@ -159,6 +159,19 @@ describe("pre-send gate in the sequence engine", () => {
         expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
     });
 
+    it("checks a run again when only its merge fields were approved", async () => {
+        stepBody = "<p>Hi {{firstName}}, act now for a risk-free offer.</p>";
+        leadName = "";
+        seed();
+        await SequenceService.processDue({ now });
+        expect(JSON.parse(tables["sequenceStepRun"][0].errorMessage).missing.length).toBeGreaterThan(0);
+        expect(await SequenceService.approveTokenFallbacks("team-1", "run-1", now)).toEqual({ approved: true });
+        await SequenceService.processDue({ now });
+        // The fields were approved, but nobody has seen the safety warnings yet, so it is held for them.
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(JSON.parse(tables["sequenceStepRun"][0].errorMessage).safety).toEqual([expect.objectContaining({ code: "BANNED_PHRASE" })]);
+    });
+
     it("holds again on a re-check that changes nothing", async () => {
         stepBody = "<p>Hi Asha, act now for a risk-free offer.</p>";
         seed();

@@ -130,8 +130,10 @@ export async function handleEmailSending(payload: JobPayload) {
   // cannot be read the email is sent, as it was before the gate existed.
   const gateTeamId = (teamId || campaign.teamId) as string;
   let heldReasons: { code: string; message: string }[] | null = null;
+  let postalAddress: string | null = null;
   try {
     const team = await prisma.team.findUnique({ where: { id: gateTeamId }, select: { sendSafety: true, mailingAddress: true } });
+    postalAddress = team?.mailingAddress ?? null;
     const settings = resolveSendSafety(team?.sendSafety);
     if (settings.mode !== "off") {
       const check = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
@@ -146,7 +148,8 @@ export async function handleEmailSending(payload: JobPayload) {
   }
   if (heldReasons) {
     // Give back the daily-limit slot taken above: nothing was sent.
-    await prisma.$executeRaw`UPDATE "ConnectedMailbox" SET "sentToday" = GREATEST("sentToday" - 1, 0) WHERE id = ${mailbox.id}`;
+    // Only on the day the slot was taken: if midnight passed meanwhile, today's counter never held it.
+    await prisma.$executeRaw`UPDATE "ConnectedMailbox" SET "sentToday" = GREATEST("sentToday" - 1, 0) WHERE id = ${mailbox.id} AND "sentTodayDate" = ${todayStart}`;
     // Codes only: the reasons quote the email text, which does not belong in the audit trail.
     await prisma.auditLog.create({
       data: {
@@ -209,7 +212,8 @@ export async function handleEmailSending(payload: JobPayload) {
   });
   const finalHtml = appendUnsubscribeFooter(
     `${linkTrackedBody}${buildOpenPixelHtml(trackingId)}`,
-    trackingId
+    trackingId,
+    postalAddress
   );
 
   let sendResult: any = null;

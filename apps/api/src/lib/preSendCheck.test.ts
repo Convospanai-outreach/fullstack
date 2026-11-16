@@ -46,6 +46,13 @@ describe("preSendCheck", () => {
         expect(codes({ settings, body: '<a href="https://craftmyfunnel.live.evil.example/x">x</a>' })).toContain("FOREIGN_LINK");
     });
 
+    it("reads unquoted and single-quoted href values too", () => {
+        const settings = resolveSendSafety({ allowedLinkHosts: ["craftmyfunnel.live"] });
+        expect(codes({ settings, body: "<a href=https://evil.example/x>x</a>" })).toContain("FOREIGN_LINK");
+        expect(codes({ settings, body: "<a href='https://evil.example/x'>x</a>" })).toContain("FOREIGN_LINK");
+        expect(codes({ settings, body: "<a href=https://craftmyfunnel.live/x>x</a>" })).not.toContain("FOREIGN_LINK");
+    });
+
     it("does not restrict link domains when none are configured", () => {
         expect(codes({ body: '<a href="https://anything.example/x">x</a>' })).not.toContain("FOREIGN_LINK");
     });

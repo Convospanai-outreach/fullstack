@@ -56,6 +56,8 @@ describe("email_sending pre-send gate", () => {
         expect(send).not.toHaveBeenCalled();
         expect(db.email.create).not.toHaveBeenCalled();
         expect(db.$executeRaw).toHaveBeenCalledTimes(2); // take a slot, give it back
+        // The give-back only applies to the day the slot was taken, so a midnight rollover cannot undercount the new day.
+        expect((db.$executeRaw.mock.calls[1]![0] as string[]).join("?")).toContain('"sentTodayDate" =');
         const audit = db.auditLog.create.mock.calls[0]![0].data;
         expect(audit).toMatchObject({ action: "SEND_SAFETY_HELD", entityId: "l1", metadata: { campaignId: "c1", codes: ["BANNED_PHRASE"] } });
         expect(JSON.stringify(audit)).not.toContain("risk-free");

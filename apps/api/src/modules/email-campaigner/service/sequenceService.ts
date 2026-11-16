@@ -23,6 +23,8 @@ export const TOKENS_HELD_STATUS = "AWAITING_TOKEN_APPROVAL";
 export const TOKENS_HELD_CODE = "MISSING_TOKENS";
 export const TOKENS_APPROVED_CODE = "TOKENS_APPROVED";
 const TOKENS_APPROVED_MARKER = "[tokens-approved] ";
+export const SAFETY_APPROVED_CODE = "SAFETY_APPROVED";
+const SAFETY_APPROVED_MARKER = "[safety-approved] ";
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
 // "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
 const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
@@ -483,7 +485,10 @@ export class SequenceService {
         }
 
         // A failed send overwrites errorCode, so a retry keeps the approval through this marker in the message.
-        const approved = run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
+        // SAFETY_APPROVED means the sender saw the safety warnings and approved; TOKENS_APPROVED only covers
+        // merge-field fallbacks, so the safety gate still runs for it.
+        const safetyReviewed = run.errorCode === SAFETY_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(SAFETY_APPROVED_MARKER));
+        const approved = safetyReviewed || run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
         const resolvedSubject = resolveMessageTokens(subject, lead, { useSuggestedFallbacks: approved });
         const resolvedBody = resolveMessageTokens(body, lead, { useSuggestedFallbacks: approved, html: true });
         const problems = new Map<string, MissingToken>();
@@ -508,8 +513,8 @@ export class SequenceService {
         }
 
         // Deterministic pre-send gate on the composed text (before tracking, pixel and footer). A sender's
-        // approval of a held email is the human decision, so an approved run is not checked again.
-        if (!approved) {
+        // approval of a held email is the human decision, so a run approved after seeing its warnings is not checked again.
+        if (!safetyReviewed) {
             const held = await this.safetyHold(run, lead, resolvedSubject.text, resolvedBody.text);
             if (held) {
                 await client.sequenceStepRun.update({
@@ -542,7 +547,7 @@ export class SequenceService {
             // duplicate send against the same (now stale) idempotency key.
             const retryable = this.isRetryableEmailError(result.error) && (run.attemptCount ?? 0) < MAX_EMAIL_SEND_ATTEMPTS;
             const errorCode = retryable ? "EMAIL_RETRYABLE" : this.isRetryableEmailError(result.error) ? "EMAIL_RETRY_LIMIT_EXCEEDED" : "EMAIL_SEND_FAILED";
-            await this.failRun(run.id, errorCode, `${approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
+            await this.failRun(run.id, errorCode, `${safetyReviewed ? SAFETY_APPROVED_MARKER : approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
             return { runId: run.id, status: retryable ? "RETRY_SCHEDULED" : "FAILED" };
         }
 
@@ -925,8 +930,11 @@ export class SequenceService {
         if (!run) return { approved: false as const, reason: "NOT_WAITING" as const };
 
         let missing: MissingToken[] = [];
+        let heldForSafety = false;
         try {
-            missing = JSON.parse(run.errorMessage || "{}").missing ?? [];
+            const held = JSON.parse(run.errorMessage || "{}");
+            missing = held.missing ?? [];
+            heldForSafety = Array.isArray(held.safety) && held.safety.length > 0;
         } catch {
             missing = [];
         }
@@ -935,7 +943,7 @@ export class SequenceService {
 
         const taken = await client.sequenceStepRun.updateMany({
             where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
-            data: { status: "SCHEDULED", scheduledAt: now, errorCode: TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: heldForSafety ? SAFETY_APPROVED_CODE : TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
         });
         if (taken.count !== 1) return { approved: false as const, reason: "NOT_WAITING" as const };
         await client.sequenceEnrollment.updateMany({
