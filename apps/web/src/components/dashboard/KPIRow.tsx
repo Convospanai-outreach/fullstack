@@ -96,7 +96,7 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
           <p className="text-sm text-muted-foreground mb-1">{kpi.label}</p>
           {kpi.value ? (
             <>
-              <Link href={kpi.href} className="block text-3xl font-medium tracking-tight text-foreground hover:text-primary">
+              <Link href={kpi.href} className="block font-display text-3xl font-medium tracking-tight text-foreground hover:text-primary">
                 {kpi.value}
               </Link>
               {kpi.note && <p className="mt-1 text-xs text-muted-foreground">{kpi.note}</p>}
