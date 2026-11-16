@@ -14,16 +14,21 @@ export interface HeldEmail {
     subject: string | null;
     heldAt: string | null;
     missing: MissingToken[];
+    // Why the pre-send check held it (see lib/preSendCheck.ts); empty when only merge fields are missing.
+    safety: { code: string; message: string }[];
     // True when every missing field has a suggested fallback, so the sender can approve sending.
     canApprove: boolean;
 }
 
-function parseMissing(raw: string | null): MissingToken[] {
+function parseHeld(raw: string | null): { missing: MissingToken[]; safety: { code: string; message: string }[] } {
     try {
         const parsed = JSON.parse(raw || "{}");
-        return Array.isArray(parsed?.missing) ? parsed.missing : [];
+        return {
+            missing: Array.isArray(parsed?.missing) ? parsed.missing : [],
+            safety: Array.isArray(parsed?.safety) ? parsed.safety : [],
+        };
     } catch {
-        return [];
+        return { missing: [], safety: [] };
     }
 }
 
@@ -45,7 +50,7 @@ export async function listHeldEmails(teamId: string, limit = 200): Promise<HeldE
     });
 
     return runs.map((run: any) => {
-        const missing = parseMissing(run.errorMessage);
+        const { missing, safety } = parseHeld(run.errorMessage);
         return {
             runId: run.id,
             leadId: run.leadId,
@@ -57,7 +62,8 @@ export async function listHeldEmails(teamId: string, limit = 200): Promise<HeldE
             subject: run.step?.subject ?? null,
             heldAt: run.completedAt ? new Date(run.completedAt).toISOString() : null,
             missing,
-            canApprove: missing.length > 0 && missing.every((m) => m.reason === "empty" && m.suggestedFallback !== null),
+            safety,
+            canApprove: (missing.length > 0 || safety.length > 0) && missing.every((m) => m.reason === "empty" && m.suggestedFallback !== null),
         };
     });
 }

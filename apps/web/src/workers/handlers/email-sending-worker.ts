@@ -7,6 +7,7 @@ import { renderMergeTags } from "@/lib/email/mergeTags";
 import { pickWeightedVariant } from "@/lib/email/campaignVariants";
 import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
+import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -124,6 +125,46 @@ export async function handleEmailSending(payload: JobPayload) {
   const subject = renderMergeTags(rawSubject, lead);
   const body = renderMergeTags(rawBody, lead);
 
+  // Deterministic pre-send gate on the composed text, before link tracking, the pixel and the footer.
+  // Team setting sendSafety.mode: off skips it, warn logs and sends, hold stops this send. If the team
+  // cannot be read the email is sent, as it was before the gate existed.
+  const gateTeamId = (teamId || campaign.teamId) as string;
+  let heldReasons: { code: string; message: string }[] | null = null;
+  let postalAddress: string | null = null;
+  try {
+    const team = await prisma.team.findUnique({ where: { id: gateTeamId }, select: { sendSafety: true, mailingAddress: true } });
+    postalAddress = team?.mailingAddress ?? null;
+    const settings = resolveSendSafety(team?.sendSafety);
+    if (settings.mode !== "off") {
+      const check = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
+      if (!check.ok && settings.mode === "warn") {
+        logger.warn("[email_sending] Pre-send check would hold this email", { leadId, campaignId, codes: check.reasons.map((r) => r.code) });
+      } else if (!check.ok) {
+        heldReasons = check.reasons;
+      }
+    }
+  } catch (err) {
+    logger.warn("[email_sending] Pre-send check skipped", { leadId, error: err instanceof Error ? err.message : String(err) });
+  }
+  if (heldReasons) {
+    // Give back the daily-limit slot taken above: nothing was sent.
+    // Only on the day the slot was taken: if midnight passed meanwhile, today's counter never held it.
+    await prisma.$executeRaw`UPDATE "ConnectedMailbox" SET "sentToday" = GREATEST("sentToday" - 1, 0) WHERE id = ${mailbox.id} AND "sentTodayDate" = ${todayStart}`;
+    // Codes only: the reasons quote the email text, which does not belong in the audit trail.
+    await prisma.auditLog.create({
+      data: {
+        orgId: gateTeamId,
+        actorId: "SYSTEM",
+        action: "SEND_SAFETY_HELD",
+        entity: "Lead",
+        entityId: leadId,
+        metadata: { campaignId, codes: heldReasons.map((r) => r.code) },
+      },
+    });
+    logger.warn("[email_sending] Held by the pre-send check", { leadId, campaignId, codes: heldReasons.map((r) => r.code) });
+    return { skipped: true, reason: "held_by_send_safety", codes: heldReasons.map((r) => r.code) };
+  }
+
   const trackingId = existingDraft?.trackingId || crypto.randomUUID();
   const variantId = selectedVariant?.id;
 
@@ -171,7 +212,8 @@ export async function handleEmailSending(payload: JobPayload) {
   });
   const finalHtml = appendUnsubscribeFooter(
     `${linkTrackedBody}${buildOpenPixelHtml(trackingId)}`,
-    trackingId
+    trackingId,
+    postalAddress
   );
 
   let sendResult: any = null;
