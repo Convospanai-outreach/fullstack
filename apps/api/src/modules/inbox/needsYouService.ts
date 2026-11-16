@@ -22,6 +22,19 @@ export interface NeedsYouEntry {
     detail: string | null;
     href: string;
     at: string | null;
+    // Only on the first approval, and only when the caller asked for it (Home does, the digest does not).
+    draft?: NeedsYouDraft;
+}
+
+// The exact text waiting for sign-off. `editable` is true only where the approvals API takes an edited
+// subject and body (MESSAGE_SEND); other draft types are edited in the Inbox.
+export interface NeedsYouDraft {
+    channel: string;
+    recipient: string | null;
+    subject: string | null;
+    body: string;
+    expiresAt: string | null;
+    editable: boolean;
 }
 
 export interface NeedsYouItem {
@@ -46,7 +59,32 @@ function formatAction(action: string) {
     return action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export async function collectNeedsYou(teamIds: string[], now = new Date()): Promise<NeedsYouItem[]> {
+type ApprovalRow = { actionType: string; entityId: string; payload: unknown; autoDenyAt: Date | null };
+
+async function draftFor(request: ApprovalRow, teamIds: string[], now: Date): Promise<NeedsYouDraft | null> {
+    const p = request.payload && typeof request.payload === "object" ? (request.payload as Record<string, unknown>) : null;
+    if (!p || typeof p["body"] !== "string" || !p["body"].trim()) return null;
+    const isMessage = request.actionType === "MESSAGE_SEND";
+    const channel = (typeof p["channel"] === "string" && p["channel"]) || (isMessage ? request.entityId.split(":")[1] : "") || "email";
+
+    let recipient = typeof p["recipient"] === "string" && p["recipient"] ? p["recipient"] : null;
+    if (!recipient && isMessage) {
+        const leadId = request.entityId.split(":")[0];
+        const lead = leadId ? await prisma.lead.findFirst({ where: { id: leadId, teamId: { in: teamIds } }, select: { fullName: true, email: true } }) : null;
+        recipient = lead ? (lead.fullName && lead.email ? `${lead.fullName} (${lead.email})` : lead.fullName || lead.email || null) : null;
+    }
+    return {
+        channel: channel.toLowerCase(),
+        recipient,
+        subject: typeof p["subject"] === "string" && p["subject"] ? p["subject"] : null,
+        body: p["body"],
+        // A time that has already passed is not shown as a countdown.
+        expiresAt: request.autoDenyAt && request.autoDenyAt.getTime() > now.getTime() ? request.autoDenyAt.toISOString() : null,
+        editable: isMessage,
+    };
+}
+
+export async function collectNeedsYou(teamIds: string[], now = new Date(), options: { includeDraft?: boolean } = {}): Promise<NeedsYouItem[]> {
     const inTeams = { in: teamIds };
     const today = localDayRange(now, 0);
     const unreadWhere = { direction: "INBOUND", isRead: false, lead: { teamId: inTeams } };
@@ -77,7 +115,7 @@ export async function collectNeedsYou(teamIds: string[], now = new Date()): Prom
             where: approvalsWhere,
             orderBy: { createdAt: "desc" },
             take,
-            select: { id: true, actionType: true, payload: true, createdAt: true },
+            select: { id: true, actionType: true, entityId: true, payload: true, autoDenyAt: true, createdAt: true },
         }),
         prisma.email.count({ where: approvedWhere }),
         prisma.email.findMany({
@@ -108,6 +146,8 @@ export async function collectNeedsYou(teamIds: string[], now = new Date()): Prom
         }),
     ]);
 
+    const topDraft = options.includeDraft && approvalTop[0] ? await draftFor(approvalTop[0] as ApprovalRow, teamIds, now) : null;
+
     return [
         {
             type: "unread_replies",
@@ -125,7 +165,7 @@ export async function collectNeedsYou(teamIds: string[], now = new Date()): Prom
             type: "approvals",
             count: approvalCount,
             href: "/inbox?tab=approvals",
-            top: approvalTop.map((request) => {
+            top: approvalTop.map((request, index) => {
                 const subject = (request.payload as { subject?: unknown } | null)?.subject;
                 return {
                     id: request.id,
@@ -133,6 +173,7 @@ export async function collectNeedsYou(teamIds: string[], now = new Date()): Prom
                     detail: typeof subject === "string" ? subject : null,
                     href: "/inbox?tab=approvals",
                     at: request.createdAt.toISOString(),
+                    ...(index === 0 && topDraft ? { draft: topDraft } : {}),
                 };
             }),
         },

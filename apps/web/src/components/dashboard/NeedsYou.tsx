@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import { formatDistanceToNow, format } from "date-fns";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { SignOffCard, type SignOffDraft } from "./SignOffCard";
 
 type NeedsYouType =
   | "unread_replies"
@@ -21,6 +22,7 @@ interface NeedsYouEntry {
   detail: string | null;
   href: string;
   at: string | null;
+  draft?: SignOffDraft;
 }
 
 interface NeedsYouItem {
@@ -64,6 +66,9 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
     .filter((item) => item.count > 0)
     .sort((x, y) => Number(y.type === "approvals") - Number(x.type === "approvals"));
   const approvals = items.find((item) => item.type === "approvals")?.count ?? 0;
+  // The first approval that came with its text is shown as one large card; the rest stay in the list below.
+  const cardEntry = items.find((item) => item.type === "approvals")?.top[0];
+  const cardDraft = cardEntry?.draft;
   const [headline, subline] =
     approvals > 0
       ? [`${approvals} ${approvals === 1 ? "draft waits" : "drafts wait"} for your sign-off.`, "Nothing is sent until you approve it."]
@@ -116,17 +121,24 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
           </Link>
         </div>
       ) : (
+        <>
+        {cardEntry && cardDraft && <SignOffCard key={cardEntry.id} id={cardEntry.id} draft={cardDraft} onDecided={mutate} />}
         <div className="grid gap-2.5 md:grid-cols-2">
-          {items.map((item) => (
+          {items
+            // With the card showing the first approval, the approvals box lists only the others.
+            .filter((item) => !(cardDraft && item.type === "approvals" && item.count <= 1))
+            .map((item) => {
+              const entries = cardDraft && item.type === "approvals" ? item.top.slice(1) : item.top;
+              return (
             <div key={item.type} className="rounded-lg border border-border bg-card p-4">
               <div className="mb-2 flex items-baseline justify-between gap-2">
                 <Link href={item.href} className="text-sm font-medium text-foreground hover:text-primary">
-                  {LABELS[item.type]}
+                  {cardDraft && item.type === "approvals" ? "More waiting for your approval" : LABELS[item.type]}
                 </Link>
-                <span className="text-lg font-medium text-foreground">{item.count}</span>
+                <span className="text-lg font-medium text-foreground">{cardDraft && item.type === "approvals" ? item.count - 1 : item.count}</span>
               </div>
               <ul className="space-y-1.5">
-                {item.top.map((entry) => (
+                {entries.map((entry) => (
                   <li key={entry.id} className="flex items-center gap-2">
                     <Link href={entry.href} className="min-w-0 flex-1 rounded-md px-1 py-0.5 hover:bg-accent">
                       <span className="block truncate text-[13px] text-foreground">{entry.title}</span>
@@ -156,8 +168,10 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
                 </Link>
               )}
             </div>
-          ))}
+              );
+            })}
         </div>
+        </>
       )}
     </section>
   );
