@@ -63,7 +63,7 @@ export function HomeOverview() {
               <li key={s.stage}>
                 <Link href="/pipeline" className="block rounded-lg border border-border bg-card px-3.5 py-3 hover:bg-accent/40">
                   <span className="block text-xs text-muted-foreground">{STAGE_LABELS[s.stage] ?? words(s.stage)}</span>
-                  <span className={`block text-2xl font-medium ${s.count > 0 ? "text-foreground" : "text-muted-foreground"}`}>{s.count}</span>
+                  <span className={`block font-display text-2xl font-medium ${s.count > 0 ? "text-foreground" : "text-muted-foreground"}`}>{s.count}</span>
                 </Link>
               </li>
             ))}

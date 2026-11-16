@@ -135,7 +135,7 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
                 <Link href={item.href} className="text-sm font-medium text-foreground hover:text-primary">
                   {cardDraft && item.type === "approvals" ? "More waiting for your approval" : LABELS[item.type]}
                 </Link>
-                <span className="text-lg font-medium text-foreground">{cardDraft && item.type === "approvals" ? item.count - 1 : item.count}</span>
+                <span className="font-display text-lg font-medium text-foreground">{cardDraft && item.type === "approvals" ? item.count - 1 : item.count}</span>
               </div>
               <ul className="space-y-1.5">
                 {entries.map((entry) => (
