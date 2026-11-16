@@ -14,7 +14,7 @@ export async function GET() {
     if (!teamId) return NextResponse.json({ stages: [], channels: [], record: [] });
 
     const since = new Date(Date.now() - 7 * 86400000);
-    const [byStage, emailSent, emailReplies, linkedinLogged, whatsappOut, whatsappIn, decisions] = await Promise.all([
+    const [byStage, emailSent, emailReplies, linkedinLogged, whatsappOut, whatsappIn, callsLogged, decisions] = await Promise.all([
       prisma.lead.groupBy({ by: ["pipelineState"], where: { teamId }, _count: { _all: true } }),
       // Email has no sent timestamp, so this is sent emails created in the window.
       prisma.email.count({ where: { lead: { teamId }, status: "sent", createdAt: { gte: since } } }),
@@ -22,6 +22,7 @@ export async function GET() {
       prisma.leadActivity.count({ where: { lead: { teamId }, channel: { in: ["LINKEDIN", "linkedin"] }, createdAt: { gte: since } } }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "OUTBOUND", createdAt: { gte: since } } }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "INBOUND", createdAt: { gte: since } } }),
+      prisma.leadActivity.count({ where: { lead: { teamId }, channel: { in: ["CALL", "call"] }, createdAt: { gte: since } } }),
       prisma.approvalRequest.findMany({
         where: { teamId, status: { not: "PENDING" } },
         orderBy: { updatedAt: "desc" },
@@ -38,6 +39,7 @@ export async function GET() {
         { channel: "email", sent: emailSent, replies: emailReplies },
         { channel: "linkedin", sent: linkedinLogged, replies: null },
         { channel: "whatsapp", sent: whatsappOut, replies: whatsappIn },
+        { channel: "call", sent: callsLogged, replies: null },
       ],
       // Decisions only: never the payload, so no message text or lead data leaves here.
       record: decisions.map((d) => ({

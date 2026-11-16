@@ -28,7 +28,7 @@ describe("GET /api/dashboard/overview", () => {
     ]);
     mockPrisma.email.count.mockResolvedValue(12);
     mockPrisma.emailEvent.count.mockResolvedValue(3);
-    mockPrisma.leadActivity.count.mockResolvedValue(5);
+    mockPrisma.leadActivity.count.mockImplementation(async ({ where }: { where: { channel: { in: string[] } } }) => (where.channel.in.includes("CALL") ? 2 : 5));
     mockPrisma.whatsAppMessage.count.mockImplementation(async ({ where }: { where: { direction: string } }) => (where.direction === "OUTBOUND" ? 4 : 1));
     mockPrisma.approvalRequest.findMany.mockResolvedValue([
       {
@@ -52,6 +52,7 @@ describe("GET /api/dashboard/overview", () => {
       { channel: "email", sent: 12, replies: 3 },
       { channel: "linkedin", sent: 5, replies: null },
       { channel: "whatsapp", sent: 4, replies: 1 },
+      { channel: "call", sent: 2, replies: null },
     ]);
   });
 

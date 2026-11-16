@@ -37,6 +37,7 @@ Read-only. Home hides these sections if it fails.
 | LinkedIn logged, 7 days | `leadActivity.count`, channel LINKEDIN / linkedin |
 | WhatsApp sent, 7 days | `whatsAppMessage.count`, direction OUTBOUND |
 | WhatsApp replies, 7 days | `whatsAppMessage.count`, direction INBOUND |
+| Calls logged, 7 days | `leadActivity.count`, channel CALL / call. Written when a caller completes a call task (`CallerService.completeTask`) or marks a CALL step on the lead. Replies: not tracked. |
 | Approval record | 5 latest `approvalRequest` not PENDING: action type, status, time, reviewer name |
 
 WhatsApp counts are scoped to the team through the lead (`lead: { teamId }`);
@@ -55,7 +56,7 @@ The approval record never returns `payload`, so no message text or lead data lea
 ## Not tracked yet (show a blank state, never a number)
 
 - LinkedIn replies: no reply count exists. UI says "Not tracked yet".
-- Calls: no call counts are read anywhere on Home.
+- Calls: counts only calls a person logged. Nothing dials, so there is no call duration or connect rate.
 - Email sent time: `Email` has no sent timestamp. The 7-day window uses `createdAt`.
 - Draft text in the needs-you queue: entries have no body. It lives in `ApprovalRequest.payload`.
 - Lead-to-step mapping for the six-step governed workflow: does not exist in data.

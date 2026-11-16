@@ -478,7 +478,10 @@ D). Update this section in the same PR that changes a channel.
   in `DEFAULT_ON_HIDDEN_FEATURES`.
 - **LinkedIn - stub for automated sending and replies.** The runner only
   implements `scrape`. Sequence steps become rep tasks, the extension records a
-  step a person did, and no replies are captured. Stays out of public claims
-  until its own PR changes this.
-- **Calls - stub as an outreach channel.** A human hand-off queue. No dialer, no
-  call record, no consent check before a call task is created.
+  step a person did, and no replies are captured. On by default, as the owner
+  decided (2026-11-16, for a demo). Describe it as assisted, never as sending
+  on its own.
+- **Calls - stub as an outreach channel.** A human hand-off queue. No dialer and
+  no consent check before a call task is created. Each finished call now writes a
+  `LeadActivity` (channel CALL, type CALL_OUTCOME, caller, time), and Home shows a
+  Calls row from those. On by default. Describe it as a rep making the call.

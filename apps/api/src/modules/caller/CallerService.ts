@@ -236,5 +236,17 @@ export class CallerService {
             });
         }
         // Other outcomes (COORDINATING for VM/callback) — keep queue assigned, no state change
+
+        // Every finished call is a timestamped, lead-scoped touch (the lead was verified against teamId above).
+        await prisma.leadActivity.create({
+            data: {
+                leadId,
+                channel: "CALL",
+                type: "CALL_OUTCOME",
+                title: `Call completed: ${String(outcome).toLowerCase().replaceAll("_", " ")}`,
+                notes: notes ?? null,
+                createdBy: userId,
+            },
+        });
     }
 }

@@ -6,7 +6,7 @@ import { format } from "date-fns";
 
 interface Overview {
   stages: { stage: string; count: number }[];
-  channels: { channel: "email" | "linkedin" | "whatsapp"; sent: number; replies: number | null }[];
+  channels: { channel: "email" | "linkedin" | "whatsapp" | "call"; sent: number; replies: number | null }[];
   record: { id: string; action: string; status: string; at: string; by: string | null }[];
 }
 
@@ -19,7 +19,7 @@ const STAGE_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
 };
 
-const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn", whatsapp: "WhatsApp" } as const;
+const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn", whatsapp: "WhatsApp", call: "Calls" } as const;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });

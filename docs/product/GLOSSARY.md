@@ -61,7 +61,7 @@ Owner decision 2026-11-16: all four channels are for all users. Describe each on
 as it works (GEMINI.md §14):
 - WhatsApp sends from the team's own WhatsApp Business account after a consent check.
 - LinkedIn and Calls hand a step to a person (a task or a call queue); do not say they
-  send or call on their own.
+  send or call on their own. All three are on by default (owner decision, 2026-11-16).
 
 ## Outreach mode (setup step 1)
 

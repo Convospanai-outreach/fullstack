@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
         lead: { findFirst: vi.fn(), updateMany: vi.fn() },
         meetingCoordinationQueue: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
         conversationThread: { findFirst: vi.fn(), findUnique: vi.fn() },
+        leadActivity: { create: vi.fn() },
     },
 }));
 
@@ -145,6 +146,26 @@ describe("CallerService", () => {
                 data: expect.objectContaining({ status: "LOST", pipelineState: "CLOSED_LOST", lostAt: expect.any(Date) }),
             });
             expect((prisma.lead.updateMany as any).mock.calls[0][0].data).not.toHaveProperty("wonAt");
+        });
+
+        it("records the call as a timestamped CALL activity on the lead, by the caller", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: "user-1" });
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (prisma.meetingCoordinationQueue.update as any).mockResolvedValue({});
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+
+            await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.MEETING_CONFIRMED, "Booked Thursday");
+
+            expect(prisma.leadActivity.create).toHaveBeenCalledWith({
+                data: { leadId: "lead-1", channel: "CALL", type: "CALL_OUTCOME", title: "Call completed: meeting confirmed", notes: "Booked Thursday", createdBy: "user-1" },
+            });
+        });
+
+        it("records nothing for a lead outside the caller's team", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            await expect(CallerService.completeTask("lead-x", "user-1", "team-a", ConversationState.CLOSED)).rejects.toThrow("LEAD_NOT_FOUND");
+            expect(prisma.leadActivity.create).not.toHaveBeenCalled();
         });
 
         it("refuses to let a caller complete a colleague's already-claimed task (OPEN-233)", async () => {
