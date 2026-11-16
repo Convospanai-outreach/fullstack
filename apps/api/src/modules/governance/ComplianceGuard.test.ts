@@ -2,12 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
-        lead: { update: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
+        lead: { update: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findFirst: vi.fn() },
         suppressionEntry: { upsert: vi.fn() },
         auditLog: { create: vi.fn() },
     },
 }));
+const { classifyReply } = vi.hoisted(() => ({ classifyReply: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/ai/jev", () => ({ classifyReply }));
+vi.mock("@/lib/ai/SovereignFirewall", () => ({
+    SovereignFirewall: {
+        mask: async (t: string) => ({ safeContext: t, tokenMap: new Map() }),
+        maskKnownNames: (t: string) => ({ safeContext: t }),
+    },
+}));
 
 import { complianceGuard } from "./ComplianceGuard";
 
@@ -37,5 +45,60 @@ describe("ComplianceGuard.enforceOptOut", () => {
         await complianceGuard.enforceOptOut("l1", "stop");
 
         expect(mockPrisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+    });
+});
+
+describe("ComplianceGuard.checkInboundMessage", () => {
+    beforeEach(() => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+        mockPrisma.lead.findFirst.mockResolvedValue({ teamId: "t1", fullName: "P", company: "Acme" });
+    });
+    const suppressed = () => mockPrisma.suppressionEntry.upsert.mock.calls.length > 0;
+    const auditMeta = () => mockPrisma.auditLog.create.mock.calls.map((c) => c[0].data).find((d) => d.action === "COMPLIANCE_INBOUND_CLASSIFIED")?.metadata;
+
+    it("suppresses on a clear opt-out even when the model is down", async () => {
+        classifyReply.mockRejectedValue(new Error("down"));
+        expect(await complianceGuard.checkInboundMessage("l1", "Please unsubscribe me")).toBe("OPT_OUT");
+        expect(suppressed()).toBe(true);
+        expect(classifyReply).not.toHaveBeenCalled();
+        expect(auditMeta()).toEqual({ class: "OPT_OUT", pass: "deterministic" });
+    });
+
+    it("does not mark 'remove the pricing slide' or 'stopped by' as an opt-out", async () => {
+        classifyReply.mockResolvedValue({ classification: "QUESTION", confidence: 0.9, reasoning: "" });
+        expect(await complianceGuard.checkInboundMessage("l1", "Can you remove the pricing slide from the deck?")).toBe("NEUTRAL");
+        expect(await complianceGuard.checkInboundMessage("l1", "I stopped by your booth last week")).toBe("NEUTRAL");
+        expect(suppressed()).toBe(false);
+        expect(mockPrisma.lead.update).not.toHaveBeenCalled();
+    });
+
+    it("does not suppress 'not interested'", async () => {
+        expect(await complianceGuard.checkInboundMessage("l1", "Not interested, thanks")).toBe("NOT_INTERESTED");
+        expect(suppressed()).toBe(false);
+    });
+
+    it("treats a model failure as UNSURE and never suppresses", async () => {
+        classifyReply.mockRejectedValue(new Error("timeout"));
+        expect(await complianceGuard.checkInboundMessage("l1", "Let us talk about the contract terms")).toBe("UNSURE");
+        expect(suppressed()).toBe(false);
+        expect(auditMeta()).toEqual({ class: "UNSURE", pass: "model" });
+    });
+
+    it("sends Hinglish to UNSURE, not NEUTRAL", async () => {
+        expect(await complianceGuard.checkInboundMessage("l1", "mujhe mat bhejo")).toBe("UNSURE");
+        expect(suppressed()).toBe(false);
+    });
+
+    it("uses the model for the rest and maps its answer", async () => {
+        classifyReply.mockResolvedValue({ classification: "DNC", confidence: 0.95, reasoning: "x" });
+        expect(await complianceGuard.checkInboundMessage("l1", "I would rather not hear from your company anymore")).toBe("OPT_OUT");
+        expect(suppressed()).toBe(true);
+        expect(auditMeta()).toEqual({ class: "OPT_OUT", pass: "model" });
+    });
+
+    it("never writes the message text to the audit log", async () => {
+        classifyReply.mockResolvedValue({ classification: "INTERESTED", confidence: 0.9, reasoning: "x" });
+        await complianceGuard.checkInboundMessage("l1", "secret-body-text about pricing");
+        expect(JSON.stringify(mockPrisma.auditLog.create.mock.calls)).not.toContain("secret-body-text");
     });
 });
