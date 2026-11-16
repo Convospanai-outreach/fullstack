@@ -120,6 +120,10 @@ model Lead {
   id         String   @id @default(uuid())
   fullName   String?
   email      String?
+  // Whether the address is safe to cold-send to (apps/api/src/lib/emailStatus.ts): VERIFIED | RISKY | GUESS | INVALID | UNKNOWN. Existing leads are UNKNOWN; nothing backfills them.
+  emailStatus          String    @default("UNKNOWN")
+  emailStatusSource    String? // what decided it: SYNTAX | NO_MX | ROLE | HUNTER | BOUNCE | PATTERN | ...
+  emailStatusCheckedAt DateTime?
   phone      String? // <-- Added field for Audit Remediation
   linkedIn   String?
   company    String?

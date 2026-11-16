@@ -61,12 +61,13 @@ const now = new Date("2026-09-30T10:00:00Z");
 
 let stepBody = "<p>Hi Asha, a quick note about your support team.</p>";
 let leadName: string | null = "Asha Rao";
+let leadEmailStatus: string | undefined;
 let teamRow: any = { sendSafety: { mode: "hold" }, mailingAddress: "1 Main St, Pune" };
 
 function seed() {
     // A lead a rep just marked not_interested: status LOST is not an exitReason, so only an
     // explicit stop keeps its already-scheduled follow-up from sending.
-    const lead = { id: "lead-1", teamId: "team-1", email: "lead@example.test", status: "NEW", pipelineState: "NEW", fullName: leadName, company: "Acme", customFields: {} };
+    const lead = { id: "lead-1", teamId: "team-1", email: "lead@example.test", status: "NEW", pipelineState: "NEW", fullName: leadName, company: "Acme", customFields: {}, emailStatus: leadEmailStatus };
     tables["lead"] = [lead];
     tables["sequenceEnrollment"] = [
         { id: "enrollment-1", teamId: "team-1", leadId: "lead-1", sequenceId: "seq-1", status: "ACTIVE", nextRunAt: null },
@@ -111,6 +112,7 @@ describe("pre-send gate in the sequence engine", () => {
         (emailService.sendEmail as any).mockResolvedValue({ success: true, deliveryProvider: "RESEND" });
         stepBody = "<p>Hi Asha, a quick note about your support team.</p>";
         leadName = "Asha Rao";
+        leadEmailStatus = undefined;
         teamRow = { sendSafety: { mode: "hold" }, mailingAddress: "1 Main St, Pune" };
         seed();
     });
@@ -140,6 +142,39 @@ describe("pre-send gate in the sequence engine", () => {
         seed();
         await SequenceService.processDue({ now });
         expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    describe("email status", () => {
+        it("in hold mode holds a cold send to an unverified address, with the reason on the held screen", async () => {
+            leadEmailStatus = "UNKNOWN";
+            seed();
+            await SequenceService.processDue({ now });
+            expect(emailService.sendEmail).not.toHaveBeenCalled();
+            expect(JSON.parse(tables["sequenceStepRun"][0].errorMessage).safety).toEqual([expect.objectContaining({ code: "EMAIL_NOT_VERIFIED" })]);
+        });
+
+        it("in hold mode sends to a verified address", async () => {
+            leadEmailStatus = "VERIFIED";
+            seed();
+            await SequenceService.processDue({ now });
+            expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+        });
+
+        it("in warn mode sends to an unverified address but never to an undeliverable one", async () => {
+            teamRow = { sendSafety: null, mailingAddress: "1 Main St, Pune" };
+            leadEmailStatus = "UNKNOWN";
+            seed();
+            await SequenceService.processDue({ now });
+            expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+
+            vi.clearAllMocks();
+            (emailService.sendEmail as any).mockResolvedValue({ success: true, deliveryProvider: "RESEND" });
+            leadEmailStatus = "INVALID";
+            seed();
+            await SequenceService.processDue({ now });
+            expect(emailService.sendEmail).not.toHaveBeenCalled();
+            expect(JSON.parse(tables["sequenceStepRun"][0].errorMessage).safety).toEqual([expect.objectContaining({ code: "EMAIL_INVALID" })]);
+        });
     });
 
     it("in off mode does not look at the email", async () => {

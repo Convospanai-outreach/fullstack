@@ -7,7 +7,7 @@ import { renderMergeTags } from "@/lib/email/mergeTags";
 import { pickWeightedVariant } from "@/lib/email/campaignVariants";
 import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
-import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -136,11 +136,13 @@ export async function handleEmailSending(payload: JobPayload) {
     postalAddress = team?.mailingAddress ?? null;
     const settings = resolveSendSafety(team?.sendSafety);
     if (settings.mode !== "off") {
-      const check = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
-      if (!check.ok && settings.mode === "warn") {
+      const check = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null, emailStatus: lead.emailStatus });
+      // Warn mode only logs, except for an address known to be undeliverable: that never goes out.
+      const always = check.reasons.filter((r) => (ALWAYS_HOLD_CODES as string[]).includes(r.code));
+      if (!check.ok && settings.mode === "warn" && always.length === 0) {
         logger.warn("[email_sending] Pre-send check would hold this email", { leadId, campaignId, codes: check.reasons.map((r) => r.code) });
       } else if (!check.ok) {
-        heldReasons = check.reasons;
+        heldReasons = settings.mode === "warn" ? always : check.reasons;
       }
     }
   } catch (err) {

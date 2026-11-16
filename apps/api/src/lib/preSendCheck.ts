@@ -17,6 +17,8 @@ export interface SendSafetySettings {
     // Empty means "do not restrict": a team that has not listed its domains is not held for every link.
     allowedLinkHosts: string[];
     plainTextOnly: boolean;
+    // Lets a cold send go to a RISKY address (catch-all domain, role address). Off unless the team turns it on.
+    allowRiskyEmail: boolean;
 }
 
 // Our own starting list of spam triggers and phrases that read as machine-written. Teams edit it.
@@ -44,6 +46,7 @@ export const DEFAULT_SEND_SAFETY: SendSafetySettings = {
     bannedPhrases: DEFAULT_BANNED_PHRASES,
     allowedLinkHosts: [],
     plainTextOnly: false,
+    allowRiskyEmail: false,
 };
 
 const MAX_LIST = 200;
@@ -74,6 +77,7 @@ export function resolveSendSafety(raw: unknown): SendSafetySettings {
         bannedPhrases: stringList(r["bannedPhrases"], DEFAULT_SEND_SAFETY.bannedPhrases),
         allowedLinkHosts: stringList(r["allowedLinkHosts"], DEFAULT_SEND_SAFETY.allowedLinkHosts),
         plainTextOnly: r["plainTextOnly"] === true,
+        allowRiskyEmail: r["allowRiskyEmail"] === true,
     };
 }
 
@@ -88,7 +92,12 @@ export type SendSafetyCode =
     | "TOO_MANY_LINKS"
     | "FOREIGN_LINK"
     | "NO_POSTAL_ADDRESS"
-    | "HTML_IN_PLAIN_TEXT";
+    | "HTML_IN_PLAIN_TEXT"
+    | "EMAIL_NOT_VERIFIED"
+    | "EMAIL_INVALID";
+
+// Codes that stop a send in every mode but "off", because sending anyway hurts the sender's reputation.
+export const ALWAYS_HOLD_CODES: SendSafetyCode[] = ["EMAIL_INVALID"];
 
 export interface SendSafetyReason {
     code: SendSafetyCode;
@@ -104,6 +113,8 @@ export interface PreSendInput {
     settings: SendSafetySettings;
     // Team.mailingAddress. The footer adds it later; this asserts there is one to add.
     postalAddress?: string | null;
+    // Lead.emailStatus. Missing means the caller does not know, and the check is skipped.
+    emailStatus?: string | null;
 }
 
 function toText(html: string): string {
@@ -179,6 +190,15 @@ export function preSendCheck(input: PreSendInput): { ok: boolean; reasons: SendS
     if (kind === "sequence" && !input.postalAddress?.trim()) add("NO_POSTAL_ADDRESS", "No postal address is set for the team, so the required footer address would be missing.");
 
     if (settings.plainTextOnly && /<\/?[a-z][a-z0-9]*(\s[^>]*)?\/?>/i.test(input.body)) add("HTML_IN_PLAIN_TEXT", "The email contains HTML tags but the team sends plain text only.");
+
+    // Cold sends need an address worth sending to. A reply is exempt: the person wrote to us.
+    if (kind === "sequence" && input.emailStatus) {
+        const status = input.emailStatus;
+        if (status === "INVALID") add("EMAIL_INVALID", "This email address is known to be undeliverable.");
+        else if (status === "RISKY" && !settings.allowRiskyEmail) add("EMAIL_NOT_VERIFIED", "This address is risky (a role address or a catch-all domain) and the team has not allowed risky addresses.");
+        else if (status === "GUESS") add("EMAIL_NOT_VERIFIED", "This address was guessed from a pattern and has not been verified.");
+        else if (status === "UNKNOWN") add("EMAIL_NOT_VERIFIED", "This address has not been verified yet.");
+    }
 
     return { ok: reasons.length === 0, reasons };
 }

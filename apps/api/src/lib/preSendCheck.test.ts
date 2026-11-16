@@ -101,3 +101,34 @@ describe("resolveSendSafety", () => {
         expect(resolveSendSafety({ mode: "banana" }).mode).toBe("warn");
     });
 });
+
+describe("preSendCheck email status", () => {
+    it.each(["GUESS", "UNKNOWN"])("holds a cold send to a %s address", (emailStatus) => {
+        expect(codes({ emailStatus })).toEqual(["EMAIL_NOT_VERIFIED"]);
+    });
+
+    it("never allows a cold send to an INVALID address", () => {
+        expect(codes({ emailStatus: "INVALID" })).toEqual(["EMAIL_INVALID"]);
+    });
+
+    it("allows a cold send to a VERIFIED address, and to a lead with no status recorded", () => {
+        expect(codes({ emailStatus: "VERIFIED" })).toEqual([]);
+        expect(codes({ emailStatus: null })).toEqual([]);
+    });
+
+    it("allows RISKY only when the team allows it", () => {
+        expect(codes({ emailStatus: "RISKY" })).toEqual(["EMAIL_NOT_VERIFIED"]);
+        expect(codes({ emailStatus: "RISKY", settings: { ...DEFAULT_SEND_SAFETY, allowRiskyEmail: true } })).toEqual([]);
+    });
+
+    it("exempts replies, because the person wrote to us", () => {
+        expect(codes({ kind: "reply", emailStatus: "INVALID" })).toEqual([]);
+        expect(codes({ kind: "reply", emailStatus: "UNKNOWN" })).toEqual([]);
+    });
+
+    it("reads the team setting as true only when it is exactly true", () => {
+        expect(resolveSendSafety({ allowRiskyEmail: true }).allowRiskyEmail).toBe(true);
+        expect(resolveSendSafety({ allowRiskyEmail: "yes" }).allowRiskyEmail).toBe(false);
+        expect(resolveSendSafety(null).allowRiskyEmail).toBe(false);
+    });
+});
