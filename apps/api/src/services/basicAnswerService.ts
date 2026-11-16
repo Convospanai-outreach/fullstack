@@ -160,7 +160,8 @@ export class BasicAnswerService {
             }
         }
 
-        const cached = await semanticCache.getExact(question);
+        // The cache is per team: with no team there is nothing safe to read from it.
+        const cached = input.teamId ? await semanticCache.getExact(input.teamId, question) : null;
         if (cached) {
             const result: BasicAnswerResult = {
                 answer: cached,
