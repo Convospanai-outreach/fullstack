@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
+import { EdgeStatusPlate } from "@/components/dashboard/EdgeStatusPlate";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import { NAV_SECTIONS, SETTINGS_PREFIXES, isLinkActive, matchesPath } from "@/lib/navSections";
 
@@ -80,15 +81,15 @@ function NavEntry({
         flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
         transition-colors duration-150
         ${active
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          ? 'bg-sidebar-foreground/10 text-sidebar-foreground'
+          : 'text-sidebar-foreground/75 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground'
         }
       `}
     >
       <Icon className="w-[14px] h-[14px] flex-shrink-0" />
       <span className="flex-1">{label}</span>
       {!!badge && badge > 0 && (
-        <span className="text-[9.5px] border border-border rounded px-1 text-muted-foreground">
+        <span className="text-[9.5px] border border-sidebar-foreground/30 rounded px-1 text-sidebar-foreground/75">
           {badge}
         </span>
       )}
@@ -130,7 +131,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
       <aside
         className={`
-          w-48 fixed left-0 top-0 bottom-0 bg-card border-r border-border z-50 flex flex-col
+          w-48 fixed left-0 top-0 bottom-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border z-50 flex flex-col
           transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -142,12 +143,12 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         <div className="flex items-center justify-between px-3 pt-4 pb-3">
           <Link href="/dashboard" className="flex items-center gap-2">
             <LogoMark className="h-[26px] w-[26px]" />
-            <span className="text-[13px] font-medium text-foreground font-outfit">CraftMyFunnel</span>
+            <span className="text-[13px] font-medium text-sidebar-foreground font-outfit">CraftMyFunnel</span>
           </Link>
           {/* Mobile close */}
           <button
             onClick={onClose}
-            className="lg:hidden p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="lg:hidden p-1 rounded hover:bg-sidebar-foreground/10 text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -175,6 +176,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         </nav>
 
         <div className="px-2 pb-2 space-y-0.5">
+          <EdgeStatusPlate onClick={onClose} />
           <NavEntry
             href="/settings"
             label="Settings"
@@ -197,16 +199,16 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
         {/* User identity row — single source of truth. Links to /profile, which
             previously had no way to be reached from the dashboard chrome at all. */}
-        <div className="border-t border-border px-2 py-3">
+        <div className="border-t border-sidebar-border px-2 py-3">
           <Link href="/profile" onClick={onClose} className="flex items-center gap-2 group">
-            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-sidebar-foreground/10 text-sidebar-foreground flex items-center justify-center text-[10px] font-medium flex-shrink-0">
               {userInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-foreground truncate leading-none group-hover:text-primary transition-colors">{userName}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{planLabel}</p>
+              <p className="text-[12px] font-medium text-sidebar-foreground truncate leading-none">{userName}</p>
+              <p className="text-[10px] text-sidebar-foreground/75 mt-0.5 leading-none">{planLabel}</p>
             </div>
-            <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+            <MoreHorizontal className="w-3.5 h-3.5 text-sidebar-foreground/75 flex-shrink-0" />
           </Link>
         </div>
       </aside>

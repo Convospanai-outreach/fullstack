@@ -22,12 +22,19 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --font-display: var(--font-bricolage), "Inter", system-ui, sans-serif;
 }
 
 @layer base {
   :root {
     /* Surfaces */
     --background: 0 0% 100%;
+    --sidebar: 222 100% 81%; /* #9cb9ff */
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 222 60% 70%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -62,6 +69,9 @@
   .dark {
     /* Midnight navy: four 2-point lightness steps above the previous base. */
     --background: 222 36% 10%;
+    --sidebar: 222 40% 15%;
+    --sidebar-foreground: 222 100% 90%;
+    --sidebar-border: 222 30% 22%;
     --foreground: 0 0% 98%;
 
     /* Complex Backdrop Pattern */
@@ -115,14 +125,14 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-public-sans), 'Inter', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3 {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-bricolage), 'Inter', system-ui, sans-serif;
     letter-spacing: -0.02em;
   }
 }
