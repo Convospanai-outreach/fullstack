@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, send } = vi.hoisted(() => ({
+const { db, send, enqueue } = vi.hoisted(() => ({
+    enqueue: vi.fn(),
     db: {
         lead: { findUnique: vi.fn() },
         campaign: { findUnique: vi.fn() },
@@ -15,6 +16,7 @@ const { db, send } = vi.hoisted(() => ({
     send: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({ prisma: db }));
+vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue } }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterEmailSent: vi.fn() }));
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({ sendViaGmailMailbox: vi.fn() }));
@@ -79,5 +81,78 @@ describe("email_sending pre-send gate", () => {
         db.team.findUnique.mockRejectedValue(new Error("db"));
         await expect(handleEmailSending(failing)).rejects.toThrow("stop here");
         expect(send).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("email_sending recipient send window", () => {
+    const windowOn = { sendSafety: { mode: "off", sendWindow: { enabled: true } }, mailingAddress: null };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-09-30T10:00:00Z")); // Wed: 15:30 in Kolkata, 19:00 in Tokyo
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Pune, India" });
+        db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
+        db.suppressionEntry.findUnique.mockResolvedValue(null);
+        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
+        db.$executeRaw.mockResolvedValue(1);
+        db.email.findFirst.mockResolvedValue(null);
+        db.email.create.mockResolvedValue({ id: "e1", trackingId: "tr1" });
+        db.email.update.mockResolvedValue({ id: "e1" });
+        db.campaignAttachment.findMany.mockResolvedValue([]);
+        db.team.findUnique.mockResolvedValue(windowOn);
+        enqueue.mockResolvedValue({ id: "j2" });
+        send.mockRejectedValue(new Error("stop here"));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it("sends inside the recipient's window", async () => {
+        await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        expect(enqueue).not.toHaveBeenCalled();
+    });
+
+    it("outside the window queues the same job for the next window start, before using a daily slot", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        const result = await handleEmailSending(payload);
+
+        expect(result).toMatchObject({ skipped: true, reason: "outside_send_window" });
+        expect(send).not.toHaveBeenCalled();
+        expect(db.$executeRaw).not.toHaveBeenCalled();
+        const [type, queued, options] = enqueue.mock.calls[0]!;
+        expect(type).toBe("email_sending");
+        expect(queued).toEqual(payload);
+        // Thu 08:00 Tokyo = Wed 23:00Z, plus under 90 minutes of jitter
+        expect(options.processAt.getTime()).toBeGreaterThanOrEqual(new Date("2026-09-30T23:00:00Z").getTime());
+        expect(options.processAt.getTime()).toBeLessThan(new Date("2026-10-01T00:30:00Z").getTime());
+        expect(options.idempotencyKey).toContain("l1_c1");
+    });
+
+    it("treats a duplicate-key insert as already queued, and does not send now", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        enqueue.mockRejectedValue(Object.assign(new Error("Unique constraint failed"), { code: "P2002" }));
+        const result = await handleEmailSending(payload);
+        expect(result).toMatchObject({ skipped: true, reason: "outside_send_window" });
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("fails the job, rather than sending out of window, when the delayed job cannot be queued", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        enqueue.mockRejectedValue(new Error("queue down"));
+        await expect(handleEmailSending(payload)).rejects.toThrow("queue down");
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("does nothing unless the team turns it on", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        db.team.findUnique.mockResolvedValue({ sendSafety: null, mailingAddress: null });
+        await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        expect(enqueue).not.toHaveBeenCalled();
+    });
+
+    it("sends when the team settings cannot be read", async () => {
+        db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
+        db.team.findUnique.mockRejectedValue(new Error("db"));
+        await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        expect(enqueue).not.toHaveBeenCalled();
     });
 });
