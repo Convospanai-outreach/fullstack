@@ -153,8 +153,9 @@ export default function HomeV8() {
                     {(i === 1 || i === 2) && <span className="tiny-tag">{p.note}</span>}
                     {(i === 0 || i === 4) && (
                       <div className="actions">
-                        <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>
-                        {i === 0 && <a className="secondary" href="#problem" onClick={(e) => { e.preventDefault(); goTo(1); }}>{p.secondary}</a>}
+                        {i === 0
+                          ? <a className="primary" href="#problem" onClick={(e) => { e.preventDefault(); goTo(1); }}>{p.primary}</a>
+                          : <button type="button" className="primary" onClick={openSignup}>{p.primary}</button>}
                       </div>
                     )}
                     {i === 0 && <div className="hint"><span className="scroll-icon" aria-hidden="true" />{p.note}</div>}

@@ -278,6 +278,9 @@ export default function PricingPage() {
                     <p className="mx-auto max-w-2xl text-lg text-slate-300">
                         Start with a focused pilot, then scale the buyer-signal-to-meeting workflow with managed campaigns, follow-ups, and governance.
                     </p>
+                    <p className="mx-auto max-w-2xl text-sm text-slate-400">
+                        {plans.map((plan) => `${plan.displayName} $${plan.usdMonthly}/month`).join(", ")} (USD list prices; customers in India are billed in INR).
+                    </p>
 
                     {ANNUAL_BILLING_AVAILABLE ? (
                     <div className="pt-4">

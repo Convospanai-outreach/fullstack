@@ -60,8 +60,8 @@ class EmailService {
         // publicBaseUrl/tracking being configured): steers recipients to unsubscribe or forward
         // rather than hitting "report spam", which is what actually hurts sender reputation.
         const unsubscribeInstruction = unsubscribeUrl
-            ? `instead click <a href="${unsubscribeUrl}" style="color:#0f172a;text-decoration:underline">UNSUBSCRIBE</a> and we will ensure you never receive another email from us.`
-            : `instead reply to this email with "UNSUBSCRIBE" and we will ensure you never receive another email from us.`;
+            ? `instead click <a href="${unsubscribeUrl}" style="color:#0f172a;text-decoration:underline">UNSUBSCRIBE</a>, or just reply with a one-line email saying "unsubscribe", and we will ensure you never receive another email from us.`
+            : `instead just reply with a one-line email saying "UNSUBSCRIBE" and we will ensure you never receive another email from us.`;
         // The team-editable line (Settings > Branding) — resolveEmailFooterText() guarantees a
         // non-blank value even for teams who never touched the setting. HTML-escaped since it's
         // free-form team-authored text, same treatment as mailingAddress above.
@@ -76,7 +76,7 @@ class EmailService {
                         </p>
                         <p style="font-size:13px;line-height:1.5;color:#0f172a;font-weight:700;margin:0">
                             If this isn't relevant to you, please forward it to the right person at your company instead of deleting it or marking it as spam.
-                            Our intent is professional partnership &mdash; not to bother you.
+                            We promise we will never spam you.
                         </p>
                     </td></tr>
                 </table>`;

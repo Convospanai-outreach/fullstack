@@ -8,11 +8,15 @@ import {
     HelpCircle,
     RefreshCw,
     Radio,
-    Terminal
+    Terminal,
+    Fingerprint,
+    ListChecks,
+    Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { formatHeartbeatAge, type EdgeHeartbeat } from "@/lib/edgeHeartbeat";
 
 interface EdgeRuntimeStatus {
     configured: boolean;
@@ -24,6 +28,13 @@ interface EdgeRuntimeStatus {
     endpoint?: string;
     latencyMs?: number;
 }
+
+const CAPABILITY_ROWS: { key: keyof NonNullable<EdgeHeartbeat["capabilities"]>; label: string }[] = [
+    { key: "tokenize", label: "PII vault (sanitise and re-identify on the device)" },
+    { key: "classify", label: "Local intent scoring and response critique" },
+    { key: "generate", label: "Offline LLM drafts" },
+    { key: "execute", label: "Browser actions" },
+];
 
 const STATUS_STYLES: Record<EdgeRuntimeStatus["status"], { icon: typeof CheckCircle2; className: string }> = {
     UP: { icon: CheckCircle2, className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
@@ -58,8 +69,36 @@ export default function EdgeRuntimePage() {
         }
     };
 
+    const [details, setDetails] = useState<EdgeHeartbeat | null>(null);
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState<string | null>(null);
+
+    const loadDetails = async () => {
+        try {
+            const res = await fetch(getBrowserApiBase() + "/edge/details");
+            if (res.ok) setDetails((await res.json()).data);
+        } catch {
+            setDetails({ configured: false });
+        }
+    };
+
+    const runScoreTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const res = await fetch(getBrowserApiBase() + "/edge/test-score", { method: "POST" });
+            const body = await res.json();
+            setTestResult(body.success ? `Edge node scored the sample ${body.data.score} in ${body.data.latencyMs}ms.` : (body.error ?? "Test failed."));
+        } catch {
+            setTestResult("Couldn't reach the edge node.");
+        } finally {
+            setTesting(false);
+        }
+    };
+
     useEffect(() => {
         loadStatus();
+        loadDetails();
     }, []);
 
     const style = status ? STATUS_STYLES[status.status] : STATUS_STYLES.NOT_CONFIGURED;
@@ -114,6 +153,55 @@ export default function EdgeRuntimePage() {
                 {typeof status?.latencyMs === "number" && (
                     <p className="text-xs text-cyan-400 font-mono">Latency: {status.latencyMs}ms</p>
                 )}
+            </div>
+
+            {/* Hardware fingerprint */}
+            <div className="p-6 rounded-2xl bg-muted border border-border space-y-2">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Fingerprint className="w-4 h-4 text-cyan-400" />
+                    Hardware fingerprint
+                </h3>
+                <p className="text-xs text-muted-foreground font-mono">
+                    {details?.hardwareId ?? (details ? "No node paired yet" : "Checking...")}
+                </p>
+                {details?.configured && (
+                    <p className="text-xs text-muted-foreground">
+                        Last heartbeat: {formatHeartbeatAge(details.lastSeenAt)}
+                        {details.runtimeVersion ? ` · runtime ${details.runtimeVersion}` : ""}
+                    </p>
+                )}
+            </div>
+
+            {/* Capability matrix */}
+            <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <ListChecks className="w-4 h-4 text-cyan-400" />
+                    Capabilities
+                </h3>
+                <ul className="space-y-1.5">
+                    {CAPABILITY_ROWS.map(({ key, label }) => {
+                        const on = details?.capabilities?.[key] === true;
+                        return (
+                            <li key={key} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                {on ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground" />}
+                                <span className={on ? "text-foreground" : undefined}>{label}</span>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+
+            {/* Score test */}
+            <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Play className="w-4 h-4 text-cyan-400" />
+                    Test intent scoring
+                </h3>
+                <p className="text-xs text-muted-foreground">Sends one fixed sample sentence to the node. No lead data is sent.</p>
+                <Button variant="outline" size="sm" onClick={runScoreTest} disabled={testing} className="bg-muted border-border text-foreground text-xs">
+                    {testing ? "Testing..." : "Run test"}
+                </Button>
+                {testResult && <p className="text-xs text-cyan-400 font-mono">{testResult}</p>}
             </div>
 
             {/* Quick Install Terminal Box */}

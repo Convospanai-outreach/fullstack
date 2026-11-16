@@ -56,6 +56,10 @@ export class WorkerManager {
     private campaignHealthInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastSilentSunsetTick: number = 0;
     private silentSunsetInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastDripLinkClickTick: number = 0;
+    private dripLinkClickInterval: number = 5 * 60 * 1000;
+    private lastDripWinBackTick: number = 0;
+    private dripWinBackInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastFacebookLeadsTick: number = 0;
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
@@ -350,6 +354,24 @@ export class WorkerManager {
                 if (result.enrollmentsExited > 0) {
                     console.log(`[Worker] SilentSunset exited ${result.enrollmentsExited} silent enrollment(s) across ${result.campaignsChecked} campaign(s).`);
                 }
+            });
+        }
+
+        if (now - this.lastDripLinkClickTick >= this.dripLinkClickInterval) {
+            this.lastDripLinkClickTick = now;
+            await this.runSweep("DripLinkClick", async () => {
+                const { runLinkClickTrigger } = await import("@/modules/playbooks/dripTriggers");
+                const result = await runLinkClickTrigger();
+                if (result.enrolled > 0) console.log(`[Worker] Drip link-click follow-up started for ${result.enrolled} lead(s).`);
+            });
+        }
+
+        if (now - this.lastDripWinBackTick >= this.dripWinBackInterval) {
+            this.lastDripWinBackTick = now;
+            await this.runSweep("DripWinBack", async () => {
+                const { runWinBackTrigger } = await import("@/modules/playbooks/dripTriggers");
+                const result = await runWinBackTrigger();
+                if (result.enrolled > 0) console.log(`[Worker] Win-back started for ${result.enrolled} quiet contact(s).`);
             });
         }
 

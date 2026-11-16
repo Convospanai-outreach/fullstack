@@ -27,6 +27,8 @@ services:
       - EDGE_VAULT_KEY=${EDGE_VAULT_KEY:-} # generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - HARDWARE_SIGNATURE=uuid-550e8400-e29b-41d4-a716-446655440000
       - DATABASE_URL=postgresql://postgres:postgres@postgres-edge:5432/edge_db
+      - POSTHOG_PROJECT_TOKEN=${POSTHOG_PROJECT_TOKEN}
+      - POSTHOG_HOST=${POSTHOG_HOST}
     depends_on:
       - postgres-edge
     deploy:

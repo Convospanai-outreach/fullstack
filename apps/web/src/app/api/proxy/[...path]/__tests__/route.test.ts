@@ -4,6 +4,12 @@ import { isWebOwnedPath, POST } from "../route";
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
 
 describe("isWebOwnedPath", () => {
+    it("keeps smtp connect/test in apps/web but sends smtp domain-checks to apps/api", () => {
+        expect(isWebOwnedPath(["integrations", "smtp", "connect"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "test"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "domain-checks"])).toBe(false);
+    });
+
     describe("settings", () => {
         it("keeps branding and hidden-features web-owned", () => {
             expect(isWebOwnedPath(["settings", "branding"])).toBe(true);
@@ -102,9 +108,10 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
             // The proxy clears its timer when headers arrive, so capture the timer length instead.
             const spy = vi.spyOn(global, "setTimeout");
             await call(["setup", "scan"]);
+            await call(["drip-playbooks", "draft"]);
             await call(["workflows", "wf-1"]);
             const delays = spy.mock.calls.map((c) => c[1]);
-            expect(delays).toContain(90_000);
+            expect(delays.filter((d) => d === 90_000)).toHaveLength(2);
             expect(delays).toContain(15_000);
         } finally {
             vi.useRealTimers();

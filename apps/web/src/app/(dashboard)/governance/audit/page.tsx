@@ -56,6 +56,26 @@ export default function AuditLogsPage() {
         log.user?.email.toLowerCase().includes(search.toLowerCase())
     );
 
+    // Exports the rows currently shown (after the search filter). Quotes every cell; a leading = + - @ is
+    // prefixed with ' so spreadsheets do not run it as a formula.
+    const exportCsv = () => {
+        const cell = (v: string | null | undefined) => {
+            const s = v ?? "";
+            return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+        };
+        const rows = [
+            ["Time", "Actor", "Action", "Resource", "Resource ID", "IP address"],
+            ...filteredLogs.map((l) => [l.createdAt, l.user?.email, l.action, l.entity, l.entityId, l.ipAddress]),
+        ];
+        const blob = new Blob([rows.map((r) => r.map(cell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <GovernanceLayout>
             <div className="flex justify-between items-center mb-6">
@@ -75,7 +95,11 @@ export default function AuditLogsPage() {
                         <Filter className="w-4 h-4 text-muted-foreground" />
                         Filters
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition shadow-glow">
+                    <button
+                        onClick={exportCsv}
+                        disabled={filteredLogs.length === 0}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition shadow-glow disabled:opacity-50"
+                    >
                         <Download className="w-4 h-4" />
                         Export CSV
                     </button>
