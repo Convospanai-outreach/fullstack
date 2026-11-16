@@ -71,3 +71,28 @@ test("every mirrored migration dir in the real repo passes", () => {
     assert.deepEqual(findTablesWithoutRls(path.join(root, dir)), [], dir);
   }
 });
+
+test("catches a CREATE TABLE that follows another statement on the same line", () => {
+  const dir = scratch({ [AFTER]: 'SELECT 1; CREATE TABLE "Widget" ("id" TEXT);' });
+  assert.deepEqual(findTablesWithoutRls(dir), ["Widget"]);
+});
+
+test("a commented-out ENABLE does not count", () => {
+  const dir = scratch({
+    [AFTER]: 'CREATE TABLE "Widget" ("id" TEXT);\n/*\nALTER TABLE "Widget" ENABLE ROW LEVEL SECURITY;\n*/\n-- ALTER TABLE "Widget" ENABLE ROW LEVEL SECURITY;',
+  });
+  assert.deepEqual(findTablesWithoutRls(dir), ["Widget"]);
+});
+
+test("a commented-out CREATE does not create a requirement", () => {
+  const dir = scratch({ [AFTER]: '-- CREATE TABLE "Ghost" ("id" TEXT);' });
+  assert.deepEqual(findTablesWithoutRls(dir), []);
+});
+
+test("a later DISABLE undoes an earlier ENABLE", () => {
+  const dir = scratch({
+    [AFTER]: 'CREATE TABLE "Widget" ("id" TEXT);\nALTER TABLE "Widget" ENABLE ROW LEVEL SECURITY;',
+    "20270102000000_off": 'ALTER TABLE "Widget" DISABLE ROW LEVEL SECURITY;',
+  });
+  assert.deepEqual(findTablesWithoutRls(dir), ["Widget"]);
+});

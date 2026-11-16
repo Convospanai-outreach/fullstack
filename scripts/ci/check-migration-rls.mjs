@@ -20,16 +20,22 @@ export const MIGRATION_DIRS = [
 ];
 
 // Optional "IF NOT EXISTS" / "ONLY" / schema, then a quoted or bare name.
+// Statements are matched anywhere in the file (not just at a line start), after comments are removed.
 const NAME = String.raw`(?:"?public"?\.)?(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_$]*))`;
-const CREATE = new RegExp(String.raw`^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?${NAME}`, "gim");
-const ENABLE = new RegExp(
-  String.raw`^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?${NAME}\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY`,
-  "gim",
-);
+const CREATE = new RegExp(String.raw`\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?${NAME}`, "gi");
+const RLS = (verb) =>
+  new RegExp(String.raw`\bALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?${NAME}\s+${verb}\s+ROW\s+LEVEL\s+SECURITY`, "gi");
+const ENABLE = RLS("ENABLE");
+const DISABLE = RLS("DISABLE");
 
 // Quoted names keep their case; bare names fold to lower case, as in Postgres.
-function names(sql, re) {
-  return [...sql.matchAll(re)].map((m) => m[1] ?? m[2].toLowerCase());
+function events(sql, re, type) {
+  return [...sql.matchAll(re)].map((m) => ({ at: m.index, type, table: m[1] ?? m[2].toLowerCase() }));
+}
+
+// Remove /* block */ and -- line comments, so commented-out statements do not count.
+function stripComments(sql) {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
 }
 
 export function findTablesWithoutRls(migrationsDir) {
@@ -43,9 +49,19 @@ export function findTablesWithoutRls(migrationsDir) {
   for (const name of migrations) {
     const file = path.join(migrationsDir, name, "migration.sql");
     if (!fs.existsSync(file)) continue;
-    const sql = fs.readFileSync(file, "utf8");
-    if (name > RLS_BASELINE) created.push(...names(sql, CREATE));
-    for (const t of names(sql, ENABLE)) secured.add(t);
+    const sql = stripComments(fs.readFileSync(file, "utf8"));
+    // Apply statements in the order they appear, so a later DISABLE undoes an earlier ENABLE.
+    const all = [
+      ...events(sql, CREATE, "create"),
+      ...events(sql, ENABLE, "enable"),
+      ...events(sql, DISABLE, "disable"),
+    ].sort((a, b) => a.at - b.at);
+    for (const e of all) {
+      if (e.type === "create") {
+        if (name > RLS_BASELINE) created.push(e.table);
+      } else if (e.type === "enable") secured.add(e.table);
+      else secured.delete(e.table);
+    }
   }
   return [...new Set(created)].filter((t) => !secured.has(t));
 }
