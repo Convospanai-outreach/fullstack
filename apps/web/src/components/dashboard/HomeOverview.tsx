@@ -6,7 +6,7 @@ import { format } from "date-fns";
 
 interface Overview {
   stages: { stage: string; count: number }[];
-  channels: { channel: "email" | "linkedin" | "whatsapp"; sent: number; replies: number | null }[];
+  channels: { channel: "email" | "linkedin" | "whatsapp" | "call"; sent: number; replies: number | null }[];
   record: { id: string; action: string; status: string; at: string; by: string | null }[];
 }
 
@@ -19,7 +19,7 @@ const STAGE_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
 };
 
-const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn", whatsapp: "WhatsApp" } as const;
+const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn (logged by hand)", whatsapp: "WhatsApp", call: "Logged calls" } as const;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -94,11 +94,15 @@ export function HomeOverview() {
                   <tr key={c.channel} className="border-t border-border">
                     <td className="px-4 py-2.5 font-medium text-foreground">{CHANNEL_LABELS[c.channel]}</td>
                     {c.sent === 0 ? (
-                      <td colSpan={3} className="px-4 py-2.5 text-right text-muted-foreground">Nothing sent yet</td>
+                      <td colSpan={3} className="px-4 py-2.5 text-right text-muted-foreground">
+                        {c.channel === "call" ? (
+                          <>No calls logged yet. <Link href="/leads" className={action}>Log a call on a lead</Link></>
+                        ) : "Nothing sent yet"}
+                      </td>
                     ) : (
                       <>
                         <td className="px-4 py-2.5 text-right text-foreground">{c.sent}</td>
-                        <td className="px-4 py-2.5 text-right text-foreground">{c.replies ?? <span className="text-muted-foreground">Not tracked yet</span>}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{c.channel === "call" ? `${c.replies} ${c.replies === 1 ? "conversation" : "conversations"}` : c.replies ?? <span className="text-muted-foreground">Not tracked yet</span>}</td>
                         <td className="px-4 py-2.5 text-right font-medium text-foreground">{c.replies === null ? "" : `${Math.round((c.replies / c.sent) * 100)}%`}</td>
                       </>
                     )}
