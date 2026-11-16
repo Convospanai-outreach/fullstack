@@ -2,7 +2,7 @@ import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
-import { classifyReply, type ReplyClassification } from "@/lib/ai/jev";
+import { classifyReply, type ModelReplyClassification as ReplyClassification } from "@/lib/ai/jev";
 
 // SOP: the action each classification calls for. A rep still makes every change.
 const SUGGESTED_ACTIONS = {

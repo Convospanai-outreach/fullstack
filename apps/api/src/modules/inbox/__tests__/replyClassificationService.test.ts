@@ -4,7 +4,8 @@ const { mockDb, mockEnqueue, mockAnalyze } = vi.hoisted(() => ({
     mockDb: {
         lead: { findUnique: vi.fn() },
         message: { findFirst: vi.fn(), count: vi.fn() },
-        replyTracker: { findFirst: vi.fn(), findMany: vi.fn() },
+        replyTracker: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+        job: { findUnique: vi.fn() },
         teamMember: { findMany: vi.fn() },
         emailEvent: { findUnique: vi.fn() },
     },
@@ -18,7 +19,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/ai/agents/ReplyAnalyzerAgent", () => ({ ReplyAnalyzerAgent: { analyzeAndTrack: mockAnalyze } }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
 
-import { classifyInboundReply, enqueueReplyClassification } from "../replyClassificationService";
+import { classifyInboundReply, classifyInboundReplyOrFlag, enqueueReplyClassification } from "../replyClassificationService";
 import { getSuggestionsForReplies, suggestedOutcomeFor } from "../replySuggestions";
 import { onInboundReply } from "../inboundReplyNotifier";
 
@@ -28,6 +29,7 @@ describe("suggestedOutcomeFor (the one vocabulary mapping)", () => {
         ["NOT_INTERESTED", "not_interested", false],
         ["DNC", "not_interested", true],
         ["OOO", null, false],
+        ["UNSURE", null, false],
         ["QUESTION", null, false],
         ["SOMETHING_ELSE", null, false],
     ])("%s -> outcome %s, askedNotToContact %s", (classification, outcome, askedNotToContact) => {
@@ -153,5 +155,56 @@ describe("getSuggestionsForReplies", () => {
         const result = await getSuggestionsForReplies("team-a", ["m1", "m2"]);
         expect(result.get("m1")).toMatchObject({ classification: "OOO", suggestedOutcome: null });
         expect(result.get("m2")).toMatchObject({ classification: "QUESTION", suggestedOutcome: null, suggestedReply: "Sure" });
+    });
+});
+
+describe("classifyInboundReplyOrFlag (a reply the model could not read goes to a person)", () => {
+    const message = { id: "msg-1", leadId: "lead-1", content: "hello", lead: { email: "p@example.com" }, emailEvent: { email: { subject: "Re: hi" } } };
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockDb.replyTracker.findFirst.mockResolvedValue(null);
+        mockAnalyze.mockRejectedValue(new Error("jev 503"));
+    });
+
+    it("rethrows without flagging while retries remain", async () => {
+        mockDb.job.findUnique.mockResolvedValue({ attempts: 1, maxAttempts: 3 });
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).rejects.toThrow("jev 503");
+        expect(mockDb.replyTracker.create).not.toHaveBeenCalled();
+    });
+
+    it("on the final attempt stores an UNSURE suggestion for review, then rethrows", async () => {
+        mockDb.job.findUnique.mockResolvedValue({ attempts: 3, maxAttempts: 3 });
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).rejects.toThrow("jev 503");
+        expect(mockDb.replyTracker.create).toHaveBeenCalledTimes(1);
+        expect(mockDb.replyTracker.create.mock.calls[0][0].data).toMatchObject({
+            leadId: "lead-1", emailId: "msg-1", aiClassification: "UNSURE", aiConfidence: 0, status: "PENDING_REVIEW", replyDraft: null,
+        });
+    });
+
+    it("does not flag twice when a suggestion already exists", async () => {
+        mockDb.job.findUnique.mockResolvedValue({ attempts: 3, maxAttempts: 3 });
+        mockDb.replyTracker.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "rt1" });
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).rejects.toThrow();
+        expect(mockDb.replyTracker.create).not.toHaveBeenCalled();
+    });
+
+    it("does not flag a reply outside the team", async () => {
+        mockDb.job.findUnique.mockResolvedValue({ attempts: 3, maxAttempts: 3 });
+        mockDb.message.findFirst.mockResolvedValue(null);
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).resolves.toEqual({ skipped: "not_found" });
+        expect(mockDb.replyTracker.create).not.toHaveBeenCalled();
+    });
+
+    it("a failure to flag never hides the original error", async () => {
+        mockDb.job.findUnique.mockResolvedValue({ attempts: 3, maxAttempts: 3 });
+        mockDb.replyTracker.create.mockRejectedValue(new Error("db down"));
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).rejects.toThrow("jev 503");
+    });
+
+    it("returns the classification untouched when it works", async () => {
+        mockAnalyze.mockResolvedValue({ classification: "QUESTION" });
+        await expect(classifyInboundReplyOrFlag("team-1", "msg-1", "job-1")).resolves.toEqual({ classification: "QUESTION" });
+        expect(mockDb.replyTracker.create).not.toHaveBeenCalled();
     });
 });

@@ -49,6 +49,8 @@ export function judgeStalledEnrollment(candidate: StallCandidate): StallJudgment
         case "INTERESTED":
         case "QUESTION":
             return judgment("ROUTE_MANUAL", `${stalled}. The lead replied ${candidate.replyClassification === "INTERESTED" ? "with interest" : "with a question"} and nothing is scheduled - a rep should answer.`);
+        case "UNSURE":
+            return judgment("ROUTE_MANUAL", `${stalled}. The lead's latest reply could not be read automatically - a rep should read it.`);
         case "OOO":
             return judgment("RESEND_STEP", `${stalled}. The lead's latest reply was an away message - resend this step once they are back.`);
     }
