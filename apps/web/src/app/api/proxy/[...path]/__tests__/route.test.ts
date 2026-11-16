@@ -50,6 +50,10 @@ describe("isWebOwnedPath", () => {
         });
     });
 
+    it("proxies the batch lead workflow route to apps/api instead of treating it as a lead id", () => {
+        expect(isWebOwnedPath(["leads", "workflow"])).toBe(false);
+    });
+
     describe("leads", () => {
         it("keeps list/create, single-lead, and timeline web-owned", () => {
             expect(isWebOwnedPath(["leads"])).toBe(true);
