@@ -112,15 +112,6 @@ const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import", "org-chart"
 // which exist only in apps/api. Sent to apps/web they would hit a nonexistent route and 404.
 const CAMPAIGNS_API_SEGMENTS = new Set([
     "workflow",
-]);
-
-export function isApiOnlyCampaignPath(pathParts: string[]): boolean {
-    return pathParts[0] === "campaigns" && pathParts.length === 3 && CAMPAIGNS_API_SEGMENTS.has(pathParts[2] || "");
-}
-
-// The campaigns root is web-owned (WEB_OWNED_API_ROOTS) except these /campaigns/[id]/<segment> routes,
-// which exist only in apps/api. Sent to apps/web they would hit a nonexistent route and 404.
-const CAMPAIGNS_API_SEGMENTS = new Set([
     "governance",
     "approvals",
 ]);
