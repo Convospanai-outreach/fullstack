@@ -476,6 +476,18 @@ export class SequenceService {
             }
         }
 
+        // Recipient send window: outside it the run waits for the next window start. A wait is not a failed attempt.
+        const wait = await this.windowDelay(run, lead, now);
+        if (wait) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                // errorCode / errorMessage are left alone: an approved held email keeps its approval through them.
+                data: { status: "SCHEDULED", scheduledAt: wait.at, attemptCount: { decrement: 1 } },
+            });
+            logger.info("[SequenceService] Outside the recipient's send window, rescheduled", { runId: run.id, retryAt: wait.at.toISOString(), timeZone: wait.timeZone, source: wait.source });
+            return { runId: run.id, status: "SCHEDULED", reason: "outside_send_window", retryAt: wait.at };
+        }
+
         const subject = typeof run.step?.subject === "string" && run.step.subject.trim()
             ? run.step.subject.trim()
             : "Following up";

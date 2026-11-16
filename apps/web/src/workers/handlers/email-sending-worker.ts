@@ -49,6 +49,43 @@ export async function handleEmailSending(payload: JobPayload) {
     }
   }
 
+  // 2b. Recipient send window (team setting sendSafety.sendWindow, off unless enabled). Outside the window the same
+  // job is queued again for the next window start, so nothing is dropped and no daily slot is used yet. If the
+  // settings cannot be read the email is sent, as it was before.
+  let enqueueFailure: unknown = null;
+  try {
+    const windowTeamId = (teamId || campaign.teamId) as string;
+    const team = await prisma.team.findUnique({ where: { id: windowTeamId }, select: { sendSafety: true } });
+    const rawWindow = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+    const sendWindow = resolveSendWindow(rawWindow);
+    if (sendWindow.enabled) {
+      const { timeZone, source } = resolveRecipientTimeZone(lead, sendWindow.timeZone);
+      const retryAt = nextSendTime(new Date(), timeZone, sendWindow, `${leadId}:${campaignId}`);
+      if (retryAt) {
+        const { JobQueue } = await import("@/lib/queue");
+        try {
+          await JobQueue.enqueue("email_sending", payload, {
+            processAt: retryAt,
+            teamId: windowTeamId,
+            idempotencyKey: `email_sending_window_${leadId}_${campaignId}_${retryAt.getTime()}`,
+          });
+        } catch (enqueueErr) {
+          // A concurrent handler won the insert for the same key: that delayed job exists, so this one is done.
+          // Any other failure is rethrown so the job is retried, never sent now, outside the window.
+          if ((enqueueErr as { code?: string })?.code !== "P2002") {
+            enqueueFailure = enqueueErr;
+            throw enqueueErr;
+          }
+        }
+        logger.info("[email_sending] Outside the recipient's send window, queued again", { leadId, campaignId, retryAt: retryAt.toISOString(), timeZone, source });
+        return { skipped: true, reason: "outside_send_window", retryAt: retryAt.toISOString() };
+      }
+    }
+  } catch (err) {
+    if (enqueueFailure) throw enqueueFailure;
+    logger.warn("[email_sending] Send window skipped", { leadId, error: err instanceof Error ? err.message : String(err) });
+  }
+
   // 3. Find active connected mailbox for team
   const resolvedMailboxTeamId = (teamId || campaign.teamId) as string;
   const mailbox = mailboxId

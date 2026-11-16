@@ -19,7 +19,10 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
-import { tabFromQuery } from "@/lib/campaigns/campaignTabs";
+import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
+import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
+import { CampaignApprovalGate } from "@/components/campaigns/CampaignApprovalGate";
+import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
 
@@ -398,7 +401,7 @@ export default function CampaignDetailPage({
                 {/* Tabs */}
                 <div className="border-b border-border mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        {["overview", "sequence", "leads", "activity", "timeline", "analytics"].map((tab) => (
+                        {CAMPAIGN_TABS.map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -421,6 +424,8 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
+                                <CampaignWorkflowRail campaignId={campaignId} />
+                                <CampaignApprovalGate campaignId={campaignId} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
@@ -654,6 +659,13 @@ export default function CampaignDetailPage({
                                 title="Recent Campaign Activity"
                                 emptyMessage="No activity logs for this campaign yet."
                             />
+                        </div>
+                    )}
+
+                    {/* GOVERNANCE TAB */}
+                    {activeTab === "governance" && (
+                        <div className="lg:col-span-3">
+                            <GovernanceLogTab campaignId={campaignId} />
                         </div>
                     )}
 
