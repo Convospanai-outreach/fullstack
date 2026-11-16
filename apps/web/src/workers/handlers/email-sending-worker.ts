@@ -7,6 +7,8 @@ import { renderMergeTags } from "@/lib/email/mergeTags";
 import { pickWeightedVariant } from "@/lib/email/campaignVariants";
 import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
+import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -46,6 +48,43 @@ export async function handleEmailSending(payload: JobPayload) {
       logger.warn("[email_sending] Lead on suppression list, skipping", { leadId, email: lead.email });
       return { skipped: true, reason: "suppressed" };
     }
+  }
+
+  // 2b. Recipient send window (team setting sendSafety.sendWindow, off unless enabled). Outside the window the same
+  // job is queued again for the next window start, so nothing is dropped and no daily slot is used yet. If the
+  // settings cannot be read the email is sent, as it was before.
+  let enqueueFailure: unknown = null;
+  try {
+    const windowTeamId = (teamId || campaign.teamId) as string;
+    const team = await prisma.team.findUnique({ where: { id: windowTeamId }, select: { sendSafety: true } });
+    const rawWindow = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+    const sendWindow = resolveSendWindow(rawWindow);
+    if (sendWindow.enabled) {
+      const { timeZone, source } = resolveRecipientTimeZone(lead, sendWindow.timeZone);
+      const retryAt = nextSendTime(new Date(), timeZone, sendWindow, `${leadId}:${campaignId}`);
+      if (retryAt) {
+        const { JobQueue } = await import("@/lib/queue");
+        try {
+          await JobQueue.enqueue("email_sending", payload, {
+            processAt: retryAt,
+            teamId: windowTeamId,
+            idempotencyKey: `email_sending_window_${leadId}_${campaignId}_${retryAt.getTime()}`,
+          });
+        } catch (enqueueErr) {
+          // A concurrent handler won the insert for the same key: that delayed job exists, so this one is done.
+          // Any other failure is rethrown so the job is retried, never sent now, outside the window.
+          if ((enqueueErr as { code?: string })?.code !== "P2002") {
+            enqueueFailure = enqueueErr;
+            throw enqueueErr;
+          }
+        }
+        logger.info("[email_sending] Outside the recipient's send window, queued again", { leadId, campaignId, retryAt: retryAt.toISOString(), timeZone, source });
+        return { skipped: true, reason: "outside_send_window", retryAt: retryAt.toISOString() };
+      }
+    }
+  } catch (err) {
+    if (enqueueFailure) throw enqueueFailure;
+    logger.warn("[email_sending] Send window skipped", { leadId, error: err instanceof Error ? err.message : String(err) });
   }
 
   // 3. Find active connected mailbox for team
@@ -124,6 +163,46 @@ export async function handleEmailSending(payload: JobPayload) {
   const subject = renderMergeTags(rawSubject, lead);
   const body = renderMergeTags(rawBody, lead);
 
+  // Deterministic pre-send gate on the composed text, before link tracking, the pixel and the footer.
+  // Team setting sendSafety.mode: off skips it, warn logs and sends, hold stops this send. If the team
+  // cannot be read the email is sent, as it was before the gate existed.
+  const gateTeamId = (teamId || campaign.teamId) as string;
+  let heldReasons: { code: string; message: string }[] | null = null;
+  let postalAddress: string | null = null;
+  try {
+    const team = await prisma.team.findUnique({ where: { id: gateTeamId }, select: { sendSafety: true, mailingAddress: true } });
+    postalAddress = team?.mailingAddress ?? null;
+    const settings = resolveSendSafety(team?.sendSafety);
+    if (settings.mode !== "off") {
+      const check = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
+      if (!check.ok && settings.mode === "warn") {
+        logger.warn("[email_sending] Pre-send check would hold this email", { leadId, campaignId, codes: check.reasons.map((r) => r.code) });
+      } else if (!check.ok) {
+        heldReasons = check.reasons;
+      }
+    }
+  } catch (err) {
+    logger.warn("[email_sending] Pre-send check skipped", { leadId, error: err instanceof Error ? err.message : String(err) });
+  }
+  if (heldReasons) {
+    // Give back the daily-limit slot taken above: nothing was sent.
+    // Only on the day the slot was taken: if midnight passed meanwhile, today's counter never held it.
+    await prisma.$executeRaw`UPDATE "ConnectedMailbox" SET "sentToday" = GREATEST("sentToday" - 1, 0) WHERE id = ${mailbox.id} AND "sentTodayDate" = ${todayStart}`;
+    // Codes only: the reasons quote the email text, which does not belong in the audit trail.
+    await prisma.auditLog.create({
+      data: {
+        orgId: gateTeamId,
+        actorId: "SYSTEM",
+        action: "SEND_SAFETY_HELD",
+        entity: "Lead",
+        entityId: leadId,
+        metadata: { campaignId, codes: heldReasons.map((r) => r.code) },
+      },
+    });
+    logger.warn("[email_sending] Held by the pre-send check", { leadId, campaignId, codes: heldReasons.map((r) => r.code) });
+    return { skipped: true, reason: "held_by_send_safety", codes: heldReasons.map((r) => r.code) };
+  }
+
   const trackingId = existingDraft?.trackingId || crypto.randomUUID();
   const variantId = selectedVariant?.id;
 
@@ -171,7 +250,8 @@ export async function handleEmailSending(payload: JobPayload) {
   });
   const finalHtml = appendUnsubscribeFooter(
     `${linkTrackedBody}${buildOpenPixelHtml(trackingId)}`,
-    trackingId
+    trackingId,
+    postalAddress
   );
 
   let sendResult: any = null;

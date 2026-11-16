@@ -124,6 +124,11 @@ jobs:
     - name: Prisma Schema Drift Gate
       run: node scripts/db/compare-prisma-schemas.mjs
 
+    - name: New Tables Ship With RLS Gate
+      run: |
+        node --test scripts/ci/check-migration-rls.test.mjs
+        node scripts/ci/check-migration-rls.mjs
+
     - name: Web Import Guards
       run: |
         node scripts/check-web-prisma-imports.mjs

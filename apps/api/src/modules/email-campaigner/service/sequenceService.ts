@@ -8,6 +8,9 @@ import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
+import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { isValidTimeZone, nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
+import { logger } from "@/lib/logger";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -21,6 +24,8 @@ export const TOKENS_HELD_STATUS = "AWAITING_TOKEN_APPROVAL";
 export const TOKENS_HELD_CODE = "MISSING_TOKENS";
 export const TOKENS_APPROVED_CODE = "TOKENS_APPROVED";
 const TOKENS_APPROVED_MARKER = "[tokens-approved] ";
+export const SAFETY_APPROVED_CODE = "SAFETY_APPROVED";
+const SAFETY_APPROVED_MARKER = "[safety-approved] ";
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
 // "dnc" is what ComplianceGuard.enforceOptOut writes (for example after a STOP in an Instagram flow).
 const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "dnc", "meeting_booked"]);
@@ -34,6 +39,7 @@ type SequencePrisma = {
     sequenceStepRun: any;
     lead: any;
     email: any;
+    team: any;
 };
 
 type ProcessDueOptions = {
@@ -393,6 +399,46 @@ export class SequenceService {
         return result.count === 1;
     }
 
+    // The reasons to hold this email, or null to send it. Team setting `sendSafety.mode`: off skips the
+    // check, warn logs the reasons and sends, hold returns them. Never throws: if the team cannot be read the
+    // email is sent, as it was before the gate existed.
+    private static async safetyHold(run: any, lead: any, subject: string, body: string): Promise<{ code: string; message: string }[] | null> {
+        try {
+            const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true, mailingAddress: true } });
+            const settings = resolveSendSafety(team?.sendSafety);
+            if (settings.mode === "off") return null;
+            const result = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
+            if (result.ok) return null;
+            if (settings.mode === "warn") {
+                logger.warn("[SequenceService] Pre-send check would hold this email", { runId: run.id, teamId: run.teamId, codes: result.reasons.map((r) => r.code) });
+                return null;
+            }
+            return result.reasons;
+        } catch (error) {
+            logger.warn("[SequenceService] Pre-send check skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
+    // When the recipient's window is closed, the time to try again (next window start plus jitter); null to send now.
+    // Team setting `sendSafety.sendWindow`, off unless enabled. Never throws: on any failure the email goes out as before.
+    private static async windowDelay(run: any, lead: any, now: Date): Promise<{ at: Date; timeZone: string; source: string } | null> {
+        try {
+            const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true } });
+            const raw = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
+            const window = resolveSendWindow(raw);
+            if (!window.enabled) return null;
+            // The sequence's own zone is the fallback only when it is a real zone; otherwise the team's window zone.
+            const sequenceZone = run.enrollment?.sequence?.timezone;
+            const { timeZone, source } = resolveRecipientTimeZone(lead, isValidTimeZone(sequenceZone) ? sequenceZone : window.timeZone);
+            const at = nextSendTime(now, timeZone, window, run.id);
+            return at ? { at, timeZone, source } : null;
+        } catch (error) {
+            logger.warn("[SequenceService] Send window skipped", { runId: run.id, error: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
     private static async executeEmailRun(run: any, lead: any, now: Date) {
         const client = db();
         if (!lead?.email) {
@@ -447,6 +493,18 @@ export class SequenceService {
             }
         }
 
+        // Recipient send window: outside it the run waits for the next window start. A wait is not a failed attempt.
+        const wait = await this.windowDelay(run, lead, now);
+        if (wait) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                // errorCode / errorMessage are left alone: an approved held email keeps its approval through them.
+                data: { status: "SCHEDULED", scheduledAt: wait.at, attemptCount: { decrement: 1 } },
+            });
+            logger.info("[SequenceService] Outside the recipient's send window, rescheduled", { runId: run.id, retryAt: wait.at.toISOString(), timeZone: wait.timeZone, source: wait.source });
+            return { runId: run.id, status: "SCHEDULED", reason: "outside_send_window", retryAt: wait.at };
+        }
+
         const subject = typeof run.step?.subject === "string" && run.step.subject.trim()
             ? run.step.subject.trim()
             : "Following up";
@@ -459,7 +517,10 @@ export class SequenceService {
         }
 
         // A failed send overwrites errorCode, so a retry keeps the approval through this marker in the message.
-        const approved = run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
+        // SAFETY_APPROVED means the sender saw the safety warnings and approved; TOKENS_APPROVED only covers
+        // merge-field fallbacks, so the safety gate still runs for it.
+        const safetyReviewed = run.errorCode === SAFETY_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(SAFETY_APPROVED_MARKER));
+        const approved = safetyReviewed || run.errorCode === TOKENS_APPROVED_CODE || Boolean(run.errorMessage?.startsWith(TOKENS_APPROVED_MARKER));
         const resolvedSubject = resolveMessageTokens(subject, lead, { useSuggestedFallbacks: approved });
         const resolvedBody = resolveMessageTokens(body, lead, { useSuggestedFallbacks: approved, html: true });
         const problems = new Map<string, MissingToken>();
@@ -483,6 +544,23 @@ export class SequenceService {
             return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
         }
 
+        // Deterministic pre-send gate on the composed text (before tracking, pixel and footer). A sender's
+        // approval of a held email is the human decision, so a run approved after seeing its warnings is not checked again.
+        if (!safetyReviewed) {
+            const held = await this.safetyHold(run, lead, resolvedSubject.text, resolvedBody.text);
+            if (held) {
+                await client.sequenceStepRun.update({
+                    where: { id: run.id },
+                    data: { status: TOKENS_HELD_STATUS, completedAt: now, errorCode: TOKENS_HELD_CODE, errorMessage: JSON.stringify({ missing: [], safety: held }) },
+                });
+                await client.sequenceEnrollment.update({
+                    where: { id: run.enrollmentId },
+                    data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+                });
+                return { runId: run.id, status: TOKENS_HELD_STATUS, errorCode: TOKENS_HELD_CODE };
+            }
+        }
+
         const result = await emailService.sendEmail(lead.email, resolvedSubject.text, resolvedBody.text, {
             teamId: run.teamId,
             leadId: run.leadId,
@@ -501,7 +579,7 @@ export class SequenceService {
             // duplicate send against the same (now stale) idempotency key.
             const retryable = this.isRetryableEmailError(result.error) && (run.attemptCount ?? 0) < MAX_EMAIL_SEND_ATTEMPTS;
             const errorCode = retryable ? "EMAIL_RETRYABLE" : this.isRetryableEmailError(result.error) ? "EMAIL_RETRY_LIMIT_EXCEEDED" : "EMAIL_SEND_FAILED";
-            await this.failRun(run.id, errorCode, `${approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
+            await this.failRun(run.id, errorCode, `${safetyReviewed ? SAFETY_APPROVED_MARKER : approved ? TOKENS_APPROVED_MARKER : ""}${result.error || "Email send failed."}`, retryable, now);
             return { runId: run.id, status: retryable ? "RETRY_SCHEDULED" : "FAILED" };
         }
 
@@ -884,8 +962,11 @@ export class SequenceService {
         if (!run) return { approved: false as const, reason: "NOT_WAITING" as const };
 
         let missing: MissingToken[] = [];
+        let heldForSafety = false;
         try {
-            missing = JSON.parse(run.errorMessage || "{}").missing ?? [];
+            const held = JSON.parse(run.errorMessage || "{}");
+            missing = held.missing ?? [];
+            heldForSafety = Array.isArray(held.safety) && held.safety.length > 0;
         } catch {
             missing = [];
         }
@@ -894,7 +975,7 @@ export class SequenceService {
 
         const taken = await client.sequenceStepRun.updateMany({
             where: { id: run.id, teamId, status: TOKENS_HELD_STATUS },
-            data: { status: "SCHEDULED", scheduledAt: now, errorCode: TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
+            data: { status: "SCHEDULED", scheduledAt: now, errorCode: heldForSafety ? SAFETY_APPROVED_CODE : TOKENS_APPROVED_CODE, errorMessage: null, completedAt: null },
         });
         if (taken.count !== 1) return { approved: false as const, reason: "NOT_WAITING" as const };
         await client.sequenceEnrollment.updateMany({
