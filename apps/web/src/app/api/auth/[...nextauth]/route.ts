@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { resolveOidcSsoForTeam, isOidcSignInAllowed } from "@/lib/sso/oidc";
+import { resolveOidcSsoForTeam, resolveOidcSsoForEmail, isOidcSignInAllowed } from "@/lib/sso/oidc";
 import { cookies } from "next/headers";
 
 // Short-lived, since the IdP's registered redirect_uri has no room for a teamId
@@ -12,20 +12,20 @@ type RouteContext = { params: Promise<{ nextauth: string[] }> };
 async function optionsForRequest(req: Request, ctx: RouteContext) {
     const { nextauth } = await ctx.params;
     const [action, providerId] = nextauth ?? [];
-    if (providerId !== "oidc") return authOptions;
+    if (providerId !== "oidc") return { options: authOptions, teamId: null };
 
-    let teamId: string | null = null;
+    // Signin finds the team from the email (login_hint); the team id is never in the URL.
+    let resolved = null;
     if (action === "signin") {
-        teamId = new URL(req.url).searchParams.get("teamId");
+        const email = new URL(req.url).searchParams.get("login_hint");
+        resolved = email ? await resolveOidcSsoForEmail(email) : null;
     } else if (action === "callback") {
-        teamId = (await cookies()).get(SSO_TEAM_COOKIE)?.value ?? null;
+        const teamId = (await cookies()).get(SSO_TEAM_COOKIE)?.value;
+        resolved = teamId ? await resolveOidcSsoForTeam(teamId) : null;
     }
-    if (!teamId) return authOptions;
+    if (!resolved) return { options: authOptions, teamId: null };
 
-    const resolved = await resolveOidcSsoForTeam(teamId);
-    if (!resolved) return authOptions;
-
-    return {
+    const options = {
         ...authOptions,
         providers: [resolved.provider],
         callbacks: {
@@ -43,16 +43,16 @@ async function optionsForRequest(req: Request, ctx: RouteContext) {
             },
         },
     };
+    return { options, teamId: resolved.teamId };
 }
 
 async function handle(req: Request, ctx: RouteContext) {
-    const options = await optionsForRequest(req, ctx);
+    const { options, teamId } = await optionsForRequest(req, ctx);
     const response: Response = await (NextAuth as any)(req, ctx, options);
 
     const { nextauth } = await ctx.params;
     const [action, providerId] = nextauth ?? [];
     if (action === "signin" && providerId === "oidc") {
-        const teamId = new URL(req.url).searchParams.get("teamId");
         if (teamId) {
             const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
             response.headers.append(

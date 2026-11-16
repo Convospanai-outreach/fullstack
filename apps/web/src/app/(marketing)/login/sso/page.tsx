@@ -33,7 +33,7 @@ export default function SsoLoginPage() {
                 return;
             }
 
-            if (!data.teamId || data.provider !== "OIDC") {
+            if (!data.sso || data.provider !== "OIDC") {
                 toast.error("SSO is not configured for this domain. Please use password login.");
                 return;
             }
@@ -47,7 +47,7 @@ export default function SsoLoginPage() {
 
             const body = new URLSearchParams({ csrfToken, callbackUrl: postLoginPath(), json: "true" });
             const signinRes = await fetch(
-                `/api/auth/signin/oidc?teamId=${encodeURIComponent(data.teamId)}&login_hint=${encodeURIComponent(email)}`,
+                `/api/auth/signin/oidc?login_hint=${encodeURIComponent(email)}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
