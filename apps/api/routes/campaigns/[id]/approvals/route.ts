@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { hasPermission, Permission } from "@/lib/permissions";
-import { belongsToCampaign } from "@/lib/campaignApprovals";
-
-const MAX_LEADS = 2000;
-const MAX_PENDING = 500;
+import { findCampaignApprovalIds } from "@/lib/campaignApprovals";
 
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value : null);
 
@@ -19,28 +16,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const campaign = await prisma.campaign.findFirst({ where: { id, teamId: ctx.teamId }, select: { id: true } });
     if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
 
-    const [leads, pending, canDecide] = await Promise.all([
-        prisma.lead.findMany({
-            where: { campaignId: id, teamId: ctx.teamId },
-            orderBy: { createdAt: "desc" },
-            take: MAX_LEADS,
-            select: { id: true },
-        }),
-        prisma.approvalRequest.findMany({
-            where: { teamId: ctx.teamId, status: "PENDING" },
-            orderBy: { createdAt: "desc" },
-            take: MAX_PENDING,
-            select: {
-                id: true, actionType: true, entityType: true, entityId: true, tier: true, reason: true, payload: true,
-                autoDenyAt: true, createdAt: true, requester: { select: { name: true, email: true } },
-            },
-        }),
+    const [approvalIds, canDecide] = await Promise.all([
+        findCampaignApprovalIds(prisma, ctx.teamId, id, { status: "PENDING" }),
         hasPermission(ctx.userId, ctx.teamId, Permission.RESOLVE_APPROVALS),
     ]);
+    const pending =
+        approvalIds.length === 0
+            ? []
+            : await prisma.approvalRequest.findMany({
+                  where: { teamId: ctx.teamId, status: "PENDING", id: { in: approvalIds } },
+                  orderBy: { createdAt: "desc" },
+                  select: {
+                      id: true, actionType: true, entityType: true, entityId: true, tier: true, reason: true, payload: true,
+                      autoDenyAt: true, createdAt: true, requester: { select: { name: true, email: true } },
+                  },
+              });
 
-    const leadIds = new Set(leads.map((l) => l.id));
     const requests = pending
-        .filter((a) => belongsToCampaign(a, id, leadIds))
         .map((a) => {
             const payload = a.payload && typeof a.payload === "object" && !Array.isArray(a.payload) ? (a.payload as Record<string, unknown>) : {};
             return {
@@ -56,8 +48,5 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             };
         });
 
-    // True when a cap may have hidden older requests, so the gate can say it shows the newest only.
-    const capped = leads.length >= MAX_LEADS || pending.length >= MAX_PENDING;
-
-    return NextResponse.json({ success: true, data: { canDecide, requests, capped } });
+    return NextResponse.json({ success: true, data: { canDecide, requests, capped: false } });
 }

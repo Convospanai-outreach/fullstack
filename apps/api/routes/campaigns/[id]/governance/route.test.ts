@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const m = vi.hoisted(() => ({ ctx: vi.fn(), allowed: vi.fn(), campaign: vi.fn(), leads: vi.fn(), approvals: vi.fn(), audits: vi.fn() }));
+const m = vi.hoisted(() => ({ ctx: vi.fn(), allowed: vi.fn(), campaign: vi.fn(), ids: vi.fn(), approvals: vi.fn(), audits: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: m.ctx }));
 vi.mock("@/lib/permissions", () => ({ hasPermission: m.allowed, Permission: { VIEW_AUDIT: "view_audit" } }));
 vi.mock("@/lib/db", () => ({
     prisma: {
         campaign: { findFirst: m.campaign },
-        lead: { findMany: m.leads },
+        $queryRaw: m.ids,
         approvalRequest: { findMany: m.approvals },
         auditLog: { findMany: m.audits },
     },
@@ -21,7 +21,7 @@ beforeEach(() => {
     m.ctx.mockResolvedValue({ userId: "u1", teamId: "t1" });
     m.allowed.mockResolvedValue(true);
     m.campaign.mockResolvedValue({ id: "c1" });
-    m.leads.mockResolvedValue([{ id: "l1" }]);
+    m.ids.mockResolvedValue([]);
     m.approvals.mockResolvedValue([]);
     m.audits.mockResolvedValue([]);
 });
@@ -46,20 +46,25 @@ describe("GET /campaigns/[id]/governance", () => {
         expect(m.approvals).not.toHaveBeenCalled();
     });
 
-    it("reads approvals inside the team and keeps only this campaign's", async () => {
+    it("asks the database for this campaign's approvals, inside the team, and reads only those", async () => {
         const base = { actionType: "MESSAGE_SEND", status: "PENDING", payload: {}, createdAt: new Date("2026-11-10T10:00:00Z"), reviewedAt: null, updatedAt: new Date("2026-11-10T10:00:00Z"), requester: null, reviewer: null };
-        m.approvals.mockResolvedValue([
-            { ...base, id: "held-message", entityType: "Message", entityId: "l1:whatsapp" },
-            { ...base, id: "other-campaign", entityType: "Campaign", entityId: "c2" },
-            { ...base, id: "other-lead", entityType: "Lead", entityId: "l9" },
-        ]);
+        m.ids.mockResolvedValue([{ id: "held-message" }]);
+        m.approvals.mockResolvedValue([{ ...base, id: "held-message", entityType: "Message", entityId: "l1:whatsapp" }]);
         const { data } = await (await call()).json();
-        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "t1" } }));
+        // The query's bound values include the team and the campaign.
+        expect(m.ids.mock.calls[0][0].values).toEqual(expect.arrayContaining(["t1", "c1"]));
+        expect(m.approvals).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "t1", id: { in: ["held-message"] } } }));
         expect(data.rows.map((r: { requestId: string }) => r.requestId)).toEqual(["held-message"]);
         expect(m.audits).toHaveBeenCalledWith(expect.objectContaining({ where: { orgId: "t1", entity: "Campaign", entityId: "c1" } }));
     });
 
+    it("skips the approvals read when none match", async () => {
+        expect((await call()).status).toBe(200);
+        expect(m.approvals).not.toHaveBeenCalled();
+    });
+
     it("returns rows without payload values", async () => {
+        m.ids.mockResolvedValue([{ id: "req-1" }]);
         m.approvals.mockResolvedValue([{
             id: "req-1", actionType: "SEND_EMAIL", entityType: "Lead", entityId: "l1", status: "PENDING", payload: { body: "secret draft text" },
             createdAt: new Date("2026-11-10T10:00:00Z"), reviewedAt: null, updatedAt: new Date("2026-11-10T10:00:00Z"),
@@ -71,8 +76,8 @@ describe("GET /campaigns/[id]/governance", () => {
         expect(text).not.toContain("secret draft text");
     });
 
-    it("flags when the lead cap may have hidden older approvals", async () => {
-        m.leads.mockResolvedValue(Array.from({ length: 2000 }, (_, n) => ({ id: `l${n}` })));
+    it("flags a log cut at the row limit, and not a small one", async () => {
+        m.audits.mockResolvedValue(Array.from({ length: 200 }, (_, n) => ({ id: `a${n}`, action: "UPDATE", correlationId: null, metadata: null, createdAt: new Date(1e12 + n), user: null })));
         expect((await (await call()).json()).data.capped).toBe(true);
     });
 
