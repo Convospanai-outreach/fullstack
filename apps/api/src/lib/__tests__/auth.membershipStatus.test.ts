@@ -28,6 +28,22 @@ describe("getCurrentContextFromRequest membership status scoping", () => {
         (getToken as Mock).mockResolvedValue({ sub: "user_1" });
     });
 
+    test("never falls back to another team for a pinned MCP workspace", async () => {
+        (prisma.teamMember.findFirst as Mock).mockResolvedValue(null);
+        (prisma.teamMember.findMany as Mock).mockResolvedValue([{ teamId: "other_team" }]);
+        const req = requestWithWorkspaceCookie("team_b");
+        req.headers.set("x-cmf-mcp-workspace", "team_b");
+        expect(await getCurrentContextFromRequest(req)).toEqual({ userId: "user_1", teamId: null });
+        expect(prisma.teamMember.findMany).not.toHaveBeenCalled();
+    });
+
+    test("rejects a cookie that differs from the pinned MCP workspace", async () => {
+        const req = requestWithWorkspaceCookie("other_team");
+        req.headers.set("x-cmf-mcp-workspace", "team_b");
+        expect(await getCurrentContextFromRequest(req)).toEqual({ userId: "user_1", teamId: null });
+        expect(prisma.teamMember.findFirst).not.toHaveBeenCalled();
+    });
+
     test("only accepts the workspace cookie for an active membership", async () => {
         (prisma.teamMember.findFirst as Mock).mockResolvedValue(null);
         (prisma.teamMember.findMany as Mock).mockResolvedValue([]);

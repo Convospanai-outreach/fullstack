@@ -13,6 +13,10 @@ const { mockGetCurrentContextFromRequest, mockPrisma, mockEnqueue, mockEnforcePo
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: mockGetCurrentContextFromRequest }));
+vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
+    hasSendingChannel: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/governance/guard", () => ({ enforcePolicy: mockEnforcePolicy }));

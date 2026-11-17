@@ -6,7 +6,7 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { ClientOverlays } from "@/components/layout/ClientOverlays";
 import { StrictQualityBoundary } from "@/components/StrictQualityBoundary";
 import Script from "next/script";
-import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Bricolage_Grotesque, Public_Sans } from "next/font/google";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,6 +18,20 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-jakarta",
+});
+
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500"],
+  variable: "--font-bricolage",
+});
+
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500"],
+  variable: "--font-public-sans",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -79,12 +93,15 @@ export const metadata = {
 
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { getGa4MeasurementId } from "@/lib/siteSettings";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
+  // An ID set in the CMS wins; otherwise the environment, then the built-in default.
   const gaMeasurementId =
+    getGa4MeasurementId() ||
     process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] ||
     process.env["NEXT_PUBLIC_GA_ID"] ||
     "G-PJCWLF4HVJ";
@@ -107,7 +124,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
       <html
         lang="en"
-        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}
+        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} ${bricolage.variable} ${publicSans.variable}`}
         data-scroll-behavior="smooth"
         suppressHydrationWarning
       >
@@ -135,6 +152,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "name": "CraftMyFunnel AI",
                     "url": "https://craftmyfunnel.live",
                     "logo": "https://craftmyfunnel.live/craftmyfunnel-logo.png",
+                    "parentOrganization": {
+                      "@type": "Organization",
+                      "name": "Sudhisha Digital Private Limited"
+                    },
                     "description": "Governed AI outreach and qualified meeting workflow platform for B2B service teams and revenue operations.",
                     "sameAs": [
                       "https://github.com/Convospanai-outreach/fullstack",

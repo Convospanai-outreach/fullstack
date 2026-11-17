@@ -4,39 +4,93 @@ CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landi
 
 ## Current Status
 
-As of **June 2, 2026**:
+Remote customer MCP support is being added behind `MCP_ENABLED=false` by default. It runs in the existing API and delegates web-owned operations to the existing web service. See [the setup/tool inventory](docs/MCP_INTEGRATION.md) and [the runtime review](docs/MCP_RUNTIME_REVIEW.md). Local MCP verification does not establish public rollout readiness.
 
-- `apps/api` production-readiness audit: **100/100**
-- broader launch readiness: **not fully green yet**
-- biggest remaining risk: the web coverage lane is **not stable** in the current tree
-- GitHub Actions still need a fresh confirmed green run after the latest local fixes
-
-That means the platform is in good shape for controlled beta work, but not yet at the confidence bar for broad production traffic.
+The platform is live and in controlled beta. Open work, owner-side setup and known risks are tracked in [OPEN_ITEMS.md](./OPEN_ITEMS.md). Treat that file, the CI results on `main` and each service's `/health` endpoint as the source of truth, not dated snapshots in older documents.
 
 ## Monorepo Layout
 
 | Path | Service | Role |
 | --- | --- | --- |
-| `apps/web` | Next.js app | Marketing pages, authenticated product UI, public landing pages, selected route handlers |
-| `apps/api` | Fastify app | Core API, workers, Prisma access, webhooks, AI runtime integration, readiness checks |
+| `apps/web` | Next.js app | Marketing pages, authenticated product UI, public landing pages, the CMS (`/cms`), selected route handlers |
+| `apps/api` | Fastify app | Core API, background workers, Prisma access, webhooks, AI runtime integration, readiness checks |
+| `apps/api/src/extension` | Chrome extension | LinkedIn assistant; see its own [README](./apps/api/src/extension/README.md) |
 | `apps/edge-fastapi` | FastAPI edge runtime | Optional private execution service for edge or hardware-backed tasks |
+| `packages/db` | Shared package | Shared database schema and client |
 | `packages/toon-core` | Shared package | Shared serialization/helpers for AI context handling |
-| `docs/*` | Docs | Architecture, readiness, deployment, QA, and implementation records |
+| `deploy/oracle` | Compose files | The API and worker containers on the Oracle VMs |
+| `deploy/aws/mautic` | CloudFormation | The Mautic server on AWS |
+| `.github/workflows` | CI/CD | Build, test, migrate and deploy pipelines |
+| `docs/*` | Docs | Architecture, deployment, QA and implementation records (some are historical) |
 
 ## Runtime Topology
 
 ```mermaid
-flowchart LR
-    Browser[Signed-in user] --> Web[apps/web]
-    Visitor[Public landing visitor] --> Web
-    Netjana[Buyer signals] --> API[apps/api]
-    Web --> API
-    API --> Postgres[(Postgres)]
-    API -. optional .-> Redis[(Redis)]
-    API --> Workers[Jobs, audit, signals, follow-up workers]
-    API --> Models[OpenAI / Anthropic / Gemini]
-    API -. optional private .-> Edge[apps/edge-fastapi]
+flowchart TB
+    subgraph People
+        User[Signed-in users]
+        Visitor[Landing page visitors]
+        Ext[Chrome extension on LinkedIn]
+    end
+
+    CF[Cloudflare: DNS, CDN, bot protection]
+
+    subgraph Render[Render]
+        Web[apps/web: Next.js]
+    end
+
+    subgraph Oracle[Oracle Cloud: two VMs running Docker images from GHCR]
+        API[api-main: apps/api Fastify]
+        Worker[api-worker: background workers and Chromium]
+    end
+
+    DB[(Supabase Postgres)]
+    Redis[(Redis, optional)]
+    Edge[apps/edge-fastapi, optional and private]
+
+    subgraph AWS[AWS]
+        Mautic[Mautic marketing automation]
+    end
+
+    subgraph External[External services]
+        AI[AI providers and Jev]
+        Mail[Resend and SMTP]
+        Pay[Razorpay]
+        Meta[WhatsApp and Instagram webhooks]
+        Obs[Sentry and PostHog]
+        GH[GitHub: CMS content pull requests]
+    end
+
+    User --> CF
+    Visitor --> CF
+    Ext --> CF
+    CF --> Web
+    Web -->|"/api/proxy"| API
+    Web --> DB
+    API --> DB
+    Worker --> DB
+    API -.-> Redis
+    Worker -.-> Redis
+    API --> Worker
+    API --> AI
+    Worker --> AI
+    API --> Mail
+    API --> Pay
+    Meta --> API
+    API --> Mautic
+    API -.-> Edge
+    Web --> Obs
+    API --> Obs
+    Web --> GH
 ```
+
+How a change reaches production:
+
+| Service | Built by | Deployed by |
+| --- | --- | --- |
+| `apps/web` | `Web Build` in CI | `deploy-render.yml` (manual or six-hourly; Render auto-deploy is off) |
+| `apps/api` | `docker-ghcr.yml` pushes an image to GHCR | `deploy-oracle.yml` on merge to `main` |
+| Database schema | not built | `web-prisma-migrate.yml`, behind the `production-migrate` approval gate. Run it before a web deploy that needs a new migration. |
 
 ## What The Product Actually Does Today
 
@@ -88,45 +142,26 @@ npm run test:coverage --workspace apps/web
 npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts
 ```
 
-## Readiness Snapshot
-
-The repo is not judged by the API readiness audit alone.
-
-### Green
-
-- required local runtime stack boots with Postgres and Redis
-- API readiness audit passes at `100/100` (26/26 checks passed)
-- web unit tests pass clean (`13/13` test files, `78/78` tests passed)
-- Playwright production readiness E2E tests pass clean (`5/5` tests: Health, Metrics, Security Headers, Tracing, CORS)
-- pre-deployment system audit scripts pass clean (`5/5` suites passed)
-- architecture is cleanly split by service boundary
-- edge runtime is optional and can remain private
-- AI guardrails, team scoping, and landing sanitization are present in the active code path
-
-### Still Blocking Broader Launch
-
-- no newly confirmed green GitHub Actions run for `CI`, `Playwright`, and `docker-ghcr` on target remote branch
-- dependency security debt remains in upstream non-breaking moderate chains (next/next-auth/prisma)
-
 ## Deployment Model
 
-Deploy each app separately from this monorepo:
+Each app deploys separately from this monorepo:
 
-| Service | Root | Visibility |
-| --- | --- | --- |
-| Web | `apps/web` | Public |
-| API | `apps/api` | Public |
-| Edge | `apps/edge-fastapi` | Private/internal |
-| Postgres | Managed service | Private |
-| Redis | Managed service | Private, optional |
+| Service | Root | Where it runs | Visibility |
+| --- | --- | --- | --- |
+| Web | `apps/web` | Render | Public, behind Cloudflare |
+| API | `apps/api` | Two Oracle VMs (`api-main`, `api-worker`) | Public API; the worker is internal |
+| Edge | `apps/edge-fastapi` | Optional | Private/internal |
+| Postgres | n/a | Supabase (pooled connection) | Private |
+| Redis | n/a | Managed service, for example Upstash | Private, optional |
+| Mautic | `deploy/aws/mautic` | AWS | Public at `mautic.craftmyfunnel.live` |
 
-Path-based deploy triggers should remain the norm:
+Path-based deploy triggers stay the norm:
 
 - `apps/web/**` -> web deploy
 - `apps/api/**` -> API deploy
 - `apps/edge-fastapi/**` -> edge deploy
 
-Shared root changes such as lockfile, root scripts, or schema changes should trigger deploys for impacted services.
+Shared root changes such as the lockfile, root scripts or schema changes affect the services that use them. See [docs/DEPLOYMENT_RUNBOOK.md](./docs/DEPLOYMENT_RUNBOOK.md) for the full procedure.
 
 ## Source Of Truth Docs
 
@@ -137,19 +172,6 @@ Shared root changes such as lockfile, root scripts, or schema changes should tri
 - [docs/context/ARCHITECTURE.md](./docs/context/ARCHITECTURE.md)
 - [docs/context/LAUNCH_READINESS.md](./docs/context/LAUNCH_READINESS.md)
 
-## Chrome Extension Release Plan
+## Chrome Extension
 
-### V1.0.0
-
-- Minimal LinkedIn Assistant.
-- Runs only on LinkedIn pages.
-- User-triggered only.
-- Reads visible profile/company/search information after user action.
-- Saves selected data to CraftMyFunnel workspace.
-- No automated outreach.
-
-### V2.0.0
-
-- Advanced workflow features may be added later after approval.
-- Any additional permissions will be requested through an update to the same Chrome Web Store listing.
-- No separate duplicate extension will be created.
+The LinkedIn assistant runs only on LinkedIn profile pages, acts only when the user asks, and saves what the user selects to their CraftMyFunnel workspace. It does not send outreach on its own. Setup, permissions and release notes are in [apps/api/src/extension/README.md](./apps/api/src/extension/README.md).

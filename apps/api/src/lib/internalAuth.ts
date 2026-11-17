@@ -6,7 +6,7 @@
 // Only v2 is accepted (roadmap 3.5 / S-13): an HMAC binding timestamp, method,
 // path, a single-use nonce and the identity (x-craftmyfunnel-auth-nonce +
 // x-craftmyfunnel-auth-signature-v2). The legacy v1 signature
-// (x-craftmyfunnel-auth-signature, over `v1.ts.userId.email.role`) bound no method,
+// (x-craftmyfunnel-auth-signature, over timestamp, user id, email and role only) bound no method,
 // path or nonce, so a captured header set replayed against any route for 5 minutes;
 // it is no longer accepted. Its header name stays in INTERNAL_AUTH_HEADER_NAMES so
 // server.ts still strips it from unauthenticated requests.

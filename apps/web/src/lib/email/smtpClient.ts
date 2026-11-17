@@ -14,6 +14,7 @@ export interface SendMailOptions {
     to: string;
     subject: string;
     html: string;
+    text?: string;
     replyTo?: string;
     headers?: Record<string, string>;
     attachments?: { filename: string; mimeType: string; content: string }[];
@@ -59,6 +60,7 @@ export async function sendViaSMTP(
             to: options.to,
             subject: options.subject,
             html: options.html,
+            ...(options.text ? { text: options.text } : {}),
             replyTo: options.replyTo,
             headers: options.headers,
             ...(options.attachments?.length

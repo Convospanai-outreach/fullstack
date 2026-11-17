@@ -62,6 +62,28 @@ describe("/whatsapp/settings - requires ADMIN (OPEN-210)", () => {
         expect(mockPrisma.team.findUnique).toHaveBeenCalled();
     });
 
+    it("GET hides one-click connect until the Embedded Signup settings exist", async () => {
+        vi.stubEnv("WHATSAPP_APP_ID", "");
+        vi.stubEnv("WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID", "");
+
+        const json = await (await GET(getRequest())).json();
+
+        expect(json.embeddedSignup).toBeNull();
+        vi.unstubAllEnvs();
+    });
+
+    it("GET offers one-click connect with the public ids only, never the app secret", async () => {
+        vi.stubEnv("WHATSAPP_APP_ID", "app-1");
+        vi.stubEnv("WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID", "cfg-1");
+        vi.stubEnv("WHATSAPP_APP_SECRET", "very-secret");
+
+        const json = await (await GET(getRequest())).json();
+
+        expect(json.embeddedSignup).toEqual({ appId: "app-1", configId: "cfg-1" });
+        expect(JSON.stringify(json)).not.toContain("very-secret");
+        vi.unstubAllEnvs();
+    });
+
     it("POST rejects a caller below ADMIN role before setting or clearing WABA credentials", async () => {
         mockCheckTeamPermission.mockResolvedValue(false);
 

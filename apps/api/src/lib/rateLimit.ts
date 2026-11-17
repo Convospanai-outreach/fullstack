@@ -165,6 +165,8 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
  * 
  * Supports Hybrid Mode: Redis Primary -> LRU Secondary
  */
+let lastFallbackLogAt = 0; // throttles the in-memory fallback error to once a minute
+
 export async function checkRateLimit(
   identifier: string,
   config: RateLimitConfig,
@@ -195,6 +197,11 @@ export async function checkRateLimit(
   }
 
   // 2. Fallback to LRU (In-Memory)
+  // Silent when Redis is switched off on purpose (DISABLE_REDIS=true): the operator already chose this.
+  if (process.env["NODE_ENV"] === "production" && process.env["DISABLE_REDIS"] !== "true" && now - lastFallbackLogAt > 60_000) {
+    lastFallbackLogAt = now;
+    logger.error("rate_limit_fallback_inmemory", { message: "Redis not available - rate limiting is process-local. This is unsafe with more than one instance." });
+  }
   return checkRateLimitLRU(identifier, config, endpoint);
 }
 
@@ -241,6 +248,23 @@ function checkRateLimitLRU(
   };
 }
 
+// A denial is worth one log line per caller, endpoint and window, not one per refused request: a
+// flood of denied requests must not become a flood of log lines. The line names the kind of caller
+// (user, ip or apikey), never who.
+const loggedDenials = new LRUCache<string, true>({ max: 1000, ttl: 60 * 1000 });
+
+function logDenial(identifier: string, endpoint: string, config: RateLimitConfig) {
+  const key = `${endpoint}:${identifier}`;
+  if (loggedDenials.has(key)) return;
+  loggedDenials.set(key, true, { ttl: config.windowMs });
+  logger.warn("ratelimit.exceeded", {
+    endpoint,
+    identifierType: identifier.split(":")[0],
+    limit: config.maxRequests,
+    windowMs: config.windowMs,
+  });
+}
+
 /**
  * Apply rate limit and return response if blocked
  */
@@ -268,6 +292,7 @@ export async function applyRateLimit(
   const result = await checkRateLimit(identifier, config, endpoint);
 
   if (!result.allowed) {
+    logDenial(identifier, endpoint, config);
     const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000);
 
     return NextResponse.json(

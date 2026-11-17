@@ -1,0 +1,336 @@
+// Settings for the Decap CMS admin at /cms. Editors sign in with GitHub; every save becomes a pull
+// request on the site's repo (editorial workflow), so nothing goes live until it is reviewed and merged.
+
+export const DECAP_SCRIPT = {
+    src: "https://unpkg.com/decap-cms@3.17.3/dist/decap-cms.js",
+    integrity: "sha384-RWRzuHfiZSWCt3nEvG7B0v3cMgM1C2UuJmgBSL92GQh4uXmNSkbcthql/mNBqvjr",
+};
+
+// The GitHub login is registered for one address, so the admin and its callback always use it.
+// CMS_ORIGIN overrides the site address for the CMS alone: the site can serve from a host that
+// differs from NEXTAUTH_URL (www redirecting to the bare domain), which would send /cms in a loop.
+export function canonicalOrigin(requestUrl: string): string {
+    const configured = process.env["CMS_ORIGIN"] || process.env["NEXTAUTH_URL"] || process.env["APP_URL"];
+    try {
+        return new URL(configured || requestUrl).origin;
+    } catch {
+        return new URL(requestUrl).origin;
+    }
+}
+
+export function buildDecapConfig(origin: string): string {
+    return `backend:
+  name: github
+  repo: Convospanai-outreach/fullstack
+  branch: main
+  base_url: ${origin}
+  auth_endpoint: api/cms/auth
+
+publish_mode: editorial_workflow
+media_folder: apps/web/public/uploads
+public_folder: /uploads
+
+collections:
+  - name: blog
+    label: Blog posts
+    folder: apps/web/content/blog
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Description, name: description, widget: text }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ss.SSS[Z]" }
+      - { label: Category, name: category, widget: string, required: false }
+      - { label: Body, name: body, widget: markdown }
+  - name: testimonials
+    label: Testimonials
+    folder: apps/web/content/testimonials
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Name, name: name, widget: string }
+      - { label: Role, name: role, widget: string, required: false }
+      - { label: Company, name: company, widget: string, required: false }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Quote, name: body, widget: text }
+  - name: locations
+    label: Locations
+    folder: apps/web/content/locations
+    extension: json
+    format: json
+    create: true
+    slug: "{{slug}}"
+    identifier_field: name
+    fields:
+      - { label: Order, name: order, widget: number, value_type: int }
+      - { label: URL slug, name: slug, widget: string, hint: "Used in /locations/<slug>. Must match the file name." }
+      - { label: City, name: name, widget: string }
+      - { label: State, name: state, widget: string }
+      - { label: State code, name: stateCode, widget: string, hint: "For example IN-HR" }
+      - { label: Place name, name: placename, widget: string }
+      - { label: Position, name: position, widget: string }
+      - { label: ICBM, name: icbm, widget: string }
+      - { label: Latitude, name: latitude, widget: string }
+      - { label: Longitude, name: longitude, widget: string }
+      - { label: Corridors, name: corridors, widget: list, field: { label: Corridor, name: corridor, widget: string } }
+      - { label: Industry focus, name: industryFocus, widget: list, field: { label: Industry, name: industry, widget: string } }
+      - { label: Summary, name: summary, widget: text }
+  - name: jobs
+    label: Job openings
+    folder: apps/web/content/jobs
+    extension: md
+    format: frontmatter
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Department, name: department, widget: string, required: false }
+      - { label: Location, name: location, widget: string, required: false }
+      - { label: Type, name: type, widget: string, required: false, hint: "For example Full time" }
+      - { label: Open for applications, name: open, widget: boolean, default: true }
+      - { label: Order, name: order, widget: number, value_type: int, default: 0 }
+      - { label: Description, name: body, widget: markdown }
+  - name: settings
+    label: Site settings
+    files:
+      - label: Redirects
+        name: redirects
+        file: apps/web/content/settings/redirects.json
+        fields:
+          - label: Redirects
+            name: redirects
+            widget: list
+            fields:
+              - { label: From, name: from, widget: string, hint: "A path on this site, for example /old-page. Not /, /api, /cms or /superadmin." }
+              - { label: To, name: to, widget: string, hint: "A path (/new-page) or an https address" }
+              - { label: Permanent, name: permanent, widget: boolean, default: false }
+      - label: Menus
+        name: navigation
+        file: apps/web/content/settings/navigation.json
+        fields:
+          - label: Menus
+            name: groups
+            widget: list
+            summary: "{{fields.label}}"
+            fields:
+              - { label: Menu name, name: label, widget: string }
+              - label: Links
+                name: items
+                widget: list
+                summary: "{{fields.label}}"
+                fields:
+                  - { label: Link text, name: label, widget: string }
+                  - { label: Address, name: href, widget: string, hint: "A page on this site (/pricing, /#workflow) or an https address." }
+                  - { label: Tag, name: badge, widget: string, required: false, hint: "Optional small label such as New or Popular." }
+      - label: Home page
+        name: home
+        file: apps/web/content/settings/home.json
+        fields:
+          - label: Scroll story
+            name: story
+            widget: list
+            allow_add: false
+            min: 7
+            max: 7
+            summary: "{{fields.eyebrow}}"
+            hint: "Seven steps, in scroll order. Edit the words only. Blank fields keep the built-in words."
+            fields:
+              - { label: Small heading, name: eyebrow, widget: string }
+              - { label: Headline, name: title, widget: string }
+              - { label: Highlighted words, name: accent, widget: string }
+              - { label: Text, name: body, widget: text }
+              - { label: Bold line, name: punch, widget: string }
+              - { label: Note (tag, hint or phase line), name: note, widget: string }
+              - { label: Main button, name: primary, widget: string }
+              - { label: Second link, name: secondary, widget: string }
+          - label: Three moves (step 4)
+            name: plan
+            widget: list
+            allow_add: false
+            min: 3
+            max: 3
+            summary: "{{fields.title}}"
+            fields:
+              - { label: Number, name: n, widget: string }
+              - { label: Title, name: title, widget: string }
+              - { label: Text, name: body, widget: string }
+          - label: Closing line
+            name: closing
+            widget: object
+            fields:
+              - { label: Small heading, name: eyebrow, widget: string }
+              - { label: Headline, name: title, widget: string }
+              - { label: Highlighted words, name: accent, widget: string }
+              - { label: Sentence, name: bridge, widget: string }
+              - { label: Bold ending, name: bridgeBold, widget: string }
+          - label: Audiences
+            name: audiences
+            widget: object
+            fields:
+              - label: Introduction
+                name: intro
+                widget: object
+                fields:
+                  - { label: Small heading, name: kicker, widget: string }
+                  - { label: Headline, name: title, widget: string }
+                  - { label: Highlighted words, name: accent, widget: string }
+                  - { label: Text, name: body, widget: text }
+              - label: Individuals
+                name: solo
+                widget: object
+                fields:
+                  - { label: Tab name, name: label, widget: string }
+                  - label: Cards
+                    name: cards
+                    widget: list
+                    allow_add: false
+                    min: 3
+                    max: 3
+                    summary: "{{fields.tag}}"
+                    fields:
+                      - { label: Tag, name: tag, widget: string }
+                      - { label: Title, name: title, widget: string }
+                      - { label: Text, name: body, widget: text }
+              - label: Teams
+                name: teams
+                widget: object
+                fields:
+                  - { label: Tab name, name: label, widget: string }
+                  - label: Cards
+                    name: cards
+                    widget: list
+                    allow_add: false
+                    min: 3
+                    max: 3
+                    summary: "{{fields.tag}}"
+                    fields:
+                      - { label: Tag, name: tag, widget: string }
+                      - { label: Title, name: title, widget: string }
+                      - { label: Text, name: body, widget: text }
+          - label: Channels and journey
+            name: channels
+            widget: object
+            fields:
+              - label: Introduction
+                name: intro
+                widget: object
+                fields:
+                  - { label: Small heading, name: kicker, widget: string }
+                  - { label: Headline, name: title, widget: string }
+                  - { label: Highlighted words, name: accent, widget: string }
+                  - { label: Text, name: body, widget: text }
+              - label: Journey steps
+                name: journey
+                widget: list
+                allow_add: false
+                min: 4
+                max: 4
+                summary: "{{fields.tag}}"
+                fields:
+                  - { label: Tag, name: tag, widget: string }
+                  - { label: Title, name: title, widget: string }
+                  - { label: Text, name: body, widget: text }
+              - { label: Availability note, name: note, widget: text, hint: "Keep this accurate: it tells visitors that channels depend on the live integration." }
+          - label: CRM comparison
+            name: crm
+            widget: object
+            fields:
+              - label: Introduction
+                name: intro
+                widget: object
+                fields:
+                  - { label: Small heading, name: kicker, widget: string }
+                  - { label: Headline, name: title, widget: string }
+                  - { label: Highlighted words, name: accent, widget: string }
+                  - { label: Text, name: body, widget: text }
+              - label: Cards
+                name: cards
+                widget: list
+                allow_add: false
+                min: 2
+                max: 2
+                summary: "{{fields.tag}}"
+                fields:
+                  - { label: Tag, name: tag, widget: string }
+                  - { label: Title, name: title, widget: string }
+                  - { label: Text, name: body, widget: text }
+          - label: Governed workflow
+            name: workflow
+            widget: object
+            fields:
+              - { label: Small heading, name: kicker, widget: string }
+              - { label: Heading, name: heading, widget: string }
+              - { label: Text, name: intro, widget: text }
+              - label: Steps
+                name: steps
+                widget: list
+                allow_add: false
+                min: 6
+                max: 6
+                summary: "{{fields.title}}"
+                hint: "Six steps, in order. Edit the words only."
+                fields:
+                  - { label: Short name (progress bar), name: node, widget: string }
+                  - { label: Step label, name: meta, widget: string }
+                  - { label: Summary (left list), name: short, widget: string }
+                  - { label: Title, name: title, widget: string }
+                  - { label: Text, name: text, widget: text }
+                  - { label: Bullets, name: bullets, widget: list, allow_add: false, min: 3, max: 3, field: { label: Bullet, name: bullet, widget: string } }
+                  - { label: Badges, name: badges, widget: list, allow_add: false, min: 3, max: 3, field: { label: Badge, name: badge, widget: string } }
+                  - label: Operational view
+                    name: mini
+                    widget: list
+                    allow_add: false
+                    min: 3
+                    max: 3
+                    summary: "{{fields.label}}"
+                    fields:
+                      - { label: Label, name: label, widget: string }
+                      - { label: Text, name: text, widget: string }
+          - label: Sign-up
+            name: signup
+            widget: object
+            fields:
+              - { label: Small heading, name: eyebrow, widget: string }
+              - { label: Headline, name: title, widget: string }
+              - { label: Highlighted words, name: accent, widget: string }
+              - { label: Text, name: body, widget: text }
+              - { label: Tagline, name: phase, widget: string }
+              - { label: Form small heading, name: formEyebrow, widget: string }
+              - { label: Form title, name: formTitle, widget: string }
+              - { label: Form text, name: formIntro, widget: string }
+              - label: Individual option
+                name: individual
+                widget: object
+                fields:
+                  - { label: Button label, name: label, widget: string }
+                  - { label: Hint, name: hint, widget: string }
+                  - { label: Submit button, name: cta, widget: string }
+              - label: Team option
+                name: team
+                widget: object
+                fields:
+                  - { label: Button label, name: label, widget: string }
+                  - { label: Hint, name: hint, widget: string }
+                  - { label: Submit button, name: cta, widget: string }
+      - label: Analytics
+        name: analytics
+        file: apps/web/content/settings/analytics.json
+        fields:
+          - { label: Google Analytics 4 measurement ID, name: ga4MeasurementId, widget: string, required: false, hint: "Looks like G-XXXXXXXXXX. Leave empty to use the default." }
+  - name: faq
+    label: FAQ
+    files:
+      - label: FAQ page
+        name: faq
+        file: apps/web/content/faq/general.md
+        fields:
+          - { label: Title, name: title, widget: string }
+          - { label: Description, name: description, widget: text }
+          - { label: Body, name: body, widget: markdown }
+`;
+}

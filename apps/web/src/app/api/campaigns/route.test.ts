@@ -35,6 +35,28 @@ describe("POST /api/campaigns", () => {
         mockPrisma.iCP.findFirst.mockResolvedValue({ id: "icp-1", teamId: "team-a", criteria: {} });
     });
 
+    it("stores the chosen strategies and the objective in aiConfig", async () => {
+        const res = await POST(postRequest({ name: "Daily", icpId: "icp-1", strategies: ["S3", "S11"], objective: "Build trust" }));
+
+        expect(res.status).toBe(201);
+        expect(mockPrisma.campaign.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ aiConfig: { strategies: ["S3", "S11"], goal: "Build trust" } }),
+        });
+    });
+
+    it("refuses a strategy that is not available, without creating the campaign", async () => {
+        const res = await POST(postRequest({ name: "Daily", icpId: "icp-1", strategies: ["S2"] }));
+
+        expect(res.status).toBe(400);
+        expect(mockPrisma.campaign.create).not.toHaveBeenCalled();
+    });
+
+    it("sets no aiConfig when no strategy is chosen", async () => {
+        await POST(postRequest({ name: "Plain", icpId: "icp-1" }));
+
+        expect(mockPrisma.campaign.create.mock.calls[0]![0].data).not.toHaveProperty("aiConfig");
+    });
+
     it("persists sourcePipelineStage when creating a stage-targeted campaign, scoring attached leads against the ICP", async () => {
         mockPrisma.lead.findMany.mockResolvedValue([
             { id: "lead-1", jobTitle: "VP Sales", enrichedData: null },

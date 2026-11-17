@@ -213,11 +213,13 @@ function renderCaptureSources(fieldMeta) {
     const meta = fieldMeta[key] || { value: NOT_DETECTED, source: "fallback", confidence: "low" };
     const item = document.createElement("div");
     item.className = "source-item";
-    item.innerHTML = `
-      <strong>${label}</strong>
-      <span>${escapeHtml(meta.value || NOT_DETECTED)}</span>
-      <small>Winner: ${formatSource(meta.source)} - Confidence: ${formatConfidencePercent(meta.confidence)}</small>
-    `;
+    const labelEl = document.createElement("strong");
+    labelEl.textContent = label;
+    const valueEl = document.createElement("span");
+    valueEl.textContent = meta.value || NOT_DETECTED;
+    const winnerEl = document.createElement("small");
+    winnerEl.textContent = `Winner: ${formatSource(meta.source)} - Confidence: ${formatConfidencePercent(meta.confidence)}`;
+    item.append(labelEl, valueEl, winnerEl);
     fields.captureSources.appendChild(item);
   });
 }
@@ -800,10 +802,12 @@ function renderCaptureField(element, value, meta, muted) {
   const confidence = Number(meta?.confidence || 0);
   const badge = meta?.source === "user" ? "User Added" : confidenceLabel(confidence);
   element.classList.toggle("not-detected", Boolean(muted));
-  element.innerHTML = `
-    <span>${escapeHtml(value)}</span>
-    <span class="confidence-badge ${confidenceClass(confidence, meta?.source)}">${badge}</span>
-  `;
+  const valueSpan = document.createElement("span");
+  valueSpan.textContent = value;
+  const badgeSpan = document.createElement("span");
+  badgeSpan.className = `confidence-badge ${confidenceClass(confidence, meta?.source)}`;
+  badgeSpan.textContent = badge;
+  element.replaceChildren(valueSpan, badgeSpan);
 }
 
 function userAddedMeta() {
@@ -839,15 +843,6 @@ function formatSource(value = "fallback") {
     fallback: "Fallback"
   };
   return labels[value] || value;
-}
-
-function escapeHtml(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 function setStatus(message, type = "") {

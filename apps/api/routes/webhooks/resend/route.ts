@@ -25,6 +25,7 @@ interface ResendWebhookEvent {
     from?: string;
     subject?: string;
     click?: { link?: string };
+    bounce?: { type?: string };
   };
 }
 
@@ -219,6 +220,21 @@ export async function POST(req: NextRequest) {
       }
       case "email.bounced": {
         await prisma.email.update({ where: { id: email.id }, data: { bouncedAt: new Date(), status: "bounced" } });
+        // A permanent bounce means the address does not take mail: stop sending to it. A temporary one says nothing about the address.
+        const bouncedTo = event.data?.to?.[0]?.toLowerCase().trim();
+        if (event.data?.bounce?.type === "Permanent" && bouncedTo) {
+          await prisma.suppressionEntry.upsert({
+            where: { teamId_email: { teamId, email: bouncedTo } },
+            create: { teamId, email: bouncedTo, reason: "BOUNCE", source: "RESEND_WEBHOOK", leadId: email.leadId },
+            update: { reason: "BOUNCE", source: "RESEND_WEBHOOK", leadId: email.leadId },
+          });
+          await prisma.lead.update({
+            where: { id: email.leadId },
+            data: { emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: new Date() },
+          }).catch((error: any) => {
+            if (error?.code !== "P2025") throw error;
+          });
+        }
         await recordEmailEvent("BOUNCED");
         break;
       }
@@ -255,7 +271,7 @@ export async function POST(req: NextRequest) {
         try {
           inboundMessage = await prisma.$transaction(async (tx) => {
             const emailEvent = await tx.emailEvent.create({ data: emailEventData("REPLY_RECEIVED") });
-            await tx.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
+            await tx.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date(), status: "replied" } });
             await advanceLeadAfterReply(tx, advanceParams);
             return tx.message.create({
               data: {

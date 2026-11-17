@@ -1,0 +1,1 @@
+ALTER TABLE IF EXISTS "SequenceEnrollment" ADD COLUMN IF NOT EXISTS "exitReason" TEXT;

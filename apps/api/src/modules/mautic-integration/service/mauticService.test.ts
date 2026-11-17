@@ -49,6 +49,17 @@ describe("mauticService.pushLead", () => {
         expect(result).toEqual({ status: "error", details: "Lead not found" });
     });
 
+    it.each(["DNC", "do_not_contact", "UNSUBSCRIBED", "bounced"])("does not push a lead whose status is %s", async (status) => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", email: "a@b.com", status });
+        global.fetch = vi.fn() as unknown as typeof fetch;
+
+        const result = await mauticService.pushLead("lead-1", "team-1");
+
+        expect(result.status).toBe("skipped");
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(mockPrisma.lead.updateMany).not.toHaveBeenCalled();
+    });
+
     it("creates a new Mautic contact when none exists for the lead's email, tagged with the team slug", async () => {
         mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", email: "a@b.com", fullName: "Ada Lovelace", company: "Acme" });
         mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });

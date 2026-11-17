@@ -6,6 +6,7 @@ const mockDb: any = vi.hoisted(() => ({
     landingPage: { findFirst: vi.fn(), findMany: vi.fn() },
     keywordTrigger: { create: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
     keywordTriggerReply: { count: vi.fn(), findFirst: vi.fn() },
+    dmFlow: { findFirst: vi.fn() },
 }));
 const evaluate = vi.hoisted(() => vi.fn());
 
@@ -139,6 +140,18 @@ describe("keywordTriggerService", () => {
         expect(mockDb.landingPage.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: { teamId: "team-a", OR: [{ status: "published" }, { id: { in: ["lp-draft"] } }] },
         }));
+    });
+
+    it("attaches a DM flow of this team only, and a flow with a link step needs a landing page", async () => {
+        mockDb.dmFlow.findFirst.mockResolvedValueOnce(null);
+        await expect(createTrigger("team-a", "user-1", input({ flowId: "flow-other-team" }))).rejects.toMatchObject({ status: 404 });
+        expect(mockDb.dmFlow.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "flow-other-team", teamId: "team-a" }) }));
+
+        mockDb.dmFlow.findFirst.mockResolvedValue({ id: "flow-1", steps: [{ type: "link", text: "Guide" }, { type: "end" }] });
+        await expect(createTrigger("team-a", "user-1", input({ flowId: "flow-1" }))).rejects.toMatchObject({ status: 400 });
+
+        mockDb.landingPage.findFirst.mockResolvedValue({ id: "lp-1", slug: "guide", status: "published" });
+        await expect(createTrigger("team-a", "user-1", input({ flowId: "flow-1", landingPageId: "lp-1" }))).resolves.toMatchObject({ flowId: "flow-1", active: false });
     });
 
     it("lets a switched-off trigger point at a draft page, but switching it on needs the page published", async () => {

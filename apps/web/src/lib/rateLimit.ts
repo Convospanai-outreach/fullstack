@@ -94,6 +94,12 @@ export const RATE_LIMITS = {
     maxRequests: 5,           // 5 attempts per hour
   },
 
+  // Public contact and support forms: each submission sends an email to the team inbox
+  CONTACT_FORM: {
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    maxRequests: 5,           // 5 messages per IP per 10 minutes
+  },
+
   // Error logging endpoint
   ERROR_LOGGING: {
     windowMs: 60 * 1000,      // 1 minute
@@ -206,6 +212,23 @@ function checkRateLimitLRU(
   };
 }
 
+// A denial is worth one log line per caller, endpoint and window, not one per refused request: a
+// flood of denied requests must not become a flood of log lines. The line names the kind of caller
+// (user, ip or apikey), never who.
+const loggedDenials = new LRUCache<string, true>({ max: 1000, ttl: 60 * 1000 });
+
+function logDenial(identifier: string, endpoint: string, config: RateLimitConfig) {
+  const key = `${endpoint}:${identifier}`;
+  if (loggedDenials.has(key)) return;
+  loggedDenials.set(key, true, { ttl: config.windowMs });
+  logger.warn("ratelimit.exceeded", {
+    endpoint,
+    identifierType: identifier.split(":")[0],
+    limit: config.maxRequests,
+    windowMs: config.windowMs,
+  });
+}
+
 /**
  * Apply rate limit and return response if blocked
  */
@@ -224,6 +247,7 @@ export async function applyRateLimit(
   const result = await checkRateLimit(identifier, config, endpoint);
 
   if (!result.allowed) {
+    logDenial(identifier, endpoint, config);
     const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000);
 
     return NextResponse.json(

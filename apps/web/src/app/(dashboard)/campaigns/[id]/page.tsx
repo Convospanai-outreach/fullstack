@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { handleNoSendingChannel } from "@/lib/campaigns/noSendingChannelToast";
 import StatusBadge from "@/components/campaigns/StatusBadge";
 import ActivityFeed from "@/components/shared/ActivityFeed";
 import {
@@ -18,6 +19,10 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
+import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
+import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
+import { CampaignApprovalGate } from "@/components/campaigns/CampaignApprovalGate";
+import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
 
@@ -45,7 +50,8 @@ export default function CampaignDetailPage({
         draftGenerationMode: "REALTIME" as "REALTIME" | "BATCH",
     });
     const [activities, setActivities] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState("overview");
+    const searchParams = useSearchParams();
+    const [activeTab, setActiveTab] = useState<string>(() => tabFromQuery(searchParams.get("tab")));
     const [is3DMode, setIs3DMode] = useState(false);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -202,6 +208,7 @@ export default function CampaignDetailPage({
             const res = await fetch(`/api/campaigns/${campaignId}/start`, { method: "POST" });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
+                if (handleNoSendingChannel(data)) return;
                 toast.error(data.error || "Failed to start campaign");
                 return;
             }
@@ -394,7 +401,7 @@ export default function CampaignDetailPage({
                 {/* Tabs */}
                 <div className="border-b border-border mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        {["overview", "sequence", "leads", "activity", "timeline", "analytics"].map((tab) => (
+                        {CAMPAIGN_TABS.map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -417,6 +424,8 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
+                                <CampaignWorkflowRail campaignId={campaignId} />
+                                <CampaignApprovalGate campaignId={campaignId} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
@@ -650,6 +659,13 @@ export default function CampaignDetailPage({
                                 title="Recent Campaign Activity"
                                 emptyMessage="No activity logs for this campaign yet."
                             />
+                        </div>
+                    )}
+
+                    {/* GOVERNANCE TAB */}
+                    {activeTab === "governance" && (
+                        <div className="lg:col-span-3">
+                            <GovernanceLogTab campaignId={campaignId} />
                         </div>
                     )}
 

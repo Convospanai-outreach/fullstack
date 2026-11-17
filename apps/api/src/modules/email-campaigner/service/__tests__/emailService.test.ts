@@ -92,6 +92,15 @@ describe("emailService Gmail fallback policy", () => {
         }));
     });
 
+    it("saves the copy provenance on the sent email, and none when the caller gave none", async () => {
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", { ...metadata, copyProvenance: { v: 1, marker: "prov-x" } } as any);
+        expect(sentEmailData()).toEqual(expect.objectContaining({ copyProvenance: { v: 1, marker: "prov-x" } }));
+
+        (prisma.email.create as Mock).mockClear();
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+        expect(sentEmailData()).not.toHaveProperty("copyProvenance");
+    });
+
     it("uses SMTP as primary when no Gmail mailbox is selected", async () => {
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
@@ -271,6 +280,17 @@ describe("emailService mandatory email footer on send", () => {
         await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
 
         expect(sentHtml()).toContain("UNSUBSCRIBE");
+    });
+
+    it("tells the reader they can reply with one line, that we will never spam them, and to forward a misdirected email", async () => {
+        (prisma.team.findUnique as Mock).mockResolvedValue({ mailingAddress: null, branding: null });
+
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        const html = sentHtml();
+        expect(html).toMatch(/reply with a one-line email/);
+        expect(html).toContain("never spam you");
+        expect(html).toContain("forward it to the right person");
     });
 });
 

@@ -16,6 +16,7 @@ const onInboundReply = vi.hoisted(() => vi.fn());
 const evaluate = vi.hoisted(() => vi.fn());
 const queueDmReply = vi.hoisted(() => vi.fn());
 const queueCommentReplies = vi.hoisted(() => vi.fn());
+const queueDmFlowMessage = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: vi.fn(async (secret: any) => secret?.plain) }));
@@ -29,6 +30,7 @@ vi.mock("../keywordTriggers", async (importOriginal) => ({
     queueCommentReplies,
 }));
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
+vi.mock("../dmFlowRuns", () => ({ queueDmFlowMessage }));
 
 import { extractDmEvents, fillContactProfile, ingestMetaWebhook, sendSocialReply } from "../socialInbox";
 import { GraphError } from "../metaGraph";
@@ -101,6 +103,14 @@ describe("ingestMetaWebhook", () => {
         graphCall.mockRejectedValue(new GraphError("no profile", false)); // background profile lookup
         queueDmReply.mockResolvedValue(false);
         queueCommentReplies.mockResolvedValue(0);
+        queueDmFlowMessage.mockResolvedValue(undefined);
+    });
+
+    it("offers every DM to the flows, including an attachment-only one that can open a flow's window", async () => {
+        await ingestMetaWebhook(igDelivery([dm(), dm({}, { mid: "mid-att", text: undefined, attachments: [{ type: "image" }] })]), NOW);
+        expect(queueDmFlowMessage).toHaveBeenCalledWith(account, { mid: "mid-1", senderId: "igsid-9", text: "Is the course still open?" }, NOW);
+        expect(queueDmFlowMessage).toHaveBeenCalledWith(account, { mid: "mid-att", senderId: "igsid-9", text: "" }, NOW);
+        expect(queueDmReply).toHaveBeenCalledTimes(1);
     });
 
     it("checks each DM against keyword triggers, including a retried one (the queue is idempotent)", async () => {

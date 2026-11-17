@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // publishCampaign runs the Cloudflare edge push AFTER the DB transaction commits.
 // These tests pin the fix for F-16: the returned object must surface the edge-push
 // outcome (skipped / error) so the UI can't report an unqualified success when the
 // page never actually reached Cloudflare.
 
-const { mockPrisma, publishPageToCloudflare } = vi.hoisted(() => {
+const { mockPrisma, mockTx, publishPageToCloudflare } = vi.hoisted(() => {
     const tx = {
         landingPage: {
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -17,6 +18,7 @@ const { mockPrisma, publishPageToCloudflare } = vi.hoisted(() => {
         },
     };
     return {
+        mockTx: tx,
         publishPageToCloudflare: vi.fn(),
         mockPrisma: {
             landingCampaign: {
@@ -111,5 +113,98 @@ describe("landingAgentService.publishCampaign - edge-push outcome", () => {
         expect(mockPrisma.customDomain.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({ where: { teamId: "team-1", status: "active" } })
         );
+    });
+});
+
+describe("landingAgentService.publishCampaign - live draft (Phase 2)", () => {
+    const LIVE = { html: "<section>live</section>", css: "" };
+    const DRAFT = { html: "<section>draft</section>", css: "" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        publishPageToCloudflare.mockResolvedValue({ status: "pushed" });
+    });
+
+    function givenCurrentPage(current: Record<string, unknown>) {
+        mockPrisma.landingCampaign.findFirst.mockResolvedValueOnce({
+            id: "camp-1",
+            name: "My Campaign",
+            pages: [{ id: "page-1", slug: "my-campaign" }],
+        });
+        // The first read inside the transaction is the page as it stands right before the copy.
+        mockTx.landingPage.findUniqueOrThrow.mockResolvedValueOnce({ id: "page-1", slug: "my-campaign", ...current });
+    }
+
+    it("copies the draft to the live columns, bumps version, clears the draft and pushes to KV", async () => {
+        givenCurrentPage({
+            version: 3,
+            renderedJson: LIVE,
+            editorState: { components: "live" },
+            draftRenderedJson: DRAFT,
+            draftEditorState: { components: "draft" },
+        });
+
+        await landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false });
+
+        expect(mockTx.landingPage.updateMany).toHaveBeenCalledWith({
+            where: { id: "page-1", teamId: "team-1" },
+            data: expect.objectContaining({
+                status: "published",
+                renderedJson: DRAFT,
+                editorState: { components: "draft" },
+                version: { increment: 1 },
+                draftRenderedJson: Prisma.DbNull,
+                draftEditorState: Prisma.DbNull,
+            }),
+        });
+        expect(publishPageToCloudflare).toHaveBeenCalledWith("page-1");
+    });
+
+    it("keeps the live editor state when the draft has none, and still clears the draft columns", async () => {
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: { components: "live" }, draftRenderedJson: DRAFT, draftEditorState: null });
+
+        await landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false });
+
+        const data = mockTx.landingPage.updateMany.mock.calls[0][0].data;
+        expect(data).toMatchObject({ renderedJson: DRAFT, draftRenderedJson: Prisma.DbNull, draftEditorState: Prisma.DbNull });
+        expect(data).not.toHaveProperty("editorState");
+    });
+
+    it("guards the copy with the draft's updatedAt, only when a draft is being copied", async () => {
+        const updatedAt = new Date("2026-10-30T10:00:00.000Z");
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: DRAFT, draftEditorState: null, updatedAt });
+
+        await landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false });
+
+        expect(mockTx.landingPage.updateMany.mock.calls[0][0].where).toEqual({ id: "page-1", teamId: "team-1", updatedAt });
+    });
+
+    it("refuses with a 409 when the draft changed during the publish, and does not push to KV", async () => {
+        const updatedAt = new Date("2026-10-30T10:00:00.000Z");
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: DRAFT, draftEditorState: null, updatedAt });
+        mockTx.landingPage.updateMany.mockResolvedValueOnce({ count: 0 });
+
+        await expect(
+            landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false })
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            code: "CONFLICT",
+            message: "The page was edited while publishing. Check your changes and publish again.",
+        });
+        expect(publishPageToCloudflare).not.toHaveBeenCalled();
+    });
+
+    it("a page with no draft publishes exactly as before: no copy, no version bump", async () => {
+        givenCurrentPage({ version: 3, renderedJson: LIVE, editorState: null, draftRenderedJson: null, draftEditorState: null });
+
+        await landingAgentService.publishCampaign({ teamId: "team-1", userId: "user-1", campaignId: "camp-1", requireApproval: false });
+
+        const data = mockTx.landingPage.updateMany.mock.calls[0][0].data;
+        expect(data).toEqual(expect.objectContaining({ status: "published" }));
+        expect(data).not.toHaveProperty("renderedJson");
+        expect(data).not.toHaveProperty("version");
+        expect(data).not.toHaveProperty("draftRenderedJson");
+        expect(mockTx.landingPage.updateMany.mock.calls[0][0].where).toEqual({ id: "page-1", teamId: "team-1" });
+        expect(publishPageToCloudflare).toHaveBeenCalledWith("page-1");
     });
 });

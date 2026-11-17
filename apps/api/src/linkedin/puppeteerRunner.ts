@@ -1,6 +1,7 @@
 import { browserManager } from "@/modules/scraper-bridge/service/browserManager";
 import { logger } from "@/lib/logger";
 import { gotoPublicUrl } from "@/modules/scraper-bridge/service/safeNavigation";
+import { canonicalLinkedInProfileUrl } from "@/lib/crm/linkedin";
 
 export interface LinkedInActionResult {
     ok: boolean;
@@ -15,7 +16,13 @@ export async function runPuppeteer() {
 }
 
 export async function runLinkedInAction(params: any): Promise<LinkedInActionResult> {
-    const { action, profileUrl, loginToken } = params;
+    const { action, loginToken } = params;
+    // Lead.linkedIn is free text, so only a real profile URL is opened, in its canonical linkedin.com form.
+    const profileUrl = canonicalLinkedInProfileUrl(params.profileUrl);
+    if (!profileUrl) {
+        logger.warn(`[LinkedInRunner] ${action} skipped: not a LinkedIn profile URL`);
+        return { ok: false, action, error: "Not a LinkedIn profile URL" };
+    }
     logger.info(`[LinkedInRunner] Executing ${action} on ${profileUrl}`);
 
     const page = await browserManager.getPage();

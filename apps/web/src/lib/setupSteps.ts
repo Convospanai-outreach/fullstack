@@ -12,16 +12,29 @@ export function readOutreachMode(aiConfig: unknown): OutreachMode | null {
     return mode === "personal" || mode === "company" ? mode : null;
 }
 
+// The data responsibility notice (step 1). Bump the version when its wording changes; the API route keeps the same
+// value, and both read apps/web/tests/fixtures/data-responsibility.json in their tests.
+export const DATA_RESPONSIBILITY_VERSION = "2026-11";
+
+// Whether the team has agreed to the current notice. Stored in the team's aiConfig as dataResponsibility.
+export function hasDataResponsibilityAck(aiConfig: unknown): boolean {
+    const record = (aiConfig as { dataResponsibility?: { version?: unknown } } | null)?.dataResponsibility;
+    return record?.version === DATA_RESPONSIBILITY_VERSION;
+}
+
 export function visibleStepIds(stepIds: readonly number[], mode: OutreachMode | null): number[] {
     return mode === "personal" ? stepIds.filter((id) => !PERSONAL_HIDDEN_STEPS.has(id)) : [...stepIds];
 }
 
 /** The visible step after `current`, or null when it is the last one. */
 export function nextStepId(visible: readonly number[], current: number): number | null {
-    return visible.find((id) => id > current) ?? null;
+    // By position, not by id: the scan step (id 15) sits between steps 2 and 3.
+    const index = visible.indexOf(current);
+    return index >= 0 ? visible[index + 1] ?? null : null;
 }
 
 /** The visible step before `current`, or null when it is the first one. */
 export function previousStepId(visible: readonly number[], current: number): number | null {
-    return [...visible].reverse().find((id) => id < current) ?? null;
+    const index = visible.indexOf(current);
+    return index > 0 ? visible[index - 1] ?? null : null;
 }

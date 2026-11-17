@@ -1,29 +1,155 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Component, Editor } from "grapesjs";
 import { Button } from "@/components/ui/button";
-import { LANDING_PAGE_BASE_CSS, getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
+import "grapesjs/dist/css/grapes.min.css";
+import "./grapesEditor.css";
+import { landingAgentApi } from "@/modules/landing-agent/service/landingAgentApi";
+import { LANDING_ASSET_LIBRARY, type LandingAsset } from "@/components/landing-agent/landingAssetLibrary";
+import {
+    FOCAL_POINTS,
+    HERO_IMAGE_LAYOUTS,
+    OVERLAY_STRENGTHS,
+    buildHeroImageHtml,
+    type FocalPoint,
+    type HeroImageLayout,
+    type OverlayStrength,
+} from "@/components/landing-agent/heroImageBlock";
+import { imageAltWarnings, imageSourceMessage, type ImageAltWarning } from "@/components/landing-agent/imageSources";
+import { mobilePageWarnings, type MobileCheckWarning } from "@/components/landing-agent/mobileChecks";
+import { getLandingRenderPayload, withLandingBaseCss } from "@/modules/landing-agent/rendering";
+import { encodeLeadFormMarkerId, type LeadFormConfig } from "@/modules/landing-agent/leadFormConfig";
+import { LEAD_FORM_CANVAS_CSS, leadFormOfSelection, previewLeadFormHtml } from "@/components/landing-agent/leadFormEditor";
+import LeadFormSettingsPanel from "@/components/landing-agent/LeadFormSettingsPanel";
+import InstagramSettingsPanel from "@/components/landing-agent/InstagramSettingsPanel";
+import { instagramFollowOfSelection } from "@/components/landing-agent/instagramFollow";
+import CopyHelperPanel from "@/components/landing-agent/CopyHelperPanel";
+import PageThemePanel from "@/components/landing-agent/PageThemePanel";
+import { themeFromRenderedJson, themeWrapper, type LandingTheme } from "@/modules/landing-agent/theme";
+import { applyCopyToComponent } from "@/components/landing-agent/copyPatterns";
+import {
+    AUTOSAVE_INTERVAL_MS,
+    EDITOR_BLOCKS,
+    EDITOR_BRAND_COLORS,
+    EDITOR_DEVICES,
+    EDITOR_STYLE_PROPERTIES,
+    EDITOR_TRAIT_NAMES,
+    applyEditorLinkHref,
+    CANVAS_ONLY_CSS,
+    canvasBaseCss,
+    filterEditorStyle,
+    shouldAutosave,
+    userCssFromSaved,
+    type EditorStyleProperty,
+} from "@/components/landing-agent/editorConfig";
 
 interface Props {
     initialRenderedJson?: unknown;
     title?: string;
+    pageStatus?: string;
+    pageSlug?: string | null;
     onSave: (payload: { title?: string; editorState?: unknown; renderedJson: unknown }) => Promise<void>;
     onPublish: () => Promise<void>;
     onGenerateImages?: () => Promise<unknown>;
 }
 
-function getInitialHtml(initialRenderedJson: unknown): string {
-    return getLandingRenderPayload(initialRenderedJson).html;
+type DeviceName = (typeof EDITOR_DEVICES)[number]["name"];
+type RenderedPage = { html: string; css: string };
+
+// The preview document carries the page theme the same way the published page does (class and variables on body).
+function buildPreviewDoc(html: string, css: string, theme: LandingTheme | null): string {
+    const wrapper = themeWrapper(theme);
+    const vars = Object.entries(wrapper.vars).map(([key, value]) => `${key}:${value}`).join(";").replace(/"/g, "&quot;");
+    const style = vars ? ` style="${vars}"` : "";
+    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="${wrapper.className}"${style}>${html}</body></html>`;
 }
 
-function buildPreviewDoc(html: string, css: string): string {
-    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="la-page">${html}</body></html>`;
+function toGrapesStyleProperty(prop: EditorStyleProperty) {
+    if (prop.kind === "color") {
+        return { property: prop.property, type: "color", label: prop.label };
+    }
+    return {
+        property: prop.property,
+        type: "select",
+        label: prop.label,
+        list: prop.options.map((option) => ({ value: option.value, name: option.label })),
+    };
 }
 
-export default function GrapesEditor({ initialRenderedJson, title, onSave, onPublish, onGenerateImages }: Props) {
+// Only component styles (#id rules written by the style panel) are checked here.
+// Rules the page already had (AI-written CSS) are kept as they are.
+function cleanComponentStyles(editor: Editor) {
+    for (const rule of editor.Css.getRules()) {
+        if (!rule.selectorsToString().startsWith("#")) continue;
+        const style = rule.getStyle() as Record<string, unknown>;
+        const clean = filterEditorStyle(style);
+        if (Object.keys(clean).length !== Object.keys(style).length) {
+            rule.setStyle(clean);
+        }
+    }
+}
+
+function readRendered(editor: Editor, theme: LandingTheme | null): RenderedPage & { theme?: LandingTheme } {
+    cleanComponentStyles(editor);
+    const rendered: RenderedPage & { theme?: LandingTheme } = { html: editor.getHtml(), css: withLandingBaseCss(editor.getCss() || "") };
+    if (theme) rendered.theme = theme;
+    return rendered;
+}
+
+// The canvas body gets the same class and variables as the published page. The wrapper keeps the class
+// too, so GrapesJS does not drop it when it re-renders the body.
+function applyThemeToCanvas(editor: Editor | null, theme: LandingTheme | null) {
+    if (!editor) return;
+    const wrapper = themeWrapper(theme);
+    editor.getWrapper()?.addAttributes({ class: wrapper.className });
+    const body = editor.Canvas.getDocument()?.body;
+    if (!body) return;
+    // Only the theme's own classes and variables change; GrapesJS keeps its own body classes and styles.
+    for (const name of Array.from(body.classList)) {
+        if (name === "la-page" || name.startsWith("la-theme-")) body.classList.remove(name);
+    }
+    body.classList.add(...wrapper.className.split(" "));
+    for (let i = body.style.length - 1; i >= 0; i--) {
+        const prop = body.style.item(i);
+        if (prop.startsWith("--la-")) body.style.removeProperty(prop);
+    }
+    for (const [key, value] of Object.entries(wrapper.vars)) {
+        body.style.setProperty(key, value);
+    }
+}
+
+// The link trait writes href only for safe values (see isSafeEditorLink).
+const linkHrefTrait = {
+    name: "href",
+    label: "Link (https, mailto, tel or #section)",
+    setValue: ({ component, value }: { component: Parameters<typeof applyEditorLinkHref>[0]; value: unknown }) => {
+        applyEditorLinkHref(component, value);
+    },
+};
+
+export default function GrapesEditor({ initialRenderedJson, title, pageStatus, pageSlug, onSave, onPublish, onGenerateImages }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const editorRef = useRef<any>(null);
-    const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const blocksRef = useRef<HTMLDivElement | null>(null);
+    const layersRef = useRef<HTMLDivElement | null>(null);
+    const stylesRef = useRef<HTMLDivElement | null>(null);
+    const traitsRef = useRef<HTMLDivElement | null>(null);
+    const selectorsRef = useRef<HTMLDivElement | null>(null);
+    const editorRef = useRef<Editor | null>(null);
+    const persistRef = useRef<(() => Promise<boolean>) | null>(null);
+    const refreshRef = useRef<(() => void) | null>(null);
+    // The editor mounts once, from the page as it was on first render. Saves refresh
+    // the prop, and remounting on each refresh would wipe undo history and selection.
+    const initialRef = useRef(initialRenderedJson);
+    const onSaveRef = useRef(onSave);
+    const pageTitleRef = useRef(title || "Landing Page");
+    const savedSnapshotRef = useRef("");
+    const dirtyRef = useRef(false);
+    const savingRef = useRef(false);
+    // Sizes of images uploaded in this editor session (url -> bytes). Other images are not measured.
+    const uploadedImageBytesRef = useRef<Record<string, number>>({});
+    const themeRef = useRef<LandingTheme | null>(themeFromRenderedJson(initialRenderedJson));
+
     const [loadingEditor, setLoadingEditor] = useState(true);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
@@ -32,103 +158,204 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
     const [pageTitle, setPageTitle] = useState(title || "Landing Page");
     const [previewDoc, setPreviewDoc] = useState("");
     const [previewWidth, setPreviewWidth] = useState<"desktop" | "mobile">("desktop");
+    const [device, setDevice] = useState<DeviceName>("Desktop");
+    const [dirty, setDirty] = useState(false);
+    const [canUndo, setCanUndo] = useState(false);
+    const [canRedo, setCanRedo] = useState(false);
+    const [isEmpty, setIsEmpty] = useState(false);
+    const [altWarnings, setAltWarnings] = useState<ImageAltWarning[]>([]);
+    const [mobileWarnings, setMobileWarnings] = useState<MobileCheckWarning[]>([]);
+    const [theme, setTheme] = useState<LandingTheme | null>(() => themeFromRenderedJson(initialRenderedJson));
 
-    const starterHtml = useMemo(() => getInitialHtml(initialRenderedJson), [initialRenderedJson]);
-
-    function updatePreviewFromEditor() {
-        if (!editorRef.current) return;
-        const html = editorRef.current.getHtml();
-        const css = withLandingBaseCss(editorRef.current.getCss() || "");
-        const payload = getLandingRenderPayload({ html, css });
-        setPreviewDoc(buildPreviewDoc(payload.html, payload.css));
+    // Theme changes reach the canvas at once; the next save stores them with the page.
+    function applyTheme(next: LandingTheme | null) {
+        themeRef.current = next;
+        setTheme(next);
+        applyThemeToCanvas(editorRef.current, next);
+        refreshRef.current?.();
     }
+    const [imageSrc, setImageSrc] = useState("");
+    const [imageAlt, setImageAlt] = useState("");
+    const [imageLayout, setImageLayout] = useState<HeroImageLayout>("background");
+    const [imageFocal, setImageFocal] = useState<FocalPoint>("center");
+    const [imageDarken, setImageDarken] = useState<OverlayStrength>(40);
+    const [imageNote, setImageNote] = useState<string | null>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const [leadForm, setLeadForm] = useState<{ key: number; config: LeadFormConfig | null } | null>(null);
+    const leadFormComponentRef = useRef<Component | null>(null);
+    const [instagram, setInstagram] = useState<{ key: number } | null>(null);
+    const instagramComponentRef = useRef<Component | null>(null);
+
+    function applyInstagramHref(href: string) {
+        const component = instagramComponentRef.current;
+        if (!component) return;
+        component.addAttributes({ href });
+        refreshRef.current?.();
+    }
+
+    function applyLeadForm(config: LeadFormConfig) {
+        const component = leadFormComponentRef.current;
+        if (!component) return;
+        component.addAttributes({ id: encodeLeadFormMarkerId(config) });
+        refreshRef.current?.();
+    }
+    const [uploadingImage, setUploadingImage] = useState(false);
+
+    const isPublished = pageStatus === "published";
+
+    useEffect(() => {
+        onSaveRef.current = onSave;
+    }, [onSave]);
 
     useEffect(() => {
         let active = true;
+        let previewTimer: ReturnType<typeof setTimeout> | null = null;
+        let autosaveTimer: ReturnType<typeof setInterval> | null = null;
+        let editor: Editor | null = null;
+
+        function refresh() {
+            if (!editor || !active) return;
+            const rendered = readRendered(editor, themeRef.current);
+            const payload = getLandingRenderPayload(rendered);
+            setPreviewDoc(buildPreviewDoc(previewLeadFormHtml(payload.html), payload.css, themeRef.current));
+            const nowDirty = JSON.stringify(rendered) !== savedSnapshotRef.current;
+            dirtyRef.current = nowDirty;
+            setDirty(nowDirty);
+            setCanUndo(editor.UndoManager.hasUndo());
+            setCanRedo(editor.UndoManager.hasRedo());
+            setIsEmpty(editor.getWrapper()?.components().length === 0);
+            setAltWarnings(imageAltWarnings(rendered.html));
+            setMobileWarnings(mobilePageWarnings({ html: payload.html, css: payload.css, imageBytes: uploadedImageBytesRef.current }));
+        }
+        refreshRef.current = refresh;
+
+        async function persist(): Promise<boolean> {
+            if (!editor || savingRef.current) return false;
+            savingRef.current = true;
+            setSaving(true);
+            setError(null);
+            try {
+                const rendered = readRendered(editor, themeRef.current);
+                await onSaveRef.current({
+                    title: pageTitleRef.current,
+                    editorState: { components: editor.getComponents()?.toJSON?.() || null },
+                    renderedJson: rendered,
+                });
+                savedSnapshotRef.current = JSON.stringify(rendered);
+                refresh();
+                return true;
+            } catch (err: any) {
+                if (active) setError(err?.message || "Save failed");
+                return false;
+            } finally {
+                savingRef.current = false;
+                if (active) setSaving(false);
+            }
+        }
+        persistRef.current = persist;
+
+        function onKeyDown(event: KeyboardEvent) {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+                event.preventDefault();
+                void persist();
+            }
+        }
+        window.addEventListener("keydown", onKeyDown);
+
+        autosaveTimer = setInterval(() => {
+            const shouldSave = shouldAutosave({
+                dirty: dirtyRef.current,
+                saving: savingRef.current,
+            });
+            if (shouldSave) void persist();
+        }, AUTOSAVE_INTERVAL_MS);
 
         async function mountEditor() {
-            if (!containerRef.current) return;
+            const container = containerRef.current;
+            const blocksEl = blocksRef.current;
+            const layersEl = layersRef.current;
+            const stylesEl = stylesRef.current;
+            const traitsEl = traitsRef.current;
+            const selectorsEl = selectorsRef.current;
+            if (!container || !blocksEl || !layersEl || !stylesEl || !traitsEl || !selectorsEl) return;
             const grapes = await import("grapesjs");
-            if (!active || !containerRef.current) return;
+            if (!active) return;
 
-            const editor = grapes.default.init({
-                container: containerRef.current,
+            const created = grapes.default.init({
+                container,
                 fromElement: false,
                 width: "auto",
                 height: "70vh",
                 storageManager: false,
-                canvas: {
-                    styles: [
-                        "body{font-family:system-ui,Segoe UI,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}",
-                        ".landing-section{max-width:920px;margin:0 auto 24px auto;padding:20px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;}",
-                        ".hero{border-color:#38bdf8;background:#ecfeff;}",
-                        ".cta{border-color:#f59e0b;background:#fffbeb;}",
-                    ],
+                cssIcons: "",
+                protectedCss: "",
+                avoidInlineStyle: true,
+                panels: { defaults: [] },
+                deviceManager: { devices: EDITOR_DEVICES.map((d) => ({ ...d })) },
+                richTextEditor: { actions: ["bold", "italic", "link"] },
+                colorPicker: { palette: [[...EDITOR_BRAND_COLORS]], showPalette: true, showInput: true, preferredFormat: "hex" },
+                selectorManager: { componentFirst: true, appendTo: selectorsEl },
+                blockManager: { appendTo: blocksEl },
+                layerManager: { appendTo: layersEl },
+                traitManager: { appendTo: traitsEl },
+                styleManager: {
+                    appendTo: stylesEl,
+                    sectors: [{ name: "Look", open: true, properties: EDITOR_STYLE_PROPERTIES.map(toGrapesStyleProperty) }],
                 },
             });
+            editor = created;
+            editorRef.current = created;
 
-            editor.setStyle(LANDING_PAGE_BASE_CSS);
-            editor.BlockManager.add("hero", {
-                label: "Hero",
-                category: "Landing",
-                content: `
-                    <section class="landing-section hero">
-                        <h1>Primary headline</h1>
-                        <p>Core value proposition for your audience.</p>
-                        <button>Book a demo</button>
-                    </section>
-                `,
+            created.DomComponents.addType("link", {
+                model: { defaults: { traits: EDITOR_TRAIT_NAMES.map((name) => (name === "href" ? linkHrefTrait : name)) } },
             });
-            editor.BlockManager.add("challenge_solution", {
-                label: "Challenge/Solution",
-                category: "Landing",
-                content: `
-                    <section class="landing-section">
-                        <h2>Challenge</h2>
-                        <p>Describe buyer pain clearly.</p>
-                        <h3>Solution</h3>
-                        <p>Explain why your approach is practical.</p>
-                    </section>
-                `,
+            for (const block of EDITOR_BLOCKS) {
+                created.BlockManager.add(block.id, { label: block.label, category: "Landing", content: block.content });
+            }
+
+            created.on("component:selected", (component: Component) => {
+                // The id carries a lead form's configuration and anchors like #lead-form, so it is not editable here.
+                component.removeTrait("id");
+                const classes = component.getClasses().map((c) => String(c));
+                const selection = leadFormOfSelection({ id: String(component.getAttributes()["id"] ?? ""), classes });
+                leadFormComponentRef.current = selection ? component : null;
+                setLeadForm(selection ? { key: Date.now(), config: selection.config } : null);
+                const isInstagram = instagramFollowOfSelection(classes);
+                // The follow link is set only from a valid handle in the Instagram panel, never typed into the link trait.
+                if (isInstagram) component.removeTrait("href");
+                instagramComponentRef.current = isInstagram ? component : null;
+                setInstagram(isInstagram ? { key: Date.now() } : null);
             });
-            editor.BlockManager.add("benefits", {
-                label: "Benefits",
-                category: "Landing",
-                content: `
-                    <section class="landing-section">
-                        <h2>Benefits</h2>
-                        <ul>
-                            <li>Benefit one</li>
-                            <li>Benefit two</li>
-                            <li>Benefit three</li>
-                        </ul>
-                    </section>
-                `,
-            });
-            editor.BlockManager.add("cta_form", {
-                label: "CTA Form",
-                category: "Landing",
-                content: `
-                    <section class="landing-section cta">
-                        <h2>Talk to our team</h2>
-                        <p>We will reach out within one business day.</p>
-                        <form>
-                            <input type="text" placeholder="Name" />
-                            <input type="email" placeholder="Work Email" />
-                            <button type="submit">Submit</button>
-                        </form>
-                    </section>
-                `,
+            created.on("component:deselected", () => {
+                leadFormComponentRef.current = null;
+                setLeadForm(null);
+                instagramComponentRef.current = null;
+                setInstagram(null);
             });
 
-            editor.setComponents(starterHtml);
-            editorRef.current = editor;
-            setLoadingEditor(false);
-            updatePreviewFromEditor();
-
-            editor.on("update", () => {
-                if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
-                previewDebounceRef.current = setTimeout(updatePreviewFromEditor, 400);
+            created.onReady(() => {
+                if (!active) return;
+                applyThemeToCanvas(created, themeRef.current);
+                const frameDoc = created.Canvas.getDocument();
+                if (frameDoc) {
+                    const base = frameDoc.createElement("style");
+                    base.setAttribute("data-landing-base", "");
+                    base.textContent = canvasBaseCss() + CANVAS_ONLY_CSS;
+                    frameDoc.head.appendChild(base);
+                    const leadFormStyle = frameDoc.createElement("style");
+                    leadFormStyle.textContent = LEAD_FORM_CANVAS_CSS;
+                    frameDoc.head.appendChild(leadFormStyle);
+                }
+                const initial = getLandingRenderPayload(initialRef.current);
+                created.setComponents(initial.html);
+                created.setStyle(userCssFromSaved(initial.css));
+                savedSnapshotRef.current = JSON.stringify(readRendered(created, themeRef.current));
+                setLoadingEditor(false);
+                refresh();
+                created.on("update", () => {
+                    if (previewTimer) clearTimeout(previewTimer);
+                    previewTimer = setTimeout(refresh, 400);
+                });
             });
         }
 
@@ -139,53 +366,57 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
 
         return () => {
             active = false;
-            if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+            if (previewTimer) clearTimeout(previewTimer);
+            if (autosaveTimer) clearInterval(autosaveTimer);
+            window.removeEventListener("keydown", onKeyDown);
             try {
-                editorRef.current?.destroy();
+                editor?.destroy();
             } catch {
                 // ignore editor cleanup errors
             }
             editorRef.current = null;
+            persistRef.current = null;
+            refreshRef.current = null;
         };
-    }, [starterHtml]);
+    }, []);
 
     async function handleSave() {
-        if (!editorRef.current) return;
-        setSaving(true);
-        setError(null);
-
-        try {
-            const html = editorRef.current.getHtml();
-            const css = withLandingBaseCss(editorRef.current.getCss() || "");
-            const componentsJson = editorRef.current.getComponents()?.toJSON?.() || null;
-            await onSave({
-                title: pageTitle,
-                editorState: {
-                    components: componentsJson,
-                },
-                renderedJson: {
-                    html,
-                    css,
-                },
-            });
-        } catch (err: any) {
-            setError(err?.message || "Save failed");
-        } finally {
-            setSaving(false);
-        }
+        await persistRef.current?.();
     }
 
     async function handlePublish() {
         setPublishing(true);
         setError(null);
         try {
-            await handleSave();
+            // Publish only what was saved: if the save fails, stop here.
+            const saved = await persistRef.current?.();
+            if (saved === false) return;
             await onPublish();
         } catch (err: any) {
             setError(err?.message || "Publish failed");
         } finally {
             setPublishing(false);
         }
+    }
+
+    function handleDevice(name: DeviceName) {
+        setDevice(name);
+        editorRef.current?.setDevice(name);
+    }
+
+    function handleUndo() {
+        editorRef.current?.UndoManager.undo();
+        refreshRef.current?.();
+    }
+
+    function handleRedo() {
+        editorRef.current?.UndoManager.redo();
+        refreshRef.current?.();
+    }
+
+    function handlePreviewInNewTab() {
+        if (!pageSlug) return;
+        window.open(`/p/${pageSlug}`, "_blank", "noopener,noreferrer");
     }
 
     async function handleGenerateImages() {
@@ -197,7 +428,7 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
             if (updatedRenderedJson) {
                 const html = getLandingRenderPayload(updatedRenderedJson).html;
                 editorRef.current.setComponents(html);
-                updatePreviewFromEditor();
+                refreshRef.current?.();
             }
         } catch (err: any) {
             setError(err?.message || "Image generation failed");
@@ -206,18 +437,83 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
         }
     }
 
+    async function handleImageUpload(file: File | undefined) {
+        if (!file) return;
+        setUploadingImage(true);
+        setImageError(null);
+        try {
+            const { url } = await landingAgentApi.uploadImage(file);
+            uploadedImageBytesRef.current[url] = file.size;
+            setImageSrc(url);
+            setImageNote("Uploaded to your landing images.");
+        } catch (err: any) {
+            setImageError(err?.message || "Image upload failed");
+        } finally {
+            setUploadingImage(false);
+        }
+    }
+
+    function handlePastedImage(value: string) {
+        const message = imageSourceMessage(value);
+        setImageSrc(value);
+        setImageError(message.error);
+        setImageNote(message.note);
+    }
+
+    function handleLibraryImage(asset: LandingAsset) {
+        // Absolute, so the image also loads on pages served from a customer's own domain.
+        setImageSrc(window.location.protocol === "https:" ? new URL(asset.path, window.location.origin).toString() : asset.path);
+        setImageAlt((current) => (current.trim() ? current : asset.alt));
+        setImageError(null);
+        setImageNote("Built-in image.");
+    }
+
+    // Writes a helper pattern into the selected text block. False when no text block is selected.
+    function handleUseCopy(text: string): boolean {
+        const applied = applyCopyToComponent(editorRef.current?.getSelected(), text);
+        if (applied) refreshRef.current?.();
+        return applied;
+    }
+
+    function handleAddImage() {
+        const html = buildHeroImageHtml({ layout: imageLayout, src: imageSrc, alt: imageAlt, focal: imageFocal, darken: imageDarken });
+        if (!html) {
+            setImageError("Add alt text and an https image address before adding the image.");
+            return;
+        }
+        editorRef.current?.addComponents(html);
+        refreshRef.current?.();
+    }
+
+    const saveLabel = saving
+        ? "Saving..."
+        : dirty
+          ? isPublished
+              ? "Unsaved changes. Saves a draft every 10 seconds. Publish to update the live page."
+              : "Unsaved changes. Saves automatically every 10 seconds."
+          : "All changes saved";
+
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
                 <input
                     type="text"
                     value={pageTitle}
-                    onChange={(e) => setPageTitle(e.target.value)}
+                    onChange={(e) => {
+                        pageTitleRef.current = e.target.value;
+                        setPageTitle(e.target.value);
+                    }}
                     className="min-w-72 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
                     placeholder="Landing page title"
                 />
                 <Button onClick={handleSave} disabled={saving || publishing} className="bg-white text-slate-900 hover:bg-slate-200">
                     {saving ? "Saving..." : "Save Draft"}
+                </Button>
+                <Button onClick={handleUndo} disabled={!canUndo} className="bg-white/10 text-slate-200 hover:bg-white/20">
+                    Undo
+                </Button>
+                <Button onClick={handleRedo} disabled={!canRedo} className="bg-white/10 text-slate-200 hover:bg-white/20">
+                    Redo
                 </Button>
                 {onGenerateImages ? (
                     <Button
@@ -231,43 +527,235 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
                 <Button onClick={handlePublish} disabled={publishing} className="bg-cyan-600 hover:bg-cyan-500 text-white">
                     {publishing ? "Publishing..." : "Publish"}
                 </Button>
+                <Button
+                    onClick={handlePreviewInNewTab}
+                    disabled={!isPublished || !pageSlug}
+                    title={isPublished ? "Open the live page in a new tab" : "Publish the page to preview it"}
+                    className="bg-white/10 text-slate-200 hover:bg-white/20"
+                >
+                    Preview in new tab
+                </Button>
+                <p className="text-xs text-slate-400">{saveLabel}</p>
             </div>
 
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+            {altWarnings.length > 0 ? (
+                <div className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 text-sm text-amber-200">
+                    <p>
+                        {altWarnings.length} image{altWarnings.length === 1 ? "" : "s"} without alt text. Screen readers cannot describe
+                        {altWarnings.length === 1 ? " it" : " them"}.
+                    </p>
+                    <ul className="list-disc pl-5 text-xs">
+                        {altWarnings.map((warning, index) => (
+                            <li key={index}>
+                                {warning.src ?? "Image"}: {warning.problem === "missing" ? "no alt attribute" : "alt text is empty"}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2">
+            <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_280px]">
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Blocks</p>
+                        <div ref={blocksRef} />
+                    </div>
+                    <CopyHelperPanel onUse={handleUseCopy} />
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Images</p>
+                        <label className="block text-xs text-slate-300">
+                            Upload (PNG, JPG or WebP, 2 MB max)
+                            <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                disabled={uploadingImage}
+                                onChange={(e) => {
+                                    void handleImageUpload(e.target.files?.[0]);
+                                    e.target.value = "";
+                                }}
+                                className="mt-1 block w-full text-xs text-slate-300"
+                            />
+                        </label>
+                        <label className="block text-xs text-slate-300">
+                            Or paste an https image address
+                            <input
+                                type="url"
+                                value={imageSrc}
+                                onChange={(e) => handlePastedImage(e.target.value)}
+                                placeholder="https://"
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            />
+                        </label>
+                        <div className="grid grid-cols-4 gap-1">
+                            {LANDING_ASSET_LIBRARY.map((asset) => (
+                                <button
+                                    key={asset.id}
+                                    type="button"
+                                    title={asset.label}
+                                    onClick={() => handleLibraryImage(asset)}
+                                    className="h-10 overflow-hidden rounded border border-white/10"
+                                >
+                                    <img src={asset.path} alt={asset.alt} className="h-full w-full object-cover" />
+                                </button>
+                            ))}
+                        </div>
+                        <label className="block text-xs text-slate-300">
+                            Alt text (required)
+                            <input
+                                type="text"
+                                value={imageAlt}
+                                onChange={(e) => setImageAlt(e.target.value)}
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            />
+                        </label>
+                        <label className="block text-xs text-slate-300">
+                            Layout
+                            <select
+                                value={imageLayout}
+                                onChange={(e) => setImageLayout(e.target.value as HeroImageLayout)}
+                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                            >
+                                {HERO_IMAGE_LAYOUTS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="block text-xs text-slate-300">
+                                Focus
+                                <select
+                                    value={imageFocal}
+                                    onChange={(e) => setImageFocal(e.target.value as FocalPoint)}
+                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                >
+                                    {FOCAL_POINTS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="block text-xs text-slate-300">
+                                Darken
+                                <select
+                                    value={imageDarken}
+                                    onChange={(e) => setImageDarken(Number(e.target.value) as OverlayStrength)}
+                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                >
+                                    {OVERLAY_STRENGTHS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+                        {imageNote ? <p className="text-xs text-slate-400">{imageNote}</p> : null}
+                        {imageError ? <p className="text-xs text-rose-300">{imageError}</p> : null}
+                        <Button
+                            onClick={handleAddImage}
+                            disabled={!imageAlt.trim() || !imageSrc.trim() || uploadingImage}
+                            className="w-full bg-white/10 text-slate-200 hover:bg-white/20"
+                        >
+                            Add image block
+                        </Button>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Layers</p>
+                        <div ref={layersRef} />
+                    </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-slate-400">
+                            Double-click text to edit. Ctrl+Z undo, Ctrl+Shift+Z redo, Ctrl+S save.
+                        </p>
+                        <div className="flex gap-1">
+                            {EDITOR_DEVICES.map((option) => (
+                                <Button
+                                    key={option.name}
+                                    onClick={() => handleDevice(option.name)}
+                                    className={`h-7 px-2 text-xs ${device === option.name ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                                >
+                                    {option.name}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                     {loadingEditor ? <p className="p-6 text-sm text-slate-400">Loading editor...</p> : null}
+                    {!loadingEditor && isEmpty ? (
+                        <p className="p-6 text-sm text-slate-400">This page is empty. Click a block on the left to add it.</p>
+                    ) : null}
                     <div ref={containerRef} />
                 </div>
 
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Live Preview</p>
-                        <div className="flex gap-1">
-                            <Button
-                                onClick={() => setPreviewWidth("desktop")}
-                                className={`h-7 px-2 text-xs ${previewWidth === "desktop" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
-                            >
-                                Desktop
-                            </Button>
-                            <Button
-                                onClick={() => setPreviewWidth("mobile")}
-                                className={`h-7 px-2 text-xs ${previewWidth === "mobile" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
-                            >
-                                Mobile
-                            </Button>
+                <div className="space-y-4">
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Page theme</p>
+                        <PageThemePanel theme={theme} onChange={applyTheme} />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Style</p>
+                        <div ref={stylesRef} />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Link settings</p>
+                        <div ref={traitsRef} />
+                    </div>
+                    {leadForm ? (
+                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lead form</p>
+                            <LeadFormSettingsPanel key={leadForm.key} config={leadForm.config} onApply={applyLeadForm} />
                         </div>
+                    ) : null}
+                    {instagram ? (
+                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Instagram follow</p>
+                            <InstagramSettingsPanel key={instagram.key} onApply={applyInstagramHref} />
+                        </div>
+                    ) : null}
+                    <div className="hidden" ref={selectorsRef} />
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Live Preview</p>
+                    <div className="flex gap-1">
+                        <Button
+                            onClick={() => setPreviewWidth("desktop")}
+                            className={`h-7 px-2 text-xs ${previewWidth === "desktop" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                        >
+                            Desktop
+                        </Button>
+                        <Button
+                            onClick={() => setPreviewWidth("mobile")}
+                            className={`h-7 px-2 text-xs ${previewWidth === "mobile" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                        >
+                            Mobile
+                        </Button>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
-                        <iframe
-                            title="Landing page preview"
-                            srcDoc={previewDoc}
-                            sandbox=""
-                            className="h-full rounded-lg bg-white"
-                            style={{ width: previewWidth === "desktop" ? "100%" : "390px", margin: previewWidth === "mobile" ? "0 auto" : undefined, display: "block" }}
-                        />
+                </div>
+                {previewWidth === "mobile" ? (
+                    <div className="rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 space-y-1 text-sm text-amber-200">
+                        <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Phone checks (suggestions, not blocking)</p>
+                        {mobileWarnings.length === 0 ? (
+                            <p className="text-xs">No phone warnings for this page.</p>
+                        ) : (
+                            <ul className="list-disc pl-5 text-xs">
+                                {mobileWarnings.map((warning) => (
+                                    <li key={warning.kind}>{warning.message}</li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
+                ) : null}
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
+                    <iframe
+                        title="Landing page preview"
+                        srcDoc={previewDoc}
+                        sandbox=""
+                        className="h-full rounded-lg bg-white"
+                        style={{ width: previewWidth === "desktop" ? "100%" : "390px", margin: previewWidth === "mobile" ? "0 auto" : undefined, display: "block" }}
+                    />
                 </div>
             </div>
         </div>

@@ -1,6 +1,7 @@
 import { TypeSafeClient, choice, noul, type EntryType, type Questions, type RequestOptions, type SystemOneResult } from "@typesafe-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { readOptOut } from "@/lib/optOutReader";
 
 // Jev (TypeSafe's System One model) answers typed questions about text with calibrated
 // probabilities. It only supplies judgments: the callers of these helpers decide what to do
@@ -78,7 +79,10 @@ const percent = (p: number) => `${Math.round(p * 100)}%`;
 // --- Reply classification (Action Inbox suggestions) ---
 
 export const REPLY_CLASSIFICATIONS = ["INTERESTED", "NOT_INTERESTED", "OOO", "QUESTION", "DNC"] as const;
-export type ReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+// What Jev can answer. UNSURE is not an answer: it is stored when the reply could not be read
+// at all, so a person looks at it (see flagUnreadableReply).
+export type ModelReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+export type ReplyClassification = ModelReplyClassification | "UNSURE";
 
 const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_interested: "NOT_INTERESTED" } as const;
 
@@ -87,7 +91,13 @@ const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_in
  * A request to stop wins over everything, then an automatic away message, then the sender's
  * response to the offer. `confidence` is the probability of the label returned.
  */
-export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ReplyClassification; confidence: number; reasoning: string }> {
+export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ModelReplyClassification; confidence: number; reasoning: string }> {
+    // A clear request to stop, or an automatic message, is settled by plain phrase and header
+    // checks first: they hold when Jev is down and cost nothing. Everything else goes to Jev.
+    const plain = readOptOut({ subject: reply.subject, body: reply.body });
+    if (plain?.class === "OPT_OUT") return { classification: "DNC", confidence: 1, reasoning: "Clearly asks not to be contacted again." };
+    if (plain?.class === "AUTO_REPLY") return { classification: "OOO", confidence: 1, reasoning: "Automatic away message." };
+
     const answers = await ask(
         "REPLY_CLASSIFICATION",
         teamId,
@@ -153,4 +163,222 @@ export async function judgeFriction(text: string): Promise<{ hostile: number; re
         })
     }, { timeout: 5000, retry: { maxRetries: 0 } });
     return { hostile: answers.hostile.noul, rejecting: answers.rejecting.noul, spam: answers.spam.noul };
+}
+
+// --- Confirmation copy check (instant confirmation, at save time) ---
+
+/**
+ * Whether a confirmation message reads as a promise, pressure or marketing rather than a plain
+ * acknowledgement. Send only the template copy (subject and plain-text body), never a lead's data.
+ * Returns the Noul probability that it does.
+ */
+export async function judgeConfirmationCopy(copy: { subject: string; body: string }, teamId: string): Promise<number> {
+    const answers = await ask(
+        "CONFIRMATION_COPY_CHECK",
+        teamId,
+        { message: copy },
+        {
+            salesy: noul("Is `message` a sales message rather than a plain acknowledgement?", {
+                true: "It promises or guarantees results, a price or availability, uses pressure to act now, or reads as marketing.",
+                false: "It thanks the person or confirms what they signed up for, with no promise, pressure or sales pitch."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return answers.salesy.noul;
+}
+
+// --- Stalled sequence threads (Overseer) ---
+
+export const STALL_NEXT_MOVES = ["wait", "nudge_now", "escalate_to_human", "stop"] as const;
+export type StallNextMove = (typeof STALL_NEXT_MOVES)[number];
+
+// One message of a lead's thread, oldest first. `us` is our side, `lead` is the prospect.
+export type StallThreadMessage = { from: "us" | "lead"; text: string };
+
+export type StallThreadJudgment = {
+    leadWaitingOnUs: number;
+    leadAskedToStop: number;
+    leadTurnedDown: number;
+    nextMove: { choice: StallNextMove; probabilities: Record<StallNextMove, number> };
+};
+
+const STALL_THREAD_MESSAGES = 5;
+const STALL_MESSAGE_CHARS = 1000;
+
+/**
+ * Judges a stalled lead's thread for the Overseer. Send it already masked. Only the last few
+ * messages, each cut short, are sent. Judgments only: the caller decides what they change.
+ * Throws when Jev can't answer (no key, error, timeout). Callers treat a throw as "no answer",
+ * never as "no".
+ */
+export async function judgeStalledThread(input: { thread: StallThreadMessage[]; quietForDays: number }, teamId: string): Promise<StallThreadJudgment> {
+    const thread = input.thread.slice(-STALL_THREAD_MESSAGES).map((m) => ({ from: m.from, text: m.text.slice(0, STALL_MESSAGE_CHARS) }));
+    const answers = await ask(
+        "STALL_JUDGMENT",
+        teamId,
+        {
+            context: "`thread` is the recent conversation with one stalled lead, oldest first. `us` is our side (outreach emails and replies we sent) and `lead` is the prospect. Names and contact details are masked. `quietForDays` is how long nothing has been sent or received.",
+            thread,
+            quietForDays: input.quietForDays
+        },
+        {
+            leadWaitingOnUs: noul("Is the lead waiting for us to reply to their latest message?", {
+                true: "Their latest message asks us something, asks for a reply, or waits for an answer or next step we haven't given.",
+                false: "Our message came last, or their latest message needs no reply, such as thanks or a sign-off."
+            }),
+            leadAskedToStop: noul("Is the lead's latest message a request to stop contacting them?", {
+                true: "They ask to be removed, to stop the emails or messages, or to be left alone.",
+                false: "They don't ask us to stop, even if they say the timing is wrong or they are busy."
+            }),
+            leadTurnedDown: noul("Does the lead's latest message turn down our offer?", {
+                true: "They say no thanks, that they already have a solution, that it isn't for them, or that it costs too much.",
+                false: "They don't turn it down: they are interested, asking something, or haven't replied."
+            }),
+            nextMove: choice("What should happen next with this stalled conversation?", {
+                wait: "Nothing should be sent yet: the lead isn't waiting on us and more time is reasonable.",
+                nudge_now: "A follow-up on the planned step is reasonable now.",
+                escalate_to_human: "A person should read this thread before anything else is sent, because it is unclear, sensitive, or needs a real answer.",
+                stop: "We should stop contacting this lead: they asked us to, or they clearly are not interested."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+
+    return {
+        leadWaitingOnUs: answers.leadWaitingOnUs.noul,
+        leadAskedToStop: answers.leadAskedToStop.noul,
+        leadTurnedDown: answers.leadTurnedDown.noul,
+        nextMove: { choice: answers.nextMove.choice, probabilities: answers.nextMove.probabilities }
+    };
+}
+
+
+// --- Cold outreach draft screen (copy engine, before the critic) ---
+
+export type OutreachDraftJudgment = { inventsFact: number; readsAsPitch: number; hardAsk: number };
+
+/**
+ * Judges a cold outreach draft against what is known about the prospect. Send it already masked:
+ * the text goes to TypeSafe. Judgments only: draftScreen.ts decides what they change. Throws when
+ * Jev can't answer (no key, error, timeout); callers treat that as "no answer", never as "no".
+ */
+export async function judgeOutreachDraft(
+    state: { prospect: Record<string, string>; draft: { subject?: string; body: string } },
+    teamId: string
+): Promise<OutreachDraftJudgment> {
+    const answers = await ask(
+        "OUTREACH_DRAFT_SCREEN",
+        teamId,
+        {
+            context: "`draft` is a cold outreach message we are about to send. `prospect` is everything we know about the person it is for. Names and contact details are masked.",
+            prospect: state.prospect,
+            draft: state.draft
+        },
+        {
+            inventsFact: noul("Does `draft` state a fact, number or claim about the prospect or their company that `prospect` does not support?", {
+                true: "It names a result, figure, event, product or relationship that is not in `prospect`.",
+                false: "Everything it says about the prospect or their company is in `prospect`, or is a general statement that claims nothing about them."
+            }),
+            readsAsPitch: noul("Does `draft` read as a sales pitch rather than a message from one professional to another?", {
+                true: "It leads with what we sell, lists features or benefits, or uses sales language.",
+                false: "It opens on something about the prospect and keeps a conversational, peer tone."
+            }),
+            hardAsk: noul("Does `draft` ask the reader for a high-effort action?", {
+                true: "It asks them to book a call or demo, open a link, open an attachment, or reply with details.",
+                false: "It asks nothing, or asks a light question that can be answered in a few words."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return { inventsFact: answers.inventsFact.noul, readsAsPitch: answers.readsAsPitch.noul, hardAsk: answers.hardAsk.noul };
+}
+
+// --- Draft quality factors (conversion strategies S7, S8, S12) ---
+
+export type DraftFactors = {
+    motivation: number;
+    valueClarity: number;
+    incentive: number;
+    friction: number;
+    anxiety: number;
+    relevance: number;
+    urgency: number;
+    distraction: number;
+    dreamOutcome: number;
+    likelihood: number;
+    timeDelay: number;
+};
+
+/**
+ * One call for every factor the conversion scores use. Each answer is the Noul probability that the
+ * factor is strongly present in `draft` (so for friction, anxiety, distraction and delay, higher is
+ * worse). Judgments only: draftScores.ts turns them into scores. Throws when Jev can't answer.
+ */
+export async function judgeDraftFactors(draft: { subject?: string; body: string }, teamId: string): Promise<DraftFactors> {
+    const a = await ask(
+        "DRAFT_FACTORS",
+        teamId,
+        { context: "`draft` is a cold outreach email we are writing, before it is sent.", draft },
+        {
+            motivation: noul("Does `draft` speak to something the reader already wants or is struggling with?", {
+                true: "It names a want or problem the reader would recognise as their own.",
+                false: "It talks about us or the product without tying to anything the reader wants."
+            }),
+            valueClarity: noul("Is it clear from one read what `draft` offers and what the reader gets?", {
+                true: "A reader could say in one sentence what is being offered and what they would get.",
+                false: "The offer is vague, buried, or needs a second read."
+            }),
+            incentive: noul("Does `draft` give the reader a concrete reason to act?", {
+                true: "It states a specific benefit, result or reason to reply.",
+                false: "It gives no specific benefit or reason to reply."
+            }),
+            friction: noul("Does acting on `draft` take real effort from the reader?", {
+                true: "It needs a call, a form, a long reply, a link visit or several steps.",
+                false: "It asks nothing, or a few words in reply."
+            }),
+            anxiety: noul("Does `draft` give the reader something to worry about?", {
+                true: "It makes vague or large claims, uses pressure, hides a cost or asks for trust without support.",
+                false: "It is calm and specific, with nothing that would make a reader hesitate."
+            }),
+            relevance: noul("Does `draft` fit one specific kind of reader rather than anyone?", {
+                true: "It speaks to a particular role or situation.",
+                false: "It could be sent to anyone unchanged."
+            }),
+            urgency: noul("Does `draft` give a real reason to act soon?", {
+                true: "It ties to something time-bound or costly to delay, without invented pressure.",
+                false: "Nothing makes acting now matter more than acting later."
+            }),
+            distraction: noul("Does `draft` pull the reader in more than one direction?", {
+                true: "It has several asks, several links or several unrelated topics.",
+                false: "It has a single focus and a single ask."
+            }),
+            dreamOutcome: noul("Does `draft` describe an outcome the reader would value highly?", {
+                true: "The result described is one a reader would plainly want a lot.",
+                false: "The result described is minor or unstated."
+            }),
+            likelihood: noul("Does `draft` give the reader reason to believe it will work?", {
+                true: "It gives proof, specifics or a credible example.",
+                false: "It asks the reader to take its claims on trust."
+            }),
+            timeDelay: noul("Does `draft` suggest the benefit takes a long time to arrive?", {
+                true: "The benefit needs weeks or months, or the timing is unclear and looks slow.",
+                false: "The benefit looks quick to reach."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return {
+        motivation: a.motivation.noul,
+        valueClarity: a.valueClarity.noul,
+        incentive: a.incentive.noul,
+        friction: a.friction.noul,
+        anxiety: a.anxiety.noul,
+        relevance: a.relevance.noul,
+        urgency: a.urgency.noul,
+        distraction: a.distraction.noul,
+        dreamOutcome: a.dreamOutcome.noul,
+        likelihood: a.likelihood.noul,
+        timeDelay: a.timeDelay.noul
+    };
 }

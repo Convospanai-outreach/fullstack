@@ -83,6 +83,27 @@ const ALLOWLIST = new Map([
         "`protocol: \"webDriverBiDi\"` anywhere), so that code never runs. " +
         "Drop this entry once puppeteer ships a chromium-bidi on zod >=4.6.6.",
     ],
+    [
+        "GHSA-3g3m-2fjr-6pw4",
+        "glob (>=9.0.0 <=14.0.1): AbortSignal cancellation lets a glob keep walking " +
+        "the filesystem after its timeout. Fixed in glob 14.0.2. The copies in the " +
+        "tree are glob 10.5.0 (googleapis -> googleapis-common -> gaxios -> " +
+        "rimraf@5) and glob 13.0.6 (@sentry/nextjs -> @sentry/bundler-plugins, " +
+        "build-time source map upload). No app source imports glob, and nothing " +
+        "here aborts a glob with an AbortSignal; the patterns come from those " +
+        "libraries and the build config, not from requests. The library internals " +
+        "were not audited beyond that. Drop this entry once gaxios and the Sentry " +
+        "plugin ship glob >=14.0.2.",
+    ],
+    [
+        "GHSA-g3hv-75wg-m249",
+        "minimatch (<11.0.1): denial of service from globparts amplification on a " +
+        "crafted pattern. Fixed in minimatch 11.0.1. The copies in the tree are " +
+        "3.1.5, 9.0.9 and 10.2.6, all reached only through glob/rimraf (same " +
+        "chains as GHSA-3g3m-2fjr-6pw4 above). No " +
+        "app source imports minimatch, and no request data is used as a pattern. " +
+        "Drop this entry once those libraries move to minimatch >=11.0.1.",
+    ],
 ]);
 
 function runAudit() {

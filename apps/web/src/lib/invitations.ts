@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 import { UserRole } from "@/types/prisma-safe";
 
 export const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
@@ -39,7 +40,7 @@ export async function maybeSendInviteEmail(email: string, inviteLink: string) {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
     const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
-    const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+    const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
 
     if (!host || !user || !password || !fromEmail) {
         return false;

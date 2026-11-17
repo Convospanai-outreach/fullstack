@@ -8,6 +8,10 @@ const { mockCampaign, mockCheckCampaignStartApproval } = vi.hoisted(() => ({
     mockCheckCampaignStartApproval: vi.fn(),
 }));
 
+vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
+    hasSendingChannel: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/auth", () => ({
     getCurrentContext: vi.fn(async () => ({ userId: "user-1", teamId: "team-1" })),
 }));
@@ -15,7 +19,7 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { OWNER: "owner", ADMIN: "admin", MEMBER: "member", VIEWER: "viewer" },
     authorizeRole: vi.fn(async () => undefined),
 }));
-vi.mock("@/lib/db", () => ({ prisma: { campaign: mockCampaign } }));
+vi.mock("@/lib/db", () => ({ prisma: { campaign: mockCampaign }, DbNull: Symbol("DbNull") }));
 vi.mock("@/lib/campaignService", () => ({
     CampaignService: { startCampaign: vi.fn(), pauseCampaign: vi.fn(), addLeadsToCampaign: vi.fn() },
 }));

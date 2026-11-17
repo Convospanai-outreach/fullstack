@@ -13,7 +13,14 @@ export function buildUnsubscribeHeaders(trackingId: string): Record<string, stri
   };
 }
 
-export function appendUnsubscribeFooter(html: string, trackingId: string): string {
-  const footer = `<p style="font-size:11px;color:#94a3b8;margin-top:24px;">If you'd rather not hear from us again, <a href="${buildUnsubscribeUrl(trackingId)}" style="color:#94a3b8;">unsubscribe here</a>.</p>`;
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// postalAddress: the team's mailing address, required in commercial email. Left out when the team has none.
+export function appendUnsubscribeFooter(html: string, trackingId: string, postalAddress?: string | null): string {
+  const address = postalAddress?.trim();
+  const addressLine = address ? ` ${escapeHtml(address)}` : "";
+  const footer = `<p style="font-size:11px;color:#94a3b8;margin-top:24px;">If you'd rather not hear from us again, <a href="${buildUnsubscribeUrl(trackingId)}" style="color:#94a3b8;">unsubscribe here</a>.${addressLine}</p>`;
   return `${html}${footer}`;
 }

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE IF EXISTS "LandingPage" ADD COLUMN IF NOT EXISTS "draftRenderedJson" JSONB;
+ALTER TABLE IF EXISTS "LandingPage" ADD COLUMN IF NOT EXISTS "draftEditorState" JSONB;

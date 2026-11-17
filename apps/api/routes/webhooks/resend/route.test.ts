@@ -242,6 +242,15 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
         }));
     });
 
+    it("marks the sent email as replied, like the Gmail and IMAP paths", async () => {
+        await POST(request(receivedEvent));
+
+        expect(mockPrisma.email.updateMany).toHaveBeenCalledWith({
+            where: { id: expect.any(String), repliedAt: null },
+            data: { repliedAt: expect.any(Date), status: "replied" },
+        });
+    });
+
     it("falls back to the webhook's subject line when the body fetch fails", async () => {
         mockResendReceivingGet.mockResolvedValue({ data: null, error: { message: "not found" } });
 
@@ -343,6 +352,27 @@ describe("POST /webhooks/resend - failed side effects are retried, not lost", ()
         const res = await POST(request({ type: "email.bounced", data: { email_id: "provider-1" } }));
 
         expect(res.status).toBe(200);
+    });
+
+    it("marks the address INVALID and suppresses it after a permanent bounce", async () => {
+        const res = await POST(request({ type: "email.bounced", data: { email_id: "provider-1", to: ["Lead@Example.com"], bounce: { type: "Permanent" } } }));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.suppressionEntry.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({ email: "lead@example.com", reason: "BOUNCE", source: "RESEND_WEBHOOK" }),
+        }));
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: expect.anything() },
+            data: { emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: expect.any(Date) },
+        });
+    });
+
+    it("leaves the address alone after a temporary bounce", async () => {
+        await POST(request({ type: "email.bounced", data: { email_id: "provider-1", to: ["lead@example.com"], bounce: { type: "Transient" } } }));
+        await POST(request({ type: "email.bounced", data: { email_id: "provider-1" } }));
+
+        expect(mockPrisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+        expect(mockPrisma.lead.update).not.toHaveBeenCalled();
     });
 
     it("answers 500 when the complaint's opt-out update fails, but not when the lead is gone", async () => {

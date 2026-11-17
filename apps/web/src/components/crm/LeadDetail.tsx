@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { LeadWorkflowRail } from "@/components/crm/LeadWorkflowRail";
 import {
     WifiOff,
     Globe,
@@ -26,8 +27,11 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import InstagramSourceLine, { type InstagramLeadSource } from "@/components/crm/InstagramSourceLine";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import LeadCustomFieldsPanel from "./LeadCustomFieldsPanel";
 import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
+import { formatProbability } from "@/lib/formatProbability";
 
 interface Lead {
     id: string;
@@ -43,6 +47,7 @@ interface Lead {
     campaign?: { name: string };
     isEnriched?: boolean;
     enrichedData?: any;
+    instagramSource?: InstagramLeadSource | null;
 
     // CRM Intent Scoring
     icpFitScore?: number | null;
@@ -50,6 +55,8 @@ interface Lead {
     leadScore?: number;
     pipelineState?: string;
     lastScoredAt?: string | Date;
+    /** True when the edge node computed the intent score; false when the cloud did; unset when unknown. */
+    scoredOnEdge?: boolean | null;
     dwellTimeMinutes?: number;
     emailClicks?: number;
     socialMentions?: number;
@@ -141,6 +148,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [lead, setLead] = useState(initialLead);
     const [loading, setLoading] = useState(false);
     const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+    const [firstResponseSeconds, setFirstResponseSeconds] = useState<number | null>(null);
     const [journeyUpdate, setJourneyUpdate] = useState({
         channel: "EMAIL",
         status: "CONTACTED",
@@ -162,6 +170,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             const res = await fetch(`/api/leads/${lead.id}/timeline`, { cache: "no-store" });
             const data = res.ok ? await res.json() : null;
             setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
+            setFirstResponseSeconds(typeof data?.firstResponseSeconds === "number" ? data.firstResponseSeconds : null);
         } catch {
             setTimeline([]);
         }
@@ -343,7 +352,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             });
             if (!res.ok) throw new Error("Failed to update consent");
             const freshLead = await res.json();
-            setLead(freshLead);
+            setLead({ ...freshLead, instagramSource: lead.instagramSource });
             alert("Consent updated successfully!");
         } catch (error) {
             console.error("Failed to toggle consent", error);
@@ -465,6 +474,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                 </div>
             </div>
 
+            <LeadWorkflowRail leadId={lead.id} />
+
+            <InstagramSourceLine source={lead.instagramSource} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Columns - Details & Scoring */}
                 <div className="lg:col-span-2 space-y-6">
@@ -510,6 +522,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <Activity className="w-5 h-5 text-cyan-400" />
                             Activity Timeline
                         </h3>
+                        {firstResponseSeconds !== null ? (
+                            <p className="text-sm text-white/60">First response: {firstResponseSeconds < 3600 ? `${Math.round(firstResponseSeconds / 60)} min` : `${(firstResponseSeconds / 3600).toFixed(1)} h`} after the lead came in</p>
+                        ) : null}
                         {timeline.length === 0 ? (
                             <p className="text-sm text-white/50">No email, LinkedIn, or campaign activity has been recorded for this lead yet.</p>
                         ) : (
@@ -632,6 +647,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 <Flame className="w-5 h-5 text-orange-500" />
                                 Lead Intent Scoring Breakdown
                             </h3>
+                            {typeof lead.scoredOnEdge === "boolean" && (
+                                <Badge className={lead.scoredOnEdge ? "bg-cyan-600/30 text-cyan-300 border border-cyan-600/20 text-[10px]" : "bg-white/10 text-white/60 border border-white/10 text-[10px]"}>
+                                    {lead.scoredOnEdge ? "Scored on-device" : "Cloud estimate"}
+                                </Badge>
+                            )}
                             {lead.lastScoredAt && (
                                 <span className="text-xs text-white/40">
                                     Last scored: {new Date(lead.lastScoredAt).toLocaleDateString()} at {new Date(lead.lastScoredAt).toLocaleTimeString()}
@@ -833,6 +853,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         );
                     })()}
 
+                    {/* Custom properties - team-defined values for this lead (renders nothing when none are defined) */}
+                    <LeadCustomFieldsPanel leadId={lead.id} customFields={(lead as { customFields?: Record<string, unknown> | null }).customFields} />
+
                     {/* Data Sources - per-field provenance (which source supplied which value, and when) */}
                     {dataSources.length > 0 && (
                         <GlassCard className="space-y-4">
@@ -890,14 +913,17 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                     <TrendingUp className="w-4 h-4 text-rose-400" />
                                     <span className="text-white/80">Churn Risk Probability</span>
                                 </div>
-                                <span className={`font-mono font-bold ${
-                                    (lead.churnRisk || 0.12) > 0.5 ? 'text-red-400' : 'text-emerald-400'
-                                }`}>
-                                    {lead.churnRisk !== undefined && lead.churnRisk !== null
-                                        ? `${Math.round(lead.churnRisk * 100)}%`
-                                        : '12%'
-                                    }
-                                </span>
+                                {(() => {
+                                    const enough = timeline.length >= 3 && typeof lead.churnRisk === "number";
+                                    return (
+                                        <span
+                                            className={`font-mono font-bold ${!enough ? 'text-white/50' : (lead.churnRisk as number) > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}
+                                            title={enough ? undefined : "Insufficient data"}
+                                        >
+                                            {enough ? formatProbability(lead.churnRisk) : "—"}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                             <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-2">

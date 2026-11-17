@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import ScrollFunnelHero from "./ScrollFunnelHero";
 import { InviteRequestForm } from "./InviteRequestForm";
 
@@ -18,19 +19,16 @@ const CRM_COMPARISON = [
 ];
 
 const INDUSTRIES = [
-  { title: "Facility Management", body: "NetJana signals — hiring surges, new locations, construction permits — tell you which accounts are in market this month. Get in early before the RFP lands." },
-  { title: "Security Services", body: "Every piece of outreach touches a compliance-sensitive relationship. CraftMyFunnel routes every message through manager approval before it goes out." },
-  { title: "Staffing", body: "Hiring signals are your signal. When a target company posts a wave of new roles, your team gets the LinkedIn context and a drafted outreach message in one place." },
-  { title: "Consulting", body: "Relationship-led sales fall apart when context lives in one inbox. CraftMyFunnel gives every team member the full activity timeline so handoffs are smooth." },
-  { title: "L&D / Training", body: "Technology adoption is your strongest buying signal. Spot new platform rollouts with NetJana and reach out with a message that is relevant, not generic." },
-  { title: "Managed Services", body: "Retainer relationships start with the first impression. Governed outreach means your team presents as coordinated and professional from the very first email." },
+  { title: "Cybersecurity consultancies & MSSPs", href: "/use-cases/cybersecurity", body: "Keep researched account context, reviewed technical outreach and the next commercial follow-up in one workflow." },
+  { title: "Managed IT & cloud service firms", href: "/use-cases/managed-it-cloud", body: "Prepare prospecting around one service while your team keeps delivery work moving. Track replies and follow-up status together." },
+  { title: "AI, data & ERP consultancies", href: "/use-cases/ai-data-erp", body: "Build outreach around a specific business challenge. Keep project context visible when a founder hands a conversation to the team." },
 ];
 
 const PILOT_WEEKS: [string, string][] = [
-  ["Week 1", "Signal Setup"],
-  ["Week 2", "Qualification Rules"],
-  ["Week 3", "Multi-Channel Outreach"],
-  ["Week 4", "Qualified Meetings"],
+  ["Week 1", "Account Selection"],
+  ["Week 2", "Draft Review"],
+  ["Week 3", "Email Follow-Up"],
+  ["Week 4", "Results Review"],
 ];
 
 export default function CinematicHome() {
@@ -89,14 +87,15 @@ export default function CinematicHome() {
       {/* ── Industries ──────────────────────────────────────────────────── */}
       <section className="py-24 px-6" id="industries">
         <div className="mx-auto max-w-7xl">
-          <h2 className="text-4xl font-black sm:text-5xl">Built for industries where a missed follow-up costs a contract.</h2>
-          <p className="mt-4 max-w-2xl text-lg text-slate-400">Designed for service companies with long B2B cycles, multiple decision-makers, and real consequences when outreach goes quiet.</p>
-          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <h2 className="text-4xl font-black sm:text-5xl">Built for teams selling technical B2B services.</h2>
+          <p className="mt-4 max-w-2xl text-lg text-slate-400">Explore workflows for researched accounts, reviewed outreach and coordinated follow-up.</p>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
             {INDUSTRIES.map((ind) => (
-              <div key={ind.title} className="glass-card p-6">
+              <Link key={ind.title} href={ind.href} className="glass-card p-6 transition hover:border-cyan-300/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-300">
                 <h3 className="text-lg font-bold text-white">{ind.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-400">{ind.body}</p>
-              </div>
+                <span className="mt-5 inline-block text-sm font-semibold text-cyan-300">Explore the workflow →</span>
+              </Link>
             ))}
           </div>
         </div>
@@ -106,7 +105,7 @@ export default function CinematicHome() {
       <section className="py-24 px-6 bg-[#07111f]" id="pilot" tabIndex={-1} style={{ scrollMarginTop: 90 }}>
         <div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center shadow-2xl sm:p-14">
           <h2 className="text-4xl font-black sm:text-5xl">Join the pilot. Run your first governed campaign in 4 weeks.</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-400">We are onboarding B2B service teams who want structured, approved outreach. No setup fees. No long-term commitment.</p>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-400">We are onboarding B2B service teams who want structured, approved outreach. Agree one offer, one geography and a review process before launch.</p>
           <div className="mt-10 grid gap-4 sm:grid-cols-4">
             {PILOT_WEEKS.map(([week, title]) => (
               <div key={week} className="rounded-2xl bg-white/10 p-5">

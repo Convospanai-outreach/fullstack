@@ -158,7 +158,7 @@ class LocalIntelligenceService:
         finally:
             db.close()
 
-    def sanitize_and_tag(self, text: str, session_id: str) -> Tuple[str, Dict[str, int]]:
+    def sanitize_and_tag(self, text: str, session_id: str, tenant_id: str) -> Tuple[str, Dict[str, int]]:
         self.load_analyzer()
 
         entities = os.getenv("PII_ENTITY_TYPES")
@@ -189,6 +189,7 @@ class LocalIntelligenceService:
                 original_text=self._encrypt_pii(original_val),
                 token_type=entity_type,
                 session_id=session_id,
+                tenant_id=tenant_id,
             )
             new_db_tokens.append(token)
             token_stats[entity_type] = count
@@ -210,10 +211,11 @@ class LocalIntelligenceService:
 
         return "".join(sanitized_text_list), token_stats
 
-    def reidentify_token(self, token_id: str, session_id: Optional[str] = None) -> Optional[str]:
+    def reidentify_token(self, token_id: str, tenant_id: str, session_id: Optional[str] = None) -> Optional[str]:
         db = self.db_session_factory()
         try:
-            query = db.query(PIITokenMap).filter(PIITokenMap.token_id == token_id)
+            # A token is only ever resolved for the tenant it was made for.
+            query = db.query(PIITokenMap).filter(PIITokenMap.token_id == token_id, PIITokenMap.tenant_id == tenant_id)
             if session_id:
                 query = query.filter(PIITokenMap.session_id == session_id)
 

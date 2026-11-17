@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveEnabledFeatureKeysFromContext } from "@/lib/hiddenFeaturesReadiness";
+import { DEFAULT_ON_HIDDEN_FEATURES } from "@/lib/productFlags";
 
 function readWorkspaceFile(...parts: string[]) {
     return fs.readFileSync(path.resolve(process.cwd(), ...parts), "utf8");
@@ -39,20 +40,22 @@ function makeContext(overrides: Record<string, any> = {}) {
 }
 
 describe("roadmap U-05 — beta options rework (readiness-gated defaults + per-team DB)", () => {
-    it("null enabledFeatures resolves to the readiness-gated set, not a hardcoded list", () => {
-        // hunter unconfigured -> excluded; csv-ingestion and linkedin-runner (the Chrome
-        // extension needs no server setting) are always ready -> included.
+    it("null enabledFeatures resolves to the outreach/automation defaults plus readiness", () => {
+        // The outreach and automation surfaces are on for a team that never customised,
+        // even with nothing configured; the admin/infrastructure ones stay readiness-gated.
         const keys = resolveEnabledFeatureKeysFromContext(makeContext());
-        expect(keys.has("csv-ingestion")).toBe(true);
-        expect(keys.has("hunter-email-finder")).toBe(false);
-        expect(keys.has("linkedin-runner")).toBe(true);
+        for (const key of DEFAULT_ON_HIDDEN_FEATURES) expect(keys.has(key), key).toBe(true);
+        expect(keys.has("edge")).toBe(false);
+        expect(keys.has("sovereign")).toBe(false);
+        expect(keys.has("scraper-bridge")).toBe(false);
+        expect(keys.has("marketplace")).toBe(false);
     });
 
-    it("readiness flips a feature on when its backend becomes configured", () => {
-        const off = resolveEnabledFeatureKeysFromContext(makeContext({ hasHunter: false }));
-        const on = resolveEnabledFeatureKeysFromContext(makeContext({ hasHunter: true }));
-        expect(off.has("hunter-email-finder")).toBe(false);
-        expect(on.has("hunter-email-finder")).toBe(true);
+    it("readiness flips a gated feature on when its backend becomes configured", () => {
+        const off = resolveEnabledFeatureKeysFromContext(makeContext({ marketplaceTemplateCount: 0 }));
+        const on = resolveEnabledFeatureKeysFromContext(makeContext({ marketplaceTemplateCount: 3 }));
+        expect(off.has("marketplace")).toBe(false);
+        expect(on.has("marketplace")).toBe(true);
     });
 
     it("an explicit array is honored verbatim, ignoring readiness", () => {

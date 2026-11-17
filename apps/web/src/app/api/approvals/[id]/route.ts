@@ -45,6 +45,35 @@ export async function POST(
             return NextResponse.json({ success: true, approval: updated });
         }
 
+        // AI-written messages held for review: approving queues the original send job, never a direct update.
+        if (approval.actionType === "MESSAGE_SEND") {
+            if (action !== "APPROVE" && action !== "REJECT" && action !== "RETRY" && action !== "WRITE" && action !== "SKIP") {
+                return NextResponse.json({ error: "action must be APPROVE, REJECT, RETRY, WRITE or SKIP" }, { status: 400 });
+            }
+            const { approveMessageSend, rejectMessageSend, resolveNeedsAttention } = await import("@/modules/governance/messageApproval");
+            try {
+                if (action === "RETRY" || action === "WRITE" || action === "SKIP") {
+                    const edit = {
+                        ...(typeof body.subject === "string" ? { subject: body.subject } : {}),
+                        ...(typeof body.body === "string" ? { body: body.body } : {}),
+                    };
+                    await resolveNeedsAttention(approval, ctx.teamId, ctx.userId, action, edit);
+                } else if (action === "REJECT") {
+                    await rejectMessageSend(id, ctx.teamId, ctx.userId, reason);
+                } else {
+                    const edit = {
+                        ...(typeof body.subject === "string" ? { subject: body.subject } : {}),
+                        ...(typeof body.body === "string" ? { body: body.body } : {}),
+                    };
+                    await approveMessageSend(approval, ctx.teamId, ctx.userId, edit);
+                }
+            } catch (err: any) {
+                return NextResponse.json({ error: err?.message || "Could not update this approval." }, { status: 409 });
+            }
+            const updated = await prisma.approvalRequest.findUnique({ where: { id } });
+            return NextResponse.json({ success: true, approval: updated });
+        }
+
         if (action === "REJECT") {
             const updated = await prisma.approvalRequest.update({
                 where: { id },
@@ -128,16 +157,8 @@ export async function POST(
             });
         }
 
-        if (leadId) {
-            await prisma.lead.update({
-                where: { id: leadId },
-                data: { status: "SENT" },
-            }).catch((err) => {
-                console.error(`[Approval API] Failed to update Lead status for leadId ${leadId}:`, err?.message || err);
-                throw err;
-            });
-        }
-
+        // The lead's status is not set here: handleEmailSending sets it when the email actually goes out, so a
+        // delayed, held or failed send never leaves the lead showing as sent.
         const isEmailApproval =
             approval.entityType?.toLowerCase() === "email" ||
             approval.entityType?.toLowerCase() === "lead" ||

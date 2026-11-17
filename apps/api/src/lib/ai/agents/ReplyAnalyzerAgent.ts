@@ -2,7 +2,7 @@ import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
-import { classifyReply, type ReplyClassification } from "@/lib/ai/jev";
+import { classifyReply, type ModelReplyClassification as ReplyClassification } from "@/lib/ai/jev";
 
 // SOP: the action each classification calls for. A rep still makes every change.
 const SUGGESTED_ACTIONS = {
@@ -50,18 +50,23 @@ export class ReplyAnalyzerAgent {
         teamId: string
     ): Promise<ReplyAnalysisResult> {
 
-        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { teamId: true, enrichedData: true } });
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { teamId: true, enrichedData: true, fullName: true, company: true } });
         if (!lead) throw new Error("Lead not found for this team");
 
         logger.info(`[ReplyAnalyzer] Analyzing reply from Lead ${leadId}`);
 
         // 1. Mask PII in incoming content (Sovereign Firewall)
         logger.info(`[ReplyAnalyzer] Masking ingress PII for Lead ${leadId}...`);
-        const { safeContext: safeSubject, tokenMap: subjectMap } = await SovereignFirewall.mask(subject);
-        const { safeContext: safeBody, tokenMap: bodyMap } = await SovereignFirewall.mask(body);
-        
+        const { safeContext: maskedSubject, tokenMap: subjectMap } = await SovereignFirewall.mask(subject, 'GLOBAL', undefined, { alwaysMask: true });
+        const { safeContext: maskedBody, tokenMap: bodyMap } = await SovereignFirewall.mask(body, 'GLOBAL', undefined, { alwaysMask: true });
+
         // Merge maps for later detokenization
         const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);
+
+        // Pattern masking cannot see names: replace the lead's own name and company (sign-offs, signatures).
+        const knownNames = { person: lead.fullName, company: lead.company };
+        const safeSubject = SovereignFirewall.maskKnownNames(maskedSubject, knownNames, combinedTokenMap).safeContext;
+        const safeBody = SovereignFirewall.maskKnownNames(maskedBody, knownNames, combinedTokenMap).safeContext;
 
         let analysis: ReplyAnalysisResult;
 

@@ -38,6 +38,8 @@ type RoiPoint = {
 
 export function SovereignConsole() {
     const [piStatus, setPiStatus] = useState<"ONLINE" | "OFFLINE">("OFFLINE");
+    // The edge node is optional: the firewall card says "Not configured" until one is set up.
+    const [edgeStatus, setEdgeStatus] = useState<"UP" | "DOWN" | "NOT_CONFIGURED">("NOT_CONFIGURED");
     const [signals, setSignals] = useState<Signal[]>([]);
     const [audits, setAudits] = useState<AuditEvent[]>([]);
     const [queueDepth, setQueueDepth] = useState<number>(0);
@@ -66,8 +68,19 @@ export function SovereignConsole() {
             }
         };
 
+        const fetchEdge = async () => {
+            try {
+                const res = await fetch(getBrowserApiUrl("/edge/status"));
+                const data = res.ok ? await res.json() : null;
+                setEdgeStatus(data?.status === "UP" || data?.status === "DOWN" ? data.status : "NOT_CONFIGURED");
+            } catch {
+                setEdgeStatus("NOT_CONFIGURED");
+            }
+        };
+
         fetchStats();
-        const interval = setInterval(fetchStats, 10000);
+        fetchEdge();
+        const interval = setInterval(() => { fetchStats(); fetchEdge(); }, 10000);
         return () => clearInterval(interval);
     }, []);
 
@@ -123,11 +136,17 @@ export function SovereignConsole() {
                         <div className="space-y-4">
                             <div className="flex justify-between items-center py-3 border-b border-border">
                                 <span className="text-sm font-bold text-muted-foreground">Status</span>
-                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3">Active</Badge>
+                                {edgeStatus === "UP" ? (
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3">Active (edge node)</Badge>
+                                ) : edgeStatus === "DOWN" ? (
+                                    <Badge className="bg-red-100 text-red-700 border-red-200 px-3">Edge node down, AI calls blocked</Badge>
+                                ) : (
+                                    <Badge className="bg-muted text-muted-foreground border-border px-3">Not configured</Badge>
+                                )}
                             </div>
                             <div className="flex justify-between items-center py-3 border-b border-border">
                                 <span className="text-sm font-bold text-muted-foreground">Strictness</span>
-                                <span className="text-xs font-black bg-muted px-3 py-1.5 rounded-lg text-foreground">MAXIMUM</span>
+                                <span className="text-xs font-black bg-muted px-3 py-1.5 rounded-lg text-foreground">{edgeStatus === "NOT_CONFIGURED" ? "BASIC (local patterns)" : "MAXIMUM"}</span>
                             </div>
                             <div className="flex justify-between items-center py-3">
                                 <span className="text-sm font-bold text-muted-foreground">Last PII Blocked</span>

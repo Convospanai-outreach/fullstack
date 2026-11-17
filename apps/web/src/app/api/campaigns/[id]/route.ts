@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
+import { applyStrategyInput, parseStrategyInput } from "@/lib/campaigns/strategies";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ async function getCampaignContext(id: string, requiredRole: TeamRole) {
     }
 
     await authorizeRole(userId, teamId, requiredRole);
-    const { prisma } = await import("@/lib/db");
+    const { prisma, DbNull } = await import("@/lib/db");
 
     const campaign = await prisma.campaign.findFirst({
         where: { id, teamId },
@@ -28,7 +30,7 @@ async function getCampaignContext(id: string, requiredRole: TeamRole) {
         throw new Error("Campaign not found");
     }
 
-    return { campaign, teamId, userId, prisma };
+    return { campaign, teamId, userId, prisma, DbNull };
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -70,11 +72,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { prisma, teamId, userId, campaign } = await getCampaignContext(id, TeamRole.MEMBER);
+        const { prisma, teamId, userId, campaign, DbNull } = await getCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
 
         // Starting the campaign, or setting it active, needs the approval the team's policy may require.
         if (body.action === "start" || (body.status === "active" && campaign.status !== "active")) {
+            if (!(await hasSendingChannel(teamId))) {
+                return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
+            }
             const gate = await checkCampaignStartApproval({ teamId, userId, campaignId: id });
             if (!gate.allowed) {
                 return NextResponse.json(gate.body, { status: gate.status });
@@ -111,6 +116,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                     return NextResponse.json({ error: "Draft generation mode can only be changed before the campaign starts" }, { status: 409 });
                 }
                 allowedUpdates["draftGenerationMode"] = body.draftGenerationMode;
+            }
+
+            const strategyInput = parseStrategyInput(body);
+            if (!strategyInput.ok) {
+                return NextResponse.json({ error: strategyInput.error }, { status: 400 });
+            }
+            if (strategyInput.value.strategies !== undefined || strategyInput.value.objective !== undefined || strategyInput.value.preflight !== undefined) {
+                allowedUpdates["aiConfig"] = applyStrategyInput(campaign.aiConfig, strategyInput.value) ?? DbNull;
             }
 
             if (Object.keys(allowedUpdates).length > 0) {

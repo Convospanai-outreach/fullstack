@@ -21,14 +21,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SetupBanner } from "@/components/dashboard/SetupBanner";
+import { DomainHealthBanner } from "@/components/dashboard/DomainHealthBanner";
 import { NeedsYou } from "@/components/dashboard/NeedsYou";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { KPIRow } from "@/components/dashboard/KPIRow";
+import { HomeOverview } from "@/components/dashboard/HomeOverview";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
 import { BottomGrid } from "@/components/dashboard/BottomGrid";
 import { PipelineTrendCard } from "@/components/dashboard/PipelineTrendCard";
 import { RecentLeadsCard } from "@/components/dashboard/RecentLeadsCard";
 import { LeadDrilldown, type DrilldownLead } from "@/components/dashboard/LeadDrilldown";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,7 +68,6 @@ interface DashboardData {
   recentActivity: ActivityItem[];
   recentLeads: DrilldownLead[];
   pipelineTrend: number[];
-  setupPercent: number;
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -74,6 +76,9 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Launch readiness comes from /setup/status, the same figure the setup wizard shows.
+  // null = not known (still loading, or the status call failed): show no number rather than a wrong one.
+  const [setupPercent, setSetupPercent] = useState<number | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedLead, setSelectedLead] = useState<DrilldownLead | null>(null);
 
@@ -99,8 +104,22 @@ export default function DashboardPage() {
     void load();
   }, [load]);
 
-  const setupIncomplete = !loading && data !== null && data.setupPercent < 100;
-  const showBanner = setupIncomplete && !bannerDismissed;
+  // Separate from load(): a slow setup-status call must not hold the rest of the dashboard in its loading state.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(getBrowserApiUrl('/setup/status'), { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((status) => {
+        if (!cancelled) setSetupPercent(typeof status?.completionPercent === 'number' ? status.completionPercent : null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const setupIncomplete = !loading && data !== null && setupPercent !== 100;
+  const showBanner = setupIncomplete && setupPercent !== null && !bannerDismissed;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -119,6 +138,8 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <DomainHealthBanner />
+
       {/* Needs you — what's waiting on the user, one click from acting */}
       <NeedsYou hasLeads={(data?.kpis.activeLeads ?? 0) > 0} />
 
@@ -127,6 +148,9 @@ export default function DashboardPage() {
 
       {/* KPI row — always visible, north-star metrics */}
       <KPIRow data={data?.kpis ?? null} loading={loading} error={error} />
+
+      {/* Pipeline stages, per-channel activity, approval record (own API, hides on failure) */}
+      <HomeOverview />
 
       {/* Tier 2 — pipeline trend + recent leads (row click opens drill-down) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-4">
@@ -144,9 +168,9 @@ export default function DashboardPage() {
       {/* Setup checklist — only while setup is incomplete */}
       {setupIncomplete && data && (
         <div className="mb-4">
-          {showBanner && (
+          {showBanner && setupPercent !== null && (
             <SetupBanner
-              percent={data.setupPercent}
+              percent={setupPercent}
               onDismiss={() => setBannerDismissed(true)}
             />
           )}
