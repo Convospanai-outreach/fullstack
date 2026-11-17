@@ -75,15 +75,26 @@ async function resolveLeadForInboundMessage(
     // outreach consent is recorded: messaging us first doesn't opt them in, so sequence sends stay
     // blocked. Replies through the send route are allowed for 24 hours (recordInboundReplyWindow).
     if (OPT_OUT_KEYWORDS.has(options.text.trim().toLowerCase())) return null;
-    return prisma.lead.create({
-        data: {
-            teamId: team.id,
-            phone: `+${fromPhone.replace(/\D/g, "")}`,
-            fullName: options.profileName,
-            source: "WHATSAPP_INBOUND",
-            status: "NEW",
-        },
-        select: { id: true, teamId: true },
+    // Two webhooks for the same new sender (Meta retries, or two quick messages) can both reach this point.
+    // Lead has no unique key on the phone, so serialise per team and number and look again under the lock;
+    // the second one then finds the lead the first just made instead of creating a duplicate.
+    return prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(7403, hashtext(${`${team.id}:${suffix}`}))`;
+        const raced = await tx.lead.findFirst({
+            where: { teamId: team.id, phone: { endsWith: suffix } },
+            select: { id: true, teamId: true },
+        });
+        if (raced) return raced;
+        return tx.lead.create({
+            data: {
+                teamId: team.id,
+                phone: `+${fromPhone.replace(/\D/g, "")}`,
+                fullName: options.profileName,
+                source: "WHATSAPP_INBOUND",
+                status: "NEW",
+            },
+            select: { id: true, teamId: true },
+        });
     });
 }
 
