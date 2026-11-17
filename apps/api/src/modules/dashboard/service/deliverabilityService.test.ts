@@ -17,6 +17,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/modules/email-campaigner/service/domainAuthService", () => ({
     checkDomainDeliverabilitySignals: vi.fn(),
+    dkimSelectorFromMetadata: () => undefined,
 }));
 
 import { getDeliverabilityStats } from "./deliverabilityService";
@@ -127,7 +128,7 @@ describe("getDeliverabilityStats", () => {
 
         const stats = await getDeliverabilityStats("team-1");
 
-        expect(checkDomainDeliverabilitySignals).toHaveBeenCalledWith("flaky-dns.test", "SMTP");
+        expect(checkDomainDeliverabilitySignals).toHaveBeenCalledWith("flaky-dns.test", "SMTP", undefined);
         expect(stats.domains).toEqual([
             expect.objectContaining({ domain: "flaky-dns.test", mx: true, spf: true, dkim: true, dmarc: false }),
         ]);

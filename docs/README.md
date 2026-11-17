@@ -4,6 +4,8 @@ This folder holds the current architecture, readiness, deployment, QA, and imple
 
 ## Start Here
 
+For the optional customer-agent integration, start with [MCP integration and tool coverage](MCP_INTEGRATION.md), [the local/GitHub runtime review](MCP_RUNTIME_REVIEW.md), and [the phased plan](MCP_IMPLEMENTATION_PLAN.md). MCP is disabled by default pending migration, deployment review and client verification.
+
 | Document | Why it matters |
 | --- | --- |
 | [../README.md](../README.md) | Repo overview, current status, local commands, deployment model |

@@ -181,7 +181,7 @@ export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false 
                     ${overallColors.bg} ring-1 ${overallColors.ring} border border-white/10 hover:ring-2`}
             >
                 <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
-                <span className="text-white hidden sm:inline">
+                <span className="text-foreground hidden sm:inline">
                     {overall === "online"
                         ? "All Systems Operational"
                         : overall === "degraded"

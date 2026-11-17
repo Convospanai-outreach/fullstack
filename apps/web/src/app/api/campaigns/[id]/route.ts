@@ -122,7 +122,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (!strategyInput.ok) {
                 return NextResponse.json({ error: strategyInput.error }, { status: 400 });
             }
-            if (strategyInput.value.strategies !== undefined || strategyInput.value.objective !== undefined) {
+            if (strategyInput.value.strategies !== undefined || strategyInput.value.objective !== undefined || strategyInput.value.preflight !== undefined) {
                 allowedUpdates["aiConfig"] = applyStrategyInput(campaign.aiConfig, strategyInput.value) ?? DbNull;
             }
 

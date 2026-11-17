@@ -40,17 +40,37 @@ function sqlOf(callIndex = 0) {
 describe("getFunnelReport", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockDb.$queryRaw.mockResolvedValue([ROW]);
+        mockDb.$queryRaw.mockReset();
+        mockDb.$queryRaw.mockResolvedValueOnce([ROW]).mockResolvedValueOnce([
+            { source: "linkedin", leads: 5, contacted: 4, replied: 2, meetings: 1, won: 0 },
+            { source: "google", leads: 9, contacted: 8, replied: 3, meetings: 2, won: 1 },
+        ]);
         mockDb.keywordTriggerReply.count.mockResolvedValue(42);
     });
 
-    it("runs one aggregate query scoped to the team and the range", async () => {
+    it("runs the report query and the sources query, both scoped to the team and the range", async () => {
         await getFunnelReport({ teamId: "team-1", range });
-        expect(mockDb.$queryRaw).toHaveBeenCalledTimes(1);
-        const { values } = sqlOf();
-        expect(values).toContain("team-1");
-        expect(values).toContainEqual(range.from);
-        expect(values).toContainEqual(range.to);
+        expect(mockDb.$queryRaw).toHaveBeenCalledTimes(2);
+        for (const call of [0, 1]) {
+            const { values } = sqlOf(call);
+            expect(values).toContain("team-1");
+            expect(values).toContainEqual(range.from);
+            expect(values).toContainEqual(range.to);
+        }
+    });
+
+    it("returns the sources grouped by utm_source by default, busiest first", async () => {
+        const report = await getFunnelReport({ teamId: "team-1", range });
+        expect(report.sources.dimension).toBe("utm_source");
+        expect(report.sources.rows.map((r) => r.source)).toEqual(["google", "linkedin"]);
+    });
+
+    it("groups by the chosen UTM field and filters the sources by page and variant too", async () => {
+        mockDb.landingPage.findFirst.mockResolvedValue({ id: "page-9" });
+        await getFunnelReport({ teamId: "team-1", range, landingPageId: "page-9", variantId: "var-1", sourceDimension: "utm_campaign" });
+        const text = (mockDb.$queryRaw.mock.calls[1][0] as { strings: string[] }).strings.join("?") + String((mockDb.$queryRaw.mock.calls[1][0] as { sql?: string }).sql ?? "");
+        expect(text).toContain('"utmCampaign"');
+        expect(sqlOf(1).values).toEqual(expect.arrayContaining(["page-9", "var-1"]));
     });
 
     it("counts Instagram keyword replies for the same team and range when no page or variant is chosen", async () => {

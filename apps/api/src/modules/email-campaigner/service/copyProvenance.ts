@@ -72,7 +72,7 @@ export function linkedinProvenance(kind: "connect" | "followUp", review?: { crit
         prompts: {
             draft: promptRef(kind === "connect" ? "linkedin.connect" : "linkedin.followUp"),
             system: "none",
-            critique: review ? promptRef("linkedin.critique") : "none",
+            critique: review?.critique === "screened" ? JEV_SCREEN_REF : review ? promptRef("linkedin.critique") : "none",
         },
         flags: { retrieval: false, brief: false, rubricCritic: false },
         context: { playbook: 0, examples: 0, brief: false },

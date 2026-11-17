@@ -16,6 +16,8 @@ const checkoutSchema = z.object({
     priceId: z.string().max(128).nullish(),
     country: z.string().max(64).nullish(),
     state: z.string().max(64).nullish(),
+    // "year" bills 12 months at once at the plan's yearly price; a missing value means monthly.
+    interval: z.enum(["month", "year"]).default("month"),
 });
 
 // Amounts are in the currency's smallest unit (e.g. cents), matching Plan.monthlyPrice.
@@ -49,7 +51,8 @@ export async function POST(req: Request) {
         const parsed = await parseBody(req, checkoutSchema);
         if (!parsed.ok) return parsed.response;
         const body = parsed.data;
-        const { priceId, planId, state } = body;
+        const { priceId, planId, state, interval } = body;
+        const yearly = interval === "year";
         // Normalized so "in"/"In" is recognized as India for GST purposes, not
         // silently treated as a non-India zero-rated export.
         const country = typeof body.country === "string" ? body.country.trim().toUpperCase() : body.country;
@@ -62,7 +65,7 @@ export async function POST(req: Request) {
         }
 
         let orderAmount = 0;
-        let plan: { id: string; monthlyPrice: number; name: string; stripePrices: unknown } | null = null;
+        let plan: { id: string; monthlyPrice: number; yearlyPrice: number | null; name: string; stripePrices: unknown } | null = null;
 
         // 1. Plan-based pricing (server-side lookup) - the primary path used by /pricing
         if (planId) {
@@ -73,6 +76,11 @@ export async function POST(req: Request) {
                 return new NextResponse("Invalid Plan", { status: 400 });
             }
             orderAmount = plan.monthlyPrice;
+        }
+
+        // Yearly billing is only priced through a plan; the legacy price-id table has monthly amounts only.
+        if (yearly && !plan) {
+            return new NextResponse("Yearly billing requires a planId", { status: 400 });
         }
 
         // 2. Determine Amount from Price ID (legacy path)
@@ -106,10 +114,15 @@ export async function POST(req: Request) {
             if (!plan) {
                 return new NextResponse("Stripe checkout requires a planId", { status: 400 });
             }
-            const stripePrices = (plan.stripePrices as Record<string, { amount: number; stripePriceId: string }> | null) || {};
-            const priceForCurrency = stripePrices[billingCurrency];
+            type StripeCurrencyPrice = { amount: number; stripePriceId: string; yearly?: { amount: number; stripePriceId: string } };
+            const stripePrices = (plan.stripePrices as Record<string, StripeCurrencyPrice> | null) || {};
+            const currencyPrices = stripePrices[billingCurrency];
+            const priceForCurrency = yearly ? currencyPrices?.yearly : currencyPrices;
             if (!priceForCurrency?.stripePriceId) {
-                return new NextResponse(`This plan is not yet available in ${billingCurrency}`, { status: 400 });
+                return new NextResponse(
+                    yearly ? `This plan is not yet available with yearly billing in ${billingCurrency}` : `This plan is not yet available in ${billingCurrency}`,
+                    { status: 400 }
+                );
             }
 
             const baseUrl = (process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"] || "").replace(/\/$/, "");
@@ -118,11 +131,21 @@ export async function POST(req: Request) {
                 teamId,
                 userId,
                 planId: plan.id,
+                interval: yearly ? "year" : "month",
                 successUrl: `${baseUrl}/dashboard/billing?checkout=success`,
                 cancelUrl: `${baseUrl}/pricing?checkout=cancelled`,
             });
 
             return NextResponse.json({ gateway: "STRIPE", url: session.url });
+        }
+
+        // Razorpay prices a yearly order from the plan's yearly INR amount (set with the monthly one in inrPricing.ts);
+        // a plan without it is not sold yearly. Stripe's yearly price is checked above, in stripePrices.
+        if (yearly) {
+            if (!plan?.yearlyPrice || plan.yearlyPrice <= 0) {
+                return new NextResponse("This plan is not available with yearly billing", { status: 400 });
+            }
+            orderAmount = plan.yearlyPrice;
         }
 
         // GST is added on top of the plan price for Indian customers; the customer
@@ -135,7 +158,7 @@ export async function POST(req: Request) {
             currency,
             `receipt_${Date.now()}`,
             {
-                userId, teamId, priceId, planId: plan?.id, country, state: country === "IN" ? state : undefined,
+                userId, teamId, priceId, planId: plan?.id, interval: yearly ? "year" : "month", country, state: country === "IN" ? state : undefined,
                 taxableValue: gst.taxableValue, taxAmount: gst.taxAmount, taxType: gst.taxType, taxRate: gst.taxRate
             }
         );

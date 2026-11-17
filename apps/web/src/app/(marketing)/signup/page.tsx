@@ -26,8 +26,8 @@ const inputClass =
 
 type Form = { firstName: string; lastName: string; company: string; phone: string; email: string; password: string };
 
-function SignupForm() {
-    const [form, setForm] = useState<Form>({ firstName: "", lastName: "", company: "", phone: "", email: "", password: "" });
+function SignupForm({ initialEmail }: { initialEmail: string }) {
+    const [form, setForm] = useState<Form>({ firstName: "", lastName: "", company: "", phone: "", email: initialEmail, password: "" });
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState<{ emailSent: boolean } | null>(null);
@@ -107,6 +107,8 @@ function SignupForm() {
 export default function SignupPage() {
     const searchParams = useSearchParams();
     const inviteToken = searchParams.get("token") || undefined;
+    // The homepage sign-up box sends the visitor here with their email; just a convenience, the field stays editable.
+    const initialEmail = (searchParams.get("email") ?? "").trim().slice(0, 254);
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
@@ -115,7 +117,7 @@ export default function SignupPage() {
                     <LogoMark priority className="h-9 w-9" />
                     CraftMyFunnel AI
                 </Link>
-                <SignupForm />
+                <SignupForm initialEmail={initialEmail} />
                 <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
                     <span className="h-px flex-1 bg-white/10" />
                     or

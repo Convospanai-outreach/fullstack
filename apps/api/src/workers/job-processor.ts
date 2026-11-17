@@ -89,9 +89,9 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             if (!teamId || !messageId) {
                 throw new NonRetryableJobError("reply_classification payload is missing teamId/messageId");
             }
-            const { classifyInboundReply } = await import("@/modules/inbox/replyClassificationService");
+            const { classifyInboundReplyOrFlag } = await import("@/modules/inbox/replyClassificationService");
             try {
-                return await classifyInboundReply(teamId, messageId);
+                return await classifyInboundReplyOrFlag(teamId, messageId, claim.jobId);
             } catch (error) {
                 // A team out of credits would fail identically on every retry.
                 if (error instanceof Error && /insufficient credits/i.test(error.message)) {

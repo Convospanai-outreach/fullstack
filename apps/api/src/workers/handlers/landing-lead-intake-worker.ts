@@ -36,8 +36,9 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     const campaignId = landingLead.campaign.linkedCampaignId || undefined;
     // The landing form's consent box. Only ever sets consentObtained to true, never back to false.
     const consentGiven = consentRecordOf(landingLead.rawPayload)?.given === true;
-    // A form with a consent box that was not ticked does not go to Mautic: its journeys can send mail.
-    const mauticAllowed = consentAllowsContact(landingLead.rawPayload);
+    // Only a ticked consent box sends the lead to Mautic: its journeys can send mail. A form with no box,
+    // or a box that was not ticked, stays out. (Plan nurture and the Meta event keep their own rule.)
+    const mauticAllowed = consentGiven;
 
     // Creator funnel: a sign-up through a keyword auto-reply link joins the lead that auto-reply
     // went to (socialLinkMerge.ts). Anything it can't merge safely takes the normal path below.
@@ -60,6 +61,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await recordOptIn(landingLead, mergedLeadId);
             await joinPlanNurture(landingLead, mergedLeadId);
             await sendConfirmation(landingLead, mergedLeadId);
+            await joinDrip(landingLead, mergedLeadId);
             return { created: false, leadId: mergedLeadId, merged: true };
         }
     }
@@ -98,6 +100,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             await recordOptIn(landingLead, existing.id);
             await joinPlanNurture(landingLead, existing.id);
             await sendConfirmation(landingLead, existing.id);
+            await joinDrip(landingLead, existing.id);
             return { created: false, leadId: existing.id };
         }
     }
@@ -125,6 +128,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     await recordOptIn(landingLead, createdLead.id);
     await joinPlanNurture(landingLead, createdLead.id);
     await sendConfirmation(landingLead, createdLead.id);
+    await joinDrip(landingLead, createdLead.id);
     return { created: true, leadId: createdLead.id };
 }
 
@@ -151,6 +155,18 @@ async function joinPlanNurture(landingLead: { teamId: string; landingPageId: str
         if (skipped && skipped !== "no switched-on plan for this page") logger.info(`[LandingLeadIntake] Plan nurture skipped for lead ${leadId}: ${skipped}`);
     } catch (error) {
         logger.warn(`[LandingLeadIntake] Plan nurture enrollment failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
+    }
+}
+
+// A sign-up on a page with a switched-on drip playbook (welcome, resource download) joins it. Runs last, so
+// a lead already in the plan nurture or the instant confirmation sequence is left alone. Never fails the job.
+async function joinDrip(landingLead: { teamId: string; landingPageId: string; rawPayload?: unknown }, leadId: string) {
+    try {
+        const { enrollDripOnSignup } = await import("@/modules/playbooks/dripTriggers");
+        const skipped = await enrollDripOnSignup(landingLead, leadId);
+        if (skipped && skipped !== "no playbook for this page") logger.info(`[LandingLeadIntake] Drip playbook skipped for lead ${leadId}: ${skipped}`);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Drip playbook enrollment failed for lead ${leadId}: ${error instanceof Error ? error.message : error}`);
     }
 }
 

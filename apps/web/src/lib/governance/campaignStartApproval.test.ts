@@ -5,6 +5,8 @@ const { mockPrisma } = vi.hoisted(() => ({
         organizationPolicy: { findUnique: vi.fn() },
         approvalRequest: { findFirst: vi.fn(), create: vi.fn() },
         teamMember: { count: vi.fn() },
+        $executeRaw: vi.fn(),
+        $transaction: vi.fn(),
     },
 }));
 
@@ -23,6 +25,19 @@ describe("checkCampaignStartApproval", () => {
         mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
         mockPrisma.approvalRequest.create.mockResolvedValue({ id: "new-approval" });
         mockBreakerState.mockResolvedValue("CLOSED");
+        mockPrisma.$executeRaw.mockResolvedValue(1);
+        mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma));
+    });
+
+    it("takes a per-campaign lock before looking for an existing request, so two starts cannot both file one", async () => {
+        const order: string[] = [];
+        mockPrisma.$executeRaw.mockImplementation(async () => { order.push("lock"); return 1; });
+        mockPrisma.approvalRequest.findFirst.mockImplementation(async () => { order.push("find"); return null; });
+        mockPrisma.approvalRequest.create.mockImplementation(async () => { order.push("create"); return { id: "new-approval" }; });
+
+        await checkCampaignStartApproval(args);
+
+        expect(order).toEqual(["lock", "find", "create"]);
     });
 
     it("allows the start when the team has no policy row", async () => {

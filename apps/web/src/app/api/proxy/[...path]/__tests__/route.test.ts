@@ -1,9 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isWebOwnedPath, POST } from "../route";
+import { isApiOnlyCampaignPath, isWebOwnedPath, POST } from "../route";
 
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
 
+describe("isApiOnlyCampaignPath", () => {
+    it("leaves the campaign routes apps/web implements alone", () => {
+        expect(isApiOnlyCampaignPath(["campaigns"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "leads"])).toBe(false);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "sequence", "steps"])).toBe(false);
+    });
+
+    it("sends the apps/api-only campaign routes upstream", () => {
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "workflow"])).toBe(true);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "governance"])).toBe(true);
+        expect(isApiOnlyCampaignPath(["campaigns", "c1", "approvals"])).toBe(true);
+    });
+});
+
 describe("isWebOwnedPath", () => {
+    it("keeps smtp connect/test in apps/web but sends smtp domain-checks to apps/api", () => {
+        expect(isWebOwnedPath(["integrations", "smtp", "connect"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "test"])).toBe(true);
+        expect(isWebOwnedPath(["integrations", "smtp", "domain-checks"])).toBe(false);
+    });
+
     describe("settings", () => {
         it("keeps branding and hidden-features web-owned", () => {
             expect(isWebOwnedPath(["settings", "branding"])).toBe(true);
@@ -29,6 +50,10 @@ describe("isWebOwnedPath", () => {
             expect(isWebOwnedPath(["email", "compose"])).toBe(false);
             expect(isWebOwnedPath(["email", "track", "open", "abc123"])).toBe(false);
         });
+    });
+
+    it("proxies the batch lead workflow route to apps/api instead of treating it as a lead id", () => {
+        expect(isWebOwnedPath(["leads", "workflow"])).toBe(false);
     });
 
     describe("leads", () => {
@@ -89,6 +114,29 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
         const init = fetchMock.mock.calls[0][1] as RequestInit;
         expect(init.signal).toBeInstanceOf(AbortSignal);
     });
+
+    it("gives the website scan longer than 15s but still bounds other paths at 15s", async () => {
+        vi.useFakeTimers();
+        try {
+            global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 })) as any;
+            const call = async (path: string[]) => {
+                const url = `http://localhost:3000/api/proxy/${path.join("/")}`;
+                const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+                await POST(req, { params: Promise.resolve({ path }) });
+            };
+            // The proxy clears its timer when headers arrive, so capture the timer length instead.
+            const spy = vi.spyOn(global, "setTimeout");
+            await call(["setup", "scan"]);
+            await call(["drip-playbooks", "draft"]);
+            await call(["workflows", "wf-1"]);
+            const delays = spy.mock.calls.map((c) => c[1]);
+            expect(delays.filter((d) => d === 90_000)).toHaveLength(2);
+            expect(delays).toContain(15_000);
+        } finally {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        }
+    });
 });
 
 describe("forwardRequest upstream failures", () => {
@@ -128,6 +176,23 @@ describe("forwardRequest upstream failures", () => {
         expect(res.status).toBe(504);
         expect(body.code).toBe("PROXY_UPSTREAM_TIMEOUT");
         expect(body).not.toHaveProperty("upstream");
+    });
+
+    it("logs which request failed and how long it took, without the query string", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        const abort = new Error("aborted");
+        abort.name = "AbortError";
+        global.fetch = vi.fn().mockRejectedValue(abort) as any;
+        const url = "http://localhost:3000/api/proxy/mcp/oauth/consent?code_challenge=secret-value";
+        const req = Object.assign(new Request(url, { method: "GET" }), { nextUrl: new URL(url) }) as any;
+
+        await POST(req, { params: Promise.resolve({ path: ["mcp", "oauth", "consent"] }) });
+
+        const entry = log.mock.calls.find(call => call[0] === "[proxy] upstream request failed")?.[1] as Record<string, unknown>;
+        expect(entry).toMatchObject({ path: "/api/proxy/mcp/oauth/consent" });
+        expect(typeof entry["method"]).toBe("string");
+        expect(typeof entry["elapsedMs"]).toBe("number");
+        expect(JSON.stringify(entry)).not.toContain("secret-value");
     });
 
     it("returns a fixed message instead of an internal error's text", async () => {

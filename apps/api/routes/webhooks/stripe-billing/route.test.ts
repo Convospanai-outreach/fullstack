@@ -110,6 +110,31 @@ describe("/webhooks/stripe-billing", () => {
         }));
     });
 
+    it("extends a yearly subscription by 365 days, grants one month of credits and schedules the next grant", async () => {
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+        mockGetSubscriptionMetadata.mockResolvedValue({ teamId: "team-1", userId: "user-1", planId: "plan-1", interval: "year" });
+
+        const { POST } = await import("./route");
+        await POST(webhookRequest("{}"));
+
+        const [, userId, , periodDays, subscriptionId, interval, isYearly, grantDays, teamId, renewDays] = mockTx.$queryRaw.mock.calls[0];
+        expect({ userId, periodDays, subscriptionId, interval, isYearly, grantDays, teamId, renewDays }).toEqual({
+            userId: "user-1", periodDays: 365, subscriptionId: "sub_1", interval: "YEAR", isYearly: true, grantDays: 30, teamId: "team-1", renewDays: 365,
+        });
+        expect(mockTx.team.update).toHaveBeenCalledTimes(1);
+        expect(mockTx.team.update).toHaveBeenCalledWith({ where: { id: "team-1" }, data: { credits: { increment: 500 } } });
+    });
+
+    it("keeps a subscription whose metadata has no interval monthly", async () => {
+        mockVerifyWebhook.mockReturnValue(invoiceEvent());
+
+        const { POST } = await import("./route");
+        await POST(webhookRequest("{}"));
+
+        const [, , , periodDays, , interval, isYearly] = mockTx.$queryRaw.mock.calls[0];
+        expect({ periodDays, interval, isYearly }).toEqual({ periodDays: 30, interval: "MONTH", isYearly: false });
+    });
+
     it("does not re-process a payment already recorded (idempotency no-op)", async () => {
         mockVerifyWebhook.mockReturnValue(invoiceEvent());
         mockPrisma.creditTransaction.findFirst.mockResolvedValue({ id: "existing" });

@@ -237,6 +237,11 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                     </>
                 ) : null}
                 <p className="text-xs text-amber-200">You are responsible for the consent wording, your privacy policy and handling deletion requests.</p>
+                {!draft.consent?.enabled ? (
+                    <p className="text-xs text-amber-200">
+                        Without a consent checkbox, automatic follow-up emails and ad tracking run for every sign-up on this page. Turn the checkbox on if you need visitors to agree first.
+                    </p>
+                ) : null}
                 {draft.consent?.enabled && !draft.consent.privacyUrl ? (
                     <p className="text-xs text-amber-200">Add a privacy policy link: the consent wording refers to your privacy policy.</p>
                 ) : null}

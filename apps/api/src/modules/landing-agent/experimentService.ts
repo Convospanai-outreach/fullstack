@@ -1,6 +1,7 @@
 // A/B tests between two published landing pages (phase 6B). Each test serves one shared path (<domain>/<slug>).
 // Every query is scoped by teamId. Starting, pausing, ending or picking a winner rewrites the Worker's KV mapping
 // (landingExperimentKv.ts) so the edge does not need to call the API on each request.
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { verdictFor, type ExperimentVerdict } from "./landingExperimentStats";
@@ -202,19 +203,25 @@ export async function getExperimentResults(input: { teamId: string; experimentId
     for (const name of ["A", "B"] as const) {
         const variant = experiment.variants.find((v) => v.name === name);
         if (!variant) continue;
-        const events = await prisma.landingEvent.findMany({
-            where: { teamId: input.teamId, variantId: variant.id, eventName: { in: ["page_view", "form_start"] } },
-            select: { id: true, sessionId: true, eventName: true },
-        });
-        // A visit with no session id counts once per event, so it is never merged with another visit.
-        const visitors = new Set(events.filter((e) => e.eventName === "page_view").map((e) => e.sessionId ?? e.id));
-        const starters = new Set(events.filter((e) => e.eventName === "form_start").map((e) => e.sessionId ?? e.id));
+        // Counted in the database, so no event row is loaded. A visit with no session id counts once per event,
+        // so it is never merged with another visit.
+        const [row] = await prisma.$queryRaw<Array<{ visitors: bigint | number; starters: bigint | number }>>(Prisma.sql`
+            SELECT
+                COUNT(DISTINCT COALESCE("sessionId", "id")) FILTER (WHERE "eventName" = 'page_view') AS visitors,
+                COUNT(DISTINCT COALESCE("sessionId", "id")) FILTER (WHERE "eventName" = 'form_start') AS starters
+            FROM "LandingEvent"
+            WHERE "teamId" = ${input.teamId}
+              AND "variantId" = ${variant.id}
+              AND "eventName" IN ('page_view', 'form_start')
+        `);
+        const visitors = Number(row?.visitors ?? 0);
+        const starters = Number(row?.starters ?? 0);
         const leads = await prisma.landingLead.count({ where: { teamId: input.teamId, variantId: variant.id } });
         counts[name] = {
-            visitors: visitors.size,
-            formStarts: starters.size,
+            visitors,
+            formStarts: starters,
             leads,
-            conversionRate: visitors.size > 0 ? leads / visitors.size : 0,
+            conversionRate: visitors > 0 ? leads / visitors : 0,
         };
     }
     const verdict: ExperimentVerdict = verdictFor({

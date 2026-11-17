@@ -28,10 +28,13 @@ export function visibleStepIds(stepIds: readonly number[], mode: OutreachMode | 
 
 /** The visible step after `current`, or null when it is the last one. */
 export function nextStepId(visible: readonly number[], current: number): number | null {
-    return visible.find((id) => id > current) ?? null;
+    // By position, not by id: the scan step (id 15) sits between steps 2 and 3.
+    const index = visible.indexOf(current);
+    return index >= 0 ? visible[index + 1] ?? null : null;
 }
 
 /** The visible step before `current`, or null when it is the first one. */
 export function previousStepId(visible: readonly number[], current: number): number | null {
-    return [...visible].reverse().find((id) => id < current) ?? null;
+    const index = visible.indexOf(current);
+    return index > 0 ? visible[index - 1] ?? null : null;
 }

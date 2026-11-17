@@ -1,6 +1,7 @@
 import { TypeSafeClient, choice, noul, type EntryType, type Questions, type RequestOptions, type SystemOneResult } from "@typesafe-ai/sdk";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { readOptOut } from "@/lib/optOutReader";
 
 // Jev (TypeSafe's System One model) answers typed questions about text with calibrated
 // probabilities. It only supplies judgments: the callers of these helpers decide what to do
@@ -78,7 +79,10 @@ const percent = (p: number) => `${Math.round(p * 100)}%`;
 // --- Reply classification (Action Inbox suggestions) ---
 
 export const REPLY_CLASSIFICATIONS = ["INTERESTED", "NOT_INTERESTED", "OOO", "QUESTION", "DNC"] as const;
-export type ReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+// What Jev can answer. UNSURE is not an answer: it is stored when the reply could not be read
+// at all, so a person looks at it (see flagUnreadableReply).
+export type ModelReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
+export type ReplyClassification = ModelReplyClassification | "UNSURE";
 
 const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_interested: "NOT_INTERESTED" } as const;
 
@@ -87,7 +91,13 @@ const RESPONSE_LABELS = { interested: "INTERESTED", question: "QUESTION", not_in
  * A request to stop wins over everything, then an automatic away message, then the sender's
  * response to the offer. `confidence` is the probability of the label returned.
  */
-export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ReplyClassification; confidence: number; reasoning: string }> {
+export async function classifyReply(reply: { subject: string; body: string }, teamId: string): Promise<{ classification: ModelReplyClassification; confidence: number; reasoning: string }> {
+    // A clear request to stop, or an automatic message, is settled by plain phrase and header
+    // checks first: they hold when Jev is down and cost nothing. Everything else goes to Jev.
+    const plain = readOptOut({ subject: reply.subject, body: reply.body });
+    if (plain?.class === "OPT_OUT") return { classification: "DNC", confidence: 1, reasoning: "Clearly asks not to be contacted again." };
+    if (plain?.class === "AUTO_REPLY") return { classification: "OOO", confidence: 1, reasoning: "Automatic away message." };
+
     const answers = await ask(
         "REPLY_CLASSIFICATION",
         teamId,
@@ -282,4 +292,93 @@ export async function judgeOutreachDraft(
         { retry: { maxRetries: 0 } }
     );
     return { inventsFact: answers.inventsFact.noul, readsAsPitch: answers.readsAsPitch.noul, hardAsk: answers.hardAsk.noul };
+}
+
+// --- Draft quality factors (conversion strategies S7, S8, S12) ---
+
+export type DraftFactors = {
+    motivation: number;
+    valueClarity: number;
+    incentive: number;
+    friction: number;
+    anxiety: number;
+    relevance: number;
+    urgency: number;
+    distraction: number;
+    dreamOutcome: number;
+    likelihood: number;
+    timeDelay: number;
+};
+
+/**
+ * One call for every factor the conversion scores use. Each answer is the Noul probability that the
+ * factor is strongly present in `draft` (so for friction, anxiety, distraction and delay, higher is
+ * worse). Judgments only: draftScores.ts turns them into scores. Throws when Jev can't answer.
+ */
+export async function judgeDraftFactors(draft: { subject?: string; body: string }, teamId: string): Promise<DraftFactors> {
+    const a = await ask(
+        "DRAFT_FACTORS",
+        teamId,
+        { context: "`draft` is a cold outreach email we are writing, before it is sent.", draft },
+        {
+            motivation: noul("Does `draft` speak to something the reader already wants or is struggling with?", {
+                true: "It names a want or problem the reader would recognise as their own.",
+                false: "It talks about us or the product without tying to anything the reader wants."
+            }),
+            valueClarity: noul("Is it clear from one read what `draft` offers and what the reader gets?", {
+                true: "A reader could say in one sentence what is being offered and what they would get.",
+                false: "The offer is vague, buried, or needs a second read."
+            }),
+            incentive: noul("Does `draft` give the reader a concrete reason to act?", {
+                true: "It states a specific benefit, result or reason to reply.",
+                false: "It gives no specific benefit or reason to reply."
+            }),
+            friction: noul("Does acting on `draft` take real effort from the reader?", {
+                true: "It needs a call, a form, a long reply, a link visit or several steps.",
+                false: "It asks nothing, or a few words in reply."
+            }),
+            anxiety: noul("Does `draft` give the reader something to worry about?", {
+                true: "It makes vague or large claims, uses pressure, hides a cost or asks for trust without support.",
+                false: "It is calm and specific, with nothing that would make a reader hesitate."
+            }),
+            relevance: noul("Does `draft` fit one specific kind of reader rather than anyone?", {
+                true: "It speaks to a particular role or situation.",
+                false: "It could be sent to anyone unchanged."
+            }),
+            urgency: noul("Does `draft` give a real reason to act soon?", {
+                true: "It ties to something time-bound or costly to delay, without invented pressure.",
+                false: "Nothing makes acting now matter more than acting later."
+            }),
+            distraction: noul("Does `draft` pull the reader in more than one direction?", {
+                true: "It has several asks, several links or several unrelated topics.",
+                false: "It has a single focus and a single ask."
+            }),
+            dreamOutcome: noul("Does `draft` describe an outcome the reader would value highly?", {
+                true: "The result described is one a reader would plainly want a lot.",
+                false: "The result described is minor or unstated."
+            }),
+            likelihood: noul("Does `draft` give the reader reason to believe it will work?", {
+                true: "It gives proof, specifics or a credible example.",
+                false: "It asks the reader to take its claims on trust."
+            }),
+            timeDelay: noul("Does `draft` suggest the benefit takes a long time to arrive?", {
+                true: "The benefit needs weeks or months, or the timing is unclear and looks slow.",
+                false: "The benefit looks quick to reach."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+    return {
+        motivation: a.motivation.noul,
+        valueClarity: a.valueClarity.noul,
+        incentive: a.incentive.noul,
+        friction: a.friction.noul,
+        anxiety: a.anxiety.noul,
+        relevance: a.relevance.noul,
+        urgency: a.urgency.noul,
+        distraction: a.distraction.noul,
+        dreamOutcome: a.dreamOutcome.noul,
+        likelihood: a.likelihood.noul,
+        timeDelay: a.timeDelay.noul
+    };
 }

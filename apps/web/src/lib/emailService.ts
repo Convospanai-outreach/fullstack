@@ -1,6 +1,7 @@
 
 import crypto from "crypto";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 import { prisma } from "@/lib/db";
 
 const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
@@ -83,7 +84,7 @@ export class EmailService {
             const port = Number(process.env["SMTP_PORT"] || 587);
             const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
             const fromName = process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
-            const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+            const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
             const baseUrl = process.env["NEXTAUTH_URL"] || "http://localhost:3000";
             const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
             const html = `

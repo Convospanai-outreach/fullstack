@@ -275,8 +275,8 @@ CraftMyFunnel is an outreach automation platform (Apollo.io-style). The
 core loop is:
 
 ```
-lead → assigned channel (Gmail live; LinkedIn/WhatsApp/Human = Phase 2,
-disabled in UI) → AI-generated draft (via stored provider key) →
+lead → assigned channel (Email, LinkedIn, WhatsApp, Calls; what each really
+does today is in §14) → AI-generated draft (via stored provider key) →
 human approval → send → track reply/bounce/outcome
 ```
 
@@ -416,9 +416,13 @@ elsewhere. If you're not sure whether something old is still open, say
 - **Draft generation:** previously a stub with a saved-but-unused Gemini
   key — confirm the real call path in `campaign-execution-worker.ts`
   before assuming it's wired.
-- **Dashboard stat cards** (Meetings Secured, Active Pipeline, Drafts
-  Queued, Signal Capture): confirm which are live-queried vs. still
-  hardcoded before claiming any dashboard work is "done."
+- **Dashboard stat cards** (now labelled Meetings booked, Leads in
+  outreach, Drafts waiting, Engagement rate): all four read real team-scoped
+  counts from `/api/dashboard/summary` as of PR #963, but `meetingsDelta`
+  and `openRateDelta` are still always 0 (no period comparison exists).
+  Field-by-field sources and known gaps are in
+  `docs/product/DATA_SOURCES.md` — re-check that file against the route
+  before claiming any dashboard work is "done."
 - **Multi-tenant data isolation:** never directly confirmed with a pasted
   query example (raised in the first-ever audit of this project) — treat
   as open until §1's re-verification requirement is actually done, not
@@ -451,3 +455,33 @@ don't drift apart.
 Do not renumber existing sections when editing this file (see note at top)
 — append new sections at the end instead, and update this section's
 number reference if the file grows.
+
+---
+
+## §14. Channel Status (living list)
+
+Owner decision 2026-11-16: CraftMyFunnel is multichannel for all users (Email,
+LinkedIn, WhatsApp, Calls), not an email-first beta. This list says what each
+non-email channel does in code today. Evidence: code reading plus 116 mocked unit
+tests run locally (tier A and B, §2). No live send or reply was observed (no tier
+D). Update this section in the same PR that changes a channel.
+
+- **WhatsApp - works with gaps.** Sends for real from the team's own WhatsApp
+  Business account, checks the consent ledger before every send, and records
+  inbound replies and opt-out words from the webhook. Gaps, each its own task:
+  OPEN-361 sends do not go through `ApprovalRequest`; OPEN-362 `WhatsAppMessage`
+  has no `teamId`, provider message id or delivery status (schema change, needs
+  owner OK); OPEN-363 a step with no connected account or no approved template
+  becomes a rep task and parks the whole enrollment; OPEN-364 no WhatsApp in the
+  Inbox; OPEN-365 the webhook needs `WHATSAPP_APP_SECRET` and a Meta
+  subscription, production state not confirmed. Flag state is unchanged: it is
+  in `DEFAULT_ON_HIDDEN_FEATURES`.
+- **LinkedIn - stub for automated sending and replies.** The runner only
+  implements `scrape`. Sequence steps become rep tasks, the extension records a
+  step a person did, and no replies are captured. Stays out of public claims
+  until its own PR changes this.
+- **Calls - stub as an outreach channel.** A human hand-off queue. No dialer and
+  no consent check before a call task is created. Each finished call writes a
+  `LeadActivity` (channel CALL, type CALL_REPLIED if it became a conversation,
+  else CALL_CONTACTED; caller and time), which Home counts as calls made and
+  conversations.

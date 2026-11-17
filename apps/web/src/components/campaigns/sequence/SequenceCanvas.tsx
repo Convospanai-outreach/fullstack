@@ -127,6 +127,7 @@ export default function SequenceCanvas({
     onSenderScheduleChange,
     linkedinLocked,
     strategies = [],
+    campaignId,
     disabled = false,
 }: {
     steps: SequenceStepItem[];
@@ -137,6 +138,7 @@ export default function SequenceCanvas({
     onSenderScheduleChange: (update: { senderMailboxIds?: string[]; timezone?: string }) => void;
     linkedinLocked: boolean;
     strategies?: string[];
+    campaignId?: string;
     disabled?: boolean;
 }) {
     const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -268,6 +270,8 @@ export default function SequenceCanvas({
                 open={Boolean(editingStepId)}
                 onOpenChange={(open) => !open && setEditingStepId(null)}
                 onSave={updateStep}
+                strategies={strategies}
+                campaignId={campaignId}
             />
         </div>
     );

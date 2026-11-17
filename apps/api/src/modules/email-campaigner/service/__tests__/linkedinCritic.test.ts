@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAskAI } = vi.hoisted(() => ({ mockAskAI: vi.fn() }));
+const { mockAskAI, mockScreen } = vi.hoisted(() => ({ mockAskAI: vi.fn(), mockScreen: vi.fn() }));
 vi.mock("@/lib/aiService", () => ({ aiService: { askAI: mockAskAI } }));
+vi.mock("../draftScreen", () => ({ jevScreenEnabled: () => process.env["JEV_SCREEN"] === "on", screenDraft: mockScreen }));
 
 import { buildLinkedinCritiquePrompt, linkedinCriticEnabled, reviewLinkedinDraft } from "../linkedinCritic";
 
@@ -13,7 +14,10 @@ const saved = { ...process.env };
 afterEach(() => {
     process.env = { ...saved };
 });
-beforeEach(() => mockAskAI.mockReset());
+beforeEach(() => {
+    mockAskAI.mockReset();
+    mockScreen.mockReset();
+});
 
 describe("linkedinCriticEnabled", () => {
     it("is off unless LINKEDIN_CRITIC=on", () => {
@@ -34,6 +38,39 @@ describe("buildLinkedinCritiquePrompt", () => {
     it("clips a large context", () => {
         const prompt = buildLinkedinCritiquePrompt("connect", "x".repeat(20000), text);
         expect(prompt.length).toBeLessThan(6000);
+    });
+});
+
+describe("reviewLinkedinDraft with the Jev screen", () => {
+    beforeEach(() => {
+        process.env["JEV_SCREEN"] = "on";
+    });
+
+    it("skips the critic for a draft Jev judges clean, and screens the profile and the body only", async () => {
+        mockScreen.mockResolvedValueOnce(true);
+        expect(await reviewLinkedinDraft("connect", context, text, "team")).toEqual({ text, critique: "screened" });
+        expect(mockAskAI).not.toHaveBeenCalled();
+        expect(mockScreen).toHaveBeenCalledWith({ profile: context }, { body: text }, "team");
+    });
+
+    it("runs the critic when the screen is not sure", async () => {
+        mockScreen.mockResolvedValueOnce(false);
+        verdict({ status: "PASS", critique: "ok" });
+        expect(await reviewLinkedinDraft("connect", context, text, "team")).toEqual({ text, critique: "passed" });
+    });
+
+    it("does not screen a note over its length limit, so the critic still sees it", async () => {
+        verdict({ status: "PASS", critique: "ok" });
+        await reviewLinkedinDraft("connect", context, "a".repeat(301), "team");
+        expect(mockScreen).not.toHaveBeenCalled();
+        expect(mockAskAI).toHaveBeenCalledTimes(1);
+    });
+
+    it("is never called while JEV_SCREEN is off", async () => {
+        delete process.env["JEV_SCREEN"];
+        verdict({ status: "PASS", critique: "ok" });
+        await reviewLinkedinDraft("connect", context, text, "team");
+        expect(mockScreen).not.toHaveBeenCalled();
     });
 });
 

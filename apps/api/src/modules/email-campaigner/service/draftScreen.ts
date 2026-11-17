@@ -25,23 +25,27 @@ export function jevScreenEnabled(): boolean {
 // word with no support in the facts, or a raw contact detail, means a person-like check is needed.
 const RAW_CONTACT = /[^\s@]+@[^\s@]+\.[^\s@]+|\+?\d[\d\s().-]{7,}\d/;
 
-function codeChecksPass(prospect: Record<string, string | undefined>, draft: { subject: string; body: string }): boolean {
-    if (RAW_CONTACT.test(draft.subject) || RAW_CONTACT.test(draft.body)) return false;
+// An email has a subject; a LinkedIn note does not.
+export type ScreenDraft = { subject?: string; body: string };
+
+function codeChecksPass(prospect: Record<string, string | undefined>, draft: ScreenDraft): boolean {
+    const subject = draft.subject ?? "";
+    if (RAW_CONTACT.test(subject) || RAW_CONTACT.test(draft.body)) return false;
     const options = { sourceContext: Object.values(prospect).filter(Boolean).join("\n"), strictGrounding: true };
-    return enforceMultilineGuardrails(draft.body, options).issues.length === 0 && enforceMultilineGuardrails(draft.subject, options).issues.length === 0;
+    return enforceMultilineGuardrails(draft.body, options).issues.length === 0 && enforceMultilineGuardrails(subject, options).issues.length === 0;
 }
 
 // True only when the draft is judged clean. Never throws.
 export async function screenDraft(
     prospect: Record<string, string | undefined>,
-    draft: { subject: string; body: string },
+    draft: ScreenDraft,
     teamId: string,
 ): Promise<boolean> {
     if (!codeChecksPass(prospect, draft)) return false;
     try {
         const facts = Object.fromEntries(Object.entries(prospect).filter(([, v]) => typeof v === "string" && v.trim()) as [string, string][]);
         // Masked as one document so the same value gets the same token in the facts and the draft.
-        const masked = await SovereignFirewall.mask(JSON.stringify({ prospect: facts, draft: { subject: draft.subject, body: draft.body } }), "GLOBAL", undefined, { alwaysMask: true });
+        const masked = await SovereignFirewall.mask(JSON.stringify({ prospect: facts, draft: draft.subject === undefined ? { body: draft.body } : { subject: draft.subject, body: draft.body } }), "GLOBAL", undefined, { alwaysMask: true });
         const state = JSON.parse(masked.safeContext);
         const judgment = await judgeOutreachDraft(state, teamId);
         return Math.max(judgment.inventsFact, judgment.readsAsPitch, judgment.hardAsk) <= NOUL_NO;

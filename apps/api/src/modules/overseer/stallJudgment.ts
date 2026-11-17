@@ -14,6 +14,8 @@ export type StallCandidate = {
     // How the latest of those replies was classified (Jev, via ReplyAnalyzerAgent), or a rep's
     // correction of it. Null when there is no reply or it hasn't been classified.
     replyClassification: string | null;
+    // The lead is marked do not contact, unsubscribed or bounced.
+    optedOut: boolean;
 };
 
 export type StallJudgment = {
@@ -35,6 +37,10 @@ export function judgeStalledEnrollment(candidate: StallCandidate): StallJudgment
         suggestion
     });
 
+    if (candidate.optedOut) {
+        return judgment("LIKELY_DEAD", `${stalled}. This lead is marked do not contact, unsubscribed or bounced - end this enrollment.`);
+    }
+
     switch (candidate.replyClassification) {
         case "DNC":
             return judgment("LIKELY_DEAD", `${stalled}. The lead's latest reply asks not to be contacted again - consider ending this enrollment.`);
@@ -43,6 +49,8 @@ export function judgeStalledEnrollment(candidate: StallCandidate): StallJudgment
         case "INTERESTED":
         case "QUESTION":
             return judgment("ROUTE_MANUAL", `${stalled}. The lead replied ${candidate.replyClassification === "INTERESTED" ? "with interest" : "with a question"} and nothing is scheduled - a rep should answer.`);
+        case "UNSURE":
+            return judgment("ROUTE_MANUAL", `${stalled}. The lead's latest reply could not be read automatically - a rep should read it.`);
         case "OOO":
             return judgment("RESEND_STEP", `${stalled}. The lead's latest reply was an away message - resend this step once they are back.`);
     }

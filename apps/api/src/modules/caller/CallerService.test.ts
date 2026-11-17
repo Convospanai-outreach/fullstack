@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
         lead: { findFirst: vi.fn(), updateMany: vi.fn() },
         meetingCoordinationQueue: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
         conversationThread: { findFirst: vi.fn(), findUnique: vi.fn() },
+        leadActivity: { create: vi.fn() },
     },
 }));
 
@@ -74,6 +75,52 @@ describe("CallerService", () => {
         });
     });
 
+    describe("ensureQueueEntry", () => {
+        beforeEach(() => {
+            (prisma.conversationThread.findFirst as any).mockResolvedValue({ id: "t1", state: ConversationState.HANDOFF_REQUIRED });
+        });
+
+        it("queues a HOT lead above a WARM one", async () => {
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+            await CallerService.ensureQueueEntry("lead-hot", "HOT");
+            await CallerService.ensureQueueEntry("lead-warm", "WARM");
+
+            expect(prisma.meetingCoordinationQueue.create).toHaveBeenNthCalledWith(1, { data: { leadId: "lead-hot", status: "PENDING", priority: 1 } });
+            expect(prisma.meetingCoordinationQueue.create).toHaveBeenNthCalledWith(2, { data: { leadId: "lead-warm", status: "PENDING", priority: 0 } });
+        });
+
+        it("raises a waiting WARM entry to HOT priority when the lead turns HOT", async () => {
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "PENDING", priority: 0 });
+            await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+            expect(prisma.meetingCoordinationQueue.create).not.toHaveBeenCalled();
+            expect(prisma.meetingCoordinationQueue.update).toHaveBeenCalledWith({ where: { leadId: "lead-1" }, data: { priority: 1 } });
+        });
+
+        it("leaves a claimed or finished entry alone", async () => {
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "IN_PROGRESS", priority: 0 });
+            await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+            expect(prisma.meetingCoordinationQueue.update).not.toHaveBeenCalled();
+        });
+
+        it("does not lower the priority of a HOT entry when the lead is scored WARM", async () => {
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "PENDING", priority: 1 });
+            await CallerService.ensureQueueEntry("lead-1", "WARM");
+
+            expect(prisma.meetingCoordinationQueue.update).not.toHaveBeenCalled();
+        });
+
+        it("names the tier in the new conversation thread's first transition", async () => {
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (ConversationService.startThread as any).mockResolvedValue({ id: "t-new" });
+            await CallerService.ensureQueueEntry("lead-1", "WARM");
+
+            expect(ConversationService.transitionState).toHaveBeenCalledWith("t-new", ConversationState.ENGAGED, "Auto: Lead scored WARM");
+        });
+    });
+
     describe("completeTask", () => {
         it("refuses to complete a task for a lead belonging to another team", async () => {
             (prisma.lead.findFirst as any).mockResolvedValue(null);
@@ -96,8 +143,40 @@ describe("CallerService", () => {
 
             expect(prisma.lead.updateMany).toHaveBeenCalledWith({
                 where: { id: "lead-1", teamId: "team-a" },
-                data: expect.objectContaining({ pipelineState: "COMPLETED" }),
+                data: expect.objectContaining({ status: "LOST", pipelineState: "CLOSED_LOST", lostAt: expect.any(Date) }),
             });
+            expect((prisma.lead.updateMany as any).mock.calls[0][0].data).not.toHaveProperty("wonAt");
+        });
+
+        it("records the call as a timestamped CALL activity on the lead, by the caller", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: "user-1" });
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (prisma.meetingCoordinationQueue.update as any).mockResolvedValue({});
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+
+            await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.MEETING_CONFIRMED, "Booked Thursday");
+
+            expect(prisma.leadActivity.create).toHaveBeenCalledWith({
+                data: { leadId: "lead-1", channel: "CALL", type: "CALL_REPLIED", title: "Call completed: meeting confirmed", notes: "Booked Thursday", createdBy: "user-1" },
+            });
+        });
+
+        it("counts a callback or voicemail as a call made, not a conversation", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: "user-1" });
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (prisma.meetingCoordinationQueue.update as any).mockResolvedValue({});
+
+            await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.COORDINATING);
+
+            expect((prisma.leadActivity.create as any).mock.calls.at(-1)[0].data.type).toBe("CALL_CONTACTED");
+        });
+
+        it("records nothing for a lead outside the caller's team", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+            await expect(CallerService.completeTask("lead-x", "user-1", "team-a", ConversationState.CLOSED)).rejects.toThrow("LEAD_NOT_FOUND");
+            expect(prisma.leadActivity.create).not.toHaveBeenCalled();
         });
 
         it("refuses to let a caller complete a colleague's already-claimed task (OPEN-233)", async () => {
@@ -123,8 +202,9 @@ describe("CallerService", () => {
 
             expect(prisma.lead.updateMany).toHaveBeenCalledWith({
                 where: { id: "lead-1", teamId: "team-a" },
-                data: expect.objectContaining({ pipelineState: "COMPLETED" }),
+                data: expect.objectContaining({ status: "LOST", pipelineState: "CLOSED_LOST", lostAt: expect.any(Date) }),
             });
+            expect((prisma.lead.updateMany as any).mock.calls[0][0].data).not.toHaveProperty("wonAt");
         });
     });
 });

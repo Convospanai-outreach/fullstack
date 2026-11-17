@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { PipelineService } from "@/modules/analytics/service/PipelineService";
+import { PipelineRequestError, PipelineService } from "@/modules/analytics/service/PipelineService";
 import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: NextRequest) {
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ success: true, data: task });
     } catch (e: any) {
+        if (e instanceof PipelineRequestError) return NextResponse.json({ error: e.message }, { status: e.status });
         return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

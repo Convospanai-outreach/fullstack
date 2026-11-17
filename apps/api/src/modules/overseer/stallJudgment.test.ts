@@ -31,7 +31,8 @@ const candidate: StallCandidate = {
     stallDays: 6.3,
     whatsappEligible: false,
     replied: false,
-    replyClassification: null
+    replyClassification: null,
+    optedOut: false
 };
 
 const judge = (overrides: Partial<StallCandidate>) => judgeStalledEnrollments([{ ...candidate, ...overrides }])[0];
@@ -39,6 +40,12 @@ const judge = (overrides: Partial<StallCandidate>) => judgeStalledEnrollments([{
 describe("judgeStalledEnrollments", () => {
     it("routes a lead with no reply to manual follow-up", () => {
         expect(judge({})).toEqual(expect.objectContaining({ enrollmentId: "enr-1", nudgeType: "ROUTE_MANUAL" }));
+    });
+
+    it("says to end the enrollment of a lead who opted out or bounced, even one with WhatsApp consent", () => {
+        const result = judge({ optedOut: true, whatsappEligible: true });
+        expect(result.nudgeType).toBe("LIKELY_DEAD");
+        expect(result.suggestion).toContain("do not contact");
     });
 
     it("suggests WhatsApp for a whatsapp-eligible lead with no reply", () => {
@@ -51,6 +58,7 @@ describe("judgeStalledEnrollments", () => {
         ["INTERESTED", "ROUTE_MANUAL"],
         ["QUESTION", "ROUTE_MANUAL"],
         ["OOO", "RESEND_STEP"],
+        ["UNSURE", "ROUTE_MANUAL"],
     ])("a latest reply classified %s gives %s, even when WhatsApp is available", (replyClassification, nudgeType) => {
         expect(judge({ replied: true, replyClassification, whatsappEligible: true }).nudgeType).toBe(nudgeType);
     });

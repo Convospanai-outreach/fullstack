@@ -1,0 +1,13 @@
+{
+  "topLine": "CRAFT YOUR NEXT OPPORTUNITY",
+  "startButton": "Explore the journey",
+  "finalButton": "Build your first funnel",
+  "stages": [
+    { "label": "Start", "title": "Every signal.", "accent": "A clear next move.", "detail": "From buyer intent to a qualified meeting." },
+    { "label": "Signal", "title": "Catch the signal.", "accent": "Before the crowd.", "detail": "Find a reason to start a relevant conversation." },
+    { "label": "Qualify", "title": "Find the fit.", "accent": "Focus your effort.", "detail": "Bring the right account into focus." },
+    { "label": "Approve", "title": "AI prepares.", "accent": "You approve.", "detail": "Keep your judgment at the heart of every introduction." },
+    { "label": "Follow-up", "title": "Keep the conversation", "accent": "moving.", "detail": "A clear owner. A human next step." },
+    { "label": "Meeting", "title": "A signal becomes", "accent": "a meeting.", "detail": "A qualified conversation. A new opportunity to explore." }
+  ]
+}

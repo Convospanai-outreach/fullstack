@@ -93,7 +93,18 @@ describe("BasicAnswerService", () => {
         });
 
         expect(result).toMatchObject({ source: "cache", answer: "Cached answer", usedLLM: false });
+        expect(mockCacheGetExact).toHaveBeenCalledWith("team-1", "How do I configure DNS?");
         expect(mockAiAsk).not.toHaveBeenCalled();
+    });
+
+    it("does not read the shared cache for a request with no team", async () => {
+        mockCacheGetExact.mockResolvedValue("Another team's answer");
+
+        const { BasicAnswerService } = await import("./basicAnswerService");
+        const result = await new BasicAnswerService().answer({ question: "How do I configure DNS?", context: "support" });
+
+        expect(mockCacheGetExact).not.toHaveBeenCalled();
+        expect(result.source).not.toBe("cache");
     });
 
     it("falls back to aiService only after FAQ, knowledge and cache miss", async () => {

@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Facebook,
   FileText,
+  Globe,
   LayoutGrid,
   Linkedin,
   Loader2,
@@ -39,7 +40,10 @@ import NotificationSettings from "@/components/dashboard/settings/NotificationSe
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 import { getBrowserApiBase, getBrowserApiUrl } from "@/lib/api/browserBase";
 import { STORE_URL } from "@/lib/extensionIds";
+import { domainOfEmail, presetForHost, SMTP_PRESETS } from "@/lib/smtpPresets";
 import DomainsStep from "@/components/setup/DomainsStep";
+import WebsiteScanStep, { websiteScanPayload } from "@/components/setup/WebsiteScanStep";
+import { HourglassBuddy } from "@/components/setup/HourglassBuddy";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -92,12 +96,13 @@ type DomainCheckResult = {
   selector?: string;
   status: "VERIFIED" | "MISSING";
   missing: string[];
-  records: Record<string, { status: "VERIFIED" | "MISSING"; host: string; values: string[]; type?: string }>;
+  records: Record<string, { status: "VERIFIED" | "MISSING"; host: string; values: string[]; type?: string; hint?: string; expected?: string }>;
 };
 
 const STEPS = [
   { id: 1, title: "Launch Brief", icon: Users, description: "Tell us who you're reaching out for, and confirm account access." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
+  { id: 15, title: "Scan Your Website", icon: Globe, description: "Let us read your website and draft who you sell to and what to say. Optional." },
   { id: 3, title: "Sending Mailbox", icon: Mail, description: "Choose how outreach gets sent: Google Workspace, Microsoft 365, SMTP, or Resend." },
   { id: 4, title: "Outreach Connectors", icon: Linkedin, description: "See which outreach channels you can connect: email, LinkedIn, Meta and WhatsApp." },
   { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
@@ -153,6 +158,7 @@ export default function SetupWizardPage() {
       if (stepId === 12) return true;
       if (stepId === 13) return true;
       if (stepId === 14) return true;
+      if (stepId === 15) return !!(status.aiConfig as { companyProfile?: unknown } | null)?.companyProfile;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -200,6 +206,7 @@ export default function SetupWizardPage() {
           signOff: data.aiConfig?.signOff || "Best regards,",
         },
         step6: { geminiKey: data.aiConfig?.apiKey || "" },
+        step15: { url: data.aiConfig?.companyProfile?.sourceUrl || "", profile: null, createIcp: false },
         step9: {
           calendarLink: data.aiConfig?.calendarLink || "",
           demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
@@ -283,6 +290,7 @@ export default function SetupWizardPage() {
             password: formData.step3?.password,
             fromName: formData.step3?.fromName || formData.step3?.fromEmail,
             email: formData.step3?.fromEmail || formData.step3?.user,
+            dkimSelector: formData.step3?.dkimSelector || undefined,
           };
 
           const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
@@ -328,7 +336,7 @@ export default function SetupWizardPage() {
         }
         // GOOGLE / MICROSOFT connect via their own OAuth buttons, not this form submit — nothing to POST here.
       } else {
-        const payload = stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
+        const payload = stepId === 15 ? websiteScanPayload(formData.step15) : stepId === 1 ? formData.step1 : stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
           const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
@@ -398,12 +406,21 @@ export default function SetupWizardPage() {
       // Resend's own Domains API (its own SPF/DKIM values, not Google's), so
       // it gets its own endpoint rather than reusing the Google checker.
       const isResend = formData.step3?.provider === "RESEND";
-      const res = await fetch(`${apiBase}/integrations/${isResend ? "resend" : "google"}/domain-checks`, {
+      // A team's own SMTP server has no Google records to look for: it gets its own check, using the
+      // DKIM selector typed in the SMTP form and the SPF include of the known host (if it is one).
+      const isSmtp = formData.step3?.provider === "SMTP";
+      const res = await fetch(`${apiBase}/integrations/${isResend ? "resend" : isSmtp ? "smtp" : "google"}/domain-checks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           isResend
             ? { domain: formData.step3?.domain }
+            : isSmtp
+            ? {
+                domain: formData.step3?.domain,
+                selector: formData.step3?.dkimSelector?.trim() || undefined,
+                spfInclude: presetForHost(formData.step3?.host)?.spfInclude || undefined,
+              }
             : {
                 domain: formData.step3?.domain,
                 selector: formData.step3?.selector || "google",
@@ -466,6 +483,7 @@ export default function SetupWizardPage() {
                   <div className="h-full rounded-full bg-cyan-400 transition-all duration-500" style={{ width: `${completion}%` }} />
                 </div>
               </div>
+              <HourglassBuddy stepId={active.id} completion={completion} completedCount={visibleSteps.filter((step) => stepComplete(step.id)).length} saving={saving} errorMessage={actionMessage} />
             </div>
 
             <nav className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -559,6 +577,14 @@ export default function SetupWizardPage() {
             {active.id === 12 && <NotificationsStep />}
             {active.id === 13 && <InviteTeamStep />}
             {active.id === 14 && <DomainsStep />}
+            {active.id === 15 && (
+              <WebsiteScanStep
+                apiBase={apiBase}
+                state={formData.step15 ?? { url: "", profile: null, createIcp: false }}
+                onChange={(next) => setFormData({ ...formData, step15: next })}
+                savedAt={(status.aiConfig as { companyProfile?: { confirmedAt?: string } } | null)?.companyProfile?.confirmedAt ?? null}
+              />
+            )}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
@@ -610,6 +636,26 @@ function MailboxProviderStep(props: {
 }) {
   const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
   const [showReplyCapture, setShowReplyCapture] = useState(false);
+  const [smtpTest, setSmtpTest] = useState<{ busy: boolean; ok: boolean; message: string | null }>({ busy: false, ok: false, message: null });
+
+  // Sends one real test email to the sender's own address, so wrong host, port or password show up now.
+  async function testSmtp() {
+    const s = props.formData.step3 || {};
+    const sender = String(s.fromEmail || s.user || "").trim();
+    setSmtpTest({ busy: true, ok: false, message: null });
+    try {
+      const res = await fetch("/api/integrations/smtp/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: s.host, port: s.port, secure: Boolean(s.secure), user: s.user, password: s.password, fromName: s.fromName, email: sender, recipientEmail: sender }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "The test email could not be sent.");
+      setSmtpTest({ busy: false, ok: true, message: `Test email sent to ${sender}. Check that inbox.` });
+    } catch (error) {
+      setSmtpTest({ busy: false, ok: false, message: error instanceof Error ? error.message : "The test email could not be sent." });
+    }
+  }
   const provider = props.formData.step3?.provider || "SMTP";
   const existingResendInboundDomain = connected.find((mailbox) => mailbox.provider === "RESEND")?.metadata?.inboundDomain || "";
   const setProvider = (next: string) => {
@@ -699,6 +745,22 @@ function MailboxProviderStep(props: {
               <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
                 <p className="text-sm text-slate-400">Any SMTP-capable mail server. Reply detection relies on IMAP polling rather than a native inbox webhook.</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Field label="Mail provider">
+                    <select
+                      className={inputClass}
+                      value={presetForHost(props.formData.step3?.host)?.id || ""}
+                      onChange={(event) => {
+                        const preset = SMTP_PRESETS.find((p) => p.id === event.target.value);
+                        if (preset) setStep3({ host: preset.host, port: preset.port, secure: preset.secure });
+                      }}
+                    >
+                      <option value="">Other (enter the host below)</option>
+                      {SMTP_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    </select>
+                    {presetForHost(props.formData.step3?.host)?.note && (
+                      <p className="mt-1 text-xs text-slate-500">{presetForHost(props.formData.step3?.host)?.note}</p>
+                    )}
+                  </Field>
                   <Field label="SMTP host">
                     <input className={inputClass} value={props.formData.step3?.host || ""} onChange={(event) => setStep3({ host: event.target.value })} />
                   </Field>
@@ -706,12 +768,35 @@ function MailboxProviderStep(props: {
                     <input className={inputClass} value={props.formData.step3?.port || ""} onChange={(event) => setStep3({ port: event.target.value })} />
                   </Field>
                   <Field label="Username">
-                    <input type="email" className={inputClass} value={props.formData.step3?.user || ""} onChange={(event) => setStep3({ user: event.target.value, fromEmail: props.formData.step3?.fromEmail || event.target.value })} />
+                    <input type="email" className={inputClass} value={props.formData.step3?.user || ""} onChange={(event) => setStep3({
+                      user: event.target.value,
+                      fromEmail: props.formData.step3?.fromEmail || event.target.value,
+                      // The domain readiness panel needs the sending domain: take it from the address typed here.
+                      // It follows the typing until the user edits the domain themselves.
+                      ...(!props.formData.step3?.domain || props.formData.step3.domain === domainOfEmail(props.formData.step3?.user)
+                        ? { domain: domainOfEmail(event.target.value) }
+                        : {}),
+                    })} />
                   </Field>
                   <Field label="App password">
                     <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => setStep3({ password: event.target.value })} />
                   </Field>
+                  <Field label="DKIM selector (optional)">
+                    <input className={inputClass} placeholder="e.g. s1 or mail" value={props.formData.step3?.dkimSelector || ""} onChange={(event) => setStep3({ dkimSelector: event.target.value })} />
+                    <p className="mt-1 text-xs text-slate-500">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
+                  </Field>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void testSmtp()}
+                  disabled={smtpTest.busy || !props.formData.step3?.host || !props.formData.step3?.user || !props.formData.step3?.password}
+                  className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {smtpTest.busy ? "Sending test email…" : "Send a test email to myself"}
+                </button>
+                {smtpTest.message ? (
+                  <p role="status" className={`mt-2 text-sm ${smtpTest.ok ? "text-emerald-300" : "text-amber-300"}`}>{smtpTest.message}</p>
+                ) : null}
               </div>
             )}
 
@@ -837,6 +922,8 @@ function MailboxProviderStep(props: {
             <p className="mt-1 text-sm text-slate-400">
               {provider === "RESEND"
                 ? "Check the DNS records Resend needs for this domain, and add any missing ones wherever this domain's DNS is hosted (Cloudflare, GoDaddy, etc.)."
+                : provider === "SMTP"
+                ? "Check that your domain has the MX, SPF, DKIM and DMARC records that keep mail out of spam. For each missing one we show what to add wherever this domain's DNS is hosted (Cloudflare, GoDaddy, etc.)."
                 : "Check MX, SPF, DMARC, and DKIM records for your sending domain before scaled sending."}
             </p>
           </div>
@@ -848,7 +935,11 @@ function MailboxProviderStep(props: {
           </Field>
           {provider !== "RESEND" && (
             <Field label="DKIM selector">
-              <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => setStep3({ selector: event.target.value })} />
+              {provider === "SMTP" ? (
+                <input className={inputClass} placeholder="from your provider" value={props.formData.step3?.dkimSelector || ""} onChange={(event) => setStep3({ dkimSelector: event.target.value })} />
+              ) : (
+                <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => setStep3({ selector: event.target.value })} />
+              )}
             </Field>
           )}
         </div>
@@ -863,7 +954,13 @@ function MailboxProviderStep(props: {
             {Object.entries(props.domainCheck.records).map(([key, record]) => (
               <div key={key}>
                 <StatusLine label={`${key.toUpperCase()} ${record.host}`} ready={record.status === "VERIFIED"} />
-                {record.status !== "VERIFIED" && record.values.length > 0 ? (
+                {record.status !== "VERIFIED" && record.hint ? (
+                  <div className="mt-1.5 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-300">
+                    <p>{record.hint}</p>
+                    {record.expected ? <p className="mt-1 break-all font-mono text-cyan-200">{record.expected}</p> : null}
+                  </div>
+                ) : null}
+                {record.status !== "VERIFIED" && !record.hint && record.values.length > 0 ? (
                   <div className="mt-1.5 rounded-lg border border-white/10 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
                     <p className="text-slate-500">Add this DNS record{record.values.length > 1 ? "s" : ""}:</p>
                     {record.values.map((value, i) => (

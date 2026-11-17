@@ -78,6 +78,22 @@ describe("jev", () => {
             expect(result.reasoning).toContain("May be asking not to be contacted");
         });
 
+        it("a clear request to stop is DNC without calling Jev, so it still works when Jev is down", async () => {
+            mockSystemOne.mockRejectedValue(new Error("503"));
+            await expect(classifyReply({ subject: "Re: hi", body: "Please unsubscribe me" }, "team-1")).resolves.toMatchObject({ classification: "DNC", confidence: 1 });
+            expect(mockSystemOne).not.toHaveBeenCalled();
+        });
+
+        it("an away message is OOO without calling Jev, even when it uses stop words", async () => {
+            await expect(classifyReply({ subject: "Automatic reply: hi", body: "I am out of office. Please remove the ticket." }, "team-1")).resolves.toMatchObject({ classification: "OOO" });
+            expect(mockSystemOne).not.toHaveBeenCalled();
+        });
+
+        it("does not treat 'remove the slide' as a request to stop", async () => {
+            mockSystemOne.mockResolvedValue(replyAnswers({ choice: "question" }));
+            await expect(classifyReply({ subject: "", body: "Can you remove the pricing slide?" }, "team-1")).resolves.toMatchObject({ classification: "QUESTION" });
+        });
+
         it("logs usage against the team under the typesafe provider", async () => {
             mockSystemOne.mockResolvedValue(replyAnswers({}));
             await classifyReply({ subject: "", body: "b" }, "team-1");

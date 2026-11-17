@@ -62,3 +62,43 @@ describe("Home: Needs you", () => {
         expect(render(undefined)).toBe("");
     });
 });
+
+describe("Home: sign-off card", () => {
+    const draft = { channel: "email", recipient: "Asha Rao (asha@acme.test)", subject: "Quick question", body: "Hi Asha,\nOne line about your team.", expiresAt: new Date(Date.now() + 3 * 86_400_000 + 3_600_000).toISOString(), editable: false };
+    const approvals = (count: number, top: unknown[]) => [empty("unread_replies", "/inbox"), { type: "approvals", count, href: "/inbox?tab=approvals", top }, ...allEmpty.slice(2)];
+    const entry = (id: string, extra: object = {}) => ({ id, title: "Email Draft Approval", detail: "Intro", href: "/inbox?tab=approvals", at, ...extra });
+
+    it("shows the first draft in full with recipient, channel, exact text and expiry", () => {
+        const html = render(approvals(1, [entry("a1", { draft })]));
+        expect(html).toContain("Email to Asha Rao (asha@acme.test)");
+        expect(html).toContain("Quick question");
+        expect(html).toContain("One line about your team.");
+        expect(html).toContain("Expires in 3 days");
+        expect(html).toContain(">Approve<");
+        expect(html).toContain(">Edit draft<");
+        expect(html).toContain(">Reject<");
+    });
+
+    it("leaves the expiry out when the approval has none", () => {
+        expect(render(approvals(1, [entry("a1", { draft: { ...draft, expiresAt: null } })]))).not.toContain("Expires in");
+    });
+
+    it("keeps the other approvals in the list below, one inline Approve each, and does not repeat the first", () => {
+        const html = render(approvals(3, [entry("a1", { draft }), entry("a2", { detail: "Second" }), entry("a3", { detail: "Third" })]));
+        expect(html).toContain("More waiting for your approval");
+        expect(html).toContain("Second");
+        expect(html).toContain("Third");
+        expect(html.match(/>Approve</g)).toHaveLength(3); // the card plus two list rows
+        expect(html.split("Intro").length - 1).toBe(0); // the first entry's list row is not repeated
+    });
+
+    it("shows no second box when the card is the only approval", () => {
+        expect(render(approvals(1, [entry("a1", { draft })]))).not.toContain("More waiting for your approval");
+    });
+
+    it("falls back to the plain list when the first approval came without text", () => {
+        const html = render(approvals(1, [entry("a1")]));
+        expect(html).not.toContain(">Reject<");
+        expect(html.match(/>Approve</g)).toHaveLength(1);
+    });
+});

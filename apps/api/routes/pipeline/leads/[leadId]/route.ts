@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { PIPELINE_STAGES, PipelineService } from "@/modules/analytics/service/PipelineService";
+import { PIPELINE_STAGES, PipelineRequestError, PipelineService } from "@/modules/analytics/service/PipelineService";
 import { parseBody } from "@/lib/validation/parseBody";
 import { z } from "zod";
 import { internalErrorMessage } from "@/lib/internalError";
@@ -28,6 +28,7 @@ export async function PATCH(
         const updated = await PipelineService.moveLead(ctx.teamId, leadId, status, dealValue);
         return NextResponse.json({ success: true, data: updated });
     } catch (e: any) {
+        if (e instanceof PipelineRequestError) return NextResponse.json({ error: e.message }, { status: e.status });
         return NextResponse.json({ error: internalErrorMessage(e) }, { status: 500 });
     }
 }

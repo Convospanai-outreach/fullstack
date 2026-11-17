@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "database": "disposable local Postgres",
+  "tools": 31,
+  "checks": [
+    "Consent rejects a workspace without active membership",
+    "Real Postgres OAuth registration, consent, PKCE exchange and code replay rejection",
+    "Only token digests persist in Postgres",
+    "Official SDK discovers all 31 tools on the full Fastify server",
+    "A change makes no database write until the browser user approves it",
+    "API-owned task and template handlers persist real workspace data",
+    "Existing AI prompt guardrails reject blocked input before any provider call",
+    "Signed API-to-web relay uses real lead/campaign handlers and keeps campaign in draft",
+    "Cross-team lead access, an existing foreign-workspace ICP and a missing ICP are rejected by existing handlers",
+    "A role demotion takes effect on the next MCP request",
+    "Unknown ids and rule violations on every tool return a readable 4xx and leave no uncertain outcome",
+    "All 31 tools ran against real handlers; changes were staged, approved and verified in Postgres; results read from content text",
+    "Refresh replay revokes the entire persisted token family"
+  ],
+  "externalMessagesSent": 0,
+  "productionTouched": false,
+  "note": "Run 2026-11-05 on Node 26.13.0 against the disposable database with the approval flow. Every one of the 31 tools was called through the official SDK; results were judged on content text, changes were approved and checked in Postgres, and unknown ids or rule violations were required to return a 4xx. A real Claude/ChatGPT client has been exercised separately and is described in MCP_VERIFICATION.md."
+}

@@ -72,6 +72,44 @@ export interface FunnelQueryRow {
     median_lead_to_qualified: number | null;
 }
 
+// Sign-ups grouped by one UTM field. The column is chosen from this list only, never from the request text.
+export const FUNNEL_SOURCE_DIMENSIONS = ["utm_source", "utm_medium", "utm_campaign", "utm_content"] as const;
+export type FunnelSourceDimension = (typeof FUNNEL_SOURCE_DIMENSIONS)[number];
+export const FUNNEL_DEFAULT_SOURCE_DIMENSION: FunnelSourceDimension = "utm_source";
+export const FUNNEL_SOURCE_NONE = "(none)";
+export const FUNNEL_SOURCE_OTHER = "Other";
+export const FUNNEL_SOURCE_LIMIT = 10;
+
+export function parseSourceDimension(value: string | null | undefined): FunnelSourceDimension | null {
+    if (!value) return FUNNEL_DEFAULT_SOURCE_DIMENSION;
+    return (FUNNEL_SOURCE_DIMENSIONS as readonly string[]).includes(value) ? (value as FunnelSourceDimension) : null;
+}
+
+// One row of the sources query: sign-ups in the range with one UTM value, and how many reached each later step.
+export interface FunnelSourceRow {
+    source: string;
+    leads: number;
+    contacted: number;
+    replied: number;
+    meetings: number;
+    won: number;
+}
+
+export interface FunnelSourceBreakdown {
+    dimension: FunnelSourceDimension;
+    rows: FunnelSourceRow[];
+}
+
+// Keeps the busiest `limit` values (most leads first, ties by name) and adds the rest up under "Other".
+export function foldSources(rows: FunnelSourceRow[], limit = FUNNEL_SOURCE_LIMIT): FunnelSourceRow[] {
+    const sorted = [...rows].sort((a, b) => b.leads - a.leads || a.source.localeCompare(b.source));
+    if (sorted.length <= limit) return sorted;
+    const kept = sorted.slice(0, limit);
+    const rest = sorted.slice(limit);
+    const sum = (key: "leads" | "contacted" | "replied" | "meetings" | "won") => rest.reduce((total, row) => total + row[key], 0);
+    return [...kept, { source: FUNNEL_SOURCE_OTHER, leads: sum("leads"), contacted: sum("contacted"), replied: sum("replied"), meetings: sum("meetings"), won: sum("won") }];
+}
+
 export interface FunnelReport {
     // The chain. Each step's median is the time from the previous chain step, for those who reached both.
     steps: Array<FunnelStep & { medianSecondsFromPrevious: number | null }>;

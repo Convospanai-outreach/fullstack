@@ -80,6 +80,7 @@ export default function MailboxesSettingsPage() {
     const [smtpPassword, setSmtpPassword] = useState("");
     const [smtpFromName, setSmtpFromName] = useState("");
     const [smtpEmail, setSmtpEmail] = useState("");
+    const [smtpDkimSelector, setSmtpDkimSelector] = useState("");
     const [smtpTestRecipient, setSmtpTestRecipient] = useState("");
     const [smtpTesting, setSmtpTesting] = useState(false);
     const [smtpTestResult, setSmtpTestResult] = useState("");
@@ -323,6 +324,7 @@ export default function MailboxesSettingsPage() {
                     password: smtpPassword,
                     fromName: smtpFromName,
                     email: smtpEmail,
+                    dkimSelector: smtpDkimSelector.trim() || undefined,
                 }),
             });
             const data = await res.json();
@@ -956,6 +958,12 @@ export default function MailboxesSettingsPage() {
                                     <label className="block text-muted-foreground text-xs mb-1">From Sender Email</label>
                                     <input type="email" placeholder="john@domain.com" value={smtpEmail} onChange={(e) => setSmtpEmail(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-muted-foreground text-xs mb-1">DKIM selector (optional)</label>
+                                <input type="text" placeholder="e.g. s1 or mail" value={smtpDkimSelector} onChange={(e) => setSmtpDkimSelector(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
+                                <p className="mt-1 text-xs text-muted-foreground">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
                             </div>
 
                             <div className="pt-2 border-t border-border">

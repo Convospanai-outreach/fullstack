@@ -109,6 +109,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { label: "Webhooks", href: "/settings/webhooks" },
             { label: "Personality insights", href: "/settings/crystal-knows" },
             { label: "API docs", href: "/docs/api" },
+            { label: "Agent connections", href: "/mcp/connect" },
         ],
     },
     {
@@ -121,6 +122,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { label: "Audit log", href: "/settings/audit" },
             { label: "Firewall", href: "/governance/firewall" },
             { label: "Access control", href: "/governance/access" },
+            { label: "Edge node", href: "/edge" },
             { label: "Single sign-on", href: "/settings/sso" },
         ],
     },
