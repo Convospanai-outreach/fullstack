@@ -7,6 +7,8 @@ const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWind
         team: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn() },
         whatsAppMessage: { create: vi.fn() },
+        $executeRaw: vi.fn(),
+        $transaction: vi.fn(),
     },
     mockAdvanceLeadAfterReply: vi.fn(),
     mockRevokeConsent: vi.fn(),
@@ -55,6 +57,7 @@ describe("/webhooks/whatsapp", () => {
         mockPrisma.team.findFirst.mockResolvedValue({ id: "team-1" });
         mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", teamId: "team-1" });
         mockPrisma.whatsAppMessage.create.mockResolvedValue({ id: "msg-1" });
+        mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
         mockAdvanceLeadAfterReply.mockResolvedValue({ leadStageChanged: true });
         mockRevokeConsent.mockResolvedValue({ id: "lead-1" });
     });
@@ -246,6 +249,21 @@ describe("/webhooks/whatsapp", () => {
             expect(mockPrisma.lead.create).not.toHaveBeenCalled();
             expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
             expect(mockRevokeConsent).not.toHaveBeenCalled();
+        });
+
+        it("uses the lead a concurrent webhook just created instead of making a duplicate", async () => {
+            // First look: nobody. Then, under the lock, the other webhook's lead is there.
+            mockPrisma.lead.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "lead-raced", teamId: "team-1" });
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ from: "919876543210" })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+            expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+            expect(mockPrisma.whatsAppMessage.create).toHaveBeenCalledWith({
+                data: { leadId: "lead-raced", body: "Hi there", direction: "INBOUND", status: "received" },
+            });
         });
 
         it("does not create a second lead when the sender already exists", async () => {
