@@ -157,16 +157,8 @@ export async function POST(
             });
         }
 
-        if (leadId) {
-            await prisma.lead.update({
-                where: { id: leadId },
-                data: { status: "SENT" },
-            }).catch((err) => {
-                console.error(`[Approval API] Failed to update Lead status for leadId ${leadId}:`, err?.message || err);
-                throw err;
-            });
-        }
-
+        // The lead's status is not set here: handleEmailSending sets it when the email actually goes out, so a
+        // delayed, held or failed send never leaves the lead showing as sent.
         const isEmailApproval =
             approval.entityType?.toLowerCase() === "email" ||
             approval.entityType?.toLowerCase() === "lead" ||
