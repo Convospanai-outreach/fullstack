@@ -25,8 +25,8 @@ export async function GET() {
       // marked done, or later marked replied) and leads marked replied. Profile captures and sequence events are not outreach.
       prisma.leadActivity.groupBy({ by: ["leadId"], where: linkedinWhere(["LINKEDIN_OUTREACH_DONE", "LINKEDIN_CONTACTED", "LINKEDIN_REPLIED"]) }),
       prisma.leadActivity.groupBy({ by: ["leadId"], where: linkedinWhere(["LINKEDIN_REPLIED"]) }),
-      // Calls logged on a lead (the lead page and the journey API). One call per lead per window: a contacted-then-replied
-      // pair is the same call. Calls finished on the caller page are not logged here yet.
+      // Calls logged on a lead (the lead page, the journey API, and calls finished on the caller page). One call per lead
+      // per window: a contacted-then-replied pair is the same call.
       prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_CONTACTED", "CALL_REPLIED"]) }),
       prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_REPLIED"]) }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "OUTBOUND", createdAt: { gte: since } } }),

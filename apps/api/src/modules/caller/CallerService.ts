@@ -236,5 +236,19 @@ export class CallerService {
             });
         }
         // Other outcomes (COORDINATING for VM/callback) — keep queue assigned, no state change
+
+        // Every finished call is a timestamped, lead-scoped touch (the lead was verified against teamId above).
+        // The type is what Home counts: CALL_REPLIED when the call became a conversation (meeting confirmed or
+        // closed), CALL_CONTACTED when it did not (voicemail, callback), so "made" and "talked" both add up.
+        await prisma.leadActivity.create({
+            data: {
+                leadId,
+                channel: "CALL",
+                type: outcome === ConversationState.MEETING_CONFIRMED || outcome === ConversationState.CLOSED ? "CALL_REPLIED" : "CALL_CONTACTED",
+                title: `Call completed: ${String(outcome).toLowerCase().replaceAll("_", " ")}`,
+                notes: notes ?? null,
+                createdBy: userId,
+            },
+        });
     }
 }

@@ -480,5 +480,8 @@ D). Update this section in the same PR that changes a channel.
   implements `scrape`. Sequence steps become rep tasks, the extension records a
   step a person did, and no replies are captured. Stays out of public claims
   until its own PR changes this.
-- **Calls - stub as an outreach channel.** A human hand-off queue. No dialer, no
-  call record, no consent check before a call task is created.
+- **Calls - stub as an outreach channel.** A human hand-off queue. No dialer and
+  no consent check before a call task is created. Each finished call writes a
+  `LeadActivity` (channel CALL, type CALL_REPLIED if it became a conversation,
+  else CALL_CONTACTED; caller and time), which Home counts as calls made and
+  conversations.
