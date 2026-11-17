@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { composeNodeA, composeNodeB, composeNodeC } from "@/modules/email-campaigner/service/emailComposer";
+import { loadAudienceContext } from "@/modules/email-campaigner/service/audienceContext";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -12,13 +14,19 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { node, input } = body;
 
-        if (!node || !input) {
+        if (!node || !input || typeof input !== "object" || Array.isArray(input)) {
             return NextResponse.json({ error: "Missing node or input" }, { status: 400 });
         }
         const serializedInput = JSON.stringify(input);
         if (serializedInput.length > 9000) {
             return NextResponse.json({ error: "Compose input exceeds allowed size" }, { status: 400 });
         }
+
+        // The audience is always built here from the caller's own team data, never taken from the request.
+        input.audience_context = await loadAudienceContext(ctx.teamId, {
+            leadId: typeof body.leadId === "string" ? body.leadId : undefined,
+            campaignId: typeof body.campaignId === "string" ? body.campaignId : undefined,
+        });
 
         let result;
         
@@ -42,6 +50,6 @@ export async function POST(req: NextRequest) {
         if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
             return NextResponse.json({ error: message }, { status: 400 });
         }
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

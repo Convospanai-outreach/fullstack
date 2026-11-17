@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { buildFacebookLeadsAuthUrl } from "@/modules/facebook-leads/service/facebookLeadsService";
 import { resolveEnabledFeatureKeys } from "@/lib/hiddenFeaturesReadiness";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,6 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({ authUrl });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to start Facebook OAuth." }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Unable to start Facebook OAuth.") }, { status: 500 });
     }
 }

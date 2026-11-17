@@ -12,6 +12,7 @@ import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleEmailDraftBatchSubmit, handleEmailDraftBatchPoll } from "./handlers/emailDraftBatchHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 import { handleLandingLeadIntake } from "./handlers/landing-lead-intake-worker";
+import { handleMetaCapiLead } from "./handlers/meta-capi-worker";
 import { handleInvoicePdfRender } from "./handlers/invoicePdfWorker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
@@ -76,6 +77,9 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
         case "landing_lead_intake":
             return handleLandingLeadIntake(payload);
 
+        case "meta_capi_lead":
+            return handleMetaCapiLead(payload);
+
         case "invoice_pdf_render":
             return handleInvoicePdfRender(payload);
 
@@ -85,9 +89,9 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             if (!teamId || !messageId) {
                 throw new NonRetryableJobError("reply_classification payload is missing teamId/messageId");
             }
-            const { classifyInboundReply } = await import("@/modules/inbox/replyClassificationService");
+            const { classifyInboundReplyOrFlag } = await import("@/modules/inbox/replyClassificationService");
             try {
-                return await classifyInboundReply(teamId, messageId);
+                return await classifyInboundReplyOrFlag(teamId, messageId, claim.jobId);
             } catch (error) {
                 // A team out of credits would fail identically on every retry.
                 if (error instanceof Error && /insufficient credits/i.test(error.message)) {

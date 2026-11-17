@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
 import { parseBody } from "@/lib/validation/parseBody";
 import { createScheduleSchema } from "@/lib/validation/schemas";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -47,6 +48,6 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(schedule);
     } catch (error: unknown) {
-        return new NextResponse((error as Error).message || "Internal Server Error", { status: 500 });
+        return new NextResponse(internalErrorMessage(error, "Internal Server Error"), { status: 500 });
     }
 }

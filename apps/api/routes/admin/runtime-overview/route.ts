@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 import { getRedisClient, getRedisStatus } from "@/lib/redis";
+import { internalErrorMessage } from "@/lib/internalError";
 
 type ServiceStatus = "UP" | "DOWN" | "DEGRADED" | "NOT_CONFIGURED";
 
@@ -119,17 +120,12 @@ export async function GET(req: Request) {
 
         const webOrigin = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000";
         const extensionGateway = `${webOrigin.replace(/\/$/, "")}/api/proxy/extension`;
-        const extension: ServiceHealth = process.env["EXTENSION_API_KEY"]
-            ? {
-                status: "UP",
-                message: "gateway configured",
-                endpoint: extensionGateway,
-            }
-            : {
-                status: "NOT_CONFIGURED",
-                message: "EXTENSION_API_KEY not set",
-                endpoint: extensionGateway,
-            };
+        // Extension requests authenticate with per-user sync tokens; no server key is needed.
+        const extension: ServiceHealth = {
+            status: "UP",
+            message: "gateway configured",
+            endpoint: extensionGateway,
+        };
 
         const [web, database, redis, edgeAvailability] = await Promise.all([
             checkHttp(webOrigin),
@@ -279,7 +275,7 @@ export async function GET(req: Request) {
         });
     } catch (error: any) {
         return NextResponse.json(
-            { error: error?.message || "Failed to load runtime overview" },
+            { error: internalErrorMessage(error, "Failed to load runtime overview") },
             { status: 500 }
         );
     }

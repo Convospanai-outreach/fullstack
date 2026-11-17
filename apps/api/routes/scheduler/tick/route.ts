@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function isAuthorized(authHeader: string | null, secret: string): boolean {
     const expected = `Bearer ${secret}`;
@@ -25,6 +26,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, processed: results.length, results });
     } catch (error: unknown) {
         console.error("Scheduler Trace Failed:", error);
-        return new NextResponse((error as Error).message || "Internal Server Error", { status: 500 });
+        return new NextResponse(internalErrorMessage(error, "Internal Server Error"), { status: 500 });
     }
 }

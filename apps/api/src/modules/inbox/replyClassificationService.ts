@@ -59,3 +59,47 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
     );
     return { classification: result.classification };
 }
+
+// Runs the classification job. When it fails for good (the last attempt, or an error retrying
+// cannot fix) the reply gets an UNSURE suggestion so a rep reads it themselves, then the original
+// error is rethrown so the job still shows as failed. Earlier attempts just retry.
+export async function classifyInboundReplyOrFlag(teamId: string, messageId: string, jobId: string) {
+    try {
+        return await classifyInboundReply(teamId, messageId);
+    } catch (error) {
+        try {
+            const job = await prisma.job.findUnique({ where: { id: jobId }, select: { attempts: true, maxAttempts: true } });
+            const retryable = !(error instanceof Error && /insufficient credits/i.test(error.message));
+            if (!retryable || (job && job.attempts >= job.maxAttempts)) await flagUnreadableReply(teamId, messageId);
+        } catch (flagError) {
+            logger.warn("[ReplyClassification] Could not flag an unreadable reply", { messageId, error: flagError instanceof Error ? flagError.message : String(flagError) });
+        }
+        throw error;
+    }
+}
+
+// Stores one UNSURE suggestion (no draft, no confidence): the Action Inbox shows it as "could not
+// be read, please check". It never changes the lead.
+async function flagUnreadableReply(teamId: string, messageId: string) {
+    const message = await prisma.message.findFirst({
+        where: { id: messageId, direction: "INBOUND", lead: { teamId } },
+        select: { id: true, leadId: true, content: true, lead: { select: { email: true } }, emailEvent: { select: { email: { select: { subject: true } } } } },
+    });
+    if (!message) return;
+    const existing = await prisma.replyTracker.findFirst({ where: { emailId: message.id, lead: { teamId } }, select: { id: true } });
+    if (existing) return;
+    await prisma.replyTracker.create({
+        data: {
+            leadId: message.leadId,
+            emailId: message.id,
+            senderEmail: message.lead.email ?? "",
+            subject: message.emailEvent?.email?.subject ?? "",
+            body: toPlainText(message.content).slice(0, MAX_CLASSIFIED_CHARS),
+            aiClassification: "UNSURE",
+            aiConfidence: 0,
+            aiReasoning: "This reply could not be read automatically. Please read it yourself.",
+            status: "PENDING_REVIEW",
+            replyDraft: null,
+        },
+    });
+}

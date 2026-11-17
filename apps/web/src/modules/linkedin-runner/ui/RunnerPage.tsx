@@ -58,7 +58,7 @@ export default function RunnerPage() {
                             Endpoint: <span className="text-slate-100 break-all">{extensionBase}</span>
                         </div>
                         <p className="mt-2 text-xs text-slate-400">
-                            Configure API URL and <code>EXTENSION_API_KEY</code> in the extension popup.
+                            Open the extension popup and click Connect to link it to your account.
                         </p>
                     </GlassCard>
 

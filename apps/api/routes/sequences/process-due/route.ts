@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { JobQueue } from "@/lib/queue";
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function readLimit(value: unknown) {
     return typeof value === "number" && Number.isFinite(value)
@@ -37,6 +38,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ jobId: job.id, status: job.status }, { status: 202 });
     } catch (error: any) {
         console.error("[Sequences] Failed to process due sequence steps:", error);
-        return NextResponse.json({ error: error?.message || "Failed to process due sequence steps" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Failed to process due sequence steps") }, { status: 500 });
     }
 }

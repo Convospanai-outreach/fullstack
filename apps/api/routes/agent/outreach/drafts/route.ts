@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     try {
@@ -83,6 +84,6 @@ export async function GET() {
 
     } catch (error: any) {
         console.error("Failed to fetch drafts:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

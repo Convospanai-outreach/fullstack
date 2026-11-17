@@ -1,27 +1,62 @@
 
 import { prisma } from "@/lib/db";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { classifyReply } from "@/lib/ai/jev";
+import { readOptOut, type InboundClass } from "@/lib/optOutReader";
 
 export class ComplianceGuard {
 
-    private readonly STOP_KEYWORDS = ["stop", "unsubscribe", "remove", "opt out", "not interested"];
-
     /**
-     * Checks inbound message for compliance triggers.
-     * If detected, immediately halts all campaigns for this lead.
+     * Reads an inbound message and returns what it is. Only a request to stop all contact
+     * (OPT_OUT) is enforced here. The other classes are returned for the caller to act on:
+     * NOT_INTERESTED / NOT_NOW end or pause one sequence, AUTO_REPLY is not a reply, and UNSURE
+     * must go to a person: it is never suppressed and never continued automatically.
+     * A clear opt-out is enforced without the model, so it still works when the model is down.
      */
-    async checkInboundMessage(leadId: string, messageContent: string): Promise<boolean> {
-        const content = messageContent.toLowerCase();
+    async checkInboundMessage(leadId: string, messageContent: string, opts: { subject?: string; headers?: Record<string, string> } = {}): Promise<InboundClass> {
+        let cls: InboundClass;
+        let pass: "deterministic" | "model";
 
-        // 1. Check for Opt-Out Keywords
-        const isStop = this.STOP_KEYWORDS.some(k => content.includes(k));
-
-        if (isStop) {
-            console.log(`[Compliance] STOP signal detected for Lead ${leadId}`);
-            await this.enforceOptOut(leadId, "User replied STOP");
-            return true;
+        const read = readOptOut({ subject: opts.subject, body: messageContent, headers: opts.headers });
+        if (read) {
+            cls = read.class;
+            pass = "deterministic";
+        } else {
+            cls = await this.askModel(leadId, opts.subject ?? "", messageContent);
+            pass = "model";
         }
 
-        return false;
+        // Class and deciding pass only: the message text is never logged.
+        await prisma.auditLog.create({
+            data: { orgId: "SYSTEM", actorId: "SYSTEM", action: "COMPLIANCE_INBOUND_CLASSIFIED", entity: "Lead", entityId: leadId, metadata: { class: cls, pass } },
+        });
+
+        if (cls === "OPT_OUT") {
+            await this.enforceOptOut(leadId, "User replied with a request to stop");
+        }
+        return cls;
+    }
+
+    // The model sees masked text only. Any failure is UNSURE, never a guess.
+    private async askModel(leadId: string, subject: string, body: string): Promise<InboundClass> {
+        try {
+            const lead = await prisma.lead.findFirst({ where: { id: leadId }, select: { teamId: true, fullName: true, company: true } });
+            if (!lead?.teamId) return "UNSURE";
+            const masked = await SovereignFirewall.mask(body, "GLOBAL", undefined, { alwaysMask: true });
+            const maskedSubject = await SovereignFirewall.mask(subject, "GLOBAL", undefined, { alwaysMask: true });
+            const names = { person: lead.fullName, company: lead.company };
+            const safeBody = SovereignFirewall.maskKnownNames(masked.safeContext, names, masked.tokenMap).safeContext;
+            const safeSubject = SovereignFirewall.maskKnownNames(maskedSubject.safeContext, names, maskedSubject.tokenMap).safeContext;
+            const { classification } = await classifyReply({ subject: safeSubject, body: safeBody }, lead.teamId);
+            switch (classification) {
+                case "DNC": return "OPT_OUT";
+                case "NOT_INTERESTED": return "NOT_INTERESTED";
+                case "OOO": return "AUTO_REPLY";
+                default: return "NEUTRAL";
+            }
+        } catch {
+            return "UNSURE";
+        }
     }
 
     /**
@@ -42,6 +77,13 @@ export class ComplianceGuard {
             // Find all leads with the same email or linkedIn in other campaigns and mark them DNC too
             const lead = await prisma.lead.findUnique({ where: { id: leadId } });
             if (lead?.email) {
+                // Campaign sends check the suppression list, so an opt-out has to be on it too.
+                const email = lead.email.toLowerCase();
+                if (lead.teamId) await prisma.suppressionEntry.upsert({
+                    where: { teamId_email: { teamId: lead.teamId, email } },
+                    create: { teamId: lead.teamId, email, reason: "OPT_OUT", source: "COMPLIANCE_GUARD", leadId },
+                    update: { reason: "OPT_OUT", source: "COMPLIANCE_GUARD", leadId },
+                });
                 const updated = await prisma.lead.updateMany({
                     where: {
                         email: lead.email,

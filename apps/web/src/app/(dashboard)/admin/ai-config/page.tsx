@@ -30,7 +30,7 @@ export default function AdminAiConfigPage() {
     openaiApiKey: "",
     openaiModel: "gpt-4o-mini",
     anthropicApiKey: "",
-    anthropicModel: "claude-3-5-sonnet"
+    anthropicModel: "claude-sonnet-5-5"
   });
 
   const loadConfig = async () => {
@@ -154,7 +154,7 @@ export default function AdminAiConfigPage() {
                 />
                 <input
                   type="text"
-                  placeholder="Model (e.g. claude-3-5-sonnet)"
+                  placeholder="Model (e.g. claude-sonnet-5-5)"
                   className="w-full bg-muted border border-border rounded-lg p-3 text-foreground"
                   value={form.anthropicModel}
                   onChange={(e) => setForm({ ...form, anthropicModel: e.target.value })}

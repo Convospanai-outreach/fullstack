@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { aiService } from "@/lib/aiService";
 import { NotificationDispatcher } from "@/lib/notifications";
-import { TaskComplexity } from "@/ai/types";
+import { judgeFriction } from "@/lib/ai/jev";
 
 export class IntentScoringService {
     async processWebhookData(data: any): Promise<void> {
@@ -38,25 +37,15 @@ export class IntentScoringService {
             logger.warn("[IntentScoring] Edge Node offline or timeout.");
         }
 
-        // 2. Secondary: Cloud AI Fallback (LLM)
+        // 2. Secondary: Jev judges each kind of friction (anger, rejection, spam); the score is
+        // the strongest of them, so any one that is near-certain crosses the alert threshold.
         try {
-            const prompt = `Analyze the following text and provide a "Karmic Friction Score" from 0 to 100, where 100 is extremely high friction (anger, rejection, spam) and 0 is high intent/harmony.
-            TEXT: "${textContent}"
-            Return ONLY the number.`;
-            
-            // Output is a bare number - no prose - so this is TRIVIAL-tier work,
-            // not the default STRATEGIC model askAI otherwise reaches for.
-            const aiScoreStr = await aiService.askAI(prompt, undefined, {
-                taskType: "ANALYSIS",
-                complexity: TaskComplexity.TRIVIAL
-            });
-            const aiScore = parseFloat(aiScoreStr.trim());
-            if (!isNaN(aiScore)) {
-                console.log(`[IntentScoring] AI Fallback Score: ${aiScore}`);
-                return aiScore;
-            }
-        } catch (aiErr) {
-            logger.error("[IntentScoring] AI Fallback failed:", aiErr);
+            const friction = await judgeFriction(textContent);
+            const jevScore = Math.max(friction.hostile, friction.rejecting, friction.spam) * 100;
+            logger.info(`[IntentScoring] Jev Score: ${jevScore.toFixed(1)}`, friction);
+            return jevScore;
+        } catch (jevErr) {
+            logger.error("[IntentScoring] Jev fallback failed:", jevErr);
         }
 
         // 3. Tertiary: Simple Heuristic Fallback

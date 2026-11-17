@@ -617,3 +617,27 @@ describe("JobQueue.resetStaleJobs", () => {
         expect(maximumActiveWrites).toBeGreaterThan(1);
     });
 });
+
+describe("JobQueue.enqueue team column", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (prisma.job.create as Mock).mockImplementation(async ({ data }: any) => data);
+    });
+
+    it("uses the explicit teamId option", async () => {
+        const job: any = await JobQueue.enqueue("lead_enrichment" as any, { teamId: "payload-team" }, { teamId: "option-team" });
+        expect(job.teamId).toBe("option-team");
+        expect(job.tenantId).toBe("option-team");
+    });
+
+    it("falls back to the team in the payload so the per-team running cap applies", async () => {
+        const job: any = await JobQueue.enqueue("lead_enrichment" as any, { teamId: "payload-team" });
+        expect(job.teamId).toBe("payload-team");
+        expect(job.tenantId).toBe("payload-team");
+    });
+
+    it("leaves the column null when neither names a team", async () => {
+        const job: any = await JobQueue.enqueue("lead_enrichment" as any, {});
+        expect(job.teamId).toBeNull();
+    });
+});

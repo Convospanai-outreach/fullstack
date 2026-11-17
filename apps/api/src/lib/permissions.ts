@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { logAuthzDenied } from "@/lib/authzDenied";
 
 export enum TeamRole {
     OWNER = "owner",
@@ -76,6 +77,7 @@ export async function hasPermission(userId: string, teamId: string, permission: 
 export async function authorizePermission(userId: string, teamId: string, permission: Permission) {
     const allowed = await hasPermission(userId, teamId, permission);
     if (!allowed) {
+        logAuthzDenied(userId, teamId, `permission:${permission}`);
         const { APIError } = await import("@/lib/apiResponse");
         throw new APIError(`Insufficient permissions: Requires ${permission}`, 403);
     }
@@ -84,6 +86,7 @@ export async function authorizePermission(userId: string, teamId: string, permis
 export async function authorizeRole(userId: string, teamId: string, requiredRole: TeamRole) {
     const hasPerm = await checkTeamPermission(userId, teamId, requiredRole);
     if (!hasPerm) {
+        logAuthzDenied(userId, teamId, `role:${requiredRole}`);
         const { APIError } = await import("@/lib/apiResponse");
         throw new APIError("Insufficient permissions", 403);
     }
@@ -99,6 +102,7 @@ export async function forbiddenUnlessRole(
     requiredRole: TeamRole
 ): Promise<NextResponse | null> {
     if (await checkTeamPermission(userId, teamId, requiredRole)) return null;
+    logAuthzDenied(userId, teamId, `role:${requiredRole}`);
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 }
 

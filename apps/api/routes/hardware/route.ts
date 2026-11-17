@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { EdgeRuntimeError, requireEdgePiiAvailable } from "@/lib/edgeRuntime";
 import { getAdminUser } from "@/lib/admin";
 import { UserRole } from "@prisma/client";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const PII_EDGE_ACTIONS = new Set(["SANITIZE", "RE_IDENTIFY", "CRITIQUE", "SEARCH", "EXECUTE"]);
 
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
         if (e instanceof EdgeRuntimeError) {
             return new Response(JSON.stringify({ error: e.code, message: e.message }), { status: e.statusCode, headers: { 'Content-Type': 'application/json' } });
         }
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: internalErrorMessage(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }
 
@@ -118,6 +119,6 @@ export async function GET() {
         const ownWorkflows = (workflows || []).filter((w: any) => w?.teamId === ctx.teamId);
         return new Response(JSON.stringify(ownWorkflows), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: internalErrorMessage(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }

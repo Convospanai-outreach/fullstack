@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { setTeamWaba, clearTeamWaba, verifyWabaAccount, verifyWabaCredentials } from "@/modules/whatsapp/wabaCredentials";
+import { getEmbeddedSignupConfig } from "@/modules/whatsapp/embeddedSignup";
 
 // Setup-time WABA (WhatsApp Business API) ownership for a team. Configuring
 // credentials here enables automated sequence sends; leaving it unset (or
@@ -25,11 +26,16 @@ export async function GET(req: NextRequest) {
         select: { whatsappPhoneNumberId: true, whatsappBusinessAccountId: true, whatsappWabaConfiguredAt: true },
     });
 
+    // The browser needs the (public) app and configuration ids to open Meta's signup popup; null keeps
+    // the one-click connect hidden until the Embedded Signup settings exist. The app secret never leaves.
+    const embedded = getEmbeddedSignupConfig();
+
     return NextResponse.json({
         hasWaba: !!team?.whatsappPhoneNumberId,
         phoneNumberId: team?.whatsappPhoneNumberId || null,
         businessAccountId: team?.whatsappBusinessAccountId || null,
         configuredAt: team?.whatsappWabaConfiguredAt || null,
+        embeddedSignup: embedded ? { appId: embedded.appId, configId: embedded.configId } : null,
     });
 }
 

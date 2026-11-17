@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
 import { canonicalLinkedInProfileUrl, linkedInForStorage } from "@/lib/crm/linkedin";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("POST /api/upload/csv error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

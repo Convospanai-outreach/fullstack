@@ -1235,7 +1235,7 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
 
         expect(prisma.lead.update).toHaveBeenCalledWith({
             where: { id: "lead-1" },
-            data: { status: "STOPPED", updatedAt: expect.any(Date) },
+            data: { status: "STOPPED", updatedAt: expect.any(Date), emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: expect.any(Date) },
         });
         expect(prisma.suppressionEntry.upsert).toHaveBeenCalled();
     });

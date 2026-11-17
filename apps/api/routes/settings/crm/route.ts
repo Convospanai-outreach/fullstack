@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { encryptCrmToken } from "@/modules/crm-integration/service/crmSecrets";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function sanitizeCrmIntegration(integration: any) {
     const { accessToken, refreshToken, ...safeIntegration } = integration;
@@ -103,7 +104,7 @@ export async function PUT(req: Request) {
         return NextResponse.json(sanitizeCrmIntegration(integration));
     } catch (error: any) {
         console.error("[CRM API] PUT error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -123,6 +124,6 @@ export async function POST(req: Request) {
 
         return NextResponse.json(result);
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

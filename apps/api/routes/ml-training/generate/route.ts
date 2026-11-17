@@ -10,6 +10,7 @@ import { getAdminUser } from "@/lib/admin";
 import { syntheticDataGenerator } from "@/modules/ml-training/generators/SyntheticGenerator";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const generateSchema = z.object({
     taskType: z.enum([
@@ -54,6 +55,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("[ML-Training] Generation failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadPublicFile } from "@/lib/supabaseStorage";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, url });
     } catch (error: any) {
         console.error("[settings:branding:logo:post]", error);
-        return NextResponse.json({ error: error?.message || "Upload failed" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Upload failed") }, { status: 500 });
     }
 }

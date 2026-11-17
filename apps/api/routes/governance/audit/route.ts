@@ -4,6 +4,7 @@ import { AuditService } from "@/modules/audit/auditService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     try {
@@ -29,6 +30,6 @@ export async function GET() {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to fetch audit logs", { error: errorMessage });
-        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

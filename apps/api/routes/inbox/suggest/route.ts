@@ -4,6 +4,7 @@ import { InboxService } from "@/lib/inboxService";
 import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { LearningService } from "@/modules/learning/learningService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -59,6 +60,6 @@ export async function POST(req: NextRequest) {
         if (error?.message?.includes("prompt") || error?.message?.includes("not allowed") || error?.message?.includes("exceeds")) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

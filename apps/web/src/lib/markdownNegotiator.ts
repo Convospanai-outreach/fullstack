@@ -171,7 +171,7 @@ Verified scenario implementations across B2B verticals.
 CraftMyFunnel engineers high-performance, governed B2B outbound infrastructure.
 
 ## Institutional Background
-- **Entity**: Convospan AI Private Limited
+- **Entity**: Sudhisha Digital Private Limited
 - **Registration**: Ministry of Corporate Affairs (MCA), Government of India
 - **Offices**: Bengaluru Tech Corridor (Karnataka) and Connaught Place (New Delhi)
 - **Leadership**: Founded by Siddharth Kumar, Lead Systems Architect

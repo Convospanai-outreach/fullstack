@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 import { KnowledgeIngressService } from "@/modules/rag/service/KnowledgeIngressService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 async function campaignBelongsToTeam(campaignId: string, teamId: string) {
     const campaign = await prisma.campaign.findFirst({
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true, message: "Knowledge ingestion queued" });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -70,6 +71,6 @@ export async function GET(req: NextRequest) {
         const results = await KnowledgeIngressService.agenticSearch(campaignId, query, auth.teamId);
         return NextResponse.json({ results });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

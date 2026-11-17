@@ -6,6 +6,7 @@ import { SentinelService } from "@/modules/audit/SentinelService";
 import { DbFactory } from "@/lib/dbFactory";
 import * as cryptoNode from "crypto";
 import { createSharedReplayCache } from "@/lib/sharedReplayCache";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const REPLAY_WINDOW_MS = 5 * 60 * 1000;
 
@@ -143,6 +144,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error("[Webhook] Scraper Ingest Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

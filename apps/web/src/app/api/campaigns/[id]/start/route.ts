@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { enrollCampaignLeads } from "@/lib/campaigns/enrollment";
+import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,10 @@ export async function POST(
         });
         if (!campaign) {
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
+        if (!(await hasSendingChannel(teamId))) {
+            return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
         }
 
         const gate = await checkCampaignStartApproval({ teamId, userId, campaignId });
@@ -92,6 +98,6 @@ export async function POST(
         });
     } catch (error: any) {
         console.error("POST /api/campaigns/[id]/start error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

@@ -41,6 +41,9 @@ vi.mock("../socialInbox", async (importOriginal) => ({ ...(await importOriginal<
 vi.mock("../metaGraph", async (importOriginal) => ({ ...(await importOriginal<typeof import("../metaGraph")>()), graphCall, graphPostJson }));
 const setFirstTouchPost = vi.hoisted(() => vi.fn());
 vi.mock("../contentRoi", () => ({ setFirstTouchPost }));
+const queueFlowStart = vi.hoisted(() => vi.fn());
+const processPendingFlowEvents = vi.hoisted(() => vi.fn());
+vi.mock("../dmFlowRuns", () => ({ queueFlowStart, processPendingFlowEvents }));
 
 import {
     ACCOUNT_HOURLY_LIMIT,
@@ -171,6 +174,14 @@ describe("queueing", () => {
         expect(await queueCommentReplies(comment(), [account], NOW)).toBe(0);
     });
 
+    it("a trigger with a DM flow starts a flow run for the commenter instead of a single reply", async () => {
+        mockDb.keywordTrigger.findMany.mockResolvedValue([trigger({ flowId: "flow-1", landingPageId: "page-1" })]);
+        queueFlowStart.mockResolvedValueOnce(true);
+        expect(await queueCommentReplies(comment(), [account], NOW)).toBe(1);
+        expect(queueFlowStart).toHaveBeenCalledWith(account, { id: "trig-1", flowId: "flow-1", landingPageId: "page-1" }, { sourceKey: "comment:c1", personKey: "u9" }, NOW);
+        expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
+    });
+
     it("never answers the account's own comment, even if Instagram gives it a different id", async () => {
         expect(await queueCommentReplies(comment({ authorId: "other-id", authorHandle: "@Maker" }), [{ ...account, handle: "@maker" }], NOW)).toBe(0);
         expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
@@ -191,6 +202,23 @@ describe("queueing", () => {
         expect(mockDb.keywordTrigger.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
             where: expect.objectContaining({ scope: { in: ["DM", "BOTH"] } }),
         }));
+    });
+});
+
+describe("DM flows on the auto-reply tick", () => {
+    it("a DM with a flow trigger is not answered with a single reply", async () => {
+        mockDb.keywordTrigger.findMany.mockResolvedValue([trigger({ flowId: "flow-1" })]);
+        mockDb.keywordTriggerReply.create.mockClear();
+        expect(await queueDmReply(account, { mid: "mid-f", senderId: "igsid-9", text: "guide", leadId: "lead-1" }, NOW)).toBe(false);
+        expect(mockDb.keywordTriggerReply.create).not.toHaveBeenCalled();
+    });
+
+    it("runs the flow pass after the keyword replies, and a flow failure does not stop them", async () => {
+        mockDb.keywordTriggerReply.groupBy.mockResolvedValue([]);
+        mockDb.keywordTriggerReply.findMany.mockResolvedValue([]);
+        processPendingFlowEvents.mockRejectedValueOnce(new Error("flow pass down"));
+        await expect(sendPendingAutoReplies(NOW)).resolves.toEqual({ handled: 0 });
+        expect(processPendingFlowEvents).toHaveBeenCalledWith(NOW);
     });
 });
 
@@ -449,6 +477,45 @@ describe("sendPendingAutoReplies", () => {
 
         await sendPendingAutoReplies(NOW);
         expect(graphCall).toHaveBeenCalledTimes(1);
+    });
+
+    describe("Instagram Login account (no Facebook Page)", () => {
+        const noPage = {
+            ...igAccount,
+            parentExternalId: null,
+            scopes: ["instagram_business_basic", "instagram_business_manage_comments", "instagram_business_manage_messages"],
+        };
+
+        it("sends the private reply and the public comment reply from the account's own id on the Instagram host", async () => {
+            pageTokenFor.mockResolvedValue("ig-user-token");
+            const r = row({ publicStatus: "PENDING" }, { publicCommentReply: "Sent you a DM!", socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+
+            expect(graphPostJson).toHaveBeenCalledWith("ig-1/messages", { recipient: { comment_id: "c1" }, message: { text: "Here's the guide" } }, "ig-user-token", "https://graph.instagram.com/v26.0");
+            expect(graphCall).toHaveBeenCalledWith("POST", "c1/replies", { message: "Sent you a DM!" }, "user-token", "https://graph.instagram.com/v26.0");
+            expect(get(r.id)).toMatchObject({ status: "SENT", publicStatus: "SENT" });
+        });
+
+        it("answers a keyword DM through the same endpoint with the sender's id", async () => {
+            pageTokenFor.mockResolvedValue("ig-user-token");
+            row({ sourceKey: "dm:mid-1", personKey: "igsid-9", commentId: null, leadId: "lead-1" }, { socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+            expect(graphPostJson).toHaveBeenCalledWith("ig-1/messages", { recipient: { id: "igsid-9" }, message: { text: "Here's the guide" } }, "ig-user-token", "https://graph.instagram.com/v26.0");
+        });
+
+        it("needs the Instagram Login permissions, not the Facebook ones, and says which are missing", async () => {
+            const r = row({}, { socialAccount: { ...noPage, scopes: ["instagram_business_basic"] } });
+            await sendPendingAutoReplies(NOW);
+            expect(get(r.id)).toMatchObject({ status: "FAILED", lastError: "Reconnect the account and allow: instagram_business_manage_comments." });
+            expect(graphPostJson).not.toHaveBeenCalled();
+        });
+
+        it("fails clearly, not with a Page message, when the account's own token is gone", async () => {
+            pageTokenFor.mockResolvedValue(null);
+            const r = row({}, { socialAccount: noPage });
+            await sendPendingAutoReplies(NOW);
+            expect(get(r.id)).toMatchObject({ status: "FAILED", lastError: "The account's connection is missing. Reconnect it." });
+        });
     });
 
     it("doesn't post the public reply when the DM didn't go out", async () => {

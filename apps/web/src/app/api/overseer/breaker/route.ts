@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,6 @@ export async function GET() {
     return NextResponse.json({ state: breaker?.state || "CLOSED", metrics: breaker?.metrics || null });
   } catch (error: any) {
     console.error("Failed to fetch breaker state:", error);
-    return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
   }
 }

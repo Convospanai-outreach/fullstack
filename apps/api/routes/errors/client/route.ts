@@ -9,6 +9,23 @@ const errorRateLimit = new Map<string, { count: number; resetAt: number }>();
 const MAX_ERRORS_PER_MINUTE = 10;
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 
+// Anyone can post here, so every stored field is bounded.
+const MAX_FIELD_LENGTH = 500;
+const MAX_STACK_LENGTH = 2000;
+const MAX_METADATA_BYTES = 4096;
+
+// Each alert pass reads every error of the last few minutes, so one pass a minute is enough.
+const MONITOR_INTERVAL_MS = 60000;
+let lastMonitorAt = 0;
+
+const text = (value: unknown, max: number): string | null =>
+    typeof value === "string" && value ? value.substring(0, max) : null;
+
+function boundedMetadata(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return JSON.stringify(value).length <= MAX_METADATA_BYTES ? (value as Record<string, unknown>) : {};
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Get client IP for rate limiting
@@ -48,7 +65,7 @@ export async function POST(req: NextRequest) {
         } = body;
 
         // Validate required fields
-        if (!message) {
+        if (typeof message !== "string" || !message) {
             return NextResponse.json(
                 { error: "Error message is required" },
                 { status: 400 }
@@ -61,14 +78,14 @@ export async function POST(req: NextRequest) {
         // Store error in database
         const errorLog = await prisma.clientError.create({
             data: {
-                message: message.substring(0, 500), // Limit message length
-                stack: stack ? stack.substring(0, 2000) : null,
-                componentStack: componentStack ? componentStack.substring(0, 2000) : null,
-                url: url || req.headers.get("referer") || "unknown",
-                userAgent: userAgent || req.headers.get("user-agent") || "unknown",
+                message: message.substring(0, MAX_FIELD_LENGTH),
+                stack: text(stack, MAX_STACK_LENGTH),
+                componentStack: text(componentStack, MAX_STACK_LENGTH),
+                url: text(url, MAX_FIELD_LENGTH) || text(req.headers.get("referer"), MAX_FIELD_LENGTH) || "unknown",
+                userAgent: text(userAgent, MAX_FIELD_LENGTH) || text(req.headers.get("user-agent"), MAX_FIELD_LENGTH) || "unknown",
                 userId,
                 ip,
-                metadata: metadata || {}
+                metadata: boundedMetadata(metadata)
             }
         });
 
@@ -76,9 +93,12 @@ export async function POST(req: NextRequest) {
 
         // Trigger async error monitoring and alerting
         // Don't await - run in background
-        ClientErrorAlertService.monitorAndAlert(5).catch(err => {
-            console.error("[ClientError] Alert monitoring failed:", err);
-        });
+        if (now - lastMonitorAt >= MONITOR_INTERVAL_MS) {
+            lastMonitorAt = now;
+            ClientErrorAlertService.monitorAndAlert(5).catch(err => {
+                console.error("[ClientError] Alert monitoring failed:", err);
+            });
+        }
 
         return NextResponse.json({
             success: true,

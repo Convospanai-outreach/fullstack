@@ -1,9 +1,10 @@
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetServerSession, mockExecFileSync } = vi.hoisted(() => ({
+const { mockGetServerSession, mockExecFileSync, mockAuditCreate } = vi.hoisted(() => ({
     mockGetServerSession: vi.fn(),
     mockExecFileSync: vi.fn(),
+    mockAuditCreate: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
@@ -12,9 +13,16 @@ vi.mock("@/lib/auth", () => ({
     isSuperAdminRole: (role: unknown) => role === "SUPER_ADMIN" || role === "SYSTEM_ADMIN",
 }));
 vi.mock("child_process", () => ({ execFileSync: mockExecFileSync }));
+// The write path must never touch the real content directory from a test.
+vi.mock("fs", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("fs")>();
+    const mocked = { ...actual, mkdirSync: vi.fn(), writeFileSync: vi.fn() };
+    return { ...mocked, default: mocked };
+});
+vi.mock("@/lib/db", () => ({ prisma: { superAdminAuditLog: { create: mockAuditCreate } } }));
 
 function sessionWithRole(enterpriseRole: string) {
-    return { user: { enterpriseRole } };
+    return { user: { id: "admin-1", enterpriseRole } };
 }
 
 function putRequest(body: unknown) {
@@ -28,6 +36,7 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetServerSession.mockResolvedValue(sessionWithRole("SUPER_ADMIN"));
+        mockAuditCreate.mockResolvedValue({});
     });
 
     it("passes git arguments as an argv array, never a shell command string built by interpolation", async () => {
@@ -90,3 +99,58 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
         expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 });
+
+function postRequest(body: unknown) {
+    return new Request("http://localhost/api/admin/cms", {
+        method: "POST",
+        headers: { "cf-connecting-ip": "203.0.113.9" },
+        body: JSON.stringify(body),
+    }) as any;
+}
+
+describe("/api/admin/cms - audit trail", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetServerSession.mockResolvedValue(sessionWithRole("SUPER_ADMIN"));
+        mockAuditCreate.mockResolvedValue({});
+    });
+
+    it("records a git push, before it runs, with who, which file and from where", async () => {
+        const { PUT } = await import("./route");
+
+        const res = await PUT(new Request("http://localhost/api/admin/cms", {
+            method: "PUT",
+            headers: { "cf-connecting-ip": "203.0.113.9" },
+            body: JSON.stringify({ file: "x.md" }),
+        }) as any);
+
+        expect(res.status).toBe(200);
+        expect(mockAuditCreate).toHaveBeenCalledWith({
+            data: { userId: "admin-1", action: "CMS_PUSH", ipAddress: "203.0.113.9", metadata: { file: "x.md" } },
+        });
+        expect(mockAuditCreate.mock.invocationCallOrder[0]).toBeLessThan(mockExecFileSync.mock.invocationCallOrder[0]!);
+    });
+
+    it("does not push when the audit row cannot be written", async () => {
+        mockAuditCreate.mockRejectedValue(new Error("audit table unavailable"));
+        const { PUT } = await import("./route");
+
+        const res = await PUT(new Request("http://localhost/api/admin/cms", { method: "PUT", body: JSON.stringify({ file: "x.md" }) }) as any);
+
+        expect(res.status).toBe(500);
+        expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it("records a content write with the file name, not the content", async () => {
+        const { POST } = await import("./route");
+
+        const res = await POST(postRequest({ file: "tmp-audit-test/page.md", content: "SECRET BODY TEXT" }));
+
+        expect(res.status).toBe(200);
+        expect(mockAuditCreate).toHaveBeenCalledWith({
+            data: expect.objectContaining({ userId: "admin-1", action: "CMS_WRITE", metadata: { file: "tmp-audit-test/page.md" } }),
+        });
+        expect(JSON.stringify(mockAuditCreate.mock.calls)).not.toContain("SECRET BODY TEXT");
+    });
+});
+

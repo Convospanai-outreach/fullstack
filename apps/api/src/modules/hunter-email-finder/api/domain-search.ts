@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { hunterClient } from "../service/hunterClient";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const MAX_DOMAIN_SEARCH_LIMIT = 25;
 
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ ok: true, result });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

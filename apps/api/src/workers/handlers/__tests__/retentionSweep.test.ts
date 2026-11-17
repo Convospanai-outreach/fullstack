@@ -78,6 +78,10 @@ function seedTables() {
             { id: `${model}-recent`, createdAt: daysAgo(300) },
         ]);
     }
+    mockPrisma.serverError = fakeTable([
+        { id: "serverError-old", createdAt: daysAgo(31) },
+        { id: "serverError-recent", createdAt: daysAgo(29) },
+    ]);
     // Present so any accidental access would show up; retention must never touch them.
     mockPrisma.activity = fakeTable([{ id: "activity-ancient", createdAt: daysAgo(3000) }]);
     mockPrisma.auditLog = fakeTable([{ id: "audit-ancient", createdAt: daysAgo(3000) }]);
@@ -106,7 +110,7 @@ describe("runRetentionSweep", () => {
 
             const results = await runRetentionSweep(NOW);
 
-            for (const model of ["job", "outboxEvent", "notification", "lLMUsageLog", "emailEvent", "landingEvent"]) {
+            for (const model of ["job", "outboxEvent", "notification", "lLMUsageLog", "emailEvent", "landingEvent", "serverError"]) {
                 expect(mockPrisma[model].deleteMany).not.toHaveBeenCalled();
                 expect(mockPrisma[model].findMany).not.toHaveBeenCalled();
             }
@@ -119,6 +123,7 @@ describe("runRetentionSweep", () => {
                 LLMUsageLog: 1,
                 EmailEvent: 1,
                 LandingEvent: 1,
+                ServerError: 1,
             });
         });
     });
@@ -164,6 +169,12 @@ describe("runRetentionSweep", () => {
             for (const model of ["lLMUsageLog", "emailEvent", "landingEvent"]) {
                 expect(mockPrisma[model].ids()).toEqual([`${model}-recent`]);
             }
+        });
+
+        it("keeps 30 days of ServerError rows by default", async () => {
+            await runRetentionSweep(NOW);
+
+            expect(mockPrisma.serverError.ids()).toEqual(["serverError-recent"]);
         });
 
         it("never reads or deletes Activity or AuditLog", async () => {

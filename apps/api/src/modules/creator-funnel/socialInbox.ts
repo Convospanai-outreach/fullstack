@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { GraphError, graphCall, graphPostJson } from "./metaGraph";
+import { IG_LOGIN_MESSAGES_SCOPE, graphBaseArg, isInstagramLogin } from "./instagramLogin";
 
 // Creator funnel DMs: Instagram Direct and Facebook Page messages arrive through one Meta
 // webhook (routes/webhooks/meta-social) and land in the Action Inbox as Message rows on a lead.
@@ -196,8 +197,11 @@ async function storeInbound(account: ReceivingAccount, event: Extract<DmEvent, {
 }
 
 // A keyword auto-reply for this DM, when one of the account's active triggers matches.
-// keywordTriggers.ts only queues it; the worker sends it.
+// keywordTriggers.ts only queues it; the worker sends it. DM flows get the message first: it can
+// be an answer to a flow in progress (dmFlowRuns.ts), even when it has no text.
 async function queueDmAutoReply(account: ReceivingAccount, event: Extract<DmEvent, { kind: "message" }>, leadId: string, now: Date) {
+    const { queueDmFlowMessage } = await import("./dmFlowRuns");
+    await queueDmFlowMessage(account, { mid: event.mid, senderId: event.senderId, text: event.text }, now);
     const { queueDmReply } = await import("./keywordTriggers");
     if (!event.text.trim()) return;
     await queueDmReply(account, { mid: event.mid, senderId: event.senderId, text: event.text, leadId }, now);
@@ -207,6 +211,10 @@ async function queueDmAutoReply(account: ReceivingAccount, event: Extract<DmEven
 // is independent: one failing doesn't stop the rest. Returns how many messages were stored and
 // how many events failed. Comments are only checked against keyword triggers, not stored.
 export async function ingestMetaWebhook(body: unknown, now = new Date()) {
+    // Instagram Login deliveries are assumed to use object "instagram" like the others; if Meta uses
+    // another name they would be acknowledged but ignored, so say so in the log.
+    const object = (body as any)?.object;
+    if (!ACCOUNT_PLATFORM_FOR_OBJECT[object]) console.warn(`[MetaSocial] Ignoring a delivery for unrecognized object "${String(object).slice(0, 40)}".`);
     const events = extractDmEvents(body);
     const { extractCommentEvents, queueCommentReplies } = await import("./keywordTriggers");
     const comments = extractCommentEvents(body);
@@ -250,8 +258,13 @@ export type TokenAccount = {
 };
 
 // DMs use the Page access token for both platforms: a Page's own row, or for Instagram the row
-// of the Page it's linked through (same team, still connected).
+// of the Page it's linked through (same team, still connected). An Instagram account connected
+// without a Page (Instagram Login) uses its own Instagram User token.
 export async function pageTokenFor(account: TokenAccount) {
+    if (isInstagramLogin(account)) {
+        if (account.status !== "CONNECTED" || !account.encryptedToken) return null;
+        return (await decryptCredential(account.encryptedToken as EncryptedCredential).catch(() => undefined)) ?? null;
+    }
     const page =
         account.platform === "FACEBOOK_PAGE"
             ? account
@@ -290,7 +303,8 @@ export async function fillContactProfile(contactId: string) {
             "GET",
             encodeURIComponent(contact.externalUserId),
             { fields: instagram ? "name,username" : "first_name,last_name" },
-            token
+            token,
+            ...graphBaseArg(contact.socialAccount)
         );
         const username = instagram ? plainName(profile?.username, 60).replace(/^@/, "") : "";
         const handle = username ? `@${username}` : null;
@@ -343,7 +357,8 @@ export async function sendSocialReply(
     if (platform === "INSTAGRAM" && Buffer.byteLength(content, "utf8") > INSTAGRAM_TEXT_MAX_BYTES) {
         throw new APIError("Instagram messages can be at most 1,000 bytes (emoji and accented letters count as more than one).", 400, "MESSAGE_TOO_LONG");
     }
-    if (!account.scopes.includes(MESSAGING_SCOPE[platform])) {
+    const instagramLogin = isInstagramLogin(account);
+    if (!account.scopes.includes(instagramLogin ? IG_LOGIN_MESSAGES_SCOPE : MESSAGING_SCOPE[platform])) {
         throw new APIError(`Reconnect this ${label} account and allow messaging to reply from CMf.`, 409, "MISSING_PERMISSION");
     }
 
@@ -355,20 +370,33 @@ export async function sendSocialReply(
 
     const token = await pageTokenFor(account);
     if (!token) {
-        throw new APIError("The Facebook Page this account uses isn't connected. Reconnect it in Settings to reply.", 409, "PAGE_DISCONNECTED");
+        throw new APIError(
+            instagramLogin
+                ? "This Instagram account's connection is missing. Reconnect it in Settings to reply."
+                : "The Facebook Page this account uses isn't connected. Reconnect it in Settings to reply.",
+            409,
+            "PAGE_DISCONNECTED"
+        );
     }
 
     let result: any;
     try {
         // Each request in the shape its own doc shows: Instagram form-encoded, Messenger JSON.
-        result =
-            platform === "INSTAGRAM"
-                ? await graphCall("POST", "me/messages", { recipient: JSON.stringify({ id: contact.externalUserId }), message: JSON.stringify({ text: content }) }, token)
-                : await graphPostJson(
-                      `${encodeURIComponent(account.externalId)}/messages`,
-                      { recipient: { id: contact.externalUserId }, messaging_type: "RESPONSE", message: { text: content } },
-                      token
-                  );
+        // Instagram Login sends JSON from the account's own id (Authorization: Bearer).
+        result = instagramLogin
+            ? await graphPostJson(
+                  `${encodeURIComponent(account.externalId)}/messages`,
+                  { recipient: { id: contact.externalUserId }, message: { text: content } },
+                  token,
+                  ...graphBaseArg(account)
+              )
+            : platform === "INSTAGRAM"
+              ? await graphCall("POST", "me/messages", { recipient: JSON.stringify({ id: contact.externalUserId }), message: JSON.stringify({ text: content }) }, token)
+              : await graphPostJson(
+                    `${encodeURIComponent(account.externalId)}/messages`,
+                    { recipient: { id: contact.externalUserId }, messaging_type: "RESPONSE", message: { text: content } },
+                    token
+                );
     } catch (error) {
         // Not recorded as sent either way. When Meta didn't answer, it may still have delivered it.
         if (error instanceof GraphError && error.uncertain) {

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 import { UserRole } from "@prisma/client";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // ORG_ADMIN is a normal, self-service-assignable per-workspace role (any team owner
 // can invite a teammate as ORG_ADMIN - see WORKSPACE_ASSIGNABLE_ROLES). Only
@@ -94,6 +95,6 @@ export async function POST(
         }
     } catch (error: any) {
         logger.error(`[Admin] Action ${action} failed: ${error.message}`);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

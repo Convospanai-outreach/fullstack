@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     const { userId, teamId } = await getCurrentContext();
@@ -65,6 +66,6 @@ export async function PUT(req: Request) {
         return NextResponse.json(policy);
     } catch (error: any) {
         console.error("[Guardrail API] PUT error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -30,7 +30,8 @@ for (const [file, services] of Object.entries(LOCAL_ONLY_SERVICES)) {
     for (const name of services) {
       const service = doc.services?.[name];
       assert.ok(service, `${file} defines ${name}`);
-      for (const port of service.ports ?? []) {
+      assert.ok(Array.isArray(service.ports) && service.ports.length > 0, `${file} ${name} publishes no ports`);
+      for (const port of service.ports) {
         assert.equal(publishedBindAddress(port), "127.0.0.1", `${file} ${name} publishes "${port}" on all interfaces`);
       }
     }

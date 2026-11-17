@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AuditService } from "@/modules/audit/auditService";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const ctx = await getCurrentContextFromRequest(req);
@@ -24,6 +25,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         const activities = await AuditService.getResourceActivity("Campaign", id);
         return NextResponse.json({ success: true, activities });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

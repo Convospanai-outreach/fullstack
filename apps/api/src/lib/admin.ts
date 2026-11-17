@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { UserRole } from "@prisma/client";
 import { RequestContext } from "@/lib/requestContext";
 import { internalAuthPath, verifyInternalAuthHeaders } from "@/lib/internalAuth";
+import { logAuthzDenied } from "@/lib/authzDenied";
 
 export interface AdminUserContext {
     id: string;
@@ -50,9 +51,15 @@ async function getUserFromRequest(): Promise<AdminUserContext | null> {
 // and reach platform-wide `/admin/*` data. Callers that genuinely intend
 // ORG_ADMIN access pass it explicitly; the default is now a safe floor.
 export async function getAdminUser(requiredRole: UserRole = UserRole.SYSTEM_ADMIN): Promise<AdminUserContext | null> {
+    // A known user who falls short of the level is a refusal worth recording; no user is just not signed in.
+    const refuse = (user: AdminUserContext) => {
+        logAuthzDenied(user.id, null, `admin:${requiredRole}`);
+        return null;
+    };
+
     const userFromRequest = await getUserFromRequest();
     if (userFromRequest) {
-        return meetsAdminLevel(userFromRequest.enterpriseRole, requiredRole) ? userFromRequest : null;
+        return meetsAdminLevel(userFromRequest.enterpriseRole, requiredRole) ? userFromRequest : refuse(userFromRequest);
     }
 
     const session = await getServerSession(authOptions);
@@ -67,7 +74,7 @@ export async function getAdminUser(requiredRole: UserRole = UserRole.SYSTEM_ADMI
 
     if (!user) return null;
 
-    return meetsAdminLevel(user.enterpriseRole, requiredRole) ? user : null;
+    return meetsAdminLevel(user.enterpriseRole, requiredRole) ? user : refuse(user);
 }
 
 export async function checkAdmin(requiredRole: UserRole = UserRole.SYSTEM_ADMIN) {

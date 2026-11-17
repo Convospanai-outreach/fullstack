@@ -63,4 +63,53 @@ describe("POST /errors/client", () => {
             data: expect.objectContaining({ userId: null }),
         });
     });
+
+    it("refuses a report whose message is not text instead of failing with a 500", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
+
+        const res = await POST(report({ message: { not: "text" } }));
+
+        expect(res.status).toBe(400);
+        expect(mockPrisma.clientError.create).not.toHaveBeenCalled();
+    });
+
+    it("caps the url, user agent and stack fields a browser can claim", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
+
+        await POST(report({ url: "https://x.example/" + "a".repeat(5000), userAgent: "b".repeat(5000), stack: 12345 }));
+
+        const data = mockPrisma.clientError.create.mock.calls[0]![0].data;
+        expect(data.url).toHaveLength(500);
+        expect(data.userAgent).toHaveLength(500);
+        expect(data.stack).toBeNull();
+    });
+
+    it("stores no metadata that is large or is not an object", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
+
+        await POST(report({ metadata: { blob: "c".repeat(20_000) } }));
+        await POST(report({ metadata: "just a string" }));
+        await POST(report({ metadata: { route: "/inbox" } }));
+
+        const stored = mockPrisma.clientError.create.mock.calls.map(([arg]: any) => arg.data.metadata);
+        expect(stored).toEqual([{}, {}, { route: "/inbox" }]);
+    });
+
+    it("runs the alert query at most once a minute, however many reports arrive", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(Date.now() + 60 * 60 * 1000);
+            await POST(report({}));
+            await POST(report({}));
+            await POST(report({}));
+            expect(mockMonitor).toHaveBeenCalledTimes(1);
+
+            vi.setSystemTime(Date.now() + 61 * 1000);
+            await POST(report({}));
+            expect(mockMonitor).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

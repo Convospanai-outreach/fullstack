@@ -36,6 +36,8 @@ const els = {
   dueStepsHint: document.getElementById("dueStepsHint"),
   refreshDueSteps: document.getElementById("refreshDueSteps"),
   connectionStatus: document.getElementById("connectionStatus"),
+  connectionDetail: document.getElementById("connectionDetail"),
+  connectWorkspace: document.getElementById("connectWorkspace"),
   checkConnection: document.getElementById("checkConnection"),
   clearLocalData: document.getElementById("clearLocalData"),
   activityLog: document.getElementById("activityLog"),
@@ -77,7 +79,6 @@ const fields = {
   messageDraft: document.getElementById("messageDraft"),
   fitScore: document.getElementById("fitScore"),
   workspaceUrl: document.getElementById("workspaceUrl"),
-  extensionKey: document.getElementById("extensionKey"),
   syncToken: document.getElementById("syncToken"),
   defaultTone: document.getElementById("defaultTone")
 };
@@ -105,6 +106,7 @@ function bindEvents() {
   els.markLinkedInDone.addEventListener("click", markLinkedInDone);
   els.openLead.addEventListener("click", openLeadInWorkspace);
   els.addToSequence.addEventListener("click", addToSequence);
+  els.connectWorkspace.addEventListener("click", openConnectPage);
   els.checkConnection.addEventListener("click", checkConnection);
   els.refreshDueSteps.addEventListener("click", loadDueSteps);
   els.clearLocalData.addEventListener("click", clearLocalData);
@@ -154,8 +156,10 @@ function normalizeState(raw) {
     },
     settings: {
       workspaceUrl: "",
-      extensionKey: "",
       syncToken: "",
+      syncTokenExpiresAt: "",
+      team: null,
+      needsReconnect: false,
       defaultTone: "Friendly",
       defaultOutreachAngle: "Sales introduction",
       ...(raw.settings || {})
@@ -209,11 +213,13 @@ function renderCaptureSources(fieldMeta) {
     const meta = fieldMeta[key] || { value: NOT_DETECTED, source: "fallback", confidence: "low" };
     const item = document.createElement("div");
     item.className = "source-item";
-    item.innerHTML = `
-      <strong>${label}</strong>
-      <span>${escapeHtml(meta.value || NOT_DETECTED)}</span>
-      <small>Winner: ${formatSource(meta.source)} - Confidence: ${formatConfidencePercent(meta.confidence)}</small>
-    `;
+    const labelEl = document.createElement("strong");
+    labelEl.textContent = label;
+    const valueEl = document.createElement("span");
+    valueEl.textContent = meta.value || NOT_DETECTED;
+    const winnerEl = document.createElement("small");
+    winnerEl.textContent = `Winner: ${formatSource(meta.source)} - Confidence: ${formatConfidencePercent(meta.confidence)}`;
+    item.append(labelEl, valueEl, winnerEl);
     fields.captureSources.appendChild(item);
   });
 }
@@ -247,21 +253,56 @@ function renderQualification() {
 
 function renderSettings() {
   fields.workspaceUrl.value = state.settings.workspaceUrl || "";
-  fields.extensionKey.value = state.settings.extensionKey || "";
   fields.syncToken.value = state.settings.syncToken || "";
   fields.defaultTone.value = state.settings.defaultTone || "Friendly";
   els.defaultAngle.value = state.settings.defaultOutreachAngle || "Sales introduction";
+  renderConnection();
+}
+
+const RECONNECT_WITHIN_MS = 3 * 24 * 60 * 60 * 1000;
+
+// Which team the saved sync token is for and when it runs out. The button says Reconnect when the
+// workspace refused the token or it is about to expire.
+function renderConnection() {
+  const { syncToken, syncTokenExpiresAt, team, needsReconnect, workspaceUrl } = state.settings;
+  const connected = Boolean(workspaceUrl && syncToken);
+  const expiresAt = syncTokenExpiresAt ? new Date(syncTokenExpiresAt) : null;
+  const expiresInMs = expiresAt ? expiresAt.getTime() - Date.now() : Infinity;
+  const reconnect = connected && (needsReconnect || expiresInMs < RECONNECT_WITHIN_MS);
+  els.connectWorkspace.textContent = reconnect ? "Reconnect to CraftMyFunnel" : "Connect to CraftMyFunnel";
+
+  if (!connected) {
+    els.connectionDetail.textContent = "Not connected yet. Click Connect, sign in to CraftMyFunnel and approve.";
+  } else if (needsReconnect) {
+    els.connectionDetail.textContent = "CraftMyFunnel no longer accepts this connection. Click Reconnect.";
+  } else if (expiresInMs <= 0) {
+    els.connectionDetail.textContent = `The connection expired on ${formatDate(expiresAt)}. Click Reconnect.`;
+  } else {
+    const teamText = team?.name ? `Connected to the team "${team.name}".` : "Connected.";
+    els.connectionDetail.textContent = expiresAt ? `${teamText} Valid until ${formatDate(expiresAt)}.` : teamText;
+  }
+}
+
+// Opens the CraftMyFunnel page that signs in and hands this extension a sync token.
+function openConnectPage() {
+  const base = String(state.settings.workspaceUrl || "https://craftmyfunnel.live")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/^https:\/\/www\.craftmyfunnel\.live$/i, "https://craftmyfunnel.live");
+  chrome.tabs.create({ url: `${base}/extension/connect?ext=${encodeURIComponent(chrome.runtime.id)}` });
 }
 
 function renderBadges() {
   const savedStatus = state.savedLead?.status;
-  const text = savedStatus === "synced" ? "Synced" : savedStatus === "pending_sync" ? "Pending Sync" : "Local only";
+  const connected = Boolean(state.settings?.workspaceUrl && state.settings?.syncToken);
+  const pendingText = connected ? "Pending Sync" : "Sends when connected";
+  const text = savedStatus === "synced" ? "Synced" : savedStatus === "pending_sync" ? pendingText : "Local only";
   els.syncBadge.textContent = text;
   els.saveBadge.textContent = text;
   els.syncBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
   els.saveBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
   els.openLead.classList.toggle("hidden", !(state.savedLead?.leadId && state.settings?.workspaceUrl));
-  const canChooseSequence = Boolean(state.savedLead?.leadId && state.settings?.workspaceUrl && state.settings?.syncToken && state.settings?.extensionKey);
+  const canChooseSequence = Boolean(state.savedLead?.leadId && connected);
   els.sequencePicker.classList.toggle("hidden", !canChooseSequence);
   if (canChooseSequence && !sequencesLoaded) {
     sequencesLoaded = true;
@@ -429,13 +470,21 @@ async function checkConnection() {
   await persistState(readStatePatch());
   els.connectionStatus.textContent = "Checking...";
   const response = await chrome.runtime.sendMessage({ type: "CMF_CHECK_CONNECTION" });
+  await refreshConnection();
   if (!response?.ok) {
     els.connectionStatus.textContent = response?.error || "Not connected.";
     return;
   }
   els.connectionStatus.textContent = response.team?.name
     ? `Connected. Leads are saved to the team "${response.team.name}" as ${response.user?.email || "your account"}.`
-    : `Connected as ${response.user?.email || "your account"}, but this token isn't tied to one team. Generate a new sync token in CraftMyFunnel.`;
+    : `Connected as ${response.user?.email || "your account"}, but this token isn't tied to one team. Click Connect to CraftMyFunnel to link it to a team.`;
+}
+
+// The check may have found that the workspace no longer accepts the token.
+async function refreshConnection() {
+  const fresh = normalizeState((await chrome.runtime.sendMessage({ type: "CMF_GET_V1_STATE" })) || {});
+  state.settings = fresh.settings;
+  renderConnection();
 }
 
 async function loadSequences() {
@@ -704,7 +753,6 @@ function readQualification() {
 function readSettings() {
   return {
     workspaceUrl: fields.workspaceUrl.value.trim(),
-    extensionKey: fields.extensionKey.value.trim(),
     syncToken: fields.syncToken.value.trim(),
     defaultTone: fields.defaultTone.value,
     defaultOutreachAngle: els.defaultAngle.value
@@ -754,10 +802,12 @@ function renderCaptureField(element, value, meta, muted) {
   const confidence = Number(meta?.confidence || 0);
   const badge = meta?.source === "user" ? "User Added" : confidenceLabel(confidence);
   element.classList.toggle("not-detected", Boolean(muted));
-  element.innerHTML = `
-    <span>${escapeHtml(value)}</span>
-    <span class="confidence-badge ${confidenceClass(confidence, meta?.source)}">${badge}</span>
-  `;
+  const valueSpan = document.createElement("span");
+  valueSpan.textContent = value;
+  const badgeSpan = document.createElement("span");
+  badgeSpan.className = `confidence-badge ${confidenceClass(confidence, meta?.source)}`;
+  badgeSpan.textContent = badge;
+  element.replaceChildren(valueSpan, badgeSpan);
 }
 
 function userAddedMeta() {
@@ -795,15 +845,6 @@ function formatSource(value = "fallback") {
   return labels[value] || value;
 }
 
-function escapeHtml(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 function setStatus(message, type = "") {
   els.statusMsg.textContent = message;
   els.statusMsg.className = `status ${type}`.trim();
@@ -818,6 +859,10 @@ function setBusy(button, busy, text) {
   }
   button.textContent = button.dataset.originalText || button.textContent;
   button.disabled = false;
+}
+
+function formatDate(value) {
+  return value.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
 }
 
 function formatTime(value) {

@@ -4,6 +4,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { teamService } from "@/modules/team/service/teamService";
+import { AuditService } from "@/modules/audit/auditService";
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -29,6 +30,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         }
 
         await teamService.removeMember(teamId, id, userId);
+        await AuditService.log(teamId, userId, "MEMBER_REMOVED", "TeamMember", id, { role: memberToRemove.role });
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

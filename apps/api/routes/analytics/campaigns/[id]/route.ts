@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { analyticsService } from "@/modules/analytics/service/analyticsService";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         const stats = await analyticsService.getCampaignStats(campaignId);
         return NextResponse.json(stats);
     } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+        return new NextResponse(internalErrorMessage(error), { status: 500 });
     }
 }

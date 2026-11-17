@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { internalErrorMessage } from "@/lib/internalError";
 
 type SignalMetadata = {
     companyName?: string;
@@ -263,6 +264,6 @@ export async function GET() {
         });
     } catch (error: any) {
         console.error("[Intel Summary] Failed to load summary", error);
-        return NextResponse.json({ error: error.message || "Failed to load intel summary" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Failed to load intel summary") }, { status: 500 });
     }
 }

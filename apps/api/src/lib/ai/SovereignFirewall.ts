@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { IdentityService } from '@/modules/identity/IdentityService';
+import { getConfiguredEdgeRuntimeEndpoint } from '@/lib/edgeRuntime';
 
 interface SanitizedPayload {
     safeContext: string;
@@ -41,75 +42,101 @@ class HardwareCircuitBreaker {
 }
 
 export class SovereignFirewall {
-    private static readonly PI_ENDPOINT = process.env['PHI3_LOCAL_ENDPOINT'] || 'http://localhost:8000';
+    // The edge node is optional: with no endpoint set up there is no node to call, so nothing is attempted.
+    private static edgeEndpoint(override?: string): string | undefined {
+        return override?.trim().replace(/\/$/, '') || getConfiguredEdgeRuntimeEndpoint();
+    }
+
+    private static edgeHeaders() {
+        const key = process.env['EDGE_API_KEY'];
+        return key ? { 'X-API-Key': key } : {};
+    }
+
     private static readonly SENSITIVE_KEYS = ['email', 'phone', 'name', 'linkedin', 'ssn', 'credit_card'];
     private static breaker = new HardwareCircuitBreaker();
 
     /**
-     * Replaces sensitive data with deterministic UUIDs.
-     * Hits Edge Node (Async) if available, falls back to Local (Sync) if not.
+     * Replaces sensitive data before it leaves for a third-party model.
+     * With an edge node set up, the edge masks the text and every token is read back from it so the
+     * reply can be restored; if the edge cannot be used, this throws rather than let the text out.
+     * With no edge node set up, it masks locally and never waits on a node that does not exist.
      */
     static async mask(
         data: string | Record<string, unknown> | unknown[], 
         region: 'UAE' | 'GLOBAL' = 'GLOBAL',
-        overrideEndpoint?: string
+        overrideEndpoint?: string,
+        // alwaysMask: with no edge node, still apply the local pattern masking (emails, phone
+        // numbers) instead of passing the text through unchanged. For text that leaves for a third-party model.
+        // teamId: bound to the edge's token map, so one team cannot read back another team's tokens.
+        options: { alwaysMask?: boolean; teamId?: string } = {}
     ): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
-        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
+        const endpoint = this.edgeEndpoint(overrideEndpoint);
 
         // Pre-Send Regex Audit (Logging only, masking still happens)
         this.auditText(text);
 
-        // Fail-Closed Circuit Breaker
-        if (this.breaker.isOpen()) {
-            // ... strict check omitted for brevity in targetContent but I will keep it in ReplacementContent
+        if (!endpoint) {
+            // STRICT_SOVEREIGNTY is an explicit "no node, no sending" choice by the operator.
             if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
-                console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
-                throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
+                console.error("[SovereignFirewall] CRITICAL: No edge node set up. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
+                throw new Error("Sovereign Node Not Configured. PII Exposure Risk Blocked.");
             }
-            console.warn("[SovereignFirewall] Circuit Breaker OPEN. Using Local Masking.");
-            return this.maskLocal(data, region);
+            return this.maskLocal(data, region, options.alwaysMask);
+        }
+
+        // A node is set up: fail closed.
+        if (this.breaker.isOpen()) {
+            console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. Failing closed.");
+            throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
         }
 
         try {
-            // Attempt Hardware Sanitization (Edge Node)
+            const tenant = options.teamId ? { tenant_id: options.teamId } : {};
+            const headers = { headers: this.edgeHeaders(), timeout: 2000 };
             const response = await axios.post(`${endpoint}/v1/sanitize`, {
                 text: text,
-                session_id: crypto.randomUUID()
-            }, { timeout: 2000 });
+                session_id: crypto.randomUUID(),
+                ...tenant,
+            }, headers);
+
+            const sanitized: string = response.data.sanitized_text;
+            const sessionId: string = response.data.token_map_id;
+
+            // The edge keeps the originals; read each token back so the model's reply can be restored.
+            const tokenMap = new Map<string, string>();
+            const labels = Array.from(new Set(sanitized.match(/<([A-Z_]+)_(\d+) confidence='[^']*'>/g) ?? []));
+            await Promise.all(labels.map(async (label) => {
+                const [, type, n] = label.match(/<([A-Z_]+)_(\d+) /) as RegExpMatchArray;
+                const result = await axios.post(`${endpoint}/v1/reidentify`, {
+                    token: `${sessionId}_${type}_${n}`,
+                    session_id: sessionId,
+                    ...tenant,
+                }, headers);
+                tokenMap.set(label, result.data.original);
+            }));
 
             this.breaker.reset();
-
-            return {
-                safeContext: response.data.sanitized_text,
-                tokenMap: new Map() // Edge Node holds the map
-            };
+            return { safeContext: sanitized, tokenMap };
 
         } catch (error: any) {
             this.breaker.recordFailure();
-
-            // FAIL-CLOSED Logic for Strict Sovereignty
-            if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
-                console.error("[SovereignFirewall] CRITICAL: Edge Node unreachable. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
-                throw new Error("Sovereign Node Unreachable. PII Exposure Risk Blocked.");
-            }
-
-            console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
-            return this.maskLocal(data, region);
+            console.error("[SovereignFirewall] CRITICAL: Edge Node could not mask the text. Failing closed.", error.message);
+            throw new Error("Sovereign Node Unreachable. PII Exposure Risk Blocked.");
         }
     }
 
     /**
      * Fallback/Local Masking Logic (Sync)
      */
-    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
+    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL', alwaysMask = false): SanitizedPayload {
         const tokenMap = new Map<string, string>();
 
         // If not in a high-privacy region and sovereignty is not strict, we don't necessarily need to mask ALL data
         // but for security-first, we should still mask unstructured text if it looks like PII.
         const isStrict = process.env['STRICT_SOVEREIGNTY'] === 'true';
         
-        if (region !== 'UAE' && !isStrict) {
+        if (region !== 'UAE' && !isStrict && !alwaysMask) {
             // Even if not strict, we should still perform Audit
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
@@ -152,6 +179,55 @@ export class SovereignFirewall {
             tokenMap.set(token, match);
             return token;
         });
+
+        // Ten-digit numbers written in two groups of five (+91 98765 43210), which the pattern above misses.
+        const groupedPhoneRegex = /(?:\+\d{1,3}[\s.-]?)?\b\d{5}[\s.-]?\d{5}\b/g;
+        safeContext = safeContext.replace(groupedPhoneRegex, (match) => {
+            const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+            const token = `[PHONE_${hash}]`;
+            tokenMap.set(token, match);
+            return token;
+        });
+
+        return { safeContext, tokenMap };
+    }
+
+    /**
+     * Replaces names the caller already knows (a lead's name and company) with tokens, so text that
+     * mentions them - a sign-off, a signature - does not carry them out. Pattern masking cannot
+     * recognise names. Each name and each word of it (3+ letters) is matched as a whole word,
+     * ignoring case. The tokens are added to `tokenMap` so `unmask` restores the original text.
+     */
+    static maskKnownNames(
+        text: string,
+        names: { person?: string | null; company?: string | null },
+        tokenMap: Map<string, string> = new Map()
+    ): SanitizedPayload {
+        const terms: Array<{ term: string; kind: 'NAME' | 'COMPANY' }> = [];
+        const person = names.person?.trim();
+        if (person) {
+            terms.push({ term: person, kind: 'NAME' });
+            for (const word of person.split(/\s+/)) {
+                if (word.replace(/[^\p{L}]/gu, '').length >= 3) terms.push({ term: word, kind: 'NAME' });
+            }
+        }
+        const company = names.company?.trim();
+        if (company && company.length >= 3) terms.push({ term: company, kind: 'COMPANY' });
+
+        // Longest first, so "Jane Doe" is replaced whole before "Jane" and "Doe" are looked at.
+        terms.sort((a, b) => b.term.length - a.term.length);
+
+        let safeContext = text;
+        for (const { term, kind } of terms) {
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu');
+            safeContext = safeContext.replace(pattern, (match) => {
+                const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+                const token = `[${kind}_${hash}]`;
+                tokenMap.set(token, match);
+                return token;
+            });
+        }
 
         return { safeContext, tokenMap };
     }
@@ -196,7 +272,9 @@ export class SovereignFirewall {
                     : String(pii);
                 resolutions.set(fullToken, replacement);
             } catch (e) {
-                console.warn(`[SovereignFirewall] Failed to resolve token ${fullToken}:`, e);
+                // Log the entity type only: the token resolves to a lead's personal data.
+                const entityType = fullToken.match(/[A-Z]+/)?.[0] ?? "UNKNOWN";
+                console.warn(`[SovereignFirewall] Failed to resolve a ${entityType} token: ${(e as Error)?.message ?? "unknown error"}`);
             }
         }));
 
@@ -216,7 +294,8 @@ export class SovereignFirewall {
      * Bot-Likeness scoring (Adversarial Judge)
      */
     static async critique(draft: string, overrideEndpoint?: string): Promise<CriticVerdict> {
-        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
+        const endpoint = this.edgeEndpoint(overrideEndpoint);
+        if (!endpoint) throw new Error(`Local Sovereign Node Unreachable. Halting to prevent leakage.`);
         try {
             const response = await axios.post(`${endpoint}/v1/critique`, { text: draft }, { timeout: 3000 });
             return {

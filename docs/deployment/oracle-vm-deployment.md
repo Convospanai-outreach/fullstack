@@ -1,5 +1,7 @@
 # Oracle Cloud VM Deployment: Render Main API + Render Worker
 
+> Historical migration plan: references below to web on Vercel and Postgres on Neon reflect the earlier migration design. Current hosting is recorded in the [README](../../README.md): web on Render and Postgres on Supabase, with API/worker on Oracle. Retain the infrastructure procedures only where current deployment files confirm them. Inbound MCP rollout is documented in [MCP_INTEGRATION.md](../MCP_INTEGRATION.md).
+
 This guide replaces two Render services with two self-managed Oracle Cloud (OCI) VMs:
 
 | Today (Render) | Becomes (Oracle) |
@@ -144,9 +146,10 @@ EDGE_NODE_OPTIONAL=true
 NEXTAUTH_URL=<from Render>
 NEXTAUTH_SECRET=<from Render>
 ENCRYPTION_KEY=<from Render — required, mailbox OAuth tokens are encrypted at rest with this>
+RESEND_API_KEY=<from Render — the worker runs the daily digest and skips it without this>
 ```
 
-**`api-main`-only additions** (the worker doesn't serve HTTP or need these — copy the rest of the values your current Render `fullstack` web service actually has set, using `apps/api/.env.example` in this repo as the full checklist: Google OAuth, Razorpay, Resend, SMTP, OpenAI/Anthropic/Google/Groq keys, `CRON_SECRET`, `SOCKET_SHARED_SECRET`, `EXTENSION_API_KEY`, `ALLOWED_ORIGINS`, `HUNTER_API_KEY`, WhatsApp vars, etc.).
+**`api-main`-only additions** (the worker doesn't serve HTTP or need these — copy the rest of the values your current Render `fullstack` web service actually has set, using `apps/api/.env.example` in this repo as the full checklist: Google OAuth, Razorpay, SMTP, OpenAI/Anthropic/Google/Groq keys, `CRON_SECRET`, `SOCKET_SHARED_SECRET`, `ALLOWED_ORIGINS`, `HUNTER_API_KEY`, WhatsApp vars, etc.).
 
 **`api-worker`-only addition** (from `render.yaml`):
 

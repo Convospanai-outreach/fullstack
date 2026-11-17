@@ -1,4 +1,4 @@
-import nodemailer, { type Transporter } from "nodemailer";
+import type { Transporter } from "nodemailer";
 
 export interface SmtpConfig {
     host: string;
@@ -24,7 +24,9 @@ export interface SendMailResult {
     error?: string;
 }
 
-export function createSmtpTransport(config: SmtpConfig): Transporter {
+// nodemailer loads on first send rather than at boot, to keep the api container's boot memory down.
+export async function createSmtpTransport(config: SmtpConfig): Promise<Transporter> {
+    const { default: nodemailer } = await import("nodemailer");
     return nodemailer.createTransport({
         host: config.host,
         port: config.port,
@@ -51,7 +53,7 @@ export async function sendViaSMTP(
     config: SmtpConfig,
     options: SendMailOptions
 ): Promise<SendMailResult> {
-    const transporter = createSmtpTransport(config);
+    const transporter = await createSmtpTransport(config);
     try {
         const info = await transporter.sendMail({
             from: `"${config.fromName}" <${config.fromEmail}>`,
@@ -77,7 +79,7 @@ export async function sendViaSMTP(
 }
 
 export async function verifySmtpConfig(config: SmtpConfig): Promise<{ ok: boolean; error?: string }> {
-    const transporter = createSmtpTransport(config);
+    const transporter = await createSmtpTransport(config);
     try {
         await transporter.verify();
         return { ok: true };

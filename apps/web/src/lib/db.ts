@@ -1,6 +1,5 @@
 // import "server-only";
-import { PrismaClient } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 const createPrismaClient = () => {
     const databaseUrl = process.env["DATABASE_URL"];
@@ -84,3 +83,7 @@ export const prisma = new Proxy({} as PrismaClientInstance, {
 });
 
 export type { Prisma };
+
+// Runtime value for clearing a nullable Json column; route files cannot import @prisma/client
+// (see scripts/check-web-prisma-imports.mjs), so they take it from here.
+export const DbNull = Prisma.DbNull;

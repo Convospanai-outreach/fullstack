@@ -220,6 +220,15 @@ describe("publishDuePosts", () => {
                 return handler(params);
             });
 
+        it("won't post to an account connected with Instagram Login only, and says how to fix it", async () => {
+            target("t-ig", { ...igAccount, parentExternalId: null });
+            due();
+            expect(await publishDuePosts(NOW)).toEqual({ published: 0, failed: 1 });
+            expect(graphCall).not.toHaveBeenCalled();
+            expect(store.targets.get("t-ig")).toMatchObject({ status: "FAILED" });
+            expect(JSON.stringify(store.targets.get("t-ig"))).toContain("connected with Instagram only");
+        });
+
         it("publishes a finished container with the User token", async () => {
             target("t-ig", igAccount);
             due({}, { mediaUrls: ["https://cdn/a.jpg"] });

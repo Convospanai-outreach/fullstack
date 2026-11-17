@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { emailService } from "@/modules/email-campaigner";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -56,6 +57,6 @@ export async function POST(req: NextRequest) {
         }
     } catch (err: any) {
         console.error("[Email Send API] Error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }

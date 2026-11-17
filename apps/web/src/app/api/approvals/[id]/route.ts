@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { authorizePermission, Permission } from "@/lib/permissions";
 import { isBlockedSelfApproval } from "@/lib/governance/campaignStartApproval";
 import { handleEmailSending } from "@/workers/handlers/email-sending-worker";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,35 @@ export async function POST(
             const decided = await decideContentPost(ctx.teamId, id, ctx.userId, action === "APPROVE" ? "APPROVED" : "REJECTED", reason || undefined);
             if (!decided) {
                 return NextResponse.json({ error: "This request was already decided or withdrawn." }, { status: 409 });
+            }
+            const updated = await prisma.approvalRequest.findUnique({ where: { id } });
+            return NextResponse.json({ success: true, approval: updated });
+        }
+
+        // AI-written messages held for review: approving queues the original send job, never a direct update.
+        if (approval.actionType === "MESSAGE_SEND") {
+            if (action !== "APPROVE" && action !== "REJECT" && action !== "RETRY" && action !== "WRITE" && action !== "SKIP") {
+                return NextResponse.json({ error: "action must be APPROVE, REJECT, RETRY, WRITE or SKIP" }, { status: 400 });
+            }
+            const { approveMessageSend, rejectMessageSend, resolveNeedsAttention } = await import("@/modules/governance/messageApproval");
+            try {
+                if (action === "RETRY" || action === "WRITE" || action === "SKIP") {
+                    const edit = {
+                        ...(typeof body.subject === "string" ? { subject: body.subject } : {}),
+                        ...(typeof body.body === "string" ? { body: body.body } : {}),
+                    };
+                    await resolveNeedsAttention(approval, ctx.teamId, ctx.userId, action, edit);
+                } else if (action === "REJECT") {
+                    await rejectMessageSend(id, ctx.teamId, ctx.userId, reason);
+                } else {
+                    const edit = {
+                        ...(typeof body.subject === "string" ? { subject: body.subject } : {}),
+                        ...(typeof body.body === "string" ? { body: body.body } : {}),
+                    };
+                    await approveMessageSend(approval, ctx.teamId, ctx.userId, edit);
+                }
+            } catch (err: any) {
+                return NextResponse.json({ error: err?.message || "Could not update this approval." }, { status: 409 });
             }
             const updated = await prisma.approvalRequest.findUnique({ where: { id } });
             return NextResponse.json({ success: true, approval: updated });
@@ -127,16 +157,8 @@ export async function POST(
             });
         }
 
-        if (leadId) {
-            await prisma.lead.update({
-                where: { id: leadId },
-                data: { status: "SENT" },
-            }).catch((err) => {
-                console.error(`[Approval API] Failed to update Lead status for leadId ${leadId}:`, err?.message || err);
-                throw err;
-            });
-        }
-
+        // The lead's status is not set here: handleEmailSending sets it when the email actually goes out, so a
+        // delayed, held or failed send never leaves the lead showing as sent.
         const isEmailApproval =
             approval.entityType?.toLowerCase() === "email" ||
             approval.entityType?.toLowerCase() === "lead" ||
@@ -164,6 +186,8 @@ export async function POST(
         return NextResponse.json({ success: true, approval: updated, sendResult });
     } catch (error: any) {
         console.error("Failed to process approval:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: error?.statusCode || 500 });
+        // A statusCode below 500 marks an error thrown on purpose, with a message meant for the caller.
+        const status = error?.statusCode || 500;
+        return NextResponse.json({ error: status < 500 ? error.message : internalErrorMessage(error, "Internal Server Error") }, { status });
     }
 }

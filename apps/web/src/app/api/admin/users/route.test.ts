@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetServerSession, mockPrisma, mockAudit } = vi.hoisted(() => ({
-    mockGetServerSession: vi.fn(),
-    mockAudit: vi.fn(),
-    mockPrisma: {
-        user: { findUnique: vi.fn(), update: vi.fn() },
-        teamMember: { updateMany: vi.fn() },
-    },
-}));
+const { mockGetServerSession, mockPrisma, mockAudit } = vi.hoisted(() => {
+    const user = { findUnique: vi.fn(), update: vi.fn() };
+    const teamMember = { updateMany: vi.fn() };
+    // What the route sees inside prisma.$transaction: audited changes go through this client.
+    const tx = { user, teamMember };
+    return {
+        mockGetServerSession: vi.fn(),
+        mockAudit: vi.fn(),
+        mockPrisma: {
+            user,
+            teamMember,
+            tx,
+            $transaction: vi.fn(async (fn: (client: unknown) => unknown) => fn(tx)),
+        },
+    };
+});
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
 vi.mock("@/lib/auth", () => ({
@@ -41,6 +49,7 @@ function actAs(enterpriseRole: string, targetRole = "user") {
 describe("PATCH /api/admin/users - legacy role", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockPrisma.$transaction.mockImplementation(async (fn: (client: unknown) => unknown) => fn(mockPrisma.tx));
     });
 
     it.each(["admin", "superadmin"])("rejects an ORG_ADMIN granting legacy role %s", async (role) => {
@@ -77,3 +86,46 @@ describe("PATCH /api/admin/users - legacy role", () => {
         expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ data: { role: "admin" } }));
     });
 });
+
+describe("PATCH /api/admin/users - audit trail", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.$transaction.mockImplementation(async (fn: (client: unknown) => unknown) => fn(mockPrisma.tx));
+        mockAudit.mockResolvedValue(undefined);
+    });
+
+    it("writes a role change's audit row, strictly, on the transaction client of the update", async () => {
+        actAs("SUPER_ADMIN");
+
+        const res = await PATCH(patchRequest({ id: "target", enterpriseRole: "ORG_ADMIN" }));
+
+        expect(res.status).toBe(200);
+        expect(mockAudit).toHaveBeenCalledWith(
+            "t1", "actor", "role_changed", "User", "target",
+            { role: undefined, enterpriseRole: "ORG_ADMIN" },
+            null, null, true, mockPrisma.tx
+        );
+    });
+
+    it("fails the role change when its audit row cannot be written", async () => {
+        actAs("SUPER_ADMIN");
+        mockAudit.mockRejectedValue(new Error("audit table unavailable"));
+
+        await expect(PATCH(patchRequest({ id: "target", enterpriseRole: "ORG_ADMIN" }))).rejects.toThrow("audit table unavailable");
+    });
+
+    it("deactivates a user and writes the audit row on one transaction client", async () => {
+        actAs("SUPER_ADMIN");
+
+        const res = await PATCH(patchRequest({ id: "target", status: "inactive" }));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.tx.teamMember.updateMany).toHaveBeenCalled();
+        expect(mockAudit).toHaveBeenCalledWith(
+            "t1", "actor", "user_deactivated", "User", "target",
+            { email: "t@example.com" },
+            null, null, true, mockPrisma.tx
+        );
+    });
+});
+

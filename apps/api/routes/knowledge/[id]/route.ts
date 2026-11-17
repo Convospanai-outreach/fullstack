@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { ingestService } from "@/modules/rag/service/ingest";
 import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error("Ingestion Error:", error);
-        return new NextResponse(error.message, { status: 500 });
+        return new NextResponse(internalErrorMessage(error), { status: 500 });
     }
 }
 

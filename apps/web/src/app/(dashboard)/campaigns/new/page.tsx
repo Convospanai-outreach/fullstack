@@ -6,10 +6,13 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import StrategyPicker from "@/components/campaigns/StrategyPicker";
+import { useDripPlaybooks } from "@/components/playbooks/DripPlaybooks";
+import type { PreflightBrief } from "@/lib/campaigns/preflight";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
 
-type ICP = { id: string; name: string };
+type ICP = { id: string; name: string; criteria?: unknown };
 
 function buildLeadsQuery(stage: string, domain: string) {
     const params = new URLSearchParams({ pipelineState: stage, unassignedOnly: "true", limit: "500" });
@@ -24,6 +27,9 @@ export default function NewCampaignPage() {
     const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [draftGenerationMode, setDraftGenerationMode] = useState<"REALTIME" | "BATCH">("REALTIME");
+    const [strategies, setStrategies] = useState<string[]>([]);
+    const [objective, setObjective] = useState("");
+    const [brief, setBrief] = useState<PreflightBrief>({});
 
     const [targetStageEnabled, setTargetStageEnabled] = useState(false);
     const [stage, setStage] = useState<string>("WARM");
@@ -33,6 +39,9 @@ export default function NewCampaignPage() {
     const [icps, setIcps] = useState<ICP[]>([]);
     const [icpId, setIcpId] = useState("");
     const [loadingIcps, setLoadingIcps] = useState(true);
+    // Only a business profile from the website scan makes the ranking mean anything.
+    const drip = useDripPlaybooks();
+    const recommended = drip.data?.hasProfile ? drip.data.playbooks.slice(0, 3) : [];
 
     useEffect(() => {
         fetch("/api/proxy/icp-builder/list")
@@ -93,6 +102,11 @@ export default function NewCampaignPage() {
                 icpId,
                 draftGenerationMode,
             };
+            if (strategies.length > 0 || objective.trim()) {
+                body["strategies"] = strategies;
+                body["objective"] = objective;
+                if (strategies.includes("S14")) body["preflight"] = brief;
+            }
 
             if (targetStageEnabled) {
                 const res = await fetch(buildLeadsQuery(stage, domain));
@@ -131,6 +145,14 @@ export default function NewCampaignPage() {
             >
                 <ArrowLeft className="w-4 h-4" /> Back to Campaigns
             </Link>
+
+            {recommended.length > 0 && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                    Want emails that start by themselves when someone signs up or clicks a link? Recommended for you:{" "}
+                    <strong>{recommended.map((p) => p.name).join(", ")}</strong>.{" "}
+                    <Link href="/playbooks" className="underline font-semibold">See email playbooks</Link>
+                </div>
+            )}
 
             <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                 <div className="flex items-center gap-3 mb-6">
@@ -193,6 +215,23 @@ export default function NewCampaignPage() {
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Target audience, value proposition summary, or key campaign goals..."
                                 className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Strategy <span className="text-muted-foreground">(Optional)</span>
+                            </label>
+                            <StrategyPicker
+                                value={strategies}
+                                objective={objective}
+                                brief={brief}
+                                onBriefChange={setBrief}
+                                icp={icps.find((i) => i.id === icpId) ? { name: icps.find((i) => i.id === icpId)!.name, criteria: icps.find((i) => i.id === icpId)!.criteria } : null}
+                                onChange={(next, nextObjective) => {
+                                    setStrategies(next);
+                                    setObjective(nextObjective);
+                                }}
                             />
                         </div>
 

@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { InboxService } from "@/lib/inboxService";
 import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(req: NextRequest) {
     try {
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
         console.error("Error saving draft:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -62,6 +63,6 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "Draft not found" }, { status: 404 });
         }
         console.error("Error discarding draft:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

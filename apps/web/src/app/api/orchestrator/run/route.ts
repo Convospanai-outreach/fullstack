@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(request: Request) {
     try {
@@ -60,6 +61,6 @@ export async function POST(request: Request) {
         });
     } catch (error: any) {
         console.error("POST /api/orchestrator/run error:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });
     }
 }

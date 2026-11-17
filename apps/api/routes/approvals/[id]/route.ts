@@ -4,6 +4,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasPermission, Permission } from "@/lib/permissions";
 import { isBlockedSelfApproval } from "@/lib/governance/campaignStartApproval";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function POST(
   req: NextRequest,
@@ -39,6 +40,6 @@ export async function POST(
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Failed to process approval:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Error" }, { status: 500 });
+    return NextResponse.json({ error: internalErrorMessage(error, "Internal Error") }, { status: 500 });
   }
 }

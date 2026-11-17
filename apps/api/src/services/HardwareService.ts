@@ -214,7 +214,7 @@ export class HardwareService {
             const response = await fetch(`${baseUrl}/v1/sanitize`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ text }),
+                body: JSON.stringify({ text, tenant_id: teamId }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -363,14 +363,14 @@ export class HardwareService {
 
     static async reIdentify(maskedId: string, purpose: string, teamId?: string): Promise<IdentityResponse> {
         try {
-            logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
+            logger.info(`[HardwareService] Re-identifying a token for purpose: ${purpose}`);
             const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${baseUrl}/v1/reidentify`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ token: maskedId }),
+                body: JSON.stringify({ token: maskedId, tenant_id: teamId }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);

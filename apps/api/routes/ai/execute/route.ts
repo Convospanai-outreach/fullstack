@@ -2,6 +2,7 @@
 import { aiService } from "@/lib/aiService";
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 /**
  * Backend AI Execution Hub.
@@ -34,7 +35,8 @@ export async function POST(req: Request) {
                 const taskContext = {
                     ...(params.taskContext || {}),
                     surface: params.taskContext?.surface || "HELPER",
-                    taskType: params.taskContext?.taskType || "HELPER_CHAT"
+                    taskType: params.taskContext?.taskType || "HELPER_CHAT",
+                    actorId: ctx.userId,
                 };
                 const text = await aiService.askAI(params.prompt, params.teamId, taskContext);
                 result = { text };
@@ -103,6 +105,6 @@ export async function POST(req: Request) {
         if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
             return Response.json({ error: message }, { status: 400 });
         }
-        return Response.json({ error: message }, { status: 500 });
+        return Response.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

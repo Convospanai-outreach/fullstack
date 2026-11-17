@@ -5,7 +5,15 @@ import { LLMProvider, TaskComplexity } from "@/ai/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { instrumentAnthropic, instrumentOpenAI } from "@/lib/sentry";
+import {
+    AIObservabilityContext,
+    captureLegacyGeminiEmbedding,
+    captureLegacyGeminiGeneration,
+    createAIObservabilityContext,
+    createAnthropicClient,
+    createOpenAIClient,
+    withAIProvider,
+} from "@/lib/aiObservability";
 import {
     enforceAgentOutputGuardrails,
     GuardrailOptions
@@ -18,7 +26,8 @@ import {
     resolveSurfaceFromTaskType
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
-import { TOON } from "@/lib/ai/TOON";
+import { buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
+import { buildConnectionPrompt } from "@/lib/ai/linkedinDraftPrompt";
 
 export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -31,6 +40,9 @@ export type ProviderKeySet = {
 };
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+const ANTHROPIC_MAX_TOKENS = 4096;
+// What batch drafts have always used when the team has not chosen an Anthropic model.
+const BATCH_MODEL = "claude-sonnet-5-5";
 
 const DEFAULT_MODELS = {
     gemini: {
@@ -44,9 +56,9 @@ const DEFAULT_MODELS = {
         strategic: "gpt-4o"
     },
     anthropic: {
-        trivial: "claude-3-5-haiku",
-        routine: "claude-3-5-sonnet",
-        strategic: "claude-3-5-sonnet"
+        trivial: "claude-haiku-5-5",
+        routine: "claude-sonnet-5-5",
+        strategic: "claude-sonnet-5-5"
     },
     // Every tier uses deepseek-chat: DeepSeek serves it with DeepSeek-V4.1-Flash in non-thinking
     // mode, while deepseek-reasoner is the same model with thinking (slower, billed reasoning
@@ -68,7 +80,8 @@ function resolveModelTier(complexity: TaskComplexity): "trivial" | "routine" | "
 const COST_PER_1K_TOKENS: Record<string, number> = {
     "gpt-4o": 0.015,
     "gpt-4o-mini": 0.003,
-    "claude-3-5-sonnet": 0.015,
+    "claude-sonnet-5-5": 0.015,
+    "claude-haiku-5-5": 0.003,
     "claude-3-opus": 0.03,
     "gemini-1.5-pro": 0.007,
     "gemini-1.5-flash": 0.0007,
@@ -112,7 +125,37 @@ function calculateCreditsFromUsage(tokensIn: number, tokensOut: number): number 
     return Math.max(1, Math.ceil((Math.max(0, tokensIn) + Math.max(0, tokensOut)) / 1000));
 }
 
+// Models Anthropic has retired, mapped to the current model of the same tier. A team or an env var
+// that still names one would otherwise fail every call with a 404 until someone edits the setting.
+// Current IDs (including claude-sonnet-4-5 / 4-6) pass through unchanged.
+const RETIRED_ANTHROPIC_MODELS: Array<[RegExp, string]> = [
+    [/^claude-(?:3-5-|3-7-|3-)?sonnet(?:-\d{8})?(?:-latest)?$/, "claude-sonnet-5-5"],
+    [/^claude-sonnet-4(?:-\d{8})?$/, "claude-sonnet-5-5"],
+    [/^claude-(?:3-5-|3-)?haiku(?:-\d{8})?(?:-latest)?$/, "claude-haiku-5-5"],
+    [/^claude-(?:3-)?opus(?:-\d{8})?(?:-latest)?$/, "claude-opus-5-5"],
+    [/^claude-opus-4(?:-1)?(?:-\d{8})?$/, "claude-opus-5-5"],
+    [/^claude-(?:2\.[01]|instant-1\.2)$/, "claude-sonnet-5-5"],
+];
+
+export function currentAnthropicModel(model: string | undefined): string | undefined {
+    if (!model) return model;
+    const id = model.trim().toLowerCase();
+    const hit = RETIRED_ANTHROPIC_MODELS.find(([pattern]) => pattern.test(id));
+    if (!hit) return model;
+    logger.warn("[AI Config] Saved Anthropic model is retired; using its replacement", { saved: model, using: hit[1] });
+    return hit[1];
+}
+
+function withCurrentAnthropicModel(providers: ProviderKeySet): ProviderKeySet {
+    if (!providers.anthropic?.model) return providers;
+    return { ...providers, anthropic: { ...providers.anthropic, model: currentAnthropicModel(providers.anthropic.model) } };
+}
+
 export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
+    return withCurrentAnthropicModel(await readTeamProviders(teamId));
+}
+
+async function readTeamProviders(teamId?: string): Promise<ProviderKeySet> {
     const fromEnv: ProviderKeySet = {
         gemini: process.env["GEMINI_API_KEY"]
             ? { apiKey: process.env["GEMINI_API_KEY"], model: process.env["GEMINI_MODEL"] }
@@ -254,7 +297,28 @@ async function reserveCreditsForGeneration(
     return credits;
 }
 
-async function settleCreditsForGeneration(
+/**
+ * Callers settle after the provider call has succeeded. A failed adjustment (a DB error) must
+ * not look like a provider failure: callLLM would discard the result, call the next provider
+ * (a second paid call) and refund the whole reservation. The reservation stands as the charge
+ * and the failure is logged for reconciliation.
+ */
+async function settleCreditsForGeneration(...args: Parameters<typeof applyCreditSettlement>) {
+    try {
+        await applyCreditSettlement(...args);
+    } catch (error: any) {
+        const [teamId, reservedCredits, actualCredits, description] = args;
+        logger.error("[AI Usage] Credit settlement failed; the reservation stands", {
+            error: error?.message || String(error),
+            teamId,
+            reservedCredits,
+            actualCredits,
+            description,
+        });
+    }
+}
+
+async function applyCreditSettlement(
     teamId: string | undefined,
     reservedCredits: number,
     actualCredits: number,
@@ -415,6 +479,7 @@ async function escalateGenerationFailureToHuman(params: {
 async function callProvider(
     candidate: ProviderCandidate,
     prompt: string,
+    observability: AIObservabilityContext,
     systemPrompt?: string
 ): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
     if (candidate.provider === LLMProvider.GEMINI) {
@@ -428,26 +493,36 @@ async function callProvider(
             model: candidate.model,
             ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
         }, { timeout: LLM_TIMEOUT_MS });
+        const generationStart = Date.now();
         const result = await model.generateContent(prompt);
         const response = result.response;
         const usage = (response as any).usageMetadata || {};
+        const tokensIn = usage.promptTokenCount || 0;
+        const tokensOut = usage.candidatesTokenCount || 0;
+        captureLegacyGeminiGeneration({
+            context: observability,
+            model: candidate.model,
+            inputTokens: tokensIn,
+            outputTokens: tokensOut,
+            latencyMs: Date.now() - generationStart,
+        });
         return {
             text: response.text(),
-            tokensIn: usage.promptTokenCount || 0,
-            tokensOut: usage.candidatesTokenCount || 0
+            tokensIn,
+            tokensOut
         };
     }
 
     if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK || candidate.provider === LLMProvider.OPEN_MODEL) {
         // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
-        // just a different base URL. Mirrors modules/overseer/deepseekClient.ts.
-        const client = instrumentOpenAI(new OpenAI({
+        // just a different base URL.
+        const client = createOpenAIClient({
             apiKey: candidate.apiKey,
             timeout: LLM_TIMEOUT_MS,
             maxRetries: MAX_RETRIES_PER_PROVIDER,
             ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {}),
             ...(candidate.provider === LLMProvider.OPEN_MODEL ? { baseURL: candidate.baseURL } : {})
-        }));
+        });
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
         // no explicit cache_control needed, just put the stable instructions
         // in their own leading message so the prefix is byte-identical
@@ -458,7 +533,10 @@ async function callProvider(
         const response = await client.chat.completions.create({
             model: candidate.model,
             messages,
-            temperature: 0.4
+            temperature: 0.4,
+            ...(candidate.provider === LLMProvider.DEEPSEEK
+                ? withAIProvider(observability, "deepseek")
+                : observability),
         });
         return {
             text: response.choices?.[0]?.message?.content || "",
@@ -467,10 +545,12 @@ async function callProvider(
         };
     }
 
-    const client = instrumentAnthropic(new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+    const client = createAnthropicClient({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
     const message = await client.messages.create({
         model: candidate.model,
-        max_tokens: 800,
+        // Sonnet/Haiku 5.5 think adaptively, and thinking tokens count against this cap, so 800 could
+        // be spent before the first word of a draft. This is a ceiling, not a target.
+        max_tokens: ANTHROPIC_MAX_TOKENS,
         // Anthropic prompt caching: marking a stable system block ephemeral
         // lets a repeated prefix (e.g. the same style/persona instructions
         // sent on every campaign email) be served from cache instead of
@@ -478,10 +558,20 @@ async function callProvider(
         ...(systemPrompt
             ? { system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }] }
             : {}),
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: prompt }],
+        ...observability,
     });
+    // A draft cut off at the cap, or one with no text at all, must not be handed back as if it were
+    // finished: the caller would send or store it. Failing here moves on to the next provider.
+    const text = message.content?.find((block) => block.type === "text")?.text ?? "";
+    if (message.stop_reason === "max_tokens") {
+        throw new Error(`Anthropic response was cut off at ${ANTHROPIC_MAX_TOKENS} tokens (${candidate.model}).`);
+    }
+    if (!text.trim()) {
+        throw new Error(`Anthropic returned no text (${candidate.model}, stop_reason ${message.stop_reason ?? "unknown"}).`);
+    }
     return {
-        text: message.content?.[0]?.type === "text" ? message.content[0].text : "",
+        text,
         tokensIn: (message.usage as any)?.input_tokens || 0,
         tokensOut: (message.usage as any)?.output_tokens || 0
     };
@@ -497,14 +587,17 @@ async function callLLM(
         actorId?: string;
         systemPrompt?: string;
         preferOpenModel?: boolean;
+        /** false: use the team's key (else the platform's) but take no credits. Default true. */
+        chargeCredits?: boolean;
     }
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
+    const observability = createAIObservabilityContext(actorId);
     const providers = await loadTeamProviders(options.teamId);
     const chain = buildProviderChain(providers, options.complexity, options.preferOpenModel);
     const primary = chain[0];
     const start = Date.now();
-    const billedTeamId = isChargeableTeamId(options.teamId) ? options.teamId : undefined;
+    const billedTeamId = options.chargeCredits !== false && isChargeableTeamId(options.teamId) ? options.teamId : undefined;
     const estimatedCredits = estimateCreditsForPrompt(prompt, options.complexity);
     const billingDescription = options.creditDescription || "AI generation usage";
     const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, billingDescription, {
@@ -521,7 +614,7 @@ async function callLLM(
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
-                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, options.systemPrompt), LLM_TIMEOUT_MS);
+                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, observability, options.systemPrompt), LLM_TIMEOUT_MS);
                 recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
@@ -640,12 +733,17 @@ export class AIService {
             complexity?: TaskComplexity;
             /** Try the open-weight model (OPEN_MODEL_* env) first. Used by the LinkedIn extension. */
             preferOpenModel?: boolean;
+            /** false: take no credits for this call (key choice is unchanged). Default true. */
+            chargeCredits?: boolean;
+            /** Set only for prompts the server builds itself around fetched page text: the user-typing content rules are skipped and this size cap applies. */
+            maxPromptChars?: number;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
         const safePrompt = enforceAIPromptPolicy(prompt, {
             surface,
-            label: "AI prompt"
+            label: "AI prompt",
+            ...(taskContext?.maxPromptChars ? { maxChars: taskContext.maxPromptChars, skipContentRules: true } : {})
         });
         const safeSystemPrompt = taskContext?.systemPrompt
             ? enforceAIPromptPolicy(taskContext.systemPrompt, { surface, label: "AI system prompt" })
@@ -657,7 +755,8 @@ export class AIService {
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
             actorId: taskContext?.actorId,
             systemPrompt: safeSystemPrompt,
-            preferOpenModel: taskContext?.preferOpenModel
+            preferOpenModel: taskContext?.preferOpenModel,
+            chargeCredits: taskContext?.chargeCredits
         });
 
         const expectsJson = !!taskContext?.expectsJson;
@@ -682,6 +781,131 @@ export class AIService {
         };
         const guarded = enforceAgentOutputGuardrails(result.text, guardrailOptions);
         return clampGeneratedText(guarded.text, OUTPUT_MAX_CHARS[surface]);
+    }
+
+    /**
+     * Anthropic Message Batches: one request per prompt, run asynchronously by the provider at
+     * a lower price. Same rules as askAI: the prompts pass the input policy, credits are
+     * reserved up front (and returned if the batch is not accepted), and usage is logged when
+     * the results are read. The reservation is the charge; results are not re-priced.
+     */
+    public async submitMessageBatch(
+        requests: { customId: string; prompt: string }[],
+        teamId: string,
+        options: { taskType: string; surface?: AISurface; maxTokens?: number }
+    ): Promise<{ providerBatchId: string; model: string }> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error("Batch generation requires a configured Anthropic API key for this team.");
+        }
+        const surface = options.surface || "EMAIL";
+        const model = providers.anthropic.model || BATCH_MODEL;
+        const prompts = requests.map((request) => ({
+            customId: request.customId,
+            prompt: enforceAIPromptPolicy(request.prompt, { surface, label: "AI batch prompt" }),
+        }));
+
+        const billedTeamId = isChargeableTeamId(teamId) ? teamId : undefined;
+        const estimatedCredits = prompts.reduce((sum, request) => sum + estimateCreditsForPrompt(request.prompt), 0);
+        const description = `AI batch ${options.taskType}`;
+        const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, description, {
+            provider: LLMProvider.ANTHROPIC,
+            model,
+            taskType: options.taskType,
+            estimatedCredits,
+            requestCount: prompts.length,
+        });
+
+        try {
+            const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
+            const batch = await client.messages.batches.create({
+                requests: prompts.map((request) => ({
+                    custom_id: request.customId,
+                    params: {
+                        model,
+                        max_tokens: options.maxTokens ?? ANTHROPIC_MAX_TOKENS,
+                        messages: [{ role: "user" as const, content: request.prompt }],
+                    },
+                })),
+            });
+            return { providerBatchId: batch.id, model };
+        } catch (error) {
+            if (billedTeamId && reservedCredits > 0) {
+                await refundCredits(billedTeamId, reservedCredits, `${description} (failure rollback)`, {
+                    provider: LLMProvider.ANTHROPIC,
+                    model,
+                    taskType: options.taskType,
+                    billingStage: "rollback",
+                    reservedCredits,
+                }).catch((refundError) => logger.error("[AI Usage] Batch rollback refund failed", { error: (refundError as Error).message }));
+            }
+            throw error;
+        }
+    }
+
+    public async isMessageBatchDone(providerBatchId: string, teamId: string): Promise<boolean> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error(`Batch polling requires a configured Anthropic API key for team ${teamId}.`);
+        }
+        const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
+        const remote = await client.messages.batches.retrieve(providerBatchId);
+        return remote.processing_status === "ended";
+    }
+
+    /** The text of every request in an ended batch (null when it did not succeed); logs usage for each. */
+    public async readMessageBatchResults(
+        providerBatchId: string,
+        teamId: string,
+        options: { taskType: string }
+    ): Promise<{ customId: string; text: string | null; resultType: string }[]> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.anthropic?.apiKey) {
+            throw new Error(`Batch results require a configured Anthropic API key for team ${teamId}.`);
+        }
+        const client = createAnthropicClient({ apiKey: providers.anthropic.apiKey });
+        const actorId = RequestContext.get()?.userId;
+        const out: { customId: string; text: string | null; resultType: string }[] = [];
+        for await (const line of await client.messages.batches.results(providerBatchId)) {
+            if (line.result.type === "succeeded") {
+                const message = line.result.message;
+                await logUsage({
+                    teamId,
+                    actorId,
+                    provider: LLMProvider.ANTHROPIC,
+                    model: message.model || providers.anthropic.model || BATCH_MODEL,
+                    taskType: options.taskType,
+                    tokensIn: message.usage?.input_tokens ?? 0,
+                    tokensOut: message.usage?.output_tokens ?? 0,
+                    latencyMs: 0,
+                    success: true,
+                });
+                // Same rule as a live call: a draft cut off at the cap, or with no text, is a failed item.
+                const text = message.content?.find((block) => block.type === "text")?.text ?? "";
+                if (message.stop_reason === "max_tokens") {
+                    out.push({ customId: line.custom_id, text: null, resultType: "truncated" });
+                } else if (!text.trim()) {
+                    out.push({ customId: line.custom_id, text: null, resultType: "empty" });
+                } else {
+                    out.push({ customId: line.custom_id, text, resultType: "succeeded" });
+                }
+            } else {
+                await logUsage({
+                    teamId,
+                    actorId,
+                    provider: LLMProvider.ANTHROPIC,
+                    model: providers.anthropic.model || BATCH_MODEL,
+                    taskType: options.taskType,
+                    tokensIn: 0,
+                    tokensOut: 0,
+                    latencyMs: 0,
+                    success: false,
+                    error: line.result.type,
+                });
+                out.push({ customId: line.custom_id, text: null, resultType: line.result.type });
+            }
+        }
+        return out;
     }
 
     async getEmbeddings(text: string, teamId?: string, actorId?: string): Promise<number[]> {
@@ -711,17 +935,19 @@ export class AIService {
         let settledCredits = false;
 
         const estimatedTokensIn = Math.ceil(safeText.length / 4);
+        const observability = createAIObservabilityContext(resolvedActorId);
 
         try {
         if (providers.openai?.apiKey) {
-            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+            const client = createOpenAIClient({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
             // providers.openai.model is the team's chat-completion model override
             // (e.g. "gpt-4o") - never a valid embeddings model, so it must not be
             // reused here the way it is for chat calls elsewhere in this file.
             const model = process.env["OPENAI_EMBEDDING_MODEL"] || "text-embedding-3-small";
             const response = await client.embeddings.create({
                 model,
-                input: safeText
+                input: safeText,
+                ...observability,
             });
             const tokensIn = response.usage?.prompt_tokens || estimatedTokensIn;
             const tokensOut = 0;
@@ -758,9 +984,16 @@ export class AIService {
             const model = genAI.getGenerativeModel({
                 model: embeddingModelName
             }, { timeout: LLM_TIMEOUT_MS });
+            const embeddingStart = Date.now();
             const result = await (model as any).embedContent(safeText);
             const tokensIn = estimatedTokensIn;
             const tokensOut = 0;
+            captureLegacyGeminiEmbedding({
+                context: observability,
+                model: embeddingModelName,
+                inputTokens: tokensIn,
+                latencyMs: Date.now() - embeddingStart,
+            });
             await logUsage({
                 teamId,
                 actorId: resolvedActorId,
@@ -870,11 +1103,13 @@ export class AIService {
         let settledCredits = false;
 
         try {
-            const client = instrumentOpenAI(new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER }));
+            const client = createOpenAIClient({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
+            const observability = createAIObservabilityContext(resolvedActorId);
             const response = await client.images.generate({
                 model,
                 prompt: safePrompt,
                 size: "1536x1024",
+                ...observability,
             });
             const b64 = response.data?.[0]?.b64_json;
             if (!b64) {
@@ -964,26 +1199,7 @@ export class AIService {
             // Best-effort - a draft without personality guidance is still better than no draft.
         }
 
-        // TOON's compact tabular serialization instead of JSON.stringify -
-        // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
-        // cutting prompt tokens on every email-draft call.
-        const prompt = `
-You are a B2B outreach expert. Draft a cold email.
-
-Lead:
-${TOON.serializeTabular(lead)}
-
-ICP:
-${TOON.serializeTabular(icp)}
-
-Relevant knowledge base context:
-${knowledgeContext || "None"}
-
-Personality guidance (DISC):
-${personalityGuidance || "None"}
-
-Return JSON with keys: subject, body.
-        `.trim();
+        const prompt = buildLegacyDraftPrompt({ lead, icp, knowledgeContext, personalityGuidance });
         const safePrompt = enforceAIPromptPolicy(prompt, { surface: "EMAIL", label: "Email generation prompt" });
         const result = await callLLM(safePrompt, {
             teamId,
@@ -1023,7 +1239,7 @@ Return JSON with keys: subject, body.
     }
 
     async generateConnectionMessage(profileContext: string, teamId?: string): Promise<string> {
-        const prompt = `Write a concise LinkedIn connection message (max 300 characters) based on this profile context:\n${profileContext}`;
+        const prompt = buildConnectionPrompt(profileContext);
         const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Connection message prompt" });
         const result = await callLLM(safePrompt, {
             teamId,

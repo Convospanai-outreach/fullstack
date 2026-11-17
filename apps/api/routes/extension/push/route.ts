@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../_lib/auth";
 import { PIIScrubber } from "@/lib/governance/PIIScrubber";
 import { scrapeLinkedInProfile } from "@/linkedin/scraper-bridge";
+import { internalErrorMessage } from "@/lib/internalError";
 
 function sanitizeText(value: unknown, maxLength: number): string | undefined {
     if (typeof value !== "string") return undefined;
@@ -74,6 +75,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, message: "Profile saved" });
     } catch (error: any) {
         console.error("[Extension Push] Error:", error);
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ ok: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

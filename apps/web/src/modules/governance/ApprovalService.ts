@@ -9,6 +9,20 @@ export enum ApprovalStatus {
     REJECTED = "REJECTED"
 }
 
+const MESSAGE_ACTION_TYPE = "MESSAGE_SEND";
+
+// The inbox widget sends an edited message as plain text, `{ draft_content }`, or `{ subject, body }`.
+function messageEditFrom(revised: unknown): { subject?: string; body?: string } | undefined {
+    if (typeof revised === "string") return { body: revised };
+    if (typeof revised !== "object" || revised === null) return undefined;
+    const r = revised as { subject?: unknown; body?: unknown; draft_content?: unknown };
+    const body = typeof r.body === "string" ? r.body : typeof r.draft_content === "string" ? r.draft_content : undefined;
+    return {
+        ...(typeof r.subject === "string" ? { subject: r.subject } : {}),
+        ...(body !== undefined ? { body } : {}),
+    };
+}
+
 export class ApprovalService {
 
     /**
@@ -170,6 +184,13 @@ export class ApprovalService {
         const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
 
+        // Held AI messages are sent by re-queuing the original job, not by flipping the status.
+        if (request.actionType === MESSAGE_ACTION_TYPE) {
+            const { approveMessageSend } = await import("./messageApproval");
+            await approveMessageSend(request, teamId, reviewerId, messageEditFrom(revisedPayload));
+            return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        }
+
         const updateData: any = {
             status: ApprovalStatus.APPROVED,
             reviewerId,
@@ -204,6 +225,12 @@ export class ApprovalService {
     static async reject(requestId: string, reviewerId: string, teamId: string, reason?: string) {
         const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
+
+        if (request.actionType === MESSAGE_ACTION_TYPE) {
+            const { rejectMessageSend } = await import("./messageApproval");
+            await rejectMessageSend(requestId, teamId, reviewerId, reason);
+            return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        }
 
         const data: any = { status: ApprovalStatus.REJECTED, reviewerId, reviewedAt: new Date() };
         if (reason) {

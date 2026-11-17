@@ -14,6 +14,10 @@
         "readiness:seed": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/seed-readiness.ts",
         "readiness:audit": "npm run readiness:seed && npm run readiness:audit:strict",
         "readiness:audit:strict": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/validate-production-readiness.ts",
+        "eval:copy": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/eval-copy.ts",
+        "playbook:sync": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/playbook-sync.ts",
+        "copy:outcomes": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/copy-outcomes.ts",
+        "gold:sync": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/gold-sync.ts",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts",
         "test:routes": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts",
         "test:coverage": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run --config vitest.config.ts --coverage"
@@ -25,11 +29,14 @@
         "@fastify/rate-limit": "^10.0.0",
         "@google/generative-ai": "^0.24.1",
         "@hubspot/api-client": "^13.4.0",
+        "@modelcontextprotocol/sdk": "^1.32.2",
         "@next-auth/prisma-adapter": "^1.0.7",
+        "@posthog/ai": "^7.21.0",
         "@prisma/adapter-pg": "^7.10.1",
         "@prisma/client": "^7.10.1",
         "@prisma/config": "^7.10.1",
         "@sentry/node": "~10.76.2",
+        "@typesafe-ai/sdk": "0.7.0",
         "axios": "^1.20.0",
         "bcryptjs": "^3.0.3",
         "cron-parser": "^5.4.0",
@@ -48,7 +55,7 @@
         "mailparser": "^3.9.28",
         "next": "^16.4.1",
         "next-auth": "^4.24.14",
-        "nodemailer": "^10.0.2",
+        "nodemailer": "~10.1.5",
         "openai": "^6.16.0",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",
@@ -68,7 +75,7 @@
         "tsx": "^4.22.4",
         "uuid": "^14.0.0",
         "winston": "^3.19.0",
-        "zod": "^4.3.6"
+        "zod": "^4.6.6"
     },
     "overrides": {
         "form-data": "^4.0.6",
@@ -77,7 +84,7 @@
         "fastify": "^5.12.6",
         "fast-uri": "4.1.5",
         "js-yaml": "4.3.2",
-        "nodemailer": "^10.0.2",
+        "nodemailer": "~10.1.5",
         "sharp": "0.35.5",
         "@hono/node-server": "^2.0.5",
         "hono": "^4.12.27"

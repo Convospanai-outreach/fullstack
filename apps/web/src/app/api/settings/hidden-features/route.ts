@@ -15,6 +15,7 @@ import {
     resolveEnabledFeatureKeysFromContext,
     resolveReadiness,
 } from "@/lib/hiddenFeaturesReadiness";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Best-effort: mirror the DB-resolved enabled set into the client cookie so the
 // proxy middleware gate (discoverability only, not a security boundary) stays in
@@ -169,6 +170,6 @@ export async function PUT(req: NextRequest) {
             enabledFeatures: enabledArray,
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message || "Failed to update hidden features" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Failed to update hidden features") }, { status: 500 });
     }
 }

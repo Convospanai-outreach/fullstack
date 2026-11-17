@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { bulkService } from "@/modules/bulk/service/BulkService";
 import { getCurrentContext } from "@/lib/auth";
 import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const MAX_BULK_ITEMS = 500;
 
@@ -33,6 +34,6 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, result });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

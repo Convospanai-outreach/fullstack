@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { knowledgeService } from "@/modules/knowledge/knowledgeService";
 import { forbiddenUnlessRole, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -22,6 +23,6 @@ export async function POST(req: NextRequest) {
         const kb = await knowledgeService.createKnowledgeBase(ctx.teamId, name, description);
         return NextResponse.json({ success: true, data: kb });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error) }, { status: 500 });
     }
 }

@@ -3,6 +3,7 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { getSmtpConfigRedacted, saveSmtpConfig, deleteSmtpConfig } from "@/modules/email-campaigner/service/smtpConfigService";
 import { z } from "zod";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { internalErrorMessage } from "@/lib/internalError";
 
 const SmtpSchema = z.object({
     host: z.string().min(1),
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
         const config = await getSmtpConfigRedacted(ctx.teamId);
         return NextResponse.json({ config });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }
 
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
         await saveSmtpConfig(ctx.teamId, parsed.data);
         return NextResponse.json({ success: true });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }
 
@@ -67,7 +68,7 @@ export async function DELETE(req: NextRequest) {
         await deleteSmtpConfig(ctx.teamId);
         return NextResponse.json({ success: true });
     } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(err) }, { status: 500 });
     }
 }
 

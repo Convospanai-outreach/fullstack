@@ -1,6 +1,7 @@
 
 import crypto from "crypto";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { SYSTEM_FROM_EMAIL } from "@/lib/systemSender";
 import { prisma } from "@/lib/db";
 
 const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
@@ -83,19 +84,36 @@ export class EmailService {
             const port = Number(process.env["SMTP_PORT"] || 587);
             const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
             const fromName = process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
-            const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+            const fromEmail = process.env["SMTP_FROM_EMAIL"] || SYSTEM_FROM_EMAIL;
             const baseUrl = process.env["NEXTAUTH_URL"] || "http://localhost:3000";
             const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
             const html = `
                 <p>Hi ${(name || "there").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)},</p>
-                <p>Please verify your email:</p>
+                <p>Please verify your email to finish creating your ${fromName} account:</p>
                 <p><a href="${verifyUrl}">Verify Email</a></p>
+                <p>If the button doesn't work, copy this link into your browser:<br>${verifyUrl}</p>
+                <p>The link expires in 24 hours. If you didn't sign up, you can ignore this email.</p>
             `;
-            await sendViaSMTP({ host, port, secure, user, password, fromName, fromEmail }, {
+            // A plain-text part alongside the HTML: HTML-only mail scores worse with spam filters.
+            const text = [
+                `Hi ${name || "there"},`,
+                "",
+                `Please verify your email to finish creating your ${fromName} account:`,
+                verifyUrl,
+                "",
+                "The link expires in 24 hours. If you didn't sign up, you can ignore this email.",
+            ].join("\n");
+            // sendViaSMTP reports failure in its result instead of throwing; surface it so the
+            // callers can tell the user and the server log shows why.
+            const result = await sendViaSMTP({ host, port, secure, user, password, fromName, fromEmail }, {
                 to: email,
                 subject: "Verify your email",
-                html
+                html,
+                text
             });
+            if (!result.success) {
+                throw new Error(`Verification email was not sent via ${host}:${port}: ${result.error ?? "unknown error"}`);
+            }
             return;
         }
         await fetch(`${API_URL}/email/send-verification`, {

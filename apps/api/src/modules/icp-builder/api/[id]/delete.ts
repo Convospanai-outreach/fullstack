@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { icpService } from "../../service/icpService";
 import { getCurrentContextFromRequest } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function DELETE(
     req: Request,
@@ -18,7 +19,7 @@ export async function DELETE(
         return NextResponse.json({ ok: true });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

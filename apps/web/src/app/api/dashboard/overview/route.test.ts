@@ -1,0 +1,149 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockPrisma, mockContext } = vi.hoisted(() => ({
+  mockPrisma: {
+    lead: { groupBy: vi.fn() },
+    email: { count: vi.fn() },
+    emailEvent: { count: vi.fn() },
+    leadActivity: { groupBy: vi.fn() },
+    whatsAppMessage: { count: vi.fn() },
+    approvalRequest: { findMany: vi.fn() },
+  },
+  mockContext: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/auth", () => ({ getCurrentContext: mockContext }));
+
+import { GET } from "./route";
+
+describe("GET /api/dashboard/overview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+    mockPrisma.lead.groupBy.mockResolvedValue([
+      { pipelineState: "COLD", _count: { _all: 7 } },
+      { pipelineState: "HOT", _count: { _all: 2 } },
+    ]);
+    mockPrisma.email.count.mockResolvedValue(12);
+    mockPrisma.emailEvent.count.mockResolvedValue(3);
+    // Distinct leads by what was logged: 3 calls made / 1 conversation; 4 LinkedIn leads contacted / 2 replied.
+    mockPrisma.leadActivity.groupBy.mockImplementation(async ({ where }: { where: { channel: { in: string[] }; type: { in: string[] } } }) => {
+      const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ leadId: `l${i}` }));
+      const linkedin = where.channel.in.includes("LINKEDIN");
+      return where.type.in.length > 1 ? rows(linkedin ? 4 : 3) : rows(linkedin ? 2 : 1);
+    });
+    mockPrisma.whatsAppMessage.count.mockImplementation(async ({ where }: { where: { direction: string } }) => (where.direction === "OUTBOUND" ? 4 : 1));
+    mockPrisma.approvalRequest.findMany.mockResolvedValue([
+      {
+        id: "a1", actionType: "SEND_EMAIL", status: "APPROVED", reviewedAt: new Date("2026-11-10T10:00:00Z"), updatedAt: new Date("2026-11-11T10:00:00Z"),
+        reviewer: { name: "Sid", firstName: "S" }, payload: { body: "secret message text" },
+      },
+      { id: "a2", actionType: "SEND_EMAIL", status: "REJECTED", reviewedAt: null, updatedAt: new Date("2026-11-09T10:00:00Z"), reviewer: null },
+    ]);
+  });
+
+  it("returns every pipeline stage with real counts, zero where there are none", async () => {
+    const json = await (await GET()).json();
+    expect(json.stages.map((s: { stage: string }) => s.stage)).toEqual(["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"]);
+    expect(json.stages.find((s: { stage: string }) => s.stage === "COLD").count).toBe(7);
+    expect(json.stages.find((s: { stage: string }) => s.stage === "WARM").count).toBe(0);
+  });
+
+  it("reports channel activity, with LinkedIn replies as the ones logged on a lead", async () => {
+    const json = await (await GET()).json();
+    expect(json.channels).toEqual([
+      { channel: "email", sent: 12, replies: 3 },
+      { channel: "linkedin", sent: 4, replies: 2 },
+      { channel: "whatsapp", sent: 4, replies: 1 },
+      { channel: "call", sent: 3, replies: 1 },
+    ]);
+  });
+
+  it("scopes every query to the caller's team", async () => {
+    await GET();
+    expect(mockPrisma.lead.groupBy).toHaveBeenCalledWith(expect.objectContaining({ where: { teamId: "team-1" } }));
+    expect(mockPrisma.email.count).toHaveBeenCalledWith({ where: expect.objectContaining({ lead: { teamId: "team-1" } }) });
+    expect(mockPrisma.approvalRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ teamId: "team-1" }) }));
+  });
+
+  it("lists decisions without the message text, falling back to the update time and no reviewer", async () => {
+    const json = await (await GET()).json();
+    expect(json.record).toEqual([
+      { id: "a1", action: "SEND_EMAIL", status: "APPROVED", at: "2026-11-10T10:00:00.000Z", by: "Sid" },
+      { id: "a2", action: "SEND_EMAIL", status: "REJECTED", at: "2026-11-09T10:00:00.000Z", by: null },
+    ]);
+    expect(JSON.stringify(json)).not.toContain("secret message text");
+  });
+
+  it("returns empty sections and queries nothing when there is no team", async () => {
+    mockContext.mockResolvedValue({ userId: "u1", teamId: null });
+    expect(await (await GET()).json()).toEqual({ stages: [], channels: [], record: [] });
+    expect(mockPrisma.lead.groupBy).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when a query fails", async () => {
+    mockPrisma.lead.groupBy.mockRejectedValue(new Error("db down"));
+    const res = await GET();
+    expect(res.status).toBe(500);
+  });
+});
+
+describe("GET /api/dashboard/overview calls", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+    mockPrisma.lead.groupBy.mockResolvedValue([]);
+    mockPrisma.email.count.mockResolvedValue(0);
+    mockPrisma.emailEvent.count.mockResolvedValue(0);
+    mockPrisma.leadActivity.groupBy.mockResolvedValue([]);
+    mockPrisma.whatsAppMessage.count.mockResolvedValue(0);
+    mockPrisma.approvalRequest.findMany.mockResolvedValue([]);
+  });
+
+  it("counts logged calls per lead for the team, last 7 days: calls made and conversations", async () => {
+    await GET();
+    const wheres = mockPrisma.leadActivity.groupBy.mock.calls.map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where).filter((w) => (w["channel"] as { in: string[] }).in.includes("CALL"));
+    expect(wheres[0]).toMatchObject({ lead: { teamId: "team-1" }, channel: { in: ["CALL", "call"] }, type: { in: ["CALL_CONTACTED", "CALL_REPLIED"] } });
+    expect(wheres[1]).toMatchObject({ lead: { teamId: "team-1" }, type: { in: ["CALL_REPLIED"] } });
+    expect((wheres[0]!["createdAt"] as { gte: Date }).gte.getTime()).toBeGreaterThan(Date.now() - 7 * 86400000 - 60_000);
+  });
+
+  it("reports zero calls, not a made-up number, when none are logged", async () => {
+    const json = await (await GET()).json();
+    expect(json.channels.find((c: { channel: string }) => c.channel === "call")).toEqual({ channel: "call", sent: 0, replies: 0 });
+  });
+});
+
+describe("GET /api/dashboard/overview LinkedIn", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+    mockPrisma.lead.groupBy.mockResolvedValue([]);
+    mockPrisma.email.count.mockResolvedValue(0);
+    mockPrisma.emailEvent.count.mockResolvedValue(0);
+    mockPrisma.leadActivity.groupBy.mockResolvedValue([]);
+    mockPrisma.whatsAppMessage.count.mockResolvedValue(0);
+    mockPrisma.approvalRequest.findMany.mockResolvedValue([]);
+  });
+
+  it("counts leads contacted and leads marked replied, not profile captures or other LinkedIn events", async () => {
+    await GET();
+    const wheres = mockPrisma.leadActivity.groupBy.mock.calls
+      .map((c: unknown[]) => (c[0] as { where: { channel: { in: string[] }; type: { in: string[] }; lead: unknown } }).where)
+      .filter((w) => w.channel.in.includes("LINKEDIN"));
+    expect(wheres).toHaveLength(2);
+    expect(wheres[0]!.type.in).toEqual(["LINKEDIN_OUTREACH_DONE", "LINKEDIN_CONTACTED", "LINKEDIN_REPLIED"]);
+    expect(wheres[1]!.type.in).toEqual(["LINKEDIN_REPLIED"]);
+    expect(wheres[0]!.type.in).not.toContain("LINKEDIN_PROFILE_CAPTURED");
+    expect(wheres[0]!.lead).toEqual({ teamId: "team-1" });
+  });
+
+  it("reports zero, not null, when nothing is logged, so the table never claims 'not tracked'", async () => {
+    const json = await (await GET()).json();
+    expect(json.channels.find((c: { channel: string }) => c.channel === "linkedin")).toEqual({ channel: "linkedin", sent: 0, replies: 0 });
+  });
+});

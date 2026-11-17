@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyticsService } from "../service/analyticsService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export async function GET() {
     try {
@@ -7,7 +8,7 @@ export async function GET() {
         return NextResponse.json({ ok: true, stats });
     } catch (err: any) {
         return NextResponse.json(
-            { ok: false, error: err.message },
+            { ok: false, error: internalErrorMessage(err) },
             { status: 500 }
         );
     }

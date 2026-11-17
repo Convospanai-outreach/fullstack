@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 
-const { mockPrisma, mockCheckCredits, mockDeductCredits, mockEnqueue, mockNeedsApproval } = vi.hoisted(() => ({
+const { mockPrisma, mockCheckCredits, mockDeductCredits, mockRefundCredits, mockEnqueue, mockNeedsApproval } = vi.hoisted(() => ({
     mockNeedsApproval: vi.fn(),
     mockPrisma: {
         schedule: { findMany: vi.fn(), updateMany: vi.fn() },
@@ -8,11 +8,12 @@ const { mockPrisma, mockCheckCredits, mockDeductCredits, mockEnqueue, mockNeedsA
     },
     mockCheckCredits: vi.fn(),
     mockDeductCredits: vi.fn(),
+    mockRefundCredits: vi.fn(),
     mockEnqueue: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
-vi.mock("@/lib/credits", () => ({ checkCredits: mockCheckCredits, deductCredits: mockDeductCredits }));
+vi.mock("@/lib/credits", () => ({ checkCredits: mockCheckCredits, deductCredits: mockDeductCredits, refundCredits: mockRefundCredits }));
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ campaignStartNeedsApproval: mockNeedsApproval }));
 
@@ -44,7 +45,8 @@ describe("SchedulerService.processDueSchedules", () => {
         vi.useFakeTimers();
         vi.setSystemTime(NOW);
         mockCheckCredits.mockResolvedValue(true);
-        mockDeductCredits.mockResolvedValue(undefined);
+        mockDeductCredits.mockResolvedValue(true);
+        mockRefundCredits.mockResolvedValue(undefined);
         mockPrisma.scheduleLog.create.mockResolvedValue({});
         mockEnqueue.mockResolvedValue({ id: "job-1" });
         mockNeedsApproval.mockResolvedValue(false);
@@ -139,5 +141,56 @@ describe("SchedulerService.processDueSchedules", () => {
         expect(mockPrisma.schedule.updateMany).not.toHaveBeenCalled();
         expect(mockEnqueue).not.toHaveBeenCalled();
         expect(results).toEqual([]);
+    });
+
+    it("charges the run before enqueueing, and skips it when the atomic debit is refused", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([dueSchedule()]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+
+        await schedulerService.processDueSchedules();
+        expect((mockDeductCredits as Mock).mock.invocationCallOrder[0]).toBeLessThan((mockEnqueue as Mock).mock.invocationCallOrder[0]);
+
+        vi.clearAllMocks();
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+        // The pre-check passed, but a concurrent run spent the last credit.
+        mockDeductCredits.mockResolvedValue(false);
+
+        const results = await schedulerService.processDueSchedules();
+
+        expect(mockEnqueue).not.toHaveBeenCalled();
+        expect(mockPrisma.scheduleLog.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ scheduleId: "sched-1", status: "failed", message: "Insufficient credits" }),
+        });
+        expect(results).toEqual([{ id: "sched-1", status: "skipped" }]);
+    });
+
+    it("hands the run back and refunds the credit when the enqueue fails, so the next tick retries it", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([dueSchedule()]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+        mockEnqueue.mockRejectedValue(new Error("queue unavailable"));
+
+        const results = await schedulerService.processDueSchedules();
+
+        const claimedNextRunAt = (mockPrisma.schedule.updateMany as Mock).mock.calls[0][0].data.nextRunAt;
+        expect(mockPrisma.schedule.updateMany).toHaveBeenLastCalledWith({
+            where: { id: "sched-1", nextRunAt: claimedNextRunAt },
+            data: { nextRunAt: PRIOR_NEXT_RUN_AT, lastRunAt: null },
+        });
+        expect(mockRefundCredits).toHaveBeenCalledWith("team-1", 1, expect.any(String), { scheduleId: "sched-1" });
+        expect(results).toEqual([{ id: "sched-1", status: "error", error: "queue unavailable" }]);
+    });
+
+    it("keeps processing the tick when logging a failure also fails", async () => {
+        mockPrisma.schedule.findMany.mockResolvedValue([dueSchedule({ id: "sched-1" }), dueSchedule({ id: "sched-2" })]);
+        mockPrisma.schedule.updateMany.mockResolvedValue({ count: 1 });
+        mockEnqueue.mockRejectedValueOnce(new Error("queue unavailable")).mockResolvedValueOnce({ id: "job-2" });
+        mockPrisma.scheduleLog.create.mockRejectedValueOnce(new Error("db down")).mockResolvedValue({});
+
+        const results = await schedulerService.processDueSchedules();
+
+        expect(results).toEqual([
+            { id: "sched-1", status: "error", error: "queue unavailable" },
+            { id: "sched-2", status: "dispatched" },
+        ]);
     });
 });

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
+import { DNS_PROPAGATION_NOTE } from "@/lib/domainSetup";
 
 const API_BASE = getBrowserApiBase();
 
@@ -108,7 +110,11 @@ export default function DomainHealthPage() {
                     </GlassCard>
 
                     <GlassCard className="p-6 space-y-4">
-                        <h3 className="text-sm font-bold text-foreground">Active sending domains</h3>
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-bold text-foreground">Active sending domains</h3>
+                            <Link href="/setup?step=3" className="text-xs font-semibold text-primary hover:underline">Add another domain</Link>
+                        </div>
+                        <p className="text-xs text-muted-foreground">If a domain's health drops, connect a mailbox on a new domain and move campaigns over. {DNS_PROPAGATION_NOTE}</p>
                         {activeDomains.length === 0 ? (
                             <p className="text-xs text-muted-foreground">No connected mailboxes yet — connect one in Settings &gt; Connected Mailboxes.</p>
                         ) : (

@@ -48,6 +48,20 @@ describe("roadmap B-09 — server Sentry instrumentation", () => {
     });
 });
 
+describe("both Sentry entry points scrub personal data", () => {
+    it.each(["src/instrumentation.ts", "src/instrumentation-client.ts"])("%s wires the scrubbing hooks", (file) => {
+        const source = read(file);
+        expect(source).toContain("return scrubEvent(event)");
+        expect(source).toContain("beforeSendTransaction: scrubEvent");
+        expect(source).toContain("beforeBreadcrumb: scrubBreadcrumb");
+        expect(source).toContain("sendDefaultPii: false");
+    });
+
+    it("scrubs session replay custom events", () => {
+        expect(read("src/instrumentation-client.ts")).toContain("beforeAddRecordingEvent: scrubRecordingEvent");
+    });
+});
+
 describe("roadmap B-09 — build integration", () => {
     it("wraps next.config with withSentryConfig", () => {
         const config = read("next.config.mjs");

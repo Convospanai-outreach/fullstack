@@ -34,6 +34,16 @@ vi.mock("./breakerState", () => ({
     getBreakerState: mockGetBreakerState,
 }));
 
+const { mockApproveMessageSend, mockRejectMessageSend } = vi.hoisted(() => ({
+    mockApproveMessageSend: vi.fn(),
+    mockRejectMessageSend: vi.fn(),
+}));
+
+vi.mock("./messageApproval", () => ({
+    approveMessageSend: mockApproveMessageSend,
+    rejectMessageSend: mockRejectMessageSend,
+}));
+
 import { ApprovalService } from "./ApprovalService";
 import { ApprovalTier, resolveApprovalTier } from "./approvalPolicy";
 
@@ -181,5 +191,40 @@ describe("ApprovalService.approve / reject - cross-tenant scoping", () => {
             where: { id: "req-1", teamId: "team-a" },
             data: expect.objectContaining({ status: "REJECTED", reviewNote: "not now" }),
         });
+    });
+});
+
+describe("ApprovalService - held AI messages (MESSAGE_SEND)", () => {
+    const held = { id: "req-1", teamId: "team-a", actionType: "MESSAGE_SEND", status: "PENDING", payload: {} };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockApproveMessageSend.mockResolvedValue(undefined);
+        mockRejectMessageSend.mockResolvedValue(true);
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(held);
+    });
+
+    it("approve queues the send through messageApproval and does not just flip the status", async () => {
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+
+        expect(mockApproveMessageSend).toHaveBeenCalledWith(held, "team-a", "user-a", undefined);
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["plain text", "Edited text", { body: "Edited text" }],
+        ["draft_content", { draft_content: "Edited text" }, { body: "Edited text" }],
+        ["subject and body", { subject: "S", body: "B" }, { subject: "S", body: "B" }],
+    ])("passes the inbox widget's edit (%s) through", async (_label, revised, expected) => {
+        await ApprovalService.approve("req-1", "user-a", "team-a", revised);
+
+        expect(mockApproveMessageSend).toHaveBeenCalledWith(held, "team-a", "user-a", expected);
+    });
+
+    it("reject only rejects a pending message", async () => {
+        await ApprovalService.reject("req-1", "user-a", "team-a", "no");
+
+        expect(mockRejectMessageSend).toHaveBeenCalledWith("req-1", "team-a", "user-a", "no");
+        expect(mockPrisma.approvalRequest.updateMany).not.toHaveBeenCalled();
     });
 });

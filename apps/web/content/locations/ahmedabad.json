@@ -1,0 +1,26 @@
+{
+  "slug": "ahmedabad",
+  "name": "Ahmedabad",
+  "state": "Gujarat",
+  "stateCode": "IN-GJ",
+  "placename": "Ahmedabad, Gujarat, India",
+  "position": "23.0225;72.5714",
+  "icbm": "23.0225, 72.5714",
+  "latitude": "23.0225",
+  "longitude": "72.5714",
+  "corridors": [
+    "SG Highway",
+    "GIFT City (Gandhinagar)",
+    "Prahlad Nagar",
+    "Sanand Industrial Cluster",
+    "Changodar Industrial Area"
+  ],
+  "industryFocus": [
+    "FinTech & International Finance (GIFT City)",
+    "Pharmaceuticals & Chemicals",
+    "Textiles & Industrial Goods",
+    "Solar & Renewable Energy Equipment"
+  ],
+  "summary": "Powering international buyer outreach and pipeline creation across GIFT City, SG Highway, and Gujarat industrial corridors.",
+  "order": 10
+}

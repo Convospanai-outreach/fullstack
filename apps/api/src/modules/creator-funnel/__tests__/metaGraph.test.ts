@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GraphError, graphCall, graphPostJson } from "../metaGraph";
+import { GraphError, IG_GRAPH_BASE_URL, graphCall, graphPostJson } from "../metaGraph";
 
 const respond = (status: number, body: unknown) => vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
 
@@ -15,6 +15,21 @@ describe("graphCall", () => {
         expect(url).toBe("https://graph.facebook.com/v26.0/page-1/feed");
         expect(String(init.body)).toBe("message=Hi&access_token=secret");
         expect(init.redirect).toBe("error");
+    });
+
+    it("uses the Instagram host with the token in an Authorization header, never in the URL or body", async () => {
+        const fetchMock = respond(200, { id: "r-1" });
+        vi.stubGlobal("fetch", fetchMock);
+        await graphCall("POST", "c-1/replies", { message: "Hi" }, "secret", IG_GRAPH_BASE_URL);
+        await graphCall("GET", "igsid-1", { fields: "name,username" }, "secret", IG_GRAPH_BASE_URL);
+
+        const [postUrl, postInit] = fetchMock.mock.calls[0];
+        expect(postUrl).toBe("https://graph.instagram.com/v26.0/c-1/replies");
+        expect(String(postInit.body)).toBe("message=Hi");
+        expect(postInit.headers).toMatchObject({ Authorization: "Bearer secret" });
+        const [getUrl, getInit] = fetchMock.mock.calls[1];
+        expect(getUrl).toBe("https://graph.instagram.com/v26.0/igsid-1?fields=name%2Cusername");
+        expect(getInit.headers).toEqual({ Authorization: "Bearer secret" });
     });
 
     it("treats a refusal as certain and a 5xx or network failure as uncertain", async () => {
@@ -44,6 +59,14 @@ describe("graphPostJson", () => {
         expect(JSON.parse(init.body)).toEqual({ message: { text: "Hi" } });
         expect(init.headers).toEqual({ "Content-Type": "application/json", Authorization: "Bearer secret" });
         expect(init.redirect).toBe("error");
+    });
+
+    it("posts to the Instagram host when asked, still with a Bearer header", async () => {
+        const fetchMock = respond(200, { recipient_id: "p", message_id: "m" });
+        vi.stubGlobal("fetch", fetchMock);
+        await graphPostJson("ig-1/messages", { recipient: { comment_id: "c" } }, "secret", IG_GRAPH_BASE_URL);
+        expect(fetchMock.mock.calls[0][0]).toBe("https://graph.instagram.com/v26.0/ig-1/messages");
+        expect(fetchMock.mock.calls[0][1].headers).toEqual({ "Content-Type": "application/json", Authorization: "Bearer secret" });
     });
 
     it("reports refusals as certain and network failures as uncertain", async () => {

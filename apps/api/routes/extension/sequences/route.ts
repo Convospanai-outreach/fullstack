@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateExtensionAuth } from "../_lib/auth";
 import { resolveExtensionTeamScope } from "../_lib/teamScope";
 import { listSequencesForExtension } from "@/services/extensionLeadCaptureService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Sequences the extension popup offers after a lead is synced.
 export async function GET(req: NextRequest) {
@@ -17,7 +18,6 @@ export async function GET(req: NextRequest) {
         const sequences = await listSequencesForExtension(teamScope.teamId);
         return NextResponse.json({ success: true, sequences });
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Internal error";
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error, "Internal error") }, { status: 500 });
     }
 }

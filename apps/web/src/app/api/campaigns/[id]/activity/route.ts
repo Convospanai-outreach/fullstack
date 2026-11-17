@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuditService } from "@/modules/audit/auditService";
 import { getCurrentContext } from "@/lib/auth";
+import { internalErrorMessage } from "@/lib/internalError";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         const activities = await AuditService.getResourceActivity("Campaign", id);
         return NextResponse.json({ success: true, activities });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: internalErrorMessage(error) }, { status: 500 });
     }
 }

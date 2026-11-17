@@ -5,6 +5,7 @@ import {
     validateNetjanaPayload,
     verifyNetjanaSignature,
 } from "@/modules/intel/service/netjanaIntelService";
+import { internalErrorMessage } from "@/lib/internalError";
 
 // Shared by both apps/api/routes/webhooks/netjana-intel/route.ts and
 // apps/api/routes/api/webhooks/netjana-intel/route.ts, since Netjana's own implementation
@@ -70,6 +71,6 @@ export async function POST(req: NextRequest) {
         });
     } catch (error: any) {
         console.error("[Netjana Intel] Webhook ingest failed", error);
-        return NextResponse.json({ error: error.message || "Webhook ingest failed" }, { status: 500 });
+        return NextResponse.json({ error: internalErrorMessage(error, "Webhook ingest failed") }, { status: 500 });
     }
 }

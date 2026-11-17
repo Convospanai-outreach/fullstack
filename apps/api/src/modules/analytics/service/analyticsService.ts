@@ -1,6 +1,13 @@
 
 import { prisma } from "@/lib/db";
 
+// Moving a lead to won or lost writes status WON/LOST and pipelineState CLOSED_WON/CLOSED_LOST (see
+// leadStageTransitions.ts). Older rows may carry either spelling, so both fields count.
+const WON_WHERE = { OR: [{ status: { in: ["WON", "CLOSED_WON"] } }, { pipelineState: "CLOSED_WON" }] };
+type StageFields = { status?: string | null; pipelineState?: string | null };
+const isWon = (l: StageFields) => l.status === "WON" || l.status === "CLOSED_WON" || l.pipelineState === "CLOSED_WON";
+const isLost = (l: StageFields) => l.status === "LOST" || l.status === "CLOSED_LOST" || l.pipelineState === "CLOSED_LOST";
+
 class AnalyticsService {
     async getStats(teamId?: string) {
         if (!teamId) return { overview: {}, campaignPerformance: [] };
@@ -46,7 +53,7 @@ class AnalyticsService {
             prisma.email.count({ where: { campaign: { teamId } } }),
             prisma.email.count({ where: { campaign: { teamId }, repliedAt: { not: null } } }),
             prisma.meeting.count({ where: { teamId } }),
-            prisma.lead.findMany({ where: { teamId, status: "CLOSED_WON" }, select: { value: true } })
+            prisma.lead.findMany({ where: { teamId, ...WON_WHERE }, select: { value: true } })
         ]);
 
         return {
@@ -116,7 +123,7 @@ class AnalyticsService {
 
         const leads = await prisma.lead.findMany({
             where: { teamId },
-            select: { createdAt: true, status: true }
+            select: { createdAt: true, status: true, pipelineState: true }
         });
 
         return months.map((m) => {
@@ -124,7 +131,7 @@ class AnalyticsService {
             return {
                 cohort: m.key,
                 totalLeads: cohortLeads.length,
-                won: cohortLeads.filter((l) => l.status === "CLOSED_WON").length
+                won: cohortLeads.filter(isWon).length
             };
         });
     }
@@ -132,16 +139,16 @@ class AnalyticsService {
     async getForecastingStats(teamId: string) {
         const leads = await prisma.lead.findMany({
             where: { teamId },
-            select: { status: true, value: true, intentScore: true }
+            select: { status: true, pipelineState: true, value: true, intentScore: true }
         });
 
         const currentRevenue = leads
-            .filter((l) => l.status === "CLOSED_WON")
+            .filter(isWon)
             .reduce((acc, l) => acc + (l.value || 0), 0);
 
         // Weighted by Lead.intentScore (0.0-1.0), the only stage-probability signal the schema has.
         const weightedPipeline = leads
-            .filter((l) => l.status !== "CLOSED_WON" && l.status !== "CLOSED_LOST")
+            .filter((l) => !isWon(l) && !isLost(l))
             .reduce((acc, l) => acc + (l.value || 0) * (l.intentScore || 0), 0);
 
         return { currentRevenue, weightedPipeline };

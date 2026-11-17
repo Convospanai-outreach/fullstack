@@ -85,6 +85,14 @@ export const RETENTION_TARGETS: RetentionTarget[] = [
         defaultDays: 365,
         where: (cutoff) => ({ createdAt: { lt: cutoff } }),
     },
+    {
+        // Details of 500s for the superadmin Server Errors tab; only recent ones are useful.
+        table: "ServerError",
+        delegate: () => prisma.serverError as unknown as RetentionDelegate,
+        envVar: "RETENTION_SERVER_ERROR_DAYS",
+        defaultDays: 30,
+        where: (cutoff) => ({ createdAt: { lt: cutoff } }),
+    },
 ];
 
 export type RetentionResult = {
