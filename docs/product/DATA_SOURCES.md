@@ -37,7 +37,7 @@ Read-only. Home hides these sections if it fails.
 | LinkedIn logged, 7 days | `leadActivity.count`, channel LINKEDIN / linkedin |
 | WhatsApp sent, 7 days | `whatsAppMessage.count`, direction OUTBOUND |
 | WhatsApp replies, 7 days | `whatsAppMessage.count`, direction INBOUND |
-| Calls logged, 7 days | `leadActivity.count`, channel CALL / call. Written when a caller completes a call task (`CallerService.completeTask`) or marks a CALL step on the lead. Replies: not tracked. |
+| Calls made / conversations, 7 days | `leadActivity.groupBy(leadId)`, channel CALL / call: made = types CALL_CONTACTED or CALL_REPLIED, conversations = CALL_REPLIED. Written when a caller completes a call task (`CallerService.completeTask`) or a person marks a CALL step on the lead. |
 | Approval record | 5 latest `approvalRequest` not PENDING: action type, status, time, reviewer name |
 
 WhatsApp counts are scoped to the team through the lead (`lead: { teamId }`);

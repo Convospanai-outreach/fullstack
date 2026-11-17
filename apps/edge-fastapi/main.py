@@ -170,6 +170,7 @@ if os.getenv("EDGE_CLOUD_API_URL", "").strip():
 
 class SanitizeRequest(BaseModel):
     text: str = Field(min_length=1)
+    tenant_id: str = Field(min_length=1)  # the team the text belongs to; re-identify must present the same one
     session_id: Optional[str] = None
 
 class SanitizeResponse(BaseModel):
@@ -328,7 +329,7 @@ def sanitize_text(request: SanitizeRequest):
         raise HTTPException(status_code=503, detail="Edge features disabled")
     enforce_text_limit(request.text)
     session_id = request.session_id or str(uuid.uuid4())
-    sanitized_text, stats = local_intelligence.sanitize_and_tag(request.text, session_id)
+    sanitized_text, stats = local_intelligence.sanitize_and_tag(request.text, session_id, request.tenant_id)
     capture_event(
         "text_sanitized",
         {
@@ -376,6 +377,7 @@ def generate_offline(request: OfflineRequest):
 
 class ReidentifyRequest(BaseModel):
     token: str
+    tenant_id: str = Field(min_length=1)
     session_id: Optional[str] = None
 
 @app.post("/v1/reidentify", dependencies=[Depends(require_edge_api_key)])
@@ -383,9 +385,9 @@ def reidentify_token(request: ReidentifyRequest):
     """Deep Tech: Protocol Break - Identity Vault Lookup"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
-    original = local_intelligence.reidentify_token(request.token, request.session_id)
+    original = local_intelligence.reidentify_token(request.token, request.tenant_id, request.session_id)
     if not original:
-        raise HTTPException(status_code=404, detail="Token not found or session mismatch")
+        raise HTTPException(status_code=404, detail="Token not found for this tenant or session")
     capture_event(
         "token_reidentified",
         {"has_caller_session": request.session_id is not None},

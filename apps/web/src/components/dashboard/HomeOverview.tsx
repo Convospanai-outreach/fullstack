@@ -19,7 +19,7 @@ const STAGE_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
 };
 
-const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn", whatsapp: "WhatsApp", call: "Calls" } as const;
+const CHANNEL_LABELS = { email: "Email", linkedin: "LinkedIn (logged by hand)", whatsapp: "WhatsApp", call: "Logged calls" } as const;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -63,7 +63,7 @@ export function HomeOverview() {
               <li key={s.stage}>
                 <Link href="/pipeline" className="block rounded-lg border border-border bg-card px-3.5 py-3 hover:bg-accent/40">
                   <span className="block text-xs text-muted-foreground">{STAGE_LABELS[s.stage] ?? words(s.stage)}</span>
-                  <span className={`block text-2xl font-medium ${s.count > 0 ? "text-foreground" : "text-muted-foreground"}`}>{s.count}</span>
+                  <span className={`block font-display text-2xl font-medium ${s.count > 0 ? "text-foreground" : "text-muted-foreground"}`}>{s.count}</span>
                 </Link>
               </li>
             ))}
@@ -94,11 +94,15 @@ export function HomeOverview() {
                   <tr key={c.channel} className="border-t border-border">
                     <td className="px-4 py-2.5 font-medium text-foreground">{CHANNEL_LABELS[c.channel]}</td>
                     {c.sent === 0 ? (
-                      <td colSpan={3} className="px-4 py-2.5 text-right text-muted-foreground">Nothing sent yet</td>
+                      <td colSpan={3} className="px-4 py-2.5 text-right text-muted-foreground">
+                        {c.channel === "call" ? (
+                          <>No calls logged yet. <Link href="/leads" className={action}>Log a call on a lead</Link></>
+                        ) : "Nothing sent yet"}
+                      </td>
                     ) : (
                       <>
                         <td className="px-4 py-2.5 text-right text-foreground">{c.sent}</td>
-                        <td className="px-4 py-2.5 text-right text-foreground">{c.replies ?? <span className="text-muted-foreground">Not tracked yet</span>}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{c.channel === "call" ? `${c.replies} ${c.replies === 1 ? "conversation" : "conversations"}` : c.replies ?? <span className="text-muted-foreground">Not tracked yet</span>}</td>
                         <td className="px-4 py-2.5 text-right font-medium text-foreground">{c.replies === null ? "" : `${Math.round((c.replies / c.sent) * 100)}%`}</td>
                       </>
                     )}

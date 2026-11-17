@@ -354,6 +354,27 @@ describe("POST /webhooks/resend - failed side effects are retried, not lost", ()
         expect(res.status).toBe(200);
     });
 
+    it("marks the address INVALID and suppresses it after a permanent bounce", async () => {
+        const res = await POST(request({ type: "email.bounced", data: { email_id: "provider-1", to: ["Lead@Example.com"], bounce: { type: "Permanent" } } }));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.suppressionEntry.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({ email: "lead@example.com", reason: "BOUNCE", source: "RESEND_WEBHOOK" }),
+        }));
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: expect.anything() },
+            data: { emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: expect.any(Date) },
+        });
+    });
+
+    it("leaves the address alone after a temporary bounce", async () => {
+        await POST(request({ type: "email.bounced", data: { email_id: "provider-1", to: ["lead@example.com"], bounce: { type: "Transient" } } }));
+        await POST(request({ type: "email.bounced", data: { email_id: "provider-1" } }));
+
+        expect(mockPrisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+        expect(mockPrisma.lead.update).not.toHaveBeenCalled();
+    });
+
     it("answers 500 when the complaint's opt-out update fails, but not when the lead is gone", async () => {
         const complaint = { type: "email.complained", data: { email_id: "provider-1", to: ["Lead@Example.com"] } };
 

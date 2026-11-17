@@ -43,6 +43,19 @@ export async function resolveOidcSsoForTeam(teamId: string): Promise<ResolvedOid
     };
 }
 
+// Sign-in starts from an email, not a team id: the login page never learns which team owns a
+// domain. Finds the OIDC team that allows the email's domain and resolves its provider.
+export async function resolveOidcSsoForEmail(email: string): Promise<ResolvedOidcSso | null> {
+    const domain = email.toLowerCase().split("@")[1];
+    if (!domain) return null;
+
+    const config = await prisma.ssoConfiguration.findFirst({
+        where: { allowedDomains: { has: domain }, providerType: "OIDC" },
+        select: { teamId: true },
+    });
+    return config ? resolveOidcSsoForTeam(config.teamId) : null;
+}
+
 // Split out from the NextAuth signIn callback so the account-linking guards
 // (email_verified, domain scoping, team membership) are unit-testable without
 // going through NextAuth's OAuth callback machinery.

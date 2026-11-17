@@ -5,6 +5,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Globe, Loader2, Mail } from "lucide-react";
 import { IntentBadge } from "@/components/leads/IntentBadge";
+import { LeadStepDots, type LeadStepSummary } from "@/components/leads/LeadStepDots";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export interface SelectableLead {
     id: string;
@@ -42,6 +44,23 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [campaignId, setCampaignId] = useState("");
     const [assigning, setAssigning] = useState(false);
+    const [workflows, setWorkflows] = useState<Record<string, LeadStepSummary[]>>({});
+
+    // One request for every card on the page (the page shows at most 100 leads, the endpoint's limit).
+    const leadIds = leads.map((lead) => lead.id).join(",");
+    useEffect(() => {
+        if (!leadIds) return;
+        let cancelled = false;
+        fetch(`${getBrowserApiBase()}/leads/workflow?ids=${leadIds}`, { cache: "no-store" })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((json) => {
+                if (!cancelled && json?.data) setWorkflows(json.data);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [leadIds]);
 
     useEffect(() => {
         if (selected.size === 0 || campaigns.length > 0) return;
@@ -143,6 +162,7 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
                                             <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                                             <span className="truncate">{lead.company || "Independent"}</span>
                                         </div>
+                                        {workflows[lead.id] && <LeadStepDots steps={workflows[lead.id]} />}
                                     </div>
                                 </div>
                                 <div className="mt-6 pt-4 border-t border-border">
@@ -157,7 +177,7 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
                 })}
             </div>
         ),
-        [leads, selected]
+        [leads, selected, workflows]
     );
 
     return (

@@ -14,15 +14,23 @@ export async function GET() {
     if (!teamId) return NextResponse.json({ stages: [], channels: [], record: [] });
 
     const since = new Date(Date.now() - 7 * 86400000);
-    const [byStage, emailSent, emailReplies, linkedinLogged, whatsappOut, whatsappIn, callsLogged, decisions] = await Promise.all([
+    const callWhere = (types: string[]) => ({ lead: { teamId }, channel: { in: ["CALL", "call"] }, type: { in: types }, createdAt: { gte: since } });
+    const linkedinWhere = (types: string[]) => ({ lead: { teamId }, channel: { in: ["LINKEDIN", "linkedin"] }, type: { in: types }, createdAt: { gte: since } });
+    const [byStage, emailSent, emailReplies, linkedinContacted, linkedinReplied, callsMade, callsTalked, whatsappOut, whatsappIn, decisions] = await Promise.all([
       prisma.lead.groupBy({ by: ["pipelineState"], where: { teamId }, _count: { _all: true } }),
       // Email has no sent timestamp, so this is sent emails created in the window.
       prisma.email.count({ where: { lead: { teamId }, status: "sent", createdAt: { gte: since } } }),
       prisma.emailEvent.count({ where: { teamId, type: "REPLY_RECEIVED", createdAt: { gte: since } } }),
-      prisma.leadActivity.count({ where: { lead: { teamId }, channel: { in: ["LINKEDIN", "linkedin"] }, createdAt: { gte: since } } }),
+      // LinkedIn has no automatic reply capture, so both numbers are what people logged on a lead: leads contacted (outreach
+      // marked done, or later marked replied) and leads marked replied. Profile captures and sequence events are not outreach.
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: linkedinWhere(["LINKEDIN_OUTREACH_DONE", "LINKEDIN_CONTACTED", "LINKEDIN_REPLIED"]) }),
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: linkedinWhere(["LINKEDIN_REPLIED"]) }),
+      // Calls logged on a lead (the lead page, the journey API, and calls finished on the caller page). One call per lead
+      // per window: a contacted-then-replied pair is the same call.
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_CONTACTED", "CALL_REPLIED"]) }),
+      prisma.leadActivity.groupBy({ by: ["leadId"], where: callWhere(["CALL_REPLIED"]) }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "OUTBOUND", createdAt: { gte: since } } }),
       prisma.whatsAppMessage.count({ where: { lead: { teamId }, direction: "INBOUND", createdAt: { gte: since } } }),
-      prisma.leadActivity.count({ where: { lead: { teamId }, channel: { in: ["CALL", "call"] }, createdAt: { gte: since } } }),
       prisma.approvalRequest.findMany({
         where: { teamId, status: { not: "PENDING" } },
         orderBy: { updatedAt: "desc" },
@@ -34,12 +42,12 @@ export async function GET() {
     const counts = new Map(byStage.map((row) => [row.pipelineState, row._count._all]));
     return NextResponse.json({
       stages: STAGES.map((stage) => ({ stage, count: counts.get(stage) ?? 0 })),
-      // replies is null where the channel does not record replies yet.
+      // replies is null where a channel does not record replies at all.
       channels: [
         { channel: "email", sent: emailSent, replies: emailReplies },
-        { channel: "linkedin", sent: linkedinLogged, replies: null },
+        { channel: "linkedin", sent: linkedinContacted.length, replies: linkedinReplied.length },
         { channel: "whatsapp", sent: whatsappOut, replies: whatsappIn },
-        { channel: "call", sent: callsLogged, replies: null },
+        { channel: "call", sent: callsMade.length, replies: callsTalked.length },
       ],
       // Decisions only: never the payload, so no message text or lead data leaves here.
       record: decisions.map((d) => ({

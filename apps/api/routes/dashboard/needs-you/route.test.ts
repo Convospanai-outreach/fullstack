@@ -3,9 +3,11 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: vi.fn() }));
 vi.mock("@/modules/inbox/needsYouService", () => ({ collectNeedsYou: vi.fn().mockResolvedValue([]) }));
+vi.mock("@/lib/permissions", () => ({ hasPermission: vi.fn().mockResolvedValue(false), Permission: { RESOLVE_APPROVALS: "resolve_approvals" } }));
 
 import { GET } from "./route";
 import { getCurrentContextFromRequest } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { collectNeedsYou } from "@/modules/inbox/needsYouService";
 
 describe("GET /dashboard/needs-you", () => {
@@ -25,7 +27,22 @@ describe("GET /dashboard/needs-you", () => {
 
         const response = await GET(new NextRequest("http://localhost:3001/dashboard/needs-you"));
 
-        expect(collectNeedsYou).toHaveBeenCalledWith(["team-a"]);
+        expect(collectNeedsYou).toHaveBeenCalledWith(["team-a"], expect.any(Date), { includeDraft: false });
         expect(await response.json()).toEqual({ needsYou: [] });
+    });
+});
+
+describe("GET /dashboard/needs-you draft text", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("includes draft text for someone who can resolve approvals, and not for someone who cannot", async () => {
+        (getCurrentContextFromRequest as any).mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        (hasPermission as any).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+        await GET(new NextRequest("http://localhost:3001/dashboard/needs-you"));
+        expect(collectNeedsYou).toHaveBeenLastCalledWith(["team-a"], expect.any(Date), { includeDraft: true });
+
+        await GET(new NextRequest("http://localhost:3001/dashboard/needs-you"));
+        expect(collectNeedsYou).toHaveBeenLastCalledWith(["team-a"], expect.any(Date), { includeDraft: false });
     });
 });

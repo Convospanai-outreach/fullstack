@@ -1494,7 +1494,7 @@ async function createInboundCampaignEvent(input: {
                 });
                 await tx.lead.update({
                     where: { id: matchedEmail.leadId },
-                    data: { status: "STOPPED", updatedAt: new Date() },
+                    data: { status: "STOPPED", updatedAt: new Date(), emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: new Date() },
                 });
                 await tx.connectedMailbox.update({
                     where: { id: mailbox.id },

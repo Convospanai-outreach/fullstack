@@ -28,6 +28,7 @@ vi.mock("@/lib/aiService", () => ({
 
 vi.mock("@/modules/email-campaigner/service/emailComposer", () => ({
     composeNodeA: vi.fn(),
+    buildNodeASystemPrompt: vi.fn(() => "node a system prompt"),
 }));
 
 vi.mock("@/modules/email-campaigner/service/linkedinCritic", () => ({

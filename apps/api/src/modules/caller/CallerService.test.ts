@@ -158,8 +158,19 @@ describe("CallerService", () => {
             await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.MEETING_CONFIRMED, "Booked Thursday");
 
             expect(prisma.leadActivity.create).toHaveBeenCalledWith({
-                data: { leadId: "lead-1", channel: "CALL", type: "CALL_OUTCOME", title: "Call completed: meeting confirmed", notes: "Booked Thursday", createdBy: "user-1" },
+                data: { leadId: "lead-1", channel: "CALL", type: "CALL_REPLIED", title: "Call completed: meeting confirmed", notes: "Booked Thursday", createdBy: "user-1" },
             });
+        });
+
+        it("counts a callback or voicemail as a call made, not a conversation", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: "user-1" });
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (prisma.meetingCoordinationQueue.update as any).mockResolvedValue({});
+
+            await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.COORDINATING);
+
+            expect((prisma.leadActivity.create as any).mock.calls.at(-1)[0].data.type).toBe("CALL_CONTACTED");
         });
 
         it("records nothing for a lead outside the caller's team", async () => {

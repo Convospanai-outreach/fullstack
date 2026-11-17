@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 import { IdentityService } from '@/modules/identity/IdentityService';
+import { getConfiguredEdgeRuntimeEndpoint } from '@/lib/edgeRuntime';
 
 interface SanitizedPayload {
     safeContext: string;
@@ -41,64 +42,87 @@ class HardwareCircuitBreaker {
 }
 
 export class SovereignFirewall {
-    private static readonly PI_ENDPOINT = process.env['PHI3_LOCAL_ENDPOINT'] || 'http://localhost:8000';
+    // The edge node is optional: with no endpoint set up there is no node to call, so nothing is attempted.
+    private static edgeEndpoint(override?: string): string | undefined {
+        return override?.trim().replace(/\/$/, '') || getConfiguredEdgeRuntimeEndpoint();
+    }
+
+    private static edgeHeaders() {
+        const key = process.env['EDGE_API_KEY'];
+        return key ? { 'X-API-Key': key } : {};
+    }
+
     private static readonly SENSITIVE_KEYS = ['email', 'phone', 'name', 'linkedin', 'ssn', 'credit_card'];
     private static breaker = new HardwareCircuitBreaker();
 
     /**
-     * Replaces sensitive data with deterministic UUIDs.
-     * Hits Edge Node (Async) if available, falls back to Local (Sync) if not.
+     * Replaces sensitive data before it leaves for a third-party model.
+     * With an edge node set up, the edge masks the text and every token is read back from it so the
+     * reply can be restored; if the edge cannot be used, this throws rather than let the text out.
+     * With no edge node set up, it masks locally and never waits on a node that does not exist.
      */
     static async mask(
         data: string | Record<string, unknown> | unknown[], 
         region: 'UAE' | 'GLOBAL' = 'GLOBAL',
         overrideEndpoint?: string,
-        // alwaysMask: when the Edge Node is unavailable, still apply the local pattern masking (emails, phone
+        // alwaysMask: with no edge node, still apply the local pattern masking (emails, phone
         // numbers) instead of passing the text through unchanged. For text that leaves for a third-party model.
-        options: { alwaysMask?: boolean } = {}
+        // teamId: bound to the edge's token map, so one team cannot read back another team's tokens.
+        options: { alwaysMask?: boolean; teamId?: string } = {}
     ): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
-        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
+        const endpoint = this.edgeEndpoint(overrideEndpoint);
 
         // Pre-Send Regex Audit (Logging only, masking still happens)
         this.auditText(text);
 
-        // Fail-Closed Circuit Breaker
-        if (this.breaker.isOpen()) {
-            // ... strict check omitted for brevity in targetContent but I will keep it in ReplacementContent
+        if (!endpoint) {
+            // STRICT_SOVEREIGNTY is an explicit "no node, no sending" choice by the operator.
             if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
-                console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
-                throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
+                console.error("[SovereignFirewall] CRITICAL: No edge node set up. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
+                throw new Error("Sovereign Node Not Configured. PII Exposure Risk Blocked.");
             }
-            console.warn("[SovereignFirewall] Circuit Breaker OPEN. Using Local Masking.");
             return this.maskLocal(data, region, options.alwaysMask);
         }
 
+        // A node is set up: fail closed.
+        if (this.breaker.isOpen()) {
+            console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. Failing closed.");
+            throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
+        }
+
         try {
-            // Attempt Hardware Sanitization (Edge Node)
+            const tenant = options.teamId ? { tenant_id: options.teamId } : {};
+            const headers = { headers: this.edgeHeaders(), timeout: 2000 };
             const response = await axios.post(`${endpoint}/v1/sanitize`, {
                 text: text,
-                session_id: crypto.randomUUID()
-            }, { timeout: 2000 });
+                session_id: crypto.randomUUID(),
+                ...tenant,
+            }, headers);
+
+            const sanitized: string = response.data.sanitized_text;
+            const sessionId: string = response.data.token_map_id;
+
+            // The edge keeps the originals; read each token back so the model's reply can be restored.
+            const tokenMap = new Map<string, string>();
+            const labels = Array.from(new Set(sanitized.match(/<([A-Z_]+)_(\d+) confidence='[^']*'>/g) ?? []));
+            await Promise.all(labels.map(async (label) => {
+                const [, type, n] = label.match(/<([A-Z_]+)_(\d+) /) as RegExpMatchArray;
+                const result = await axios.post(`${endpoint}/v1/reidentify`, {
+                    token: `${sessionId}_${type}_${n}`,
+                    session_id: sessionId,
+                    ...tenant,
+                }, headers);
+                tokenMap.set(label, result.data.original);
+            }));
 
             this.breaker.reset();
-
-            return {
-                safeContext: response.data.sanitized_text,
-                tokenMap: new Map() // Edge Node holds the map
-            };
+            return { safeContext: sanitized, tokenMap };
 
         } catch (error: any) {
             this.breaker.recordFailure();
-
-            // FAIL-CLOSED Logic for Strict Sovereignty
-            if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
-                console.error("[SovereignFirewall] CRITICAL: Edge Node unreachable. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
-                throw new Error("Sovereign Node Unreachable. PII Exposure Risk Blocked.");
-            }
-
-            console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
-            return this.maskLocal(data, region, options.alwaysMask);
+            console.error("[SovereignFirewall] CRITICAL: Edge Node could not mask the text. Failing closed.", error.message);
+            throw new Error("Sovereign Node Unreachable. PII Exposure Risk Blocked.");
         }
     }
 
@@ -270,7 +294,8 @@ export class SovereignFirewall {
      * Bot-Likeness scoring (Adversarial Judge)
      */
     static async critique(draft: string, overrideEndpoint?: string): Promise<CriticVerdict> {
-        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
+        const endpoint = this.edgeEndpoint(overrideEndpoint);
+        if (!endpoint) throw new Error(`Local Sovereign Node Unreachable. Halting to prevent leakage.`);
         try {
             const response = await axios.post(`${endpoint}/v1/critique`, { text: draft }, { timeout: 3000 });
             return {

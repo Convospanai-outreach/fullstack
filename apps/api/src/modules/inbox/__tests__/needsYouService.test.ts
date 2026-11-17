@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
 const mockDb: any = vi.hoisted(() => ({
     message: { count: vi.fn(), findMany: vi.fn() },
@@ -83,5 +83,52 @@ describe("collectNeedsYou", () => {
         expect(byType["approved_not_sent"]!.top[0]).toMatchObject({ title: "raj@example.test", detail: "Intro", href: "/leads/lead-9" });
         expect(byType["stalled_leads"]!.top[0]).toMatchObject({ title: "Resend step 2", href: "/inbox?tab=approvals" });
         expect(byType["mailbox_issues"]!.top[0]).toMatchObject({ title: "sales@acme.test", href: "/settings/mailboxes" });
+    });
+});
+
+describe("collectNeedsYou draft for sign-off", () => {
+    afterEach(() => { delete mockDb.lead; });
+    beforeEach(() => {
+        vi.clearAllMocks();
+        stubEmpty();
+        mockDb.lead = { findFirst: vi.fn().mockResolvedValue({ fullName: "Asha Rao", email: "asha@acme.test" }) };
+        mockDb.approvalRequest.count.mockResolvedValue(2);
+    });
+
+    const approvals = (items: any[]) => items.find((item) => item.type === "approvals");
+    const stubApprovals = (rows: any[]) => mockDb.approvalRequest.findMany.mockResolvedValue(rows.map((row) => ({ createdAt: at, autoDenyAt: null, ...row })));
+
+    it("adds no draft unless asked for, so the digest is unchanged", async () => {
+        stubApprovals([{ id: "a1", actionType: "email_draft_approval", entityId: "e1", payload: { subject: "Hi", body: "Hello", recipient: "x@y.test" } }]);
+        expect(approvals(await collectNeedsYou(["team-a"], eightFifteenIst)).top[0].draft).toBeUndefined();
+    });
+
+    it("gives the first approval its exact text, recipient and channel, and only the first", async () => {
+        stubApprovals([
+            { id: "a1", actionType: "email_draft_approval", entityId: "e1", payload: { subject: "Quick question", body: "Hi Asha,\nOne line.", recipient: "asha@acme.test" } },
+            { id: "a2", actionType: "email_draft_approval", entityId: "e2", payload: { subject: "Other", body: "Other body", recipient: "b@c.test" } },
+        ]);
+        const top = approvals(await collectNeedsYou(["team-a"], eightFifteenIst, { includeDraft: true })).top;
+        expect(top[0].draft).toEqual({ channel: "email", recipient: "asha@acme.test", subject: "Quick question", body: "Hi Asha,\nOne line.", expiresAt: null, editable: false });
+        expect(top[1].draft).toBeUndefined();
+    });
+
+    it("reads a held message's lead and channel, scoped to the team, and marks it editable", async () => {
+        stubApprovals([{ id: "a1", actionType: "MESSAGE_SEND", entityId: "lead-1:WHATSAPP", payload: { body: "Hello Asha" } }]);
+        const draft = approvals(await collectNeedsYou(["team-a"], eightFifteenIst, { includeDraft: true })).top[0].draft;
+        expect(mockDb.lead.findFirst).toHaveBeenCalledWith({ where: { id: "lead-1", teamId: { in: ["team-a"] } }, select: { fullName: true, email: true } });
+        expect(draft).toMatchObject({ channel: "whatsapp", recipient: "Asha Rao (asha@acme.test)", subject: null, body: "Hello Asha", editable: true });
+    });
+
+    it("shows the expiry only while it is still in the future", async () => {
+        stubApprovals([{ id: "a1", actionType: "email_draft_approval", entityId: "e1", payload: { body: "B" }, autoDenyAt: new Date("2026-10-02T00:00:00Z") }]);
+        expect(approvals(await collectNeedsYou(["team-a"], eightFifteenIst, { includeDraft: true })).top[0].draft.expiresAt).toBe("2026-10-02T00:00:00.000Z");
+        stubApprovals([{ id: "a1", actionType: "email_draft_approval", entityId: "e1", payload: { body: "B" }, autoDenyAt: new Date("2026-09-01T00:00:00Z") }]);
+        expect(approvals(await collectNeedsYou(["team-a"], eightFifteenIst, { includeDraft: true })).top[0].draft.expiresAt).toBeNull();
+    });
+
+    it("gives no draft for an approval that has no message text", async () => {
+        stubApprovals([{ id: "a1", actionType: "CAMPAIGN_START", entityId: "c1", payload: { campaignName: "Launch" } }]);
+        expect(approvals(await collectNeedsYou(["team-a"], eightFifteenIst, { includeDraft: true })).top[0].draft).toBeUndefined();
     });
 });

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
+import { findHoldbacks } from "@/lib/draftHoldbacks";
 import { JobQueue, type JobPayload, type JobType } from "@/lib/queue";
+import { loadHoldbackContext } from "./draftHoldbackContext";
 import { readProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 
 // Per-message approval for AI-written outreach. A worker that has just written an email or a
@@ -33,6 +35,8 @@ type GateInput = HeldMessage & {
     leadId: string;
     // The campaign owner, used as the requester when there is one.
     requesterHint?: string | null | undefined;
+    // Prompt text the draft must not repeat. The leak check only runs when this is given.
+    protectedTexts?: string[];
 };
 
 export type GateResult =
@@ -119,6 +123,19 @@ export async function flagNeedsAttention(input: {
     }
 }
 
+// For a team that sends without review: why this draft should still wait for a person, or null.
+// A draft that cannot be checked is held too.
+async function autopilotHoldReason(input: GateInput, teamId: string): Promise<string | null> {
+    try {
+        const context = await loadHoldbackContext(teamId, input.leadId);
+        const holdbacks = findHoldbacks({ subject: input.subject, body: input.body, protectedTexts: input.protectedTexts ?? [], ...context });
+        return holdbacks.length ? `Held before sending: ${holdbacks.map((h) => h.message).join(" ")}` : null;
+    } catch (error) {
+        console.error("[MessageApproval] Could not check a draft before sending", error instanceof Error ? error.message : error);
+        return "Held before sending: the draft could not be checked.";
+    }
+}
+
 // Decides whether a message the worker just wrote may go out now.
 export async function gateAiMessage(input: GateInput): Promise<GateResult> {
     const { teamId, leadId, channel } = input;
@@ -127,7 +144,12 @@ export async function gateAiMessage(input: GateInput): Promise<GateResult> {
         await flagNeedsAttention({ teamId, leadId, channel, reason: "No team found for this lead, so the message could not be sent for approval." });
         return { send: false, held: "needs_attention" };
     }
-    if (!(await messageApprovalRequired(teamId))) return { send: true };
+    let reason = `AI-written ${channel.toLowerCase()} message waiting for review`;
+    if (!(await messageApprovalRequired(teamId))) {
+        const holdReason = await autopilotHoldReason(input, teamId);
+        if (!holdReason) return { send: true };
+        reason = holdReason;
+    }
 
     const entityId = entityIdFor(leadId, channel);
     const now = new Date();
@@ -153,7 +175,7 @@ export async function gateAiMessage(input: GateInput): Promise<GateResult> {
             entityId,
             status: "PENDING",
             tier: "QUEUED",
-            reason: `AI-written ${channel.toLowerCase()} message waiting for review`,
+            reason,
             payload: { ...held, leadId },
             autoDenyAt: new Date(now.getTime() + MESSAGE_APPROVAL_TTL_MS),
         },
