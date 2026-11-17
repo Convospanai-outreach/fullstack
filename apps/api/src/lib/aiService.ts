@@ -34,6 +34,9 @@ export type ProviderKeySet = {
     openai?: { apiKey: string; model?: string };
     anthropic?: { apiKey: string; model?: string };
     deepseek?: { apiKey: string; model?: string };
+    // Open-weight models (e.g. gpt-oss) on any OpenAI-compatible host (Groq, OpenRouter, ...).
+    // Env only, and used only when a caller asks for it (preferOpenModel).
+    open?: { apiKey: string; baseURL: string; small: string; large: string };
 };
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
@@ -165,6 +168,14 @@ async function readTeamProviders(teamId?: string): Promise<ProviderKeySet> {
             : undefined,
         deepseek: process.env["DEEPSEEK_API_KEY"]
             ? { apiKey: process.env["DEEPSEEK_API_KEY"], model: process.env["DEEPSEEK_MODEL"] }
+            : undefined,
+        open: process.env["OPEN_MODEL_API_KEY"] && process.env["OPEN_MODEL_BASE_URL"]
+            ? {
+                apiKey: process.env["OPEN_MODEL_API_KEY"],
+                baseURL: process.env["OPEN_MODEL_BASE_URL"],
+                small: process.env["OPEN_MODEL_SMALL"] || "openai/gpt-oss-20b",
+                large: process.env["OPEN_MODEL_LARGE"] || "openai/gpt-oss-120b"
+            }
             : undefined
     };
 
@@ -188,7 +199,8 @@ async function readTeamProviders(teamId?: string): Promise<ProviderKeySet> {
             : fromEnv.anthropic,
         deepseek: providers?.deepseek?.apiKey
             ? { apiKey: providers.deepseek.apiKey, model: providers.deepseek.model || fromEnv.deepseek?.model }
-            : fromEnv.deepseek
+            : fromEnv.deepseek,
+        open: fromEnv.open
     };
 }
 
@@ -399,11 +411,24 @@ function recordProviderSuccess(provider: LLMProvider): void {
     providerCircuits.set(provider, { failures: 0, openUntil: 0 });
 }
 
-type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string };
+type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string; baseURL?: string };
 
-function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexity = TaskComplexity.ROUTINE): ProviderCandidate[] {
+function buildProviderChain(
+    providers: ProviderKeySet,
+    complexity: TaskComplexity = TaskComplexity.ROUTINE,
+    preferOpenModel = false
+): ProviderCandidate[] {
     const tier = resolveModelTier(complexity);
     const chain: ProviderCandidate[] = [];
+    // First choice when asked for; the other configured providers stay behind it as fallbacks.
+    if (preferOpenModel && providers.open) {
+        chain.push({
+            provider: LLMProvider.OPEN_MODEL,
+            apiKey: providers.open.apiKey,
+            baseURL: providers.open.baseURL,
+            model: tier === "trivial" ? providers.open.small : providers.open.large
+        });
+    }
     if (providers.gemini?.apiKey) {
         chain.push({ provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model: providers.gemini.model || DEFAULT_MODELS.gemini[tier] });
     }
@@ -488,14 +513,15 @@ async function callProvider(
         };
     }
 
-    if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK) {
+    if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK || candidate.provider === LLMProvider.OPEN_MODEL) {
         // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
         // just a different base URL.
         const client = createOpenAIClient({
             apiKey: candidate.apiKey,
             timeout: LLM_TIMEOUT_MS,
             maxRetries: MAX_RETRIES_PER_PROVIDER,
-            ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {})
+            ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {}),
+            ...(candidate.provider === LLMProvider.OPEN_MODEL ? { baseURL: candidate.baseURL } : {})
         });
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
         // no explicit cache_control needed, just put the stable instructions
@@ -560,6 +586,7 @@ async function callLLM(
         creditDescription?: string;
         actorId?: string;
         systemPrompt?: string;
+        preferOpenModel?: boolean;
         /** false: use the team's key (else the platform's) but take no credits. Default true. */
         chargeCredits?: boolean;
     }
@@ -567,7 +594,7 @@ async function callLLM(
     const actorId = options.actorId || RequestContext.get()?.userId;
     const observability = createAIObservabilityContext(actorId);
     const providers = await loadTeamProviders(options.teamId);
-    const chain = buildProviderChain(providers, options.complexity);
+    const chain = buildProviderChain(providers, options.complexity, options.preferOpenModel);
     const primary = chain[0];
     const start = Date.now();
     const billedTeamId = options.chargeCredits !== false && isChargeableTeamId(options.teamId) ? options.teamId : undefined;
@@ -704,6 +731,8 @@ export class AIService {
              * model tier instead of the default strategic one.
              */
             complexity?: TaskComplexity;
+            /** Try the open-weight model (OPEN_MODEL_* env) first. Used by the LinkedIn extension. */
+            preferOpenModel?: boolean;
             /** false: take no credits for this call (key choice is unchanged). Default true. */
             chargeCredits?: boolean;
             /** Set only for prompts the server builds itself around fetched page text: the user-typing content rules are skipped and this size cap applies. */
@@ -726,6 +755,7 @@ export class AIService {
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
             actorId: taskContext?.actorId,
             systemPrompt: safeSystemPrompt,
+            preferOpenModel: taskContext?.preferOpenModel,
             chargeCredits: taskContext?.chargeCredits
         });
 

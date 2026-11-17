@@ -8,7 +8,8 @@ export enum LLMProvider {
     GEMINI = "gemini",
     GROQ = "groq",
     OLLAMA = "ollama",
-    DEEPSEEK = "deepseek"
+    DEEPSEEK = "deepseek",
+    OPEN_MODEL = "open_model"
 }
 
 export enum TaskComplexity {

@@ -19,8 +19,9 @@ function corsHeaders(req: NextRequest): HeadersInit {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         // Auth is the Bearer sync token; x-extension-key stays allowed because older
-        // extension builds still send it and their preflights must keep passing.
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key",
+        // extension builds still send it and their preflights must keep passing. x-team-id only picks among the
+        // teams already in the token (resolveExtensionTeamScope); idempotency-key and x-cmf-version are plain hints.
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key, x-team-id, idempotency-key, x-cmf-version",
         "Access-Control-Max-Age": "600"
     };
 }
