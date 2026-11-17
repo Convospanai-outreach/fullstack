@@ -146,7 +146,7 @@ describe("imapMailboxService", () => {
         });
         expect(mockPrisma.__tx.lead.update).toHaveBeenCalledWith({
             where: { id: "lead-1" },
-            data: { status: "STOPPED", updatedAt: expect.any(Date) },
+            data: { status: "STOPPED", updatedAt: expect.any(Date), emailStatus: "INVALID", emailStatusSource: "BOUNCE", emailStatusCheckedAt: expect.any(Date) },
         });
         expect(mockPrisma.__tx.suppressionEntry.upsert).toHaveBeenCalled();
     });

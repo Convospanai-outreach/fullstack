@@ -8,7 +8,7 @@ import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { checkTemplate, templateValues, whatsappRecipient } from "@/modules/whatsapp/whatsappTemplates";
 import { resolveMessageTokens, type MissingToken } from "./messageTokens";
-import { preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
+import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 import { isValidTimeZone, nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { logger } from "@/lib/logger";
 
@@ -407,9 +407,12 @@ export class SequenceService {
             const team = await db().team.findUnique({ where: { id: run.teamId }, select: { sendSafety: true, mailingAddress: true } });
             const settings = resolveSendSafety(team?.sendSafety);
             if (settings.mode === "off") return null;
-            const result = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null });
+            const result = preSendCheck({ to: lead.email, subject, body, kind: "sequence", settings, postalAddress: team?.mailingAddress ?? null, emailStatus: lead.emailStatus });
             if (result.ok) return null;
             if (settings.mode === "warn") {
+                // Warn mode only logs, except for an address known to be undeliverable: that never goes out.
+                const always = result.reasons.filter((r) => ALWAYS_HOLD_CODES.includes(r.code as any));
+                if (always.length > 0) return always;
                 logger.warn("[SequenceService] Pre-send check would hold this email", { runId: run.id, teamId: run.teamId, codes: result.reasons.map((r) => r.code) });
                 return null;
             }

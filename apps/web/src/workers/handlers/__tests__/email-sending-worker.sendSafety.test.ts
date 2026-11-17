@@ -82,6 +82,34 @@ describe("email_sending pre-send gate", () => {
         await expect(handleEmailSending(failing)).rejects.toThrow("stop here");
         expect(send).toHaveBeenCalledTimes(1);
     });
+
+    describe("email status", () => {
+        const withStatus = (emailStatus: string) => db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", emailStatus });
+
+        it("in hold mode holds a cold send to an unverified address", async () => {
+            withStatus("UNKNOWN");
+            expect(await handleEmailSending(payload)).toEqual({ skipped: true, reason: "held_by_send_safety", codes: ["EMAIL_NOT_VERIFIED"] });
+            expect(send).not.toHaveBeenCalled();
+        });
+
+        it("in hold mode sends to a verified address", async () => {
+            withStatus("VERIFIED");
+            await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        });
+
+        it("in warn mode still sends to an unverified address", async () => {
+            db.team.findUnique.mockResolvedValue({ sendSafety: { mode: "warn" }, mailingAddress: "1 Main St" });
+            withStatus("UNKNOWN");
+            await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        });
+
+        it("in warn mode never sends to an address known to be undeliverable", async () => {
+            db.team.findUnique.mockResolvedValue({ sendSafety: { mode: "warn" }, mailingAddress: "1 Main St" });
+            withStatus("INVALID");
+            expect(await handleEmailSending(payload)).toEqual({ skipped: true, reason: "held_by_send_safety", codes: ["EMAIL_INVALID"] });
+            expect(send).not.toHaveBeenCalled();
+        });
+    });
 });
 
 describe("email_sending recipient send window", () => {
