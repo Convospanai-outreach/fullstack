@@ -1,5 +1,6 @@
 import { logger, logCriticalAlert } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
+import { PROCESSED_LEAD_STATUSES } from "@/lib/campaignLeadStatus";
 
 export interface DraftGenOptions {
     provider?: "gemini" | "openai" | "anthropic";
@@ -256,7 +257,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
         const realCompletedCount = await prisma.lead.count({
             where: {
                 campaignId,
-                status: { in: ["DRAFT_READY", "SENT", "COMPLETED", "REPLIED"] },
+                status: { in: PROCESSED_LEAD_STATUSES },
             },
         });
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { PROCESSED_LEAD_STATUSES } from "@/lib/campaignLeadStatus";
 import { ChevronDown, Megaphone, Plus, Search } from "lucide-react";
 import ExportButton from "@/modules/data-export/ui/ExportButton";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ async function loadCampaigns(searchParams: PageSearchParams) {
             _count: { select: { leadList: true } },
             leadList: {
                 where: {
-                    status: { in: ["SENT", "COMPLETED", "REPLIED", "DRAFT_READY"] },
+                    status: { in: PROCESSED_LEAD_STATUSES },
                 },
                 select: { id: true },
             },
