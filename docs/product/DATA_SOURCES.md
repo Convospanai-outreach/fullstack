@@ -34,7 +34,7 @@ Read-only. Home hides these sections if it fails.
 | Pipeline stages | `lead.groupBy(pipelineState)` for team |
 | Email sent, 7 days | `email.count`, status sent, `createdAt` in window |
 | Email replies, 7 days | `emailEvent.count`, type REPLY_RECEIVED |
-| LinkedIn logged, 7 days | `leadActivity.count`, channel LINKEDIN / linkedin |
+| LinkedIn contacted / replied, 7 days | `leadActivity.groupBy(leadId)`, channel LINKEDIN / linkedin: contacted = types LINKEDIN_OUTREACH_DONE, LINKEDIN_CONTACTED or LINKEDIN_REPLIED, replied = LINKEDIN_REPLIED. Only what a person logged on a lead; nothing captures LinkedIn replies automatically. |
 | WhatsApp sent, 7 days | `whatsAppMessage.count`, direction OUTBOUND |
 | WhatsApp replies, 7 days | `whatsAppMessage.count`, direction INBOUND |
 | Calls made / conversations, 7 days | `leadActivity.groupBy(leadId)`, channel CALL / call: made = types CALL_CONTACTED or CALL_REPLIED, conversations = CALL_REPLIED. Written when a caller completes a call task (`CallerService.completeTask`) or a person marks a CALL step on the lead. |
@@ -55,7 +55,7 @@ The approval record never returns `payload`, so no message text or lead data lea
 
 ## Not tracked yet (show a blank state, never a number)
 
-- LinkedIn replies: no reply count exists. UI says "Not tracked yet".
+- LinkedIn replies: only replies a person marked on a lead are counted. No automatic reply capture exists.
 - Calls: counts only calls a person logged. Nothing dials, so there is no call duration or connect rate.
 - Email sent time: `Email` has no sent timestamp. The 7-day window uses `createdAt`.
 - Draft text in the needs-you queue: entries have no body. It lives in `ApprovalRequest.payload`.
