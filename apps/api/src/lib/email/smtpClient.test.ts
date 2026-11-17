@@ -13,8 +13,8 @@ import { createSmtpTransport } from "./smtpClient";
 describe("createSmtpTransport", () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it("sets connection, greeting, and socket timeouts", () => {
-        createSmtpTransport({
+    it("sets connection, greeting, and socket timeouts", async () => {
+        await createSmtpTransport({
             host: "smtp.example.com",
             port: 587,
             secure: false,

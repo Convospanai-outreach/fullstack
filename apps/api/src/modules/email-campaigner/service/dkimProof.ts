@@ -1,6 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { ImapFlow } from "imapflow";
-import { simpleParser } from "mailparser";
 import { prisma } from "@/lib/db";
 import { sendViaSmtpMailbox } from "./smtpConfigService";
 
@@ -74,6 +72,9 @@ export type DkimProofOutcome =
     | { ok: false; code: "NOT_CONFIGURED" | "MAILBOX_NOT_FOUND" | "SEND_FAILED" | "NOT_RECEIVED" };
 
 async function waitForMessage(config: DkimProofConfig, token: string): Promise<{ authResults: string[]; fromDomain: string } | null> {
+    // Loaded here, not at the top: imapflow and mailparser are only needed by this one route, and importing them at boot
+    // costs the api container about 12 MiB.
+    const [{ ImapFlow }, { simpleParser }] = await Promise.all([import("imapflow"), import("mailparser")]);
     const client = new ImapFlow({
         host: config.host,
         port: config.port,
