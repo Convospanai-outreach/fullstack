@@ -633,3 +633,11 @@ h3{font-size:20px}
   .v8 .transformation-arc .engine-svg{transform:translateY(10px) scale(1)}
   .v8 .arc-story .secondary{border-color:transparent;background:none;padding-inline:8px;text-decoration:underline;text-underline-offset:4px}
 }
+
+/* On 1200-1500px wide desktop screens the story card (28vw) reached the edge of the engine artwork and
+   hid its left-hand channel label (Instagram). Cards 10% narrower and the engine 8% smaller leave a clear gap.
+   `scale` is its own property, so it does not fight the inline transform the scroll script sets on the SVG. */
+@media(min-width:1200px) and (max-width:1500px) and (min-aspect-ratio:1/1){
+  .v8 .transformation-arc .scene svg{scale:.92}
+  .v8 .arc-story .copy{width:min(25.2vw,405px)}
+}
