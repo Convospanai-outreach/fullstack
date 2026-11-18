@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 
 import AnthropicClient from "@anthropic-ai/sdk";
-import { Anthropic as PostHogAnthropic } from "@posthog/ai/anthropic";
-import { OpenAI as PostHogOpenAI } from "@posthog/ai/openai";
 import OpenAIClient from "openai";
 import { PostHog } from "posthog-node";
 
@@ -10,6 +9,12 @@ import { RequestContext } from "@/lib/requestContext";
 import { instrumentAnthropic, instrumentOpenAI } from "@/lib/sentry";
 
 const projectToken = process.env["POSTHOG_API_KEY"];
+
+// @posthog/ai is about 9 MiB resident once loaded, and the wrapped clients are only used when a PostHog key is
+// set. Load it on first use (the factories below are synchronous, so require rather than import()).
+const nodeRequire = createRequire(import.meta.url);
+const loadPostHogOpenAI = () => (nodeRequire("@posthog/ai/openai") as typeof import("@posthog/ai/openai")).OpenAI;
+const loadPostHogAnthropic = () => (nodeRequire("@posthog/ai/anthropic") as typeof import("@posthog/ai/anthropic")).Anthropic;
 
 // Lead prompts and generated outreach can contain third-party PII. Keep the
 // project's existing metadata-only observability policy for all AI providers.
@@ -50,14 +55,16 @@ export function withAIProvider(context: AIObservabilityContext, provider: string
 }
 
 export function createOpenAIClient(options: Omit<NonNullable<ConstructorParameters<typeof OpenAIClient>[0]>, "apiKey" | "baseURL"> & { apiKey: string; baseURL?: string }): OpenAIClient {
-    const client = posthogAIClient
+    const PostHogOpenAI = posthogAIClient ? loadPostHogOpenAI() : null;
+    const client = posthogAIClient && PostHogOpenAI
         ? new PostHogOpenAI({ ...options, posthog: posthogAIClient })
         : new OpenAIClient(options);
     return instrumentOpenAI(client) as OpenAIClient;
 }
 
 export function createAnthropicClient(options: Omit<NonNullable<ConstructorParameters<typeof AnthropicClient>[0]>, "apiKey" | "baseURL"> & { apiKey: string; baseURL?: string }): AnthropicClient {
-    const client = posthogAIClient
+    const PostHogAnthropic = posthogAIClient ? loadPostHogAnthropic() : null;
+    const client = posthogAIClient && PostHogAnthropic
         ? new PostHogAnthropic({ ...options, posthog: posthogAIClient })
         : new AnthropicClient(options);
     return instrumentAnthropic(client) as AnthropicClient;
