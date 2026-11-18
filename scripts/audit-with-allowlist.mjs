@@ -104,6 +104,19 @@ const ALLOWLIST = new Map([
         "app source imports minimatch, and no request data is used as a pattern. " +
         "Drop this entry once those libraries move to minimatch >=11.0.1.",
     ],
+    [
+        "GHSA-fc5q-39xc-vjpf",
+        "picomatch (<=4.0.7): ReDoS from single-branch repeated extglobs in a " +
+        "crafted pattern. No patched release exists yet (4.0.7 is the latest and " +
+        "is in range), so a lockfile bump cannot clear it even though npm audit " +
+        "reports fix: true. The single copy in the tree is picomatch 4.0.5, " +
+        "reached only through build and test tooling (vitest, vite, tinyglobby/" +
+        "fdir, @rollup/plugin-commonjs via @sentry/nextjs). No app source " +
+        "imports picomatch, and the patterns come from those tools and the build " +
+        "config, not from requests. The library internals were not audited " +
+        "beyond that. Drop this entry once picomatch ships a release above 4.0.7 " +
+        "and the lockfile moves to it.",
+    ],
 ]);
 
 function runAudit() {
