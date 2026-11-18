@@ -96,7 +96,14 @@ function forwardPipeline(current: string, next?: string) {
     return priority(PIPELINE_PRIORITY, next) >= priority(PIPELINE_PRIORITY, current) ? next : current;
 }
 
-export function calculateLeadTransition(lead: LeadState, action: "EMAIL_SENT" | "EMAIL_OPENED" | "EMAIL_CLICKED" | "REPLY_RECEIVED" | "MEETING_SCHEDULED" | "WON" | "LOST", now = new Date()): TransitionPatch {
+// The pipeline stage (COLD / WARM / HOT ...) records buyer intent, so it does not move on our own actions or on
+// weak signals. What each action does:
+//   EMAIL_SENT, EMAIL_CLICKED, REPLY_RECEIVED  update the status only (CONTACTED / ENGAGED / REPLIED).
+//   EMAIL_OPENED                               changes nothing: opens are inflated by mail-client prefetching.
+//   INTERESTED_REPLY                           moves a COLD or WARM lead to HOT. Only called once a reply has been
+//                                              judged interested (see replyPromotion in apps/api).
+// Engagement alone (clicks, opens) never moves the stage here; the engagement judge in apps/api decides that.
+export function calculateLeadTransition(lead: LeadState, action: "EMAIL_SENT" | "EMAIL_OPENED" | "EMAIL_CLICKED" | "REPLY_RECEIVED" | "INTERESTED_REPLY" | "MEETING_SCHEDULED" | "WON" | "LOST", now = new Date()): TransitionPatch {
     const status = lead.status || "NEW";
     const pipelineState = lead.pipelineState || "COLD";
 
@@ -110,30 +117,34 @@ export function calculateLeadTransition(lead: LeadState, action: "EMAIL_SENT" | 
 
         return {
             status: ADVANCED_EMAIL_STATUSES.has(status) ? status : forwardStatus(status, "CONTACTED"),
-            pipelineState: pipelineState === "COLD" ? "WARM" : pipelineState
+            pipelineState
         };
     }
 
     if (action === "EMAIL_OPENED") {
-        return {
-            status: ["NEW", "CONTACTED"].includes(status) ? forwardStatus(status, "ENGAGED") : status,
-            pipelineState: ["COLD", "WARM"].includes(pipelineState) ? forwardPipeline(pipelineState, "WARM") : pipelineState
-        };
+        return { status, pipelineState };
     }
 
     if (action === "EMAIL_CLICKED") {
         return {
             status: ["NEW", "CONTACTED", "ENGAGED"].includes(status) ? forwardStatus(status, "ENGAGED") : status,
-            pipelineState: ["COLD", "WARM"].includes(pipelineState) ? "HOT" : pipelineState,
-            ...(pipelineState !== "HOT" ? { hotAt: now } : {})
+            pipelineState
         };
     }
 
     if (action === "REPLY_RECEIVED") {
         return {
             status: CLOSED_STATUSES.has(status) ? status : forwardStatus(status, "REPLIED"),
-            pipelineState: ["COLD", "WARM"].includes(pipelineState) ? "HOT" : pipelineState,
-            ...(pipelineState !== "HOT" ? { hotAt: now } : {})
+            pipelineState
+        };
+    }
+
+    if (action === "INTERESTED_REPLY") {
+        const becomesHot = ["COLD", "WARM"].includes(pipelineState);
+        return {
+            status: CLOSED_STATUSES.has(status) ? status : forwardStatus(status, "REPLIED"),
+            pipelineState: becomesHot ? "HOT" : pipelineState,
+            ...(becomesHot ? { hotAt: now } : {})
         };
     }
 
@@ -199,6 +210,10 @@ export function advanceLeadAfterEmailClicked(prisma: PrismaLike, params: Advance
 
 export function advanceLeadAfterReply(prisma: PrismaLike, params: AdvanceParams) {
     return advanceLead(prisma, params, "REPLY_RECEIVED");
+}
+
+export function advanceLeadAfterInterestedReply(prisma: PrismaLike, params: AdvanceParams) {
+    return advanceLead(prisma, params, "INTERESTED_REPLY");
 }
 
 export function advanceLeadAfterMeetingScheduled(prisma: PrismaLike, params: AdvanceParams) {

@@ -101,6 +101,16 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             }
         }
 
+        case "whatsapp_reply_classification": {
+            const teamId = asString(payload.teamId);
+            const messageId = asString(payload.messageId);
+            if (!teamId || !messageId) {
+                throw new NonRetryableJobError("whatsapp_reply_classification payload is missing teamId/messageId");
+            }
+            const { classifyWhatsAppReply } = await import("@/modules/whatsapp/whatsappReplyClassification");
+            return classifyWhatsAppReply(teamId, messageId);
+        }
+
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);
             if (!filePath) {

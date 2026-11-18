@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockDb, mockEnqueue, mockAnalyze } = vi.hoisted(() => ({
+const { mockDb, mockEnqueue, mockAnalyze, mockPromote } = vi.hoisted(() => ({
     mockDb: {
         lead: { findUnique: vi.fn() },
         message: { findFirst: vi.fn(), count: vi.fn() },
@@ -11,6 +11,7 @@ const { mockDb, mockEnqueue, mockAnalyze } = vi.hoisted(() => ({
     },
     mockEnqueue: vi.fn(),
     mockAnalyze: vi.fn(),
+    mockPromote: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: 
 vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/ai/agents/ReplyAnalyzerAgent", () => ({ ReplyAnalyzerAgent: { analyzeAndTrack: mockAnalyze } }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
+vi.mock("../replyPromotion", () => ({ promoteLeadOnJudgedReply: mockPromote }));
 
 import { classifyInboundReply, classifyInboundReplyOrFlag, enqueueReplyClassification } from "../replyClassificationService";
 import { getSuggestionsForReplies, suggestedOutcomeFor } from "../replySuggestions";
@@ -116,6 +118,24 @@ describe("classifyInboundReply", () => {
         expect(result).toEqual({ skipped: "not_found" });
         expect(mockDb.message.findFirst.mock.calls[0][0].where.lead).toEqual({ teamId: "team-b" });
         expect(mockAnalyze).not.toHaveBeenCalled();
+    });
+
+    it("hands the classification to the promotion step, which moves only interested replies to HOT", async () => {
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockAnalyze.mockResolvedValue({ classification: "QUESTION", confidence: 0.82 });
+
+        await classifyInboundReply("team-a", "msg-1");
+
+        expect(mockPromote).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-a", classification: "QUESTION", confidence: 0.82 });
+    });
+
+    it("on a retry of an already classified reply, tries the promotion again from the stored result", async () => {
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockDb.replyTracker.findFirst.mockResolvedValue({ id: "rt-1", aiClassification: "INTERESTED", aiConfidence: 0.9 });
+
+        await classifyInboundReply("team-a", "msg-1");
+
+        expect(mockPromote).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-a", classification: "INTERESTED", confidence: 0.9 });
     });
 
     it("does not classify the same message twice (no second AI call)", async () => {

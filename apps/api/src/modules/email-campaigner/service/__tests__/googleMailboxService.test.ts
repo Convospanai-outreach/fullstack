@@ -1186,14 +1186,10 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         });
         expect(eventTx.email.update).toHaveBeenCalled();
         expect(eventTx.lead.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "lead-1" }) }));
+        // A reply only marks the lead REPLIED; the stage moves to HOT later, once the reply is judged interested.
         expect(eventTx.lead.update).toHaveBeenCalledWith({
             where: { id: "lead-1" },
-            data: {
-                status: "REPLIED",
-                pipelineState: "HOT",
-                pipelineStateChangedAt: expect.any(Date),
-                hotAt: expect.any(Date),
-            },
+            data: { status: "REPLIED" },
         });
         expect(prisma.emailEvent.create).not.toHaveBeenCalled();
         expect(prisma.message.create).not.toHaveBeenCalled();

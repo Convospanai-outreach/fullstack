@@ -66,7 +66,8 @@ export type JobType =
     | "EMAIL_DRAFT_BATCH_POLL"
     | "invoice_pdf_render"
     | "playbook_generate"
-    | "reply_classification";
+    | "reply_classification"
+    | "whatsapp_reply_classification";
 
 export interface JobPayload {
     leadId?: string | undefined;
