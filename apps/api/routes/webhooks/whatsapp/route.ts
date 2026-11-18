@@ -10,6 +10,11 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 // substring - "please stop calling" should not revoke consent).
 const OPT_OUT_KEYWORDS = new Set(["stop", "unsubscribe", "opt out", "optout"]);
 
+// Anyone who messages a team's number becomes a lead, so a flood of strangers would flood the team's
+// lead list. Past this many inbound-created leads in 24 hours the message is logged and dropped.
+// Soft cap: the lock below is per number, so a burst of different numbers can overshoot a little.
+const INBOUND_LEADS_PER_TEAM_PER_DAY = Math.max(1, Number(process.env["WHATSAPP_INBOUND_LEADS_PER_DAY"]) || 200);
+
 // One Meta App (and one webhook subscription) serves every team's WhatsApp
 // Business number - Meta routes all subscribed numbers' events to this single
 // callback URL, so the verify token and signing secret are app-level env vars,
@@ -85,6 +90,13 @@ async function resolveLeadForInboundMessage(
             select: { id: true, teamId: true },
         });
         if (raced) return raced;
+        const createdToday = await tx.lead.count({
+            where: { teamId: team.id, source: "WHATSAPP_INBOUND", createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+        });
+        if (createdToday >= INBOUND_LEADS_PER_TEAM_PER_DAY) {
+            logger.warn(`[WhatsApp Webhook] Team ${team.id} reached ${INBOUND_LEADS_PER_TEAM_PER_DAY} inbound leads in 24h; not creating another`);
+            return null;
+        }
         return tx.lead.create({
             data: {
                 teamId: team.id,

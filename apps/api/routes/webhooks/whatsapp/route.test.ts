@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWindow } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findFirst: vi.fn() },
-        lead: { findFirst: vi.fn(), create: vi.fn() },
+        lead: { findFirst: vi.fn(), create: vi.fn(), count: vi.fn() },
         whatsAppMessage: { create: vi.fn() },
         $executeRaw: vi.fn(),
         $transaction: vi.fn(),
@@ -56,6 +56,7 @@ describe("/webhooks/whatsapp", () => {
         process.env["WHATSAPP_APP_SECRET"] = APP_SECRET;
         mockPrisma.team.findFirst.mockResolvedValue({ id: "team-1" });
         mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", teamId: "team-1" });
+        mockPrisma.lead.count.mockResolvedValue(0);
         mockPrisma.whatsAppMessage.create.mockResolvedValue({ id: "msg-1" });
         mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
         mockAdvanceLeadAfterReply.mockResolvedValue({ leadStageChanged: true });
@@ -264,6 +265,30 @@ describe("/webhooks/whatsapp", () => {
             expect(mockPrisma.whatsAppMessage.create).toHaveBeenCalledWith({
                 data: { leadId: "lead-raced", body: "Hi there", direction: "INBOUND", status: "received" },
             });
+        });
+
+        it("creates no lead and stores nothing once the team is at its daily inbound-lead cap", async () => {
+            mockPrisma.lead.findFirst.mockResolvedValue(null);
+            mockPrisma.lead.count.mockResolvedValue(200);
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload()) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockPrisma.lead.count.mock.calls[0][0].where).toMatchObject({ teamId: "team-1", source: "WHATSAPP_INBOUND" });
+            expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+            expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
+        });
+
+        it("still creates a lead just under the cap", async () => {
+            mockPrisma.lead.findFirst.mockResolvedValue(null);
+            mockPrisma.lead.count.mockResolvedValue(199);
+            mockPrisma.lead.create.mockResolvedValue({ id: "lead-new", teamId: "team-1" });
+            const { POST } = await import("./route");
+
+            await POST(signedRequest(messagePayload()) as any);
+
+            expect(mockPrisma.lead.create).toHaveBeenCalledTimes(1);
         });
 
         it("does not create a second lead when the sender already exists", async () => {
