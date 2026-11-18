@@ -40,6 +40,8 @@ interface QueueItem {
     }
 }
 
+const QUEUE_REFRESH_MS = 30_000;
+
 export default function CallerPage() {
     // const { data: session } = useSession();
     const [assigned, setAssigned] = useState<QueueItem[]>([]);
@@ -51,8 +53,9 @@ export default function CallerPage() {
     const [activeLead, setActiveLead] = useState<QueueItem | null>(null);
     const [notes, setNotes] = useState("");
 
-    const fetchQueue = async () => {
-        setLoading(true);
+    // `silent` is the background refresh: no loading screen, and it never changes the lead being worked on.
+    const fetchQueue = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const res = await fetch(getBrowserApiBase() + "/caller/queue");
             if (res.ok) {
@@ -61,7 +64,7 @@ export default function CallerPage() {
                 setPool(data.pool);
 
                 // Auto-select first assigned if available
-                if (data.assigned.length > 0 && !activeLead) {
+                if (!silent && data.assigned.length > 0 && !activeLead) {
                     setActiveLead(data.assigned[0]);
                 }
             }
@@ -74,6 +77,11 @@ export default function CallerPage() {
 
     useEffect(() => {
         fetchQueue();
+        // New HOT leads land in the pool while the page is open: pick them up without a reload.
+        const timer = setInterval(() => {
+            if (document.visibilityState === "visible") fetchQueue(true);
+        }, QUEUE_REFRESH_MS);
+        return () => clearInterval(timer);
     }, []);
 
     const handleClaim = async (leadId: string) => {
