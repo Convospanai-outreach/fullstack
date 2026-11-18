@@ -3,12 +3,15 @@ import { ConversationState } from "@prisma/client";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
-        lead: { findFirst: vi.fn(), updateMany: vi.fn() },
+        lead: { findFirst: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
+        teamMember: { findMany: vi.fn() },
         meetingCoordinationQueue: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
         conversationThread: { findFirst: vi.fn(), findUnique: vi.fn() },
         leadActivity: { create: vi.fn() },
     },
 }));
+
+vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
 
 vi.mock("@/modules/conversation/ConversationService", () => ({
     ConversationService: {
@@ -19,6 +22,7 @@ vi.mock("@/modules/conversation/ConversationService", () => ({
 
 import { prisma } from "@/lib/db";
 import { ConversationService } from "@/modules/conversation/ConversationService";
+import { NotificationDispatcher } from "@/lib/notifications";
 import { CallerService } from "./CallerService";
 
 describe("CallerService", () => {
@@ -118,6 +122,59 @@ describe("CallerService", () => {
             await CallerService.ensureQueueEntry("lead-1", "WARM");
 
             expect(ConversationService.transitionState).toHaveBeenCalledWith("t-new", ConversationState.ENGAGED, "Auto: Lead scored WARM");
+        });
+
+        describe("alerting callers", () => {
+            beforeEach(() => {
+                (prisma.lead.findUnique as any).mockResolvedValue({ teamId: "team-a", fullName: "Asha Rao", company: "Acme" });
+                (prisma.teamMember.findMany as any).mockResolvedValue([{ userId: "caller-1" }, { userId: "caller-2" }]);
+            });
+
+            it("tells every active caller on the lead's team when a new HOT lead is queued", async () => {
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+                await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+                expect(prisma.teamMember.findMany).toHaveBeenCalledWith({
+                    where: { teamId: "team-a", status: "active", userId: { not: null }, user: { enterpriseRole: "CALLER" } },
+                    select: { userId: true },
+                });
+                expect(NotificationDispatcher.send).toHaveBeenCalledTimes(2);
+                expect(NotificationDispatcher.send).toHaveBeenCalledWith("caller-1", "LEAD", "Hot lead ready to call", "Asha Rao at Acme is waiting in the Calling queue.", { leadId: "lead-1", link: "/caller" });
+            });
+
+            it("tells callers when a waiting WARM lead is raised to HOT", async () => {
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "PENDING", priority: 0 });
+                await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+                expect(NotificationDispatcher.send).toHaveBeenCalledTimes(2);
+            });
+
+            it("does not alert for a WARM lead, an already-HOT entry, or a claimed entry", async () => {
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+                await CallerService.ensureQueueEntry("lead-1", "WARM");
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "PENDING", priority: 1 });
+                await CallerService.ensureQueueEntry("lead-1", "HOT");
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ leadId: "lead-1", status: "IN_PROGRESS", priority: 0 });
+                await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+                expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+            });
+
+            it("sends nothing when the team has no callers", async () => {
+                (prisma.teamMember.findMany as any).mockResolvedValue([]);
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+                await CallerService.ensureQueueEntry("lead-1", "HOT");
+
+                expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+            });
+
+            it("still queues the lead when the alert fails", async () => {
+                (prisma.teamMember.findMany as any).mockRejectedValue(new Error("db down"));
+                (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue(null);
+                await expect(CallerService.ensureQueueEntry("lead-1", "HOT")).resolves.toBeUndefined();
+
+                expect(prisma.meetingCoordinationQueue.create).toHaveBeenCalled();
+            });
         });
     });
 

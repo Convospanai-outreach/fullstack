@@ -15,6 +15,8 @@ export class CallerService {
             where: { leadId }
         });
         const priority = tier === "HOT" ? 1 : 0;
+        // Callers are alerted once per lead turning HOT: a new HOT entry, or a waiting WARM one raised to HOT.
+        let newlyHot = false;
 
         if (!existing) {
             await prisma.meetingCoordinationQueue.create({
@@ -24,8 +26,10 @@ export class CallerService {
                     priority
                 }
             });
+            newlyHot = priority === 1;
         } else if (existing.status === "PENDING" && existing.priority < priority) {
             await prisma.meetingCoordinationQueue.update({ where: { leadId }, data: { priority } });
+            newlyHot = true;
         }
 
         // Ensure a ConversationThread exists and is in HANDOFF_REQUIRED state.
@@ -63,6 +67,39 @@ export class CallerService {
             }
         }
         // If thread is already in HANDOFF_REQUIRED, COORDINATING, or beyond — do nothing
+
+        if (newlyHot) await this.notifyCallers(leadId);
+    }
+
+    /**
+     * Tells every active caller on the lead's team that a HOT lead is waiting in the shared pool. The pool
+     * stays first-come-first-served, so everyone is told. Best effort: an alert failure must never undo or
+     * block queueing. Uses the user's own notification preferences (in-app and email) via NotificationDispatcher.
+     */
+    private static async notifyCallers(leadId: string) {
+        try {
+            const lead = await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { teamId: true, fullName: true, company: true },
+            });
+            if (!lead?.teamId) return;
+
+            const callers = await prisma.teamMember.findMany({
+                where: { teamId: lead.teamId, status: "active", userId: { not: null }, user: { enterpriseRole: "CALLER" } },
+                select: { userId: true },
+            });
+            if (callers.length === 0) return;
+
+            // Loaded here, not at the top: it pulls in the email client, which the API boot memory budget avoids.
+            const { NotificationDispatcher } = await import("@/lib/notifications");
+            const who = [lead.fullName, lead.company].filter(Boolean).join(" at ") || "A lead";
+            for (const { userId } of callers) {
+                if (!userId) continue;
+                await NotificationDispatcher.send(userId, "LEAD", "Hot lead ready to call", `${who} is waiting in the Calling queue.`, { leadId, link: "/caller" });
+            }
+        } catch (error) {
+            console.warn(`[CallerService] Could not alert callers about lead ${leadId}:`, error);
+        }
     }
 
     /**

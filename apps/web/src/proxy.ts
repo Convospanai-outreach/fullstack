@@ -453,8 +453,9 @@ async function appProxy(req: NextRequest) {
         }
 
         if (path.startsWith("/caller")) {
-            // Strict RBAC: Caller UI is for Callers only. Managers use Dashboard.
-            const allowed = ["CALLER"];
+            // Same roles the caller API accepts (apps/api/routes/caller/queue): callers, plus the managers and
+            // admins who oversee them. Anyone else is sent to the dashboard.
+            const allowed = ["CALLER", "SALES_MANAGER", "ORG_ADMIN", "SYSTEM_ADMIN"];
 
             if (!role || !allowed.includes(role)) {
                 return NextResponse.redirect(new URL("/dashboard", req.url));
