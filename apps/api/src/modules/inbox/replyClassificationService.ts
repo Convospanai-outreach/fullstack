@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { toPlainText } from "./actionInboxService";
+import { promoteLeadOnJudgedReply } from "./replyPromotion";
 
 // Reply classification is a best-effort suggestion for the Action Inbox, run as a queued job
-// so it can never slow down or fail inbound-reply ingestion.
+// so it can never slow down or fail inbound-reply ingestion. One exception: a reply judged
+// interested moves the lead to HOT and into the caller queue (see replyPromotion).
 
 const MAX_CLASSIFIED_CHARS = 4000;
 
@@ -44,9 +46,13 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
 
     const existing = await prisma.replyTracker.findFirst({
         where: { emailId: message.id, lead: { teamId } },
-        select: { id: true },
+        select: { id: true, aiClassification: true, aiConfidence: true },
     });
-    if (existing) return { skipped: "already_classified" as const };
+    if (existing) {
+        // A retry after the reply was stored but the promotion failed: promotion is idempotent, so try it again.
+        await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: existing.aiClassification, confidence: existing.aiConfidence });
+        return { skipped: "already_classified" as const };
+    }
 
     const { ReplyAnalyzerAgent } = await import("@/lib/ai/agents/ReplyAnalyzerAgent");
     const result = await ReplyAnalyzerAgent.analyzeAndTrack(
@@ -57,6 +63,7 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
         message.id,
         teamId
     );
+    await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: result.classification, confidence: result.confidence });
     return { classification: result.classification };
 }
 

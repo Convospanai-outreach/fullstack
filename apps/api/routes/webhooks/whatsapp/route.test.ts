@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
 
-const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWindow } = vi.hoisted(() => ({
+const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWindow, mockEnqueueClassification } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn(), count: vi.fn() },
@@ -13,11 +13,13 @@ const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWind
     mockAdvanceLeadAfterReply: vi.fn(),
     mockRevokeConsent: vi.fn(),
     mockRecordWindow: vi.fn(),
+    mockEnqueueClassification: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterReply: mockAdvanceLeadAfterReply }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("@/modules/whatsapp/whatsappReplyClassification", () => ({ enqueueWhatsAppReplyClassification: mockEnqueueClassification }));
 vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent, recordInboundReplyWindow: mockRecordWindow } }));
 
 const VERIFY_TOKEN = "test-verify-token";
@@ -176,6 +178,26 @@ describe("/webhooks/whatsapp", () => {
                 data: { leadId: "lead-1", body: "Interested, tell me more", direction: "INBOUND", status: "received" },
             });
             expect(mockAdvanceLeadAfterReply).toHaveBeenCalledWith(mockPrisma, { leadId: "lead-1", teamId: "team-1" });
+        });
+
+        it("queues the reply to be judged for buying interest, since a reply alone no longer makes a lead hot", async () => {
+            const { POST } = await import("./route");
+
+            await POST(signedRequest(messagePayload({ text: "Interested, tell me more" })) as any);
+
+            expect(mockEnqueueClassification).toHaveBeenCalledWith({ id: "msg-1", leadId: "lead-1" });
+        });
+
+        it("does not queue judging for a media placeholder or an opt-out keyword", async () => {
+            const { POST } = await import("./route");
+            const image = {
+                entry: [{ id: "waba-1", changes: [{ field: "messages", value: { metadata: { phone_number_id: "phone-number-1" }, messages: [{ from: "919876543210", id: "wamid.2", type: "image" }] } }] }],
+            };
+
+            await POST(signedRequest(image) as any);
+            await POST(signedRequest(messagePayload({ text: "STOP" })) as any);
+
+            expect(mockEnqueueClassification).not.toHaveBeenCalled();
         });
 
         it("matches a stored lead phone that includes a country-code prefix or punctuation", async () => {

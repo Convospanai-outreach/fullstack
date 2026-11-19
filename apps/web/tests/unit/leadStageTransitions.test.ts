@@ -3,6 +3,7 @@ import {
     advanceLeadAfterEmailClicked,
     advanceLeadAfterEmailOpened,
     advanceLeadAfterEmailSent,
+    advanceLeadAfterInterestedReply,
     advanceLeadAfterMeetingScheduled,
     advanceLeadAfterReply,
     advanceLeadToLost,
@@ -31,10 +32,11 @@ function createPrismaLeadMock(lead: any) {
 }
 
 describe("lead stage transitions", () => {
-    it("moves COLD/NEW to WARM/CONTACTED after email sent", () => {
+    it("marks a NEW lead CONTACTED after email sent but leaves the stage COLD (a send is not a buyer signal)", () => {
         const result = calculateLeadTransition({ id: "lead-1", status: "NEW", pipelineState: "COLD" }, "EMAIL_SENT");
         expect(result.status).toBe("CONTACTED");
-        expect(result.pipelineState).toBe("WARM");
+        expect(result.pipelineState).toBe("COLD");
+        expect(result.hotAt).toBeUndefined();
     });
 
     it("does not move HOT lead backwards after email sent", () => {
@@ -49,10 +51,30 @@ describe("lead stage transitions", () => {
         expect(result.pipelineState).toBe("CLOSED_WON");
     });
 
-    it("moves WARM reply to HOT/REPLIED", () => {
+    it("records a reply as REPLIED without moving the stage (the reply has not been judged yet)", () => {
         const result = calculateLeadTransition({ id: "lead-1", status: "CONTACTED", pipelineState: "WARM" }, "REPLY_RECEIVED");
         expect(result.status).toBe("REPLIED");
-        expect(result.pipelineState).toBe("HOT");
+        expect(result.pipelineState).toBe("WARM");
+        expect(result.hotAt).toBeUndefined();
+    });
+
+    it("moves a COLD or WARM lead to HOT only on an interested reply", () => {
+        const now = new Date("2026-11-18T08:00:00.000Z");
+        for (const stage of ["COLD", "WARM"]) {
+            const result = calculateLeadTransition({ id: "lead-1", status: "CONTACTED", pipelineState: stage }, "INTERESTED_REPLY", now);
+            expect(result.status).toBe("REPLIED");
+            expect(result.pipelineState).toBe("HOT");
+            expect(result.hotAt).toBe(now);
+        }
+    });
+
+    it("leaves later stages and closed leads alone on an interested reply", () => {
+        const hot = calculateLeadTransition({ id: "lead-1", status: "REPLIED", pipelineState: "HOT" }, "INTERESTED_REPLY");
+        expect(hot).toEqual({ status: "REPLIED", pipelineState: "HOT" });
+        const coordinating = calculateLeadTransition({ id: "lead-1", status: "REPLIED", pipelineState: "COORDINATING" }, "INTERESTED_REPLY");
+        expect(coordinating.pipelineState).toBe("COORDINATING");
+        const lost = calculateLeadTransition({ id: "lead-1", status: "LOST", pipelineState: "CLOSED_LOST" }, "INTERESTED_REPLY");
+        expect(lost).toEqual({ status: "LOST", pipelineState: "CLOSED_LOST" });
     });
 
     it("moves meeting scheduled to MEETING_CONFIRMED/MEETING_SCHEDULED", () => {
@@ -67,27 +89,30 @@ describe("lead stage transitions", () => {
         expect(result.pipelineState).toBe("CLOSED_LOST");
     });
 
-    it("keeps advanced email statuses while warming cold leads", () => {
+    it("keeps advanced email statuses and the stage when a cold lead is emailed", () => {
         const result = calculateLeadTransition({ id: "lead-1", status: "QUALIFIED", pipelineState: "COLD" }, "EMAIL_SENT");
         expect(result.status).toBe("QUALIFIED");
-        expect(result.pipelineState).toBe("WARM");
+        expect(result.pipelineState).toBe("COLD");
     });
 
-    it("uses default NEW/COLD values for empty lead state", () => {
+    it("changes nothing on an email open (opens are inflated by mail prefetching)", () => {
         const result = calculateLeadTransition({ id: "lead-1" }, "EMAIL_OPENED");
-        expect(result.status).toBe("ENGAGED");
-        expect(result.pipelineState).toBe("WARM");
+        expect(result.status).toBe("NEW");
+        expect(result.pipelineState).toBe("COLD");
     });
 
-    it("marks first click as hot without downgrading qualified status", () => {
-        const now = new Date("2026-06-14T08:00:00.000Z");
-        const result = calculateLeadTransition({ id: "lead-1", status: "QUALIFIED", pipelineState: "WARM" }, "EMAIL_CLICKED", now);
-        expect(result.status).toBe("QUALIFIED");
-        expect(result.pipelineState).toBe("HOT");
-        expect(result.hotAt).toBe(now);
+    it("marks a click ENGAGED but never moves the stage, and keeps a qualified status", () => {
+        const click = calculateLeadTransition({ id: "lead-1", status: "CONTACTED", pipelineState: "WARM" }, "EMAIL_CLICKED");
+        expect(click.status).toBe("ENGAGED");
+        expect(click.pipelineState).toBe("WARM");
+        expect(click.hotAt).toBeUndefined();
+
+        const qualified = calculateLeadTransition({ id: "lead-1", status: "QUALIFIED", pipelineState: "WARM" }, "EMAIL_CLICKED");
+        expect(qualified.status).toBe("QUALIFIED");
+        expect(qualified.pipelineState).toBe("WARM");
     });
 
-    it("does not reset hot timestamp when lead is already hot", () => {
+    it("does not touch a lead that is already hot when it clicks", () => {
         const result = calculateLeadTransition({ id: "lead-1", status: "ENGAGED", pipelineState: "HOT" }, "EMAIL_CLICKED");
         expect(result.pipelineState).toBe("HOT");
         expect(result.hotAt).toBeUndefined();
@@ -146,42 +171,51 @@ describe("lead stage transitions", () => {
         expect(calls.map((call) => call.method)).toEqual(["findFirst"]);
     });
 
-    it("updates status, pipeline state and changed timestamp when email is opened", async () => {
+    it("writes nothing when an email is opened", async () => {
         const lead = { id: "lead-1", status: "NEW", pipelineState: "COLD" };
         const { prisma, calls } = createPrismaLeadMock(lead);
         const result = await advanceLeadAfterEmailOpened(prisma, { leadId: lead.id, teamId: "team-1" });
+
+        expect(result.leadStageChanged).toBe(false);
+        expect(calls.map((call) => call.method)).toEqual(["findFirst"]);
+    });
+
+    it("persists a click as ENGAGED only: no stage, stage timestamp or hotAt", async () => {
+        const lead = { id: "lead-1", status: "CONTACTED", pipelineState: "WARM", hotAt: null };
+        const { prisma, calls } = createPrismaLeadMock(lead);
+        const result = await advanceLeadAfterEmailClicked(prisma, { leadId: lead.id });
         const update = calls.find((call) => call.method === "update");
 
-        expect(update.args.where).toEqual({ id: "lead-1" });
-        expect(update.args.data.status).toBe("ENGAGED");
-        expect(update.args.data.pipelineState).toBe("WARM");
-        expect(update.args.data.pipelineStateChangedAt).toBeInstanceOf(Date);
-        expect(result.leadStageChanged).toBe(true);
-        expect(result.leadStatus).toBe("ENGAGED");
+        expect(update.args.data).toEqual({ status: "ENGAGED" });
         expect(result.pipelineState).toBe("WARM");
     });
 
-    it("sets hotAt only when the stored lead does not already have it", async () => {
+    it("persists a plain reply as REPLIED only", async () => {
         const lead = { id: "lead-1", status: "CONTACTED", pipelineState: "WARM", hotAt: null };
-        const { prisma, calls } = createPrismaLeadMock(lead);
-        await advanceLeadAfterEmailClicked(prisma, { leadId: lead.id });
-        const update = calls.find((call) => call.method === "update");
-
-        expect(update.args.data.status).toBe("ENGAGED");
-        expect(update.args.data.pipelineState).toBe("HOT");
-        expect(update.args.data.hotAt).toBeInstanceOf(Date);
-    });
-
-    it("does not overwrite an existing hotAt when reply keeps a lead hot", async () => {
-        const existingHotAt = new Date("2026-06-01T00:00:00.000Z");
-        const lead = { id: "lead-1", status: "CONTACTED", pipelineState: "WARM", hotAt: existingHotAt };
         const { prisma, calls } = createPrismaLeadMock(lead);
         await advanceLeadAfterReply(prisma, { leadId: lead.id });
         const update = calls.find((call) => call.method === "update");
 
-        expect(update.args.data.status).toBe("REPLIED");
-        expect(update.args.data.pipelineState).toBe("HOT");
-        expect(update.args.data.hotAt).toBeUndefined();
+        expect(update.args.data).toEqual({ status: "REPLIED" });
+    });
+
+    it("sets hotAt when an interested reply makes a lead hot, and keeps an existing hotAt", async () => {
+        const fresh = { id: "lead-1", status: "CONTACTED", pipelineState: "WARM", hotAt: null };
+        const first = createPrismaLeadMock(fresh);
+        await advanceLeadAfterInterestedReply(first.prisma, { leadId: fresh.id });
+        const firstUpdate = first.calls.find((call) => call.method === "update");
+        expect(firstUpdate.args.data.status).toBe("REPLIED");
+        expect(firstUpdate.args.data.pipelineState).toBe("HOT");
+        expect(firstUpdate.args.data.pipelineStateChangedAt).toBeInstanceOf(Date);
+        expect(firstUpdate.args.data.hotAt).toBeInstanceOf(Date);
+
+        const earlier = new Date("2026-06-01T00:00:00.000Z");
+        const again = { id: "lead-2", status: "CONTACTED", pipelineState: "WARM", hotAt: earlier };
+        const second = createPrismaLeadMock(again);
+        await advanceLeadAfterInterestedReply(second.prisma, { leadId: again.id });
+        const secondUpdate = second.calls.find((call) => call.method === "update");
+        expect(secondUpdate.args.data.pipelineState).toBe("HOT");
+        expect(secondUpdate.args.data.hotAt).toBeUndefined();
     });
 
     it("advances meetings without reopening closed pipeline states", async () => {

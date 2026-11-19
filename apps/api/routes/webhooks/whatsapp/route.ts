@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
                         continue;
                     }
 
-                    await prisma.whatsAppMessage.create({
+                    const stored = await prisma.whatsAppMessage.create({
                         data: { leadId: lead.id, body: text, direction: "INBOUND", status: "received" },
                     });
 
@@ -187,6 +187,13 @@ export async function POST(req: NextRequest) {
                         await advanceLeadAfterReply(prisma, { leadId: lead.id, teamId: lead.teamId });
                     } catch {
                         // Lead-stage advancement is best-effort - the message is already recorded.
+                    }
+
+                    // The reply only marks the lead REPLIED. Whether it shows buying interest (and so makes the
+                    // lead HOT) is judged by a queued job. Only real text is judged, not "[image message]" placeholders.
+                    if (stored?.id && typeof message?.text?.body === "string") {
+                        const { enqueueWhatsAppReplyClassification } = await import("@/modules/whatsapp/whatsappReplyClassification");
+                        await enqueueWhatsAppReplyClassification({ id: stored.id, leadId: lead.id });
                     }
                 }
 
