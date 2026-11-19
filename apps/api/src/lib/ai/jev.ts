@@ -254,6 +254,51 @@ export async function judgeStalledThread(input: { thread: StallThreadMessage[]; 
 }
 
 
+// --- Engagement judge (does behaviour alone show buying interest?) ---
+
+export type EngagementFacts = {
+    emailsSent: number;
+    emailClicks: number;
+    // Seconds from send to the quickest click. Mail security scanners click within seconds.
+    fastestClickSeconds: number | null;
+    dwellTimeMinutes: number;
+    socialMentions: number;
+    daysSinceFirstEmail: number | null;
+    stage: string;
+};
+
+export type EngagementJudgment = { genuineInterest: number; likelyAutomated: number };
+
+/**
+ * Judges whether a lead's behaviour (counts only, no personal data) shows real buying interest, so
+ * engagement alone can move a lead up a stage. Throws when Jev can't answer: callers treat a throw as
+ * "no answer", never as "interested".
+ */
+export async function judgeEngagement(facts: EngagementFacts, teamId: string): Promise<EngagementJudgment> {
+    const answers = await ask(
+        "ENGAGEMENT_JUDGMENT",
+        teamId,
+        {
+            context: "These are counts of how one outreach lead has behaved, with no message text. We have sent `emailsSent` emails. `emailClicks` links were clicked, the quickest `fastestClickSeconds` seconds after sending (null if none). `dwellTimeMinutes` is time on our pages, `socialMentions` is mentions of us, `daysSinceFirstEmail` is how long we have been in touch, and `stage` is where the lead sits now. The lead has not replied.",
+            facts
+        },
+        {
+            genuineInterest: noul("Does this behaviour show that the person is genuinely interested in what we offer?", {
+                true: "A person clearly chose to look: several clicks, time spent on our pages, or repeated engagement over days.",
+                false: "Little or nothing a person would do on purpose: no clicks, or one click that is easily accidental."
+            }),
+            likelyAutomated: noul("Is the activity probably caused by software rather than the person?", {
+                true: "A click a few seconds after sending, or every link clicked at once, as mail security scanners do.",
+                false: "The timing and pattern look like a person reading and choosing."
+            })
+        },
+        { retry: { maxRetries: 0 } }
+    );
+
+    return { genuineInterest: answers.genuineInterest.noul, likelyAutomated: answers.likelyAutomated.noul };
+}
+
+
 // --- Cold outreach draft screen (copy engine, before the critic) ---
 
 export type OutreachDraftJudgment = { inventsFact: number; readsAsPitch: number; hardAsk: number };

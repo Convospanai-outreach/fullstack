@@ -249,7 +249,7 @@ export class LeadScoringService {
         // Lead.emailClicks has no real writer in production, so take whichever is higher.
         const emails = await prisma.email.findMany({
             where: { leadId },
-            select: { openedAt: true, clickedAt: true }
+            select: { openedAt: true, clickedAt: true, createdAt: true }
         });
         const { realEmailClicks, optimalSendHour: openBasedSendHour, hasOpenData } = deriveEmailEngagement(emails);
 
@@ -277,6 +277,17 @@ export class LeadScoringService {
         } else if (finalTier === "WARM" && currentState === "COLD") {
             newPipelineState = "WARM";
         }
+
+        // The score only proposes a move. Jev decides whether the behaviour is real interest, and the lead
+        // moves one stage at a time (see engagementGate). A blocked lead is not queued for a caller either.
+        const proposedState = newPipelineState;
+        if (proposedState) {
+            const { gateStagePromotion, buildEngagementFacts } = await import("./engagementGate");
+            newPipelineState = lead.teamId
+                ? await gateStagePromotion({ leadId, teamId: lead.teamId, currentState, candidate: proposedState, facts: buildEngagementFacts(lead, emails, input.emailClicks) })
+                : null;
+        }
+        const promotionBlocked = Boolean(proposedState) && !newPipelineState;
 
         // 1. Churn risk — a rule-based heuristic on score + staleness, not a trained model.
         // Uses pipelineStateChangedAt (not updatedAt), which resets on every prisma write.
@@ -333,7 +344,7 @@ export class LeadScoringService {
         await prisma.lead.update({ where: { id: leadId }, data: updateData });
 
         // Auto-enqueue HOT and WARM leads to the caller coordination queue
-        const queueTier = callerQueueTier(finalTier, currentState, newPipelineState);
+        const queueTier = promotionBlocked ? null : callerQueueTier(finalTier, currentState, newPipelineState);
         if (queueTier) {
             try {
                 const { CallerService } = await import("@/modules/caller/CallerService");
@@ -385,7 +396,7 @@ export class LeadScoringService {
 
                 const emails = await prisma.email.findMany({
                     where: { leadId: lead.id },
-                    select: { openedAt: true, clickedAt: true }
+                    select: { openedAt: true, clickedAt: true, createdAt: true }
                 });
                 const { realEmailClicks, optimalSendHour: openBasedSendHour, hasOpenData } = deriveEmailEngagement(emails);
 
@@ -415,6 +426,14 @@ export class LeadScoringService {
                 } else if (finalTier === "WARM" && currentState === "COLD") {
                     newPipelineState = "WARM";
                 }
+
+                // Score proposes, Jev decides, one stage at a time (see engagementGate).
+                const proposedState = newPipelineState;
+                if (proposedState) {
+                    const { gateStagePromotion, buildEngagementFacts } = await import("./engagementGate");
+                    newPipelineState = await gateStagePromotion({ leadId: lead.id, teamId, currentState, candidate: proposedState, facts: buildEngagementFacts(lead, emails, input.emailClicks) });
+                }
+                const promotionBlocked = Boolean(proposedState) && !newPipelineState;
 
                 // 1. Churn risk — a rule-based heuristic on score + staleness, not a trained model.
                 // Uses pipelineStateChangedAt (not updatedAt), which resets on every prisma write.
@@ -464,7 +483,7 @@ export class LeadScoringService {
                 }
 
                 await prisma.lead.update({ where: { id: lead.id }, data: updateData });
-                const queueTier = callerQueueTier(finalTier, currentState, newPipelineState);
+                const queueTier = promotionBlocked ? null : callerQueueTier(finalTier, currentState, newPipelineState);
                 if (queueTier) queueLeads.push({ id: lead.id, tier: queueTier });
             } catch (error: any) {
                 errors.push({ leadId: lead.id, error: error?.message ?? "Failed" });

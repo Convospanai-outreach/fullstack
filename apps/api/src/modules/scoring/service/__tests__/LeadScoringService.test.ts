@@ -19,7 +19,14 @@ vi.mock("@/modules/caller/CallerService", () => ({
     },
 }));
 
+// The Jev judgment is tested in engagementGate.test.ts. Here the gate is a stub that approves what the score proposes.
+vi.mock("../engagementGate", () => ({
+    gateStagePromotion: vi.fn(async ({ candidate }: { candidate: string | null }) => candidate),
+    buildEngagementFacts: vi.fn(() => ({ facts: true })),
+}));
+
 import { prisma } from "@/lib/db";
+import { gateStagePromotion } from "../engagementGate";
 import { CallerService } from "@/modules/caller/CallerService";
 import { LeadScoringService, callerQueueTier } from "../LeadScoringService";
 
@@ -104,6 +111,45 @@ describe("LeadScoringService", () => {
             expect(data.pipelineState).toBe("HOT");
             expect(data.hotAt).toBeInstanceOf(Date);
             expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1", "HOT");
+        });
+
+        it("does not move or queue a lead the engagement judge declines to promote, but still records the score", async () => {
+            (gateStagePromotion as any).mockResolvedValueOnce(null);
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1", teamId: "team-1", consentObtained: true, dwellTimeMinutes: 20, emailClicks: 20, socialMentions: 10,
+                pipelineState: "COLD", hotAt: null, pipelineStateChangedAt: null,
+                fullName: "Jane Doe", email: "jane@example.com", company: "Acme", jobTitle: "CEO", isEnriched: true, value: 10000,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect(gateStagePromotion).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-1", teamId: "team-1", currentState: "COLD", candidate: "HOT" }));
+            expect(data.pipelineState).toBeUndefined();
+            expect(data.pipelineStateChangedAt).toBeUndefined();
+            expect(data.hotAt).toBeUndefined();
+            expect(data.leadScore).toBeGreaterThan(0);
+            expect(CallerService.ensureQueueEntry).not.toHaveBeenCalled();
+        });
+
+        it("moves only the one stage the judge allows (COLD to WARM), even when the score says HOT", async () => {
+            (gateStagePromotion as any).mockResolvedValueOnce("WARM");
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1", teamId: "team-1", consentObtained: true, dwellTimeMinutes: 20, emailClicks: 20, socialMentions: 10,
+                pipelineState: "COLD", hotAt: null, pipelineStateChangedAt: null,
+                fullName: "Jane Doe", email: "jane@example.com", company: "Acme", jobTitle: "CEO", isEnriched: true, value: 10000,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect(data.pipelineState).toBe("WARM");
+            expect(data.hotAt).toBeUndefined();
+            expect(CallerService.ensureQueueEntry).not.toHaveBeenCalled();
         });
 
         it("queues a WARM-scored lead that an email send has already moved to the WARM stage", async () => {
