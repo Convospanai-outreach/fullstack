@@ -4,6 +4,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { update: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findFirst: vi.fn() },
         suppressionEntry: { upsert: vi.fn() },
+        consentLedger: { updateMany: vi.fn() },
         auditLog: { create: vi.fn() },
     },
 }));
@@ -22,6 +23,7 @@ import { complianceGuard } from "./ComplianceGuard";
 beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma.lead.updateMany.mockResolvedValue({ count: 0 });
+    mockPrisma.consentLedger.updateMany.mockResolvedValue({ count: 0 });
     mockPrisma.auditLog.create.mockResolvedValue({});
 });
 
@@ -60,6 +62,32 @@ describe("ComplianceGuard.enforceOptOut", () => {
 
         expect(mockPrisma.suppressionEntry.upsert).toHaveBeenCalled();
         spy.mockRestore();
+    });
+
+    it("revokes every granted consent row for the lead, on every channel, and stamps revokedAt", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+
+        await complianceGuard.enforceOptOut("l1", "stop");
+
+        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledTimes(1);
+        const arg = mockPrisma.consentLedger.updateMany.mock.calls[0]![0];
+        expect(arg.where).toEqual({ leadId: "l1", status: "GRANTED" });
+        expect(arg.data).toEqual({ status: "REVOKED", revokedAt: expect.any(Date) });
+    });
+
+    it("revokes consent even when the lead has no email (a WhatsApp-only lead)", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: null });
+
+        await complianceGuard.enforceOptOut("l1", "stop");
+
+        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { leadId: "l1", status: "GRANTED" } }));
+    });
+
+    it("lets a failed revoke surface so the job retries, instead of reporting the opt-out as done", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+        mockPrisma.consentLedger.updateMany.mockRejectedValue(new Error("db"));
+
+        await expect(complianceGuard.enforceOptOut("l1", "stop")).rejects.toThrow("db");
     });
 
     it("does not suppress when the lead has no email", async () => {
