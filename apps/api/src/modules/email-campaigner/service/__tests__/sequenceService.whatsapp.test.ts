@@ -39,6 +39,11 @@ vi.mock("@/modules/whatsapp/wabaCredentials", () => ({
 vi.mock("@/modules/analytics/service/PipelineService", () => ({
     PipelineService: { createTask: vi.fn() },
 }));
+vi.mock("@/modules/governance/lawfulBasis", () => ({
+    checkSendGate: vi.fn().mockResolvedValue({ allowed: true }),
+    NO_LAWFUL_BASIS_REASON: "No consent or proven public source",
+}));
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 
 import { SequenceService } from "../sequenceService";
 import { WhatsAppService } from "@/services/WhatsAppService";
@@ -103,7 +108,23 @@ describe("SequenceService.executeRun - whatsapp step", () => {
         expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
     });
 
+    it("skips the step, with the reason, when the DPDP gate blocks the lead, and sends nothing", async () => {
+        (checkSendGate as any).mockResolvedValue({ allowed: false, reason: "No consent or proven public source" });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(baseRun());
+
+        const result = await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(result.status).toBe("SKIPPED_NO_CONSENT");
+        expect(checkSendGate).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-1", channel: "WHATSAPP" });
+        expect(mockDb.sequenceStepRun.update).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ errorCode: "NO_LAWFUL_BASIS", errorMessage: "No consent or proven public source" }),
+        }));
+        expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+        expect(WhatsAppService.sendTemplate).not.toHaveBeenCalled();
+    });
+
     it("sends automatically and advances the lead when the team has a WABA configured", async () => {
+        (checkSendGate as any).mockResolvedValue({ allowed: true });
         const run = baseRun();
         mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
 

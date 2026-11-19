@@ -11,6 +11,7 @@ import { resolveMessageTokens, type MissingToken } from "./messageTokens";
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 import { isValidTimeZone, nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { logger } from "@/lib/logger";
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 // Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
@@ -660,6 +661,17 @@ export class SequenceService {
             await client.sequenceStepRun.update({
                 where: { id: run.id },
                 data: { status: "SKIPPED_NO_CONSENT", completedAt: now, errorCode: "NO_WHATSAPP_CONSENT" },
+            });
+            await this.scheduleNextStep(run, now);
+            return { runId: run.id, status: "SKIPPED_NO_CONSENT" };
+        }
+
+        // DPDP send gate (team setting, off by default). Covers the template path below too, which is only reached from here.
+        const dpdp = await checkSendGate({ leadId: run.leadId, teamId: run.teamId, channel: "WHATSAPP" });
+        if (!dpdp.allowed) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: { status: "SKIPPED_NO_CONSENT", completedAt: now, errorCode: "NO_LAWFUL_BASIS", errorMessage: dpdp.reason },
             });
             await this.scheduleNextStep(run, now);
             return { runId: run.id, status: "SKIPPED_NO_CONSENT" };

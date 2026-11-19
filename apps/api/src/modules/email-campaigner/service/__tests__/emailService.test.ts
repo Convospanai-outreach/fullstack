@@ -27,6 +27,11 @@ vi.mock("../googleMailboxService", () => ({
     signTrackedUrl: vi.fn(() => "tracking-signature"),
 }));
 vi.mock("../resendMailboxService", () => ({ sendViaResendMailbox: vi.fn() }));
+vi.mock("@/modules/governance/lawfulBasis", () => ({
+    checkSendGate: vi.fn().mockResolvedValue({ allowed: true }),
+    NO_LAWFUL_BASIS_REASON: "No consent or proven public source",
+}));
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 
 const metadata = {
     teamId: "team-1",
@@ -487,5 +492,44 @@ describe("emailService SMTP-mailbox routing (ConnectedMailbox provider SMTP)", (
 
         expect(selectMailboxForSend).not.toHaveBeenCalled();
         expect(sendViaSmtpMailbox).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: "smtp-mailbox-1" }));
+    });
+});
+
+describe("emailService DPDP send gate", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (checkSendGate as Mock).mockResolvedValue({ allowed: true });
+        (isSuppressed as Mock).mockResolvedValue(false);
+        (prisma.lead.findUnique as Mock).mockResolvedValue({ status: "NEW", teamId: metadata.teamId });
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
+        (selectMailboxForSend as Mock).mockResolvedValue(null);
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
+        (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+    });
+
+    it("does not send to a lead the gate blocks, and says why", async () => {
+        (checkSendGate as Mock).mockResolvedValue({ allowed: false, reason: "No consent or proven public source" });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: false, error: "No consent or proven public source" });
+        expect(checkSendGate).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-1", channel: "EMAIL" });
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(prisma.email.create).not.toHaveBeenCalled();
+    });
+
+    it("sends when the gate allows it", async () => {
+        const result = await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        expect(result.success).toBe(true);
+        expect(sendViaSMTP).toHaveBeenCalled();
+    });
+
+    it("does not consult the gate for a send with no lead or no team", async () => {
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", { teamId: "team-1" });
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", { leadId: "lead-1" });
+
+        expect(checkSendGate).not.toHaveBeenCalled();
     });
 });

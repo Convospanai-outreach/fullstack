@@ -180,6 +180,10 @@ model Lead {
 
   // DPDP Act 2023 Compliance
   consentObtained Boolean @default(false)
+  // Why we may contact this person. CONSENT = a ConsentLedger row; PUBLIC_SOURCE needs sourceUrl and publishedBySubject. See apps/api/src/modules/governance/lawfulBasis.ts
+  lawfulBasis        LawfulBasis @default(NONE)
+  sourceUrl          String?
+  publishedBySubject Boolean     @default(false)
 
   // Org chart (on-demand, manually drawn - see apps/web/src/modules/analytics/components/OrgChart.tsx)
   reportsToId String?
@@ -3148,6 +3152,12 @@ model FeatureFlag {
 }
 
 // --- ENTERPRISE GOVERNANCE END ---
+
+enum LawfulBasis {
+  CONSENT
+  PUBLIC_SOURCE
+  NONE
+}
 
 enum ConsentStatus {
   GRANTED
