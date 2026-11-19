@@ -27,9 +27,7 @@ export class ComplianceGuard {
         }
 
         // Class and deciding pass only: the message text is never logged.
-        await prisma.auditLog.create({
-            data: { orgId: "SYSTEM", actorId: "SYSTEM", action: "COMPLIANCE_INBOUND_CLASSIFIED", entity: "Lead", entityId: leadId, metadata: { class: cls, pass } },
-        });
+        await this.audit(leadId, "COMPLIANCE_INBOUND_CLASSIFIED", { class: cls, pass });
 
         if (cls === "OPT_OUT") {
             await this.enforceOptOut(leadId, "User replied with a request to stop");
@@ -101,16 +99,27 @@ export class ComplianceGuard {
         console.log(`[Compliance] Enforced Opt-Out for Lead ${leadId}: ${reason}`);
 
         // 3. Log into Audit Trail for Legal Proof
-        await prisma.auditLog.create({
-            data: {
-                orgId: "SYSTEM",
-                actorId: "SYSTEM",
-                action: "COMPLIANCE_OPT_OUT",
-                entity: "Lead",
-                entityId: leadId,
-                metadata: { reason },
+        await this.audit(leadId, "COMPLIANCE_OPT_OUT", { reason });
+    }
+
+    /**
+     * Writes a compliance audit row for the lead's own team, with no actor (a system action).
+     * AuditLog.orgId and actorId are foreign keys to Team and User, so a placeholder such as "SYSTEM"
+     * is rejected by the database. A failed audit write is logged but never blocks enforcing an opt-out.
+     */
+    private async audit(leadId: string, action: string, metadata: Record<string, unknown>) {
+        try {
+            const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+            if (!lead?.teamId) {
+                console.error(`[Compliance] No team for lead ${leadId}; ${action} not written to the audit log`);
+                return;
             }
-        });
+            await prisma.auditLog.create({
+                data: { orgId: lead.teamId, actorId: null, action, entity: "Lead", entityId: leadId, metadata },
+            });
+        } catch (error) {
+            console.error(`[Compliance] Could not write ${action} to the audit log:`, error);
+        }
     }
 }
 
