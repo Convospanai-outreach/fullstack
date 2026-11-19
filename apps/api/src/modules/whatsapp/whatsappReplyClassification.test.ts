@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockDb, mockEnqueue, mockMask, mockMaskNames, mockClassify, mockPromote } = vi.hoisted(() => ({
+const { mockDb, mockEnqueue, mockMask, mockMaskNames, mockClassify, mockPromote, mockOptOut } = vi.hoisted(() => ({
     mockDb: {
         lead: { findUnique: vi.fn() },
         whatsAppMessage: { findFirst: vi.fn() },
@@ -10,6 +10,7 @@ const { mockDb, mockEnqueue, mockMask, mockMaskNames, mockClassify, mockPromote 
     mockMaskNames: vi.fn(),
     mockClassify: vi.fn(),
     mockPromote: vi.fn(),
+    mockOptOut: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/ai/SovereignFirewall", () => ({ SovereignFirewall: { mask: mockMask, maskKnownNames: mockMaskNames } }));
 vi.mock("@/lib/ai/jev", () => ({ classifyReply: mockClassify }));
 vi.mock("@/modules/inbox/replyPromotion", () => ({ promoteLeadOnJudgedReply: mockPromote }));
+vi.mock("@/modules/inbox/replyOptOut", () => ({ enforceOptOutOnJudgedReply: mockOptOut }));
 
 import { classifyWhatsAppReply, enqueueWhatsAppReplyClassification } from "./whatsappReplyClassification";
 
@@ -61,6 +63,7 @@ describe("classifyWhatsAppReply", () => {
         mockMask.mockResolvedValue({ safeContext: "Yes please call me on [PHONE_1]", tokenMap: new Map() });
         mockMaskNames.mockReturnValue({ safeContext: "Yes please call me on [PHONE_1]" });
         mockClassify.mockResolvedValue({ classification: "INTERESTED", confidence: 0.9, reasoning: "" });
+        mockOptOut.mockResolvedValue(false);
     });
 
     it("only reads an inbound message that belongs to the team", async () => {
@@ -90,6 +93,22 @@ describe("classifyWhatsAppReply", () => {
 
         expect(mockPromote).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-a", classification: "INTERESTED", confidence: 0.9 });
         expect(result).toEqual({ classification: "INTERESTED" });
+    });
+
+    it("hands the classification to the opt-out step for the WhatsApp channel", async () => {
+        mockClassify.mockResolvedValue({ classification: "DNC", confidence: 0.95, reasoning: "" });
+
+        await classifyWhatsAppReply("team-a", "wa-1");
+
+        expect(mockOptOut).toHaveBeenCalledWith({ leadId: "lead-1", classification: "DNC", confidence: 0.95, channel: "WHATSAPP" });
+    });
+
+    it("fails the job when the opt-out cannot be enforced, so it is retried, and does not promote", async () => {
+        mockClassify.mockResolvedValue({ classification: "DNC", confidence: 1, reasoning: "" });
+        mockOptOut.mockRejectedValue(new Error("db down"));
+
+        await expect(classifyWhatsAppReply("team-a", "wa-1")).rejects.toThrow("db down");
+        expect(mockPromote).not.toHaveBeenCalled();
     });
 
     it("lets a classifier failure fail the job so it retries", async () => {

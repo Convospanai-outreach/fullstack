@@ -2,10 +2,12 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { toPlainText } from "./actionInboxService";
 import { promoteLeadOnJudgedReply } from "./replyPromotion";
+import { enforceOptOutOnJudgedReply } from "./replyOptOut";
 
 // Reply classification is a best-effort suggestion for the Action Inbox, run as a queued job
-// so it can never slow down or fail inbound-reply ingestion. One exception: a reply judged
-// interested moves the lead to HOT and into the caller queue (see replyPromotion).
+// so it can never slow down or fail inbound-reply ingestion. Two exceptions: a reply judged
+// interested moves the lead to HOT and into the caller queue (see replyPromotion), and a reply
+// judged DNC opts the lead out (see replyOptOut; its failure fails the job so it is retried).
 
 const MAX_CLASSIFIED_CHARS = 4000;
 
@@ -49,7 +51,8 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
         select: { id: true, aiClassification: true, aiConfidence: true },
     });
     if (existing) {
-        // A retry after the reply was stored but the promotion failed: promotion is idempotent, so try it again.
+        // A retry after the reply was stored but the promotion or opt-out failed: both are idempotent, so try again.
+        await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: existing.aiClassification, confidence: existing.aiConfidence, channel: "EMAIL" });
         await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: existing.aiClassification, confidence: existing.aiConfidence });
         return { skipped: "already_classified" as const };
     }
@@ -63,6 +66,7 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
         message.id,
         teamId
     );
+    await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: result.classification, confidence: result.confidence, channel: "EMAIL" });
     await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: result.classification, confidence: result.confidence });
     return { classification: result.classification };
 }
