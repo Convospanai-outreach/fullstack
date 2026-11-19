@@ -18,7 +18,7 @@ vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
-import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeFriction, judgeOutreachDraft, judgeStalledThread } from "../jev";
+import { JevUnavailableError, classifyReply, judgeConfirmationCopy, judgeEngagement, judgeFriction, judgeOutreachDraft, judgeStalledThread } from "../jev";
 
 function replyAnswers({ stop = 0.05, away = 0.05, choice = "interested", p = 0.8 }: { stop?: number; away?: number; choice?: string; p?: number }) {
     return {
@@ -266,6 +266,37 @@ describe("judgeStalledThread", () => {
         vi.stubEnv("JEV_API_KEY", "");
 
         await expect(judgeStalledThread({ thread: [], quietForDays: 6 }, "team-1")).rejects.toBeInstanceOf(JevUnavailableError);
+        expect(mockSystemOne).not.toHaveBeenCalled();
+    });
+});
+
+describe("judgeEngagement", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv("JEV_API_KEY", "test-key");
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    const facts = { emailsSent: 3, emailClicks: 2, fastestClickSeconds: 5000, dwellTimeMinutes: 4, socialMentions: 0, daysSinceFirstEmail: 6, stage: "COLD" };
+
+    it("asks about the counts only and returns both probabilities", async () => {
+        mockSystemOne.mockResolvedValue({
+            model: "jev-1.14.0",
+            usage: { input_tokens: 90, output_tokens: 0 },
+            answers: { genuineInterest: { type: "noul", noul: 0.82 }, likelyAutomated: { type: "noul", noul: 0.12 } },
+        });
+
+        await expect(judgeEngagement(facts, "team-1")).resolves.toEqual({ genuineInterest: 0.82, likelyAutomated: 0.12 });
+
+        expect(mockSystemOne.mock.calls[0][0].state.facts).toEqual(facts);
+        expect(Object.keys(mockSystemOne.mock.calls[0][0].questions).sort()).toEqual(["genuineInterest", "likelyAutomated"]);
+        expect(mockPrisma.lLMUsageLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ taskType: "ENGAGEMENT_JUDGMENT", teamId: "team-1" }) });
+    });
+
+    it("rejects, never answering yes, when no key is configured", async () => {
+        vi.stubEnv("JEV_API_KEY", "");
+
+        await expect(judgeEngagement(facts, "team-1")).rejects.toBeInstanceOf(JevUnavailableError);
         expect(mockSystemOne).not.toHaveBeenCalled();
     });
 });
