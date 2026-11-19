@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { promoteLeadOnJudgedReply } from "@/modules/inbox/replyPromotion";
+import { enforceOptOutOnJudgedReply } from "@/modules/inbox/replyOptOut";
 
-// A WhatsApp reply is judged like an email reply: only one that shows buying interest moves the lead to HOT.
+// A WhatsApp reply is judged like an email reply: only one that shows buying interest moves the lead to HOT,
+// and one that asks not to be contacted opts the lead out (its failure fails the job so it is retried).
 // WhatsApp messages live in their own table and are not in the Action Inbox, so this job stores nothing: it
 // classifies the text and, when it qualifies, promotes the lead. Run as a queued job so the webhook never
 // waits on the model.
@@ -47,6 +49,7 @@ export async function classifyWhatsAppReply(teamId: string, messageId: string) {
     const { classifyReply } = await import("@/lib/ai/jev");
     const { classification, confidence } = await classifyReply({ subject: "", body: safeBody }, teamId);
 
+    await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification, confidence, channel: "WHATSAPP" });
     await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification, confidence });
     return { classification };
 }

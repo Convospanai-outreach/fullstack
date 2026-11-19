@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockDb, mockEnqueue, mockAnalyze, mockPromote } = vi.hoisted(() => ({
+const { mockDb, mockEnqueue, mockAnalyze, mockPromote, mockOptOut } = vi.hoisted(() => ({
     mockDb: {
         lead: { findUnique: vi.fn() },
         message: { findFirst: vi.fn(), count: vi.fn() },
@@ -12,6 +12,7 @@ const { mockDb, mockEnqueue, mockAnalyze, mockPromote } = vi.hoisted(() => ({
     mockEnqueue: vi.fn(),
     mockAnalyze: vi.fn(),
     mockPromote: vi.fn(),
+    mockOptOut: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -20,6 +21,7 @@ vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: mockEnqueue } }));
 vi.mock("@/lib/ai/agents/ReplyAnalyzerAgent", () => ({ ReplyAnalyzerAgent: { analyzeAndTrack: mockAnalyze } }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
 vi.mock("../replyPromotion", () => ({ promoteLeadOnJudgedReply: mockPromote }));
+vi.mock("../replyOptOut", () => ({ enforceOptOutOnJudgedReply: mockOptOut }));
 
 import { classifyInboundReply, classifyInboundReplyOrFlag, enqueueReplyClassification } from "../replyClassificationService";
 import { getSuggestionsForReplies, suggestedOutcomeFor } from "../replySuggestions";
@@ -88,6 +90,7 @@ describe("classifyInboundReply", () => {
         vi.clearAllMocks();
         mockDb.replyTracker.findFirst.mockResolvedValue(null);
         mockAnalyze.mockResolvedValue({ classification: "INTERESTED" });
+        mockOptOut.mockResolvedValue(false);
     });
 
     const message = {
@@ -127,6 +130,34 @@ describe("classifyInboundReply", () => {
         await classifyInboundReply("team-a", "msg-1");
 
         expect(mockPromote).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-a", classification: "QUESTION", confidence: 0.82 });
+    });
+
+    it("hands the classification to the opt-out step, which acts only on a confident DNC", async () => {
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockAnalyze.mockResolvedValue({ classification: "DNC", confidence: 1 });
+
+        await classifyInboundReply("team-a", "msg-1");
+
+        expect(mockOptOut).toHaveBeenCalledWith({ leadId: "lead-1", classification: "DNC", confidence: 1, channel: "EMAIL" });
+    });
+
+    it("fails the job when the opt-out cannot be enforced, so it is retried, and does not promote", async () => {
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockAnalyze.mockResolvedValue({ classification: "DNC", confidence: 1 });
+        mockOptOut.mockRejectedValue(new Error("db down"));
+
+        await expect(classifyInboundReply("team-a", "msg-1")).rejects.toThrow("db down");
+        expect(mockPromote).not.toHaveBeenCalled();
+    });
+
+    it("on a retry of an already classified DNC reply, enforces the opt-out again from the stored result", async () => {
+        mockDb.message.findFirst.mockResolvedValue(message);
+        mockDb.replyTracker.findFirst.mockResolvedValue({ id: "rt-1", aiClassification: "DNC", aiConfidence: 1 });
+
+        await classifyInboundReply("team-a", "msg-1");
+
+        expect(mockOptOut).toHaveBeenCalledWith({ leadId: "lead-1", classification: "DNC", confidence: 1, channel: "EMAIL" });
+        expect(mockAnalyze).not.toHaveBeenCalled();
     });
 
     it("on a retry of an already classified reply, tries the promotion again from the stored result", async () => {
