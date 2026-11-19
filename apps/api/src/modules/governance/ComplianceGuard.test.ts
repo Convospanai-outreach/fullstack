@@ -22,6 +22,7 @@ import { complianceGuard } from "./ComplianceGuard";
 beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma.lead.updateMany.mockResolvedValue({ count: 0 });
+    mockPrisma.auditLog.create.mockResolvedValue({});
 });
 
 describe("ComplianceGuard.enforceOptOut", () => {
@@ -37,6 +38,28 @@ describe("ComplianceGuard.enforceOptOut", () => {
                 create: expect.objectContaining({ teamId: "t1", email: "person@example.com", reason: "OPT_OUT", leadId: "l1" }),
             }),
         );
+    });
+
+    // AuditLog.orgId and actorId are foreign keys (Team, User): "SYSTEM" is rejected by the database.
+    it("writes the opt-out audit row for the lead's own team with no actor, not a 'SYSTEM' placeholder", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+
+        await complianceGuard.enforceOptOut("l1", "stop");
+
+        const row = mockPrisma.auditLog.create.mock.calls.map((c) => c[0].data).find((d) => d.action === "COMPLIANCE_OPT_OUT");
+        expect(row).toEqual(expect.objectContaining({ orgId: "t1", actorId: null, entity: "Lead", entityId: "l1", metadata: { reason: "stop" } }));
+        expect(JSON.stringify(mockPrisma.auditLog.create.mock.calls)).not.toContain("SYSTEM");
+    });
+
+    it("still enforces the opt-out when the audit row cannot be written", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+        mockPrisma.auditLog.create.mockRejectedValue(new Error("fk"));
+        const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        await expect(complianceGuard.enforceOptOut("l1", "stop")).resolves.toBeUndefined();
+
+        expect(mockPrisma.suppressionEntry.upsert).toHaveBeenCalled();
+        spy.mockRestore();
     });
 
     it("does not suppress when the lead has no email", async () => {

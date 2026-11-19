@@ -51,7 +51,9 @@ export class AuditService {
             await prisma.auditLog.create({
                 data: {
                     orgId: teamId,
-                    actorId: userId || "SYSTEM", // actorId is required in unchecked but mapped to userId which was nullable. Added system fallback.
+                    // AuditLog.userId is a foreign key to User and nullable: a system action has no actor, so it is
+                    // stored as null. A placeholder like "SYSTEM" is rejected by the database and the row is lost.
+                    actorId: userId || null,
                     action,
                     entity: resource,
                     entityId: resourceId || null,
