@@ -553,7 +553,7 @@ describe("AIService - a reply that cannot be restored is final (DPDP)", () => {
         mockPrisma.team.findUnique.mockResolvedValue({ aiConfig: { providers: { openai: { apiKey: "k", model: "gpt-4o-mini" }, anthropic: { apiKey: "k", model: "claude-x" } } } });
         mockOpenAICreate.mockImplementation(async (req: any) => {
             const token = JSON.stringify(req.messages).match(/<EMAIL_1_[0-9a-f]{8}>/)![0];
-            return { choices: [{ message: { content: `Hi ${token.replace(">", " >")}` }, finish_reason: "stop" }], usage: {} };
+            return { choices: [{ message: { content: `Hi ${token.replace(/>/g, " >")}` }, finish_reason: "stop" }], usage: {} };
         });
 
         const { PiiMaskingError } = await import("@/lib/ai/piiMask");

@@ -91,7 +91,7 @@ describe("createPiiMasker - restoring the model's output", () => {
         const m2 = createPiiMasker({});
         const t2 = m2.mask(EMAIL);
         // A placeholder the model altered so it no longer matches the map, but still carries this request's marker.
-        const mangled = t2.replace(">", " >");
+        const mangled = t2.replace(/>/g, " >");
         expect(() => m2.restore(`see ${mangled}`)).toThrow(PiiMaskingError);
     });
 
