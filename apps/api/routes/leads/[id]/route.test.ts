@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, mockGetCurrentContext, mockAuthorizeRole, mockRecordLeadDataSources, mockGetInstagramSourceForLead } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findFirst: vi.fn(), updateMany: vi.fn() },
-        consentLedger: { findMany: vi.fn() },
+        consentLedger: { findMany: vi.fn(), updateMany: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockAuthorizeRole: vi.fn(),
@@ -19,6 +19,8 @@ vi.mock("@/lib/permissions", () => ({
 }));
 vi.mock("@/lib/crm/leadDataSource", () => ({ recordLeadDataSources: mockRecordLeadDataSources }));
 vi.mock("@/modules/creator-funnel/leadSource", () => ({ getInstagramSourceForLead: mockGetInstagramSourceForLead }));
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 
 import { GET, PATCH } from "./route";
 
@@ -180,5 +182,64 @@ describe("PATCH /leads/[id]", () => {
             where: { id: "lead-1", teamId: "team-1" },
             data: { whatsappConsentAt: "2026-01-01T10:00:00.000Z" },
         });
+    });
+});
+
+describe("PATCH /leads/[id] - the consent toggle and the ledger", () => {
+    const call = (body: any) => PATCH(patchRequest(body), { params: Promise.resolve({ id: "lead-1" }) });
+    const lead = (consentObtained: boolean) => ({ id: "lead-1", consentObtained });
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ teamId: "team-1", userId: "user-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.consentLedger.findMany.mockResolvedValue([]);
+        mockPrisma.consentLedger.updateMany.mockResolvedValue({ count: 1 });
+        recordCaptureConsent.mockResolvedValue(true);
+    });
+
+    it("turning consent on writes a ledger row for the user who clicked", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce(lead(false)).mockResolvedValueOnce(lead(true));
+
+        await call({ consentObtained: true });
+
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({
+            leadId: "lead-1", userId: "user-1", channel: "EMAIL", proof: "Toggled on by a team member",
+        }));
+        expect(mockPrisma.consentLedger.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("turning consent off withdraws every granted ledger row for the lead", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce(lead(true)).mockResolvedValueOnce(lead(false));
+
+        await call({ consentObtained: false });
+
+        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledWith({
+            where: { leadId: "lead-1", status: "GRANTED" },
+            data: { status: "REVOKED", revokedAt: expect.any(Date) },
+        });
+        expect(recordCaptureConsent).not.toHaveBeenCalled();
+    });
+
+    it("does nothing to the ledger when the flag is not changing or not sent", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue(lead(true));
+
+        await call({ consentObtained: true });
+        await call({ company: "Acme" });
+
+        expect(recordCaptureConsent).not.toHaveBeenCalled();
+        expect(mockPrisma.consentLedger.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("returns the per-channel consent state so the lead page keeps its chips after a toggle", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce(lead(true)).mockResolvedValueOnce(lead(false));
+        mockPrisma.consentLedger.findMany.mockResolvedValueOnce([
+            { channel: "EMAIL", status: "REVOKED", purpose: "MARKETING_AND_SUPPORT", grantedAt: new Date(1) },
+        ]);
+
+        const body = await (await call({ consentObtained: false })).json();
+
+        expect(body.consentChannels[0]).toEqual({ channel: "EMAIL", status: "REVOKED" });
     });
 });

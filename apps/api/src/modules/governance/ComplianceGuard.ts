@@ -97,6 +97,12 @@ export class ComplianceGuard {
                     },
                     data: { status: 'DNC', consentObtained: false }
                 });
+                // The duplicates are opted out too, so their recorded consent is withdrawn. Scoped to this team: the
+                // status update above matches by email alone, but another team's consent is not ours to revoke.
+                if (lead.teamId) await prisma.consentLedger.updateMany({
+                    where: { status: "GRANTED", lead: { email: lead.email, teamId: lead.teamId, id: { not: leadId } } },
+                    data: { status: "REVOKED", revokedAt: new Date() },
+                });
                 if (updated.count > 0) {
                     console.log(`[Compliance] Deactivated ${updated.count} related lead records for opt-out`);
                 }

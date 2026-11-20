@@ -7,6 +7,7 @@ import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { getInstagramSourceForLead } from "@/modules/creator-funnel/leadSource";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
 import { consentChannels } from "@/modules/governance/consentChannels";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
 import { parseBody } from "@/lib/validation/parseBody";
 import { z } from "zod";
 
@@ -57,7 +58,16 @@ async function requireLeadContext(id: string, requiredRole: TeamRole) {
         throw new APIError("Lead not found", 404, "NOT_FOUND");
     }
 
-    return { lead, teamId };
+    return { lead, teamId, userId };
+}
+
+// Consent per channel for the lead page (read-only); the raw ledger rows stay on the server.
+async function loadConsentChannels(leadId: string) {
+    const ledger = await prisma.consentLedger.findMany({
+        where: { leadId },
+        select: { channel: true, status: true, purpose: true, grantedAt: true },
+    });
+    return consentChannels(ledger);
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -65,12 +75,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         const { id } = await params;
         const { lead, teamId } = await requireLeadContext(id, TeamRole.MEMBER);
         const instagramSource = await getInstagramSourceForLead(teamId, lead.id);
-        // Consent per channel for the lead page (read-only); the raw ledger rows stay on the server.
-        const ledger = await prisma.consentLedger.findMany({
-            where: { leadId: lead.id },
-            select: { channel: true, status: true, purpose: true, grantedAt: true },
-        });
-        return NextResponse.json({ ...lead, instagramSource, consentChannels: consentChannels(ledger) });
+        return NextResponse.json({ ...lead, instagramSource, consentChannels: await loadConsentChannels(lead.id) });
     } catch (error) {
         return handleAPIError(error);
     }
@@ -79,7 +84,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { lead: existingLead, teamId } = await requireLeadContext(id, TeamRole.MEMBER);
+        const { lead: existingLead, teamId, userId } = await requireLeadContext(id, TeamRole.MEMBER);
         const parsed = await parseBody(req, patchLeadSchema);
         if (!parsed.ok) return parsed.response;
         const body = parsed.data;
@@ -119,6 +124,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             throw new APIError("Lead not found", 404, "NOT_FOUND");
         }
 
+        // The consent button flips consentObtained; the ledger is what sends read, so it has to follow the flag.
+        if (safeData.consentObtained === true && existingLead.consentObtained !== true) {
+            await recordCaptureConsent({
+                leadId: id,
+                userId,
+                method: "WEB_FORM",
+                channel: "EMAIL",
+                notes: "Consent switched on in the lead page",
+                proof: "Toggled on by a team member",
+            });
+        } else if (safeData.consentObtained === false && existingLead.consentObtained === true) {
+            await prisma.consentLedger.updateMany({
+                where: { leadId: id, status: "GRANTED" },
+                data: { status: "REVOKED", revokedAt: new Date() },
+            });
+        }
+
         const changedFields = Object.entries(safeData).filter(
             ([key, val]) => (existingLead as any)[key] !== val
         );
@@ -138,7 +160,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             include: { campaign: true, channelStatuses: true, leadActivities: { orderBy: { createdAt: "desc" }, take: 50 } },
         });
 
-        return NextResponse.json(lead);
+        return NextResponse.json({ ...lead, consentChannels: await loadConsentChannels(id) });
     } catch (error) {
         return handleAPIError(error);
     }

@@ -69,7 +69,6 @@ describe("ComplianceGuard.enforceOptOut", () => {
 
         await complianceGuard.enforceOptOut("l1", "stop");
 
-        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledTimes(1);
         const arg = mockPrisma.consentLedger.updateMany.mock.calls[0]![0];
         expect(arg.where).toEqual({ leadId: "l1", status: "GRANTED" });
         expect(arg.data).toEqual({ status: "REVOKED", revokedAt: expect.any(Date) });
@@ -81,6 +80,25 @@ describe("ComplianceGuard.enforceOptOut", () => {
         await complianceGuard.enforceOptOut("l1", "stop");
 
         expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { leadId: "l1", status: "GRANTED" } }));
+    });
+
+    it("also revokes consent on same-email duplicate leads in the same team, never in another team", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "p@example.com" });
+
+        await complianceGuard.enforceOptOut("l1", "stop");
+
+        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledTimes(2);
+        const dup = mockPrisma.consentLedger.updateMany.mock.calls[1]![0];
+        expect(dup.where).toEqual({ status: "GRANTED", lead: { email: "p@example.com", teamId: "t1", id: { not: "l1" } } });
+        expect(dup.data).toEqual({ status: "REVOKED", revokedAt: expect.any(Date) });
+    });
+
+    it("does not touch duplicates when the lead has no team (it could match every team)", async () => {
+        mockPrisma.lead.findUnique.mockResolvedValue({ id: "l1", teamId: null, email: "p@example.com" });
+
+        await complianceGuard.enforceOptOut("l1", "stop");
+
+        expect(mockPrisma.consentLedger.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it("lets a failed revoke surface so the job retries, instead of reporting the opt-out as done", async () => {
