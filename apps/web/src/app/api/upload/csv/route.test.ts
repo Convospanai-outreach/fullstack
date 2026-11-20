@@ -10,6 +10,8 @@ const { mockGetCurrentContext, mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 
 import { POST } from "./route";
 
@@ -80,6 +82,48 @@ describe("POST /api/upload/csv", () => {
             data: expect.objectContaining({ email: "jane@acme.example", linkedIn: "https://www.linkedin.com/in/jane-doe/" }),
         });
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+    });
+
+    describe("consent columns", () => {
+        beforeEach(() => {
+            mockPrisma.lead.create.mockImplementation(async ({ data }: any) => ({ id: `id-${data.email}` }));
+            recordCaptureConsent.mockResolvedValue(true);
+        });
+
+        it("records consent only for rows whose consent cell says yes, with the row's proof and the importing user", async () => {
+            const csv = ["email,fullName,consent,consent proof", "yes@acme.example,Yes,yes,Signed form 14 March", "no@acme.example,No,no,", "blank@acme.example,Blank,,"].join("\n");
+
+            await POST(csvRequest({ csv }));
+
+            expect(recordCaptureConsent).toHaveBeenCalledTimes(1);
+            expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({
+                leadId: "id-yes@acme.example",
+                userId: "user-1",
+                channel: "EMAIL",
+                proof: "Signed form 14 March",
+            }));
+        });
+
+        it("names the column as the proof when the row has no proof cell", async () => {
+            await POST(csvRequest({ csv: "email,consent\nyes@acme.example,true" }));
+
+            expect(recordCaptureConsent.mock.calls[0]![0].proof).toBe("CSV import: consent column said yes");
+        });
+
+        it("records consent for a lead that already exists when its row says yes", async () => {
+            mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-old", email: "yes@acme.example" });
+            mockPrisma.lead.update.mockResolvedValue({});
+
+            await POST(csvRequest({ csv: "email,consent\nyes@acme.example,yes" }));
+
+            expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-old" }));
+        });
+
+        it("records nothing when there is no consent column", async () => {
+            await POST(csvRequest({ csv: "email,fullName\nyes@acme.example,A" }));
+
+            expect(recordCaptureConsent).not.toHaveBeenCalled();
+        });
     });
 
     it("rejects an unauthenticated caller before touching any lead data", async () => {

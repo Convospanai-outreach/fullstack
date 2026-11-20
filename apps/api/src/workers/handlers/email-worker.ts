@@ -7,6 +7,7 @@ import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { legacyCriticEnabled, reviewLegacyDraft } from "@/modules/email-campaigner/service/emailComposer";
 import { legacyProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 
 /**
  * Email sending worker
@@ -61,6 +62,17 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     if (!lead.email) {
         logger.warn(`[Worker] Skipping email: Lead ${leadId} has no email address.`, { leadId, campaignId });
         return;
+    }
+
+    // DPDP send gate (team setting, off by default). Checked before any draft is written or paid for, and a
+    // blocked lead is skipped here: emailService would refuse it too, but this worker would still mark it contacted.
+    const gateTeamId = campaign.teamId || teamId;
+    if (gateTeamId) {
+        const gate = await checkSendGate({ leadId, teamId: gateTeamId, channel: "EMAIL" });
+        if (!gate.allowed) {
+            logger.warn(`[Worker] Not emailing lead ${leadId}: ${gate.reason}`, { leadId, campaignId });
+            return { leadId, campaignId, sent: false, skipped: "no_lawful_basis", reason: gate.reason };
+        }
     }
 
     // BATCH-mode campaigns generate drafts up front via the Anthropic Message

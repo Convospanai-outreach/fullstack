@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate, mockGetCampaignContext, mockGeneratePersonalityPrompt, llmCtorOptions } = vi.hoisted(() => ({
     llmCtorOptions: { openai: undefined as any, anthropic: undefined as any },
@@ -15,6 +15,7 @@ const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mock
     mockGeneratePersonalityPrompt: vi.fn().mockResolvedValue(null),
 }));
 
+const { mockOpenAIImagesGenerate } = vi.hoisted(() => ({ mockOpenAIImagesGenerate: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/credits", () => ({
     deductCredits: mockDeductCredits,
@@ -33,6 +34,7 @@ vi.mock("openai", () => ({
     default: class MockOpenAI {
         chat = { completions: { create: mockOpenAICreate } };
         embeddings = { create: mockOpenAIEmbeddingsCreate };
+        images = { generate: mockOpenAIImagesGenerate };
         constructor(options: any) { llmCtorOptions.openai = options; }
     },
 }));
@@ -434,5 +436,129 @@ describe("AIService - chargeCredits flag", () => {
     it("still charges by default", async () => {
         await aiService.askAI("Summarize", BILLED_TEAM, { taskType: "GENERATION" });
         expect(mockDeductCredits).toHaveBeenCalled();
+    });
+});
+
+describe("AIService - personal data is masked before a cloud model call (DPDP)", () => {
+    const EMAIL = "asha.rao@acme.example";
+    const original = process.env["LLM_PII_MASKING"];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        process.env["LLM_PII_MASKING"] = "on";
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o-mini" } } },
+        });
+        // The "model" repeats back whatever it was shown, so a masked prompt comes back as placeholders.
+        mockOpenAICreate.mockImplementation(async ({ messages }: any) => ({
+            choices: [{ message: { content: `Draft for ${messages[messages.length - 1].content}` } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }));
+    });
+
+    afterEach(() => {
+        if (original === undefined) delete process.env["LLM_PII_MASKING"]; else process.env["LLM_PII_MASKING"] = original;
+    });
+
+    const PROMPT = `Write to Asha Rao <${EMAIL}>, phone +91 98765 43210, PAN ABCDE1234F, Aadhaar 2345 6789 0123.`;
+
+    it("sends no email, phone, PAN, Aadhaar or name to the model, and returns a draft with them restored", async () => {
+        const out = await aiService.askAI(PROMPT, "team-1", { taskType: "GENERATION", disableGuardrails: true, piiNames: ["Asha Rao"] });
+
+        const sent = JSON.stringify(mockOpenAICreate.mock.calls[0][0].messages);
+        for (const secret of [EMAIL, "98765", "ABCDE1234F", "2345 6789 0123", "Asha", "Rao"]) expect(sent).not.toContain(secret);
+        expect(out).toContain(EMAIL);
+        expect(out).toContain("+91 98765 43210");
+        expect(out).toContain("Asha Rao");
+    });
+
+    it("masks the system prompt too", async () => {
+        await aiService.askAI("hi", "team-1", { taskType: "GENERATION", systemPrompt: `Never email ${EMAIL}`, disableGuardrails: true });
+
+        const messages = mockOpenAICreate.mock.calls[0][0].messages;
+        expect(messages[0].role).toBe("system");
+        expect(JSON.stringify(messages)).not.toContain(EMAIL);
+    });
+
+    it("fails closed: when masking throws, the model is not called, no credits are taken, and the error says so", async () => {
+        const piiMask = await import("@/lib/ai/piiMask");
+        const spy = vi.spyOn(piiMask, "maskForLLM").mockImplementationOnce(() => { throw new piiMask.PiiMaskingError(); });
+
+        await expect(aiService.askAI(PROMPT, "team-1", { taskType: "GENERATION" })).rejects.toThrow(/not sent/i);
+
+        expect(mockOpenAICreate).not.toHaveBeenCalled();
+        expect(mockDeductCredits).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    it("sends the prompt unchanged when masking is not switched on", async () => {
+        delete process.env["LLM_PII_MASKING"];
+
+        await aiService.askAI(PROMPT, "team-1", { taskType: "GENERATION", disableGuardrails: true });
+
+        expect(JSON.stringify(mockOpenAICreate.mock.calls[0][0].messages)).toContain(EMAIL);
+    });
+
+    it("masks the lead in an email draft, found by its fullName, and the draft comes back readable", async () => {
+        mockOpenAICreate.mockImplementation(async ({ messages }: any) => ({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: messages[messages.length - 1].content.match(/<NAME_\d+_[0-9a-f]+>/)?.[0] ?? "NO NAME TOKEN" }) } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+        }));
+
+        const draft = await aiService.generateEmailDraft({ id: "l1", fullName: "Asha Rao", email: EMAIL, company: "Acme" }, null, "team-1");
+
+        expect(JSON.stringify(mockOpenAICreate.mock.calls[0][0].messages)).not.toMatch(/Asha|asha\.rao/);
+        expect(draft.body).toMatch(/Asha/);
+    });
+});
+
+describe("AIService - embeddings and images are masked too (DPDP)", () => {
+    const original = process.env["LLM_PII_MASKING"];
+    beforeEach(() => {
+        vi.clearAllMocks();
+        process.env["LLM_PII_MASKING"] = "on";
+        mockPrisma.team.findUnique.mockResolvedValue({ aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o-mini" } } } });
+        mockOpenAIEmbeddingsCreate.mockResolvedValue({ data: [{ embedding: [0.1] }], usage: { prompt_tokens: 5 } });
+        mockOpenAIImagesGenerate.mockResolvedValue({ data: [{ b64_json: Buffer.from("img").toString("base64") }] });
+    });
+    afterEach(() => {
+        if (original === undefined) delete process.env["LLM_PII_MASKING"]; else process.env["LLM_PII_MASKING"] = original;
+    });
+
+    it("sends no email, phone, PAN or Aadhaar to the embeddings model", async () => {
+        await aiService.getEmbeddings("Asha asha.rao@acme.example +91 98765 43210 ABCDE1234F 2345 6789 0123", "team-1");
+
+        const sent = JSON.stringify(mockOpenAIEmbeddingsCreate.mock.calls[0][0].input);
+        for (const secret of ["asha.rao@acme.example", "98765", "ABCDE1234F", "2345 6789 0123"]) expect(sent).not.toContain(secret);
+    });
+
+    it("sends no personal data to the image model", async () => {
+        await aiService.generateImage("A poster for asha.rao@acme.example, call +91 98765 43210", "team-1");
+
+        const sent = String(mockOpenAIImagesGenerate.mock.calls[0][0].prompt);
+        expect(sent).not.toContain("asha.rao@acme.example");
+        expect(sent).not.toContain("98765");
+    });
+});
+
+describe("AIService - a reply that cannot be restored is final (DPDP)", () => {
+    const original = process.env["LLM_PII_MASKING"];
+    afterEach(() => {
+        if (original === undefined) delete process.env["LLM_PII_MASKING"]; else process.env["LLM_PII_MASKING"] = original;
+    });
+
+    it("does not try another provider or retry, and rethrows the masking error", async () => {
+        process.env["LLM_PII_MASKING"] = "on";
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({ aiConfig: { providers: { openai: { apiKey: "k", model: "gpt-4o-mini" }, anthropic: { apiKey: "k", model: "claude-x" } } } });
+        mockOpenAICreate.mockImplementation(async (req: any) => {
+            const token = JSON.stringify(req.messages).match(/<EMAIL_1_[0-9a-f]{8}>/)![0];
+            return { choices: [{ message: { content: `Hi ${token.replace(">", " >")}` }, finish_reason: "stop" }], usage: {} };
+        });
+
+        const { PiiMaskingError } = await import("@/lib/ai/piiMask");
+        await expect(aiService.askAI("write to asha.rao@acme.example", "team-1", { disableGuardrails: true })).rejects.toThrow(PiiMaskingError);
+
+        expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
     });
 });

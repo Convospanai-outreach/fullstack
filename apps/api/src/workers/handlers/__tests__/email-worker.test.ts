@@ -39,6 +39,12 @@ vi.mock("@/modules/governance/messageApproval", async (importActual) => ({
     settleMessageApproval: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/modules/governance/lawfulBasis", () => ({
+    checkSendGate: vi.fn().mockResolvedValue({ allowed: true }),
+    NO_LAWFUL_BASIS_REASON: "No consent or proven public source",
+}));
+
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
 import { aiService } from "@/lib/aiService";
@@ -85,7 +91,22 @@ describe("email-worker", () => {
         expect(emailService.sendEmail).not.toHaveBeenCalled();
     });
 
+    it("skips a lead the DPDP gate blocks before writing a draft, without marking the lead contacted", async () => {
+        (checkSendGate as any).mockResolvedValue({ allowed: false, reason: "No consent or proven public source" });
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a", ownerId: "user-1" });
+
+        const result = await handleEmailSend({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any);
+
+        expect(result).toMatchObject({ leadId: "lead-1", sent: false, skipped: "no_lawful_basis", reason: "No consent or proven public source" });
+        expect(checkSendGate).toHaveBeenCalledWith({ leadId: "lead-1", teamId: "team-a", channel: "EMAIL" });
+        expect(aiService.generateEmailDraft).not.toHaveBeenCalled();
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(prisma.campaign.update).not.toHaveBeenCalled();
+    });
+
     it("sends the email when the lead and campaign both belong to the payload's teamId", async () => {
+        (checkSendGate as any).mockResolvedValue({ allowed: true });
         (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
         (prisma.campaign.findUnique as any).mockResolvedValue({
             id: "campaign-1",

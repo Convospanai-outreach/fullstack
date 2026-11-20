@@ -3,6 +3,22 @@ import { JobPayload } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 import { saveLandingAnswersToLead } from "@/modules/lead-properties/leadCustomFields";
 import { consentAllowsContact, consentRecordOf } from "@/modules/landing-agent/leadConsent";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
+
+// The form's ticked consent box as a ledger row: the wording the person saw, the page and the time are the proof.
+async function recordFormConsent(landingLead: { rawPayload: unknown; ipAddress?: string | null }, leadId: string) {
+    const record = consentRecordOf(landingLead.rawPayload);
+    if (record?.given !== true) return;
+    await recordCaptureConsent({
+        leadId,
+        userId: null,
+        method: "WEB_FORM",
+        channel: "EMAIL",
+        notes: "Ticked the consent box on a landing page form",
+        proof: `${record.text} | page: ${record.pageSlug} | at: ${record.at}`,
+        ipAddress: landingLead.ipAddress ?? null,
+    });
+}
 
 /**
  * Promotes a public /p/:slug funnel-page form submission (LandingLead) into the
@@ -52,6 +68,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         }
         if (mergedLeadId) {
             await saveLandingAnswersToLead(teamId, mergedLeadId, landingLead.rawPayload);
+            await recordFormConsent(landingLead, mergedLeadId);
             // The merged lead gets consent only when it was given, and never for an opted-out (DNC) lead.
             if (consentGiven) await prisma.lead.updateMany({ where: { id: mergedLeadId, teamId, status: { not: "DNC" } }, data: { consentObtained: true } });
             await recordFirstTouch(teamId, mergedLeadId, landingLead.utmContent);
@@ -93,6 +110,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             }
 
             await saveLandingAnswersToLead(teamId, existing.id, landingLead.rawPayload);
+            await recordFormConsent(landingLead, existing.id);
             await recordFirstTouch(teamId, existing.id, landingLead.utmContent);
             await scoreNewLead(existing.id);
             if (mauticAllowed) await pushToMautic(existing.id, teamId);
@@ -121,6 +139,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     });
 
     await saveLandingAnswersToLead(teamId, createdLead.id, landingLead.rawPayload);
+    await recordFormConsent(landingLead, createdLead.id);
     await recordFirstTouch(teamId, createdLead.id, landingLead.utmContent);
     await scoreNewLead(createdLead.id);
     if (mauticAllowed) await pushToMautic(createdLead.id, teamId);

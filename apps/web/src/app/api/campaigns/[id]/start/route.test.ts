@@ -7,7 +7,9 @@ const {
     mockEnrollCampaignLeads,
     mockHandleCampaignExecution,
     mockCheckCampaignStartApproval,
+    mockSummarizeGate,
 } = vi.hoisted(() => ({
+    mockSummarizeGate: vi.fn(),
     mockGetCurrentContext: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
     mockPrisma: {
@@ -30,6 +32,7 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
 }));
 vi.mock("@/lib/campaigns/enrollment", () => ({ enrollCampaignLeads: mockEnrollCampaignLeads }));
+vi.mock("@/modules/governance/campaignSendGate", () => ({ summarizeCampaignSendGate: mockSummarizeGate }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockCheckCampaignStartApproval }));
 vi.mock("@/workers/handlers/campaign-execution-worker", () => ({ handleCampaignExecution: mockHandleCampaignExecution }));
 
@@ -51,6 +54,35 @@ describe("POST /api/campaigns/[id]/start - unified guarded start (roadmap 2.12 /
         mockPrisma.campaign.update.mockResolvedValue({});
         mockPrisma.lead.count.mockResolvedValue(3);
         mockCheckCampaignStartApproval.mockResolvedValue({ allowed: true });
+        mockSummarizeGate.mockResolvedValue({ gateOn: false });
+    });
+
+    it("refuses to start when the DPDP gate would block every lead, and says why", async () => {
+        mockSummarizeGate.mockResolvedValue({ gateOn: true, total: 3, blocked: 3, reason: "No consent or proven public source" });
+        const res = await call();
+        const body = await res.json();
+        expect(res.status).toBe(409);
+        expect(body).toMatchObject({ code: "NO_LAWFUL_BASIS", blocked: 3, total: 3 });
+        expect(body.error).toContain("No consent or proven public source");
+        expect(mockEnrollCampaignLeads).not.toHaveBeenCalled();
+        expect(mockHandleCampaignExecution).not.toHaveBeenCalled();
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("starts, and reports how many leads the DPDP gate will skip, when only some are blocked", async () => {
+        mockSummarizeGate.mockResolvedValue({ gateOn: true, total: 3, blocked: 1, reason: "No consent or proven public source" });
+        mockEnrollCampaignLeads.mockResolvedValue({ ok: true, candidates: 3, enrolled: 3, alreadyEnrolled: 0 });
+        const res = await call();
+        const body = await res.json();
+        expect(res.status).toBe(200);
+        expect(body).toMatchObject({ success: true, blocked: 1, blockedReason: "No consent or proven public source" });
+    });
+
+    it("adds nothing to the response when the gate is off or blocks nobody", async () => {
+        mockEnrollCampaignLeads.mockResolvedValue({ ok: true, candidates: 3, enrolled: 3, alreadyEnrolled: 0 });
+        mockSummarizeGate.mockResolvedValue({ gateOn: true, total: 3, blocked: 0, reason: "No consent or proven public source" });
+        const body = await (await call()).json();
+        expect(body).not.toHaveProperty("blocked");
     });
 
     it("401s an unauthenticated caller", async () => {

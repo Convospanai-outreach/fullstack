@@ -1,12 +1,13 @@
 import { logger, logCriticalAlert } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 import { PROCESSED_LEAD_STATUSES } from "@/lib/campaignLeadStatus";
+import { maskForLLM, PiiMaskingError } from "@/lib/ai/piiMask";
 
 export interface DraftGenOptions {
     provider?: "gemini" | "openai" | "anthropic";
 }
 
-async function generateEmailDraftWithAI(
+export async function generateEmailDraftWithAI(
     campaignName: string,
     campaignDesc: string,
     lead: any,
@@ -38,20 +39,25 @@ Recipient Company: ${lead.company || "Unknown"}
 Format output strictly as JSON with keys "subject" and "body".
 Do not include markdown backticks or extra commentary.`;
 
-                const result = await model.generateContent(prompt);
+                // DPDP: the model sees placeholders, not the lead's name, email or phone. Throws if masking fails,
+                // and then nothing is sent to the model.
+                const masked = maskForLLM({ prompt }, lead.fullName ? [String(lead.fullName)] : undefined);
+                const result = await model.generateContent(masked.prompt);
                 const text = result.response.text().trim();
                 const cleanJson = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "");
                 const parsed = JSON.parse(cleanJson);
                 if (parsed.subject && parsed.body) {
                     return {
-                        subject: parsed.subject,
-                        body: parsed.body,
+                        subject: masked.restore(String(parsed.subject)),
+                        body: masked.restore(String(parsed.body)),
                         providerUsed: "gemini-2.0-flash",
                         estimatedCostUsd: 0.0001,
                     };
                 }
             }
         } catch (err: any) {
+            // Masking is a compliance step: its failure must stop the draft, not quietly become a template.
+            if (err instanceof PiiMaskingError) throw err;
             logger.warn("[AI Draft Generation] Fallback to template due to Gemini API notice:", err?.message || err);
         }
     }
