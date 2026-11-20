@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, mockGetCurrentContext, mockAuthorizeRole, mockRecordLeadDataSources, mockGetInstagramSourceForLead } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findFirst: vi.fn(), updateMany: vi.fn() },
+        consentLedger: { findMany: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockAuthorizeRole: vi.fn(),
@@ -26,6 +27,26 @@ describe("GET /leads/[id]", () => {
         vi.clearAllMocks();
         mockGetCurrentContext.mockResolvedValue({ teamId: "team-1", userId: "user-1" });
         mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.consentLedger.findMany.mockResolvedValue([]);
+    });
+
+    it("returns the latest consent state per channel, read from the ledger", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValueOnce({ id: "lead-1" });
+        mockGetInstagramSourceForLead.mockResolvedValueOnce(null);
+        mockPrisma.consentLedger.findMany.mockResolvedValueOnce([
+            { channel: "EMAIL", status: "GRANTED", purpose: "MARKETING_AND_SUPPORT", grantedAt: new Date(1) },
+            { channel: "EMAIL", status: "REVOKED", purpose: "REVOCATION", grantedAt: new Date(2) },
+        ]);
+
+        const res = await GET(new Request("http://localhost/leads/lead-1"), { params: Promise.resolve({ id: "lead-1" }) });
+        const body = await res.json();
+
+        expect(mockPrisma.consentLedger.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { leadId: "lead-1" } }));
+        expect(body.consentChannels).toEqual([
+            { channel: "EMAIL", status: "REVOKED" },
+            { channel: "WHATSAPP", status: "NONE" },
+            { channel: "PHONE", status: "NONE" },
+        ]);
     });
 
     it("returns the lead with the Instagram keyword source it came from", async () => {
@@ -37,7 +58,7 @@ describe("GET /leads/[id]", () => {
         const body = await res.json();
 
         expect(mockGetInstagramSourceForLead).toHaveBeenCalledWith("team-1", "lead-1");
-        expect(body).toEqual({ id: "lead-1", fullName: "Asha", instagramSource: source });
+        expect(body).toMatchObject({ id: "lead-1", fullName: "Asha", instagramSource: source });
     });
 
     it("returns instagramSource null for a lead no keyword reply created", async () => {
@@ -46,7 +67,7 @@ describe("GET /leads/[id]", () => {
 
         const res = await GET(new Request("http://localhost/leads/lead-1"), { params: Promise.resolve({ id: "lead-1" }) });
 
-        expect(await res.json()).toEqual({ id: "lead-1", instagramSource: null });
+        expect(await res.json()).toMatchObject({ id: "lead-1", instagramSource: null });
     });
 
     it("404s another team's lead without looking up its source", async () => {

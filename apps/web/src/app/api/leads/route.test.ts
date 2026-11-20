@@ -133,6 +133,9 @@ describe("POST /api/leads - consent on manual create", () => {
             channel: "EMAIL",
             proof: "Met at the 3 March expo, said yes to emails",
         }));
+        // The proof lives on the ledger row, never on the lead (Lead has no such column).
+        expect(mockPrisma.lead.create.mock.calls[0]![0].data).not.toHaveProperty("consentProof");
+        expect(mockPrisma.lead.create.mock.calls[0]![0].data).not.toHaveProperty("consentObtained");
     });
 
     it("says it was recorded by a team member when no proof is given", async () => {

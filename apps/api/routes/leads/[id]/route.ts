@@ -6,6 +6,7 @@ import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { getInstagramSourceForLead } from "@/modules/creator-funnel/leadSource";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
+import { consentChannels } from "@/modules/governance/consentChannels";
 import { parseBody } from "@/lib/validation/parseBody";
 import { z } from "zod";
 
@@ -64,7 +65,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         const { id } = await params;
         const { lead, teamId } = await requireLeadContext(id, TeamRole.MEMBER);
         const instagramSource = await getInstagramSourceForLead(teamId, lead.id);
-        return NextResponse.json({ ...lead, instagramSource });
+        // Consent per channel for the lead page (read-only); the raw ledger rows stay on the server.
+        const ledger = await prisma.consentLedger.findMany({
+            where: { leadId: lead.id },
+            select: { channel: true, status: true, purpose: true, grantedAt: true },
+        });
+        return NextResponse.json({ ...lead, instagramSource, consentChannels: consentChannels(ledger) });
     } catch (error) {
         return handleAPIError(error);
     }
