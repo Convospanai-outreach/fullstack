@@ -2,6 +2,7 @@ import { TypeSafeClient, choice, noul, type EntryType, type Questions, type Requ
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { readOptOut } from "@/lib/optOutReader";
+import { createPiiMasker, piiMaskingEnabled, PiiMaskingError } from "@/lib/ai/piiMask";
 
 // Jev (TypeSafe's System One model) answers typed questions about text with calibrated
 // probabilities. It only supplies judgments: the callers of these helpers decide what to do
@@ -60,11 +61,29 @@ async function logUsage(teamId: string | undefined, taskType: string, model: str
     }
 }
 
+// DPDP: every string in the state is masked before it leaves. Answers are labels and probabilities, so nothing is restored.
+function maskState<T>(state: T): T {
+    if (!piiMaskingEnabled()) return state;
+    try {
+        const masker = createPiiMasker();
+        const walk = (value: unknown): unknown => {
+            if (typeof value === "string") return masker.mask(value);
+            if (Array.isArray(value)) return value.map(walk);
+            if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v)]));
+            return value;
+        };
+        return walk(state) as T;
+    } catch {
+        throw new PiiMaskingError();
+    }
+}
+
 async function ask<Q extends Questions>(taskType: string, teamId: string | undefined, state: NonNullable<EntryType>, questions: Q, options?: RequestOptions): Promise<SystemOneResult<Q>["answers"]> {
     const client = getClient();
+    const safeState = maskState(state);
     const start = Date.now();
     try {
-        const result = await client.systemOne({ state, questions }, options);
+        const result = await client.systemOne({ state: safeState, questions }, options);
         await logUsage(teamId, taskType, result.model, result.usage.input_tokens ?? 0, Date.now() - start);
         return result.answers;
     } catch (error) {

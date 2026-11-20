@@ -540,3 +540,25 @@ describe("AIService - embeddings and images are masked too (DPDP)", () => {
         expect(sent).not.toContain("98765");
     });
 });
+
+describe("AIService - a reply that cannot be restored is final (DPDP)", () => {
+    const original = process.env["LLM_PII_MASKING"];
+    afterEach(() => {
+        if (original === undefined) delete process.env["LLM_PII_MASKING"]; else process.env["LLM_PII_MASKING"] = original;
+    });
+
+    it("does not try another provider or retry, and rethrows the masking error", async () => {
+        process.env["LLM_PII_MASKING"] = "on";
+        vi.clearAllMocks();
+        mockPrisma.team.findUnique.mockResolvedValue({ aiConfig: { providers: { openai: { apiKey: "k", model: "gpt-4o-mini" }, anthropic: { apiKey: "k", model: "claude-x" } } } });
+        mockOpenAICreate.mockImplementation(async (req: any) => {
+            const token = JSON.stringify(req.messages).match(/<EMAIL_1_[0-9a-f]{8}>/)![0];
+            return { choices: [{ message: { content: `Hi ${token.replace(">", " >")}` }, finish_reason: "stop" }], usage: {} };
+        });
+
+        const { PiiMaskingError } = await import("@/lib/ai/piiMask");
+        await expect(aiService.askAI("write to asha.rao@acme.example", "team-1", { disableGuardrails: true })).rejects.toThrow(PiiMaskingError);
+
+        expect(mockOpenAICreate).toHaveBeenCalledTimes(1);
+    });
+});

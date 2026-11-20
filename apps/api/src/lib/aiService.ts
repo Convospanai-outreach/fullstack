@@ -614,8 +614,11 @@ async function callLLM(
     let settledCredits = false;
     let lastError: any = new Error("No LLM provider configured.");
     let lastCandidate: ProviderCandidate = primary;
+    // A reply that could not be restored is final: another provider would be a second paid call with the same outcome.
+    let maskingFailed = false;
 
     for (const candidate of chain) {
+        if (maskingFailed) break;
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
@@ -651,6 +654,10 @@ async function callLLM(
                 return { text, model: candidate.model };
             } catch (error: any) {
                 lastError = error;
+                if (error instanceof PiiMaskingError) {
+                    maskingFailed = true;
+                    break;
+                }
                 recordProviderFailure(candidate.provider);
                 logger.warn("[AI Usage] Provider attempt failed", {
                     provider: candidate.provider,
@@ -702,12 +709,14 @@ async function callLLM(
         success: false,
         error: lastError?.message
     });
-    await escalateGenerationFailureToHuman({
-        teamId: options.teamId,
-        taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
-        prompt,
-        error: lastError
-    });
+    if (!maskingFailed) {
+        await escalateGenerationFailureToHuman({
+            teamId: options.teamId,
+            taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+            prompt,
+            error: lastError
+        });
+    }
     throw lastError;
 }
 
