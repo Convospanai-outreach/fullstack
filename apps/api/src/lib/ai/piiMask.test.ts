@@ -8,7 +8,7 @@ const PHONE = "+91 98765 43210";
 const EMAIL = "asha.rao@acme.example";
 
 function roundTrip(text: string, names?: string[]) {
-    const m = createPiiMasker({ names });
+    const m = createPiiMasker(names ? { names } : {});
     const masked = m.mask(text);
     return { masked, restored: m.restore(masked) };
 }
@@ -98,8 +98,9 @@ describe("createPiiMasker - restoring the model's output", () => {
     it("keeps the token map out of every string it hands back, including errors", () => {
         const m = createPiiMasker({});
         m.mask(EMAIL);
-        const err = (() => { try { m.restore(`x <EMAIL_1 >`); } catch (e) { return e as Error; } })();
-        expect(String(err?.message)).not.toContain("asha.rao");
+        let message = "";
+        try { m.restore("x <EMAIL_1 >"); } catch (e) { message = (e as Error).message; }
+        expect(message).not.toContain("asha.rao");
     });
 });
 
