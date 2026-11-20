@@ -10,6 +10,8 @@ const { mockGetCurrentContext, mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 
 import { GET, POST } from "./route";
 
@@ -109,5 +111,49 @@ describe("GET /api/leads - pipelineState/unassignedOnly/domain filters", () => {
 
         const call = mockPrisma.lead.findMany.mock.calls[0]?.[0];
         expect(call.where.domain).toBeUndefined();
+    });
+});
+
+describe("POST /api/leads - consent on manual create", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.lead.update.mockResolvedValue({ id: "lead-1" });
+        recordCaptureConsent.mockResolvedValue(true);
+    });
+
+    it("writes a ledger row for the entering user with the given proof when consent is asserted", async () => {
+        await POST(postRequest({ email: "a@acme.example", consentObtained: true, consentProof: "Met at the 3 March expo, said yes to emails" }));
+
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({
+            leadId: "lead-1",
+            userId: "user-1",
+            channel: "EMAIL",
+            proof: "Met at the 3 March expo, said yes to emails",
+        }));
+    });
+
+    it("says it was recorded by a team member when no proof is given", async () => {
+        await POST(postRequest({ email: "a@acme.example", consentObtained: true }));
+
+        expect(recordCaptureConsent.mock.calls[0]![0].proof).toBe("Recorded by a team member when the lead was added");
+    });
+
+    it("writes nothing when consent is not asserted", async () => {
+        await POST(postRequest({ email: "a@acme.example" }));
+        await POST(postRequest({ email: "b@acme.example", consentObtained: false, consentProof: "ignored" }));
+
+        expect(recordCaptureConsent).not.toHaveBeenCalled();
+    });
+
+    it("records consent on an existing lead the same way when the form is submitted again with consent", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-old", email: "a@acme.example" });
+        mockPrisma.lead.update.mockResolvedValue({ id: "lead-old" });
+
+        await POST(postRequest({ email: "a@acme.example", consentObtained: true }));
+
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-old" }));
     });
 });
