@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { cleanNavGroups } from "@/lib/siteContent";
 import navigation from "../../content/settings/navigation.json";
+import { montserrat } from "@/components/marketing/home/fonts";
 
 const NAV_GROUPS = cleanNavGroups(navigation);
 
@@ -35,7 +36,7 @@ function DropdownMenu({
       <button
         type="button"
         onClick={(event) => setOpen((value) => event.detail === 0 ? !value : true)}
-        className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+        className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
         aria-expanded={open}
       >
         {group.label}
@@ -45,17 +46,17 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 top-full z-50 mt-1 w-80 rounded-2xl border border-[#0c1b30]/10 bg-white p-2 shadow-2xl shadow-[#0c1b30]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
           {group.items.map((item) => (
             <Link
               key={item.href + item.label}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+              className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
             >
               {item.label}
               {"badge" in item && item.badge && (
-                <span className="rounded-full bg-cyan-400/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-cyan-300">
+                <span className="rounded-full bg-[#ffc247]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#0c1b30]">
                   {item.badge}
                 </span>
               )}
@@ -71,18 +72,18 @@ export function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <nav className={`fixed top-0 left-0 right-0 z-50 border-b border-[#0c1b30]/10 bg-white/95 backdrop-blur-xl ${montserrat.className}`}>
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-2">
           <LogoMark priority className="h-8 w-8" />
-          <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-bold text-transparent">
+          <span className="text-lg font-semibold tracking-tight text-[#0c1b30]">
             CraftMyFunnel AI
           </span>
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden items-center gap-1 lg:flex">
+        <div className="hidden items-center gap-1 xl:flex">
           {NAV_GROUPS.map((group) => (
             <DropdownMenu key={group.label} group={group} />
           ))}
@@ -92,30 +93,29 @@ export function NavBar() {
         <div className="hidden items-center gap-3 md:flex">
           <Link
             href="/pricing"
-            className="rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+            className="rounded-full px-3 py-2 text-sm font-semibold text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
           >
             Pricing
           </Link>
-          <div className="h-5 w-px bg-white/15" />
+          <div className="h-5 w-px bg-[#0c1b30]/15" />
           <Link
             href="/login"
-            className="rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:border-white/40"
+            className="rounded-full border border-[#0c1b30] px-5 py-2.5 text-[15px] font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06]"
           >
             Sign In
           </Link>
           <Link
             href="/signup"
-            className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+            className="rounded-full bg-[#0c1b30] px-5 py-2.5 text-[15px] font-semibold text-[#f5f5f5] transition hover:bg-[#293c5b]"
           >
-            <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-            <span className="relative z-10">Start free ↗</span>
+            Start free
           </Link>
         </div>
 
         {/* Mobile hamburger */}
         <button
           type="button"
-          className="rounded-md p-2 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden"
+          className="rounded-md p-2 text-[#0c1b30] transition hover:bg-[#0c1b30]/10 hover:text-[#006a9a] xl:hidden"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setMobileOpen((v) => !v)}
         >
@@ -133,7 +133,7 @@ export function NavBar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-white/10 bg-slate-950/95 px-6 py-5 lg:hidden">
+        <div className="border-t border-[#0c1b30]/10 bg-white px-6 py-5 xl:hidden">
           <div className="flex flex-col gap-1">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
@@ -145,41 +145,40 @@ export function NavBar() {
                     key={item.href + item.label}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
                   >
                     {item.label}
                     {"badge" in item && item.badge && (
-                      <span className="rounded-full bg-cyan-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-cyan-300">
+                      <span className="rounded-full bg-[#ffc247]/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#0c1b30]">
                         {item.badge}
                       </span>
                     )}
                   </Link>
                 ))}
-                <div className="my-2 h-px bg-white/5" />
+                <div className="my-2 h-px bg-[#0c1b30]/10" />
               </div>
             ))}
             <div className="flex flex-col gap-3 pt-2">
               <Link
                 href="/pricing"
-                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.06] hover:text-white"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
                 onClick={() => setMobileOpen(false)}
               >
                 Pricing
               </Link>
               <Link
                 href="/login"
-                className="rounded-full border border-white/15 px-4 py-2.5 text-center text-sm font-medium text-white"
+                className="rounded-full border border-[#0c1b30] px-4 py-2.5 text-center text-sm font-medium text-[#0c1b30]"
                 onClick={() => setMobileOpen(false)}
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
+                className="rounded-full bg-[#0c1b30] px-4 py-2.5 text-center text-sm font-semibold text-[#f5f5f5]"
                 onClick={() => setMobileOpen(false)}
               >
-                <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
-                <span className="relative z-10">Start free ↗</span>
+                Start free
               </Link>
             </div>
           </div>

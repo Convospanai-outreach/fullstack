@@ -5,8 +5,7 @@
       "items": [
         {
           "label": "Fluid Funnel Engine",
-          "href": "/products/fluid-funnel-engine",
-          "badge": "New"
+          "href": "/products/fluid-funnel-engine"
         },
         {
           "label": "Buyer Signals",
@@ -27,61 +26,95 @@
       ]
     },
     {
-      "label": "Use Cases",
+      "label": "Industries",
       "items": [
         {
-          "label": "All Use Cases",
-          "href": "/use-cases"
+          "label": "Cybersecurity & MSSPs",
+          "href": "/industries/cybersecurity",
+          "badge": "US · EU"
         },
         {
-          "label": "Cybersecurity",
-          "href": "/use-cases/cybersecurity"
+          "label": "Managed IT & cloud",
+          "href": "/industries/managed-it-cloud",
+          "badge": "US · EU"
         },
         {
-          "label": "Managed IT & Cloud",
-          "href": "/use-cases/managed-it-cloud"
+          "label": "SAP & ERP partners",
+          "href": "/industries/sap-erp",
+          "badge": "Global"
         },
         {
-          "label": "AI, Data & ERP",
-          "href": "/use-cases/ai-data-erp"
+          "label": "GCC workplace services",
+          "href": "/industries/gcc-services",
+          "badge": "India"
         },
         {
-          "label": "Europe",
-          "href": "/use-cases/regions/europe"
+          "label": "Staffing & recruitment",
+          "href": "/industries/staffing",
+          "badge": "India"
         },
         {
-          "label": "UAE",
-          "href": "/use-cases/regions/uae"
+          "label": "Privacy & DPDP consulting",
+          "href": "/industries/dpdp-consulting",
+          "badge": "India"
         },
         {
-          "label": "Canada",
-          "href": "/use-cases/regions/canada"
+          "label": "All industries",
+          "href": "/industries"
         }
       ]
     },
     {
-      "label": "Platform",
+      "label": "Markets",
       "items": [
         {
-          "label": "How it works",
-          "href": "/#workflow"
+          "label": "India",
+          "href": "/regions/india"
         },
         {
-          "label": "Pilot programme",
-          "href": "/#pilot"
+          "label": "United States",
+          "href": "/regions/united-states"
         },
         {
-          "label": "Pricing",
-          "href": "/pricing",
-          "badge": "Popular"
+          "label": "Europe & UK",
+          "href": "/regions/europe"
         },
+        {
+          "label": "UAE",
+          "href": "/regions/uae"
+        },
+        {
+          "label": "Canada",
+          "href": "/regions/canada"
+        },
+        {
+          "label": "India city hubs",
+          "href": "/locations"
+        }
+      ]
+    },
+    {
+      "label": "Company",
+      "items": [
         {
           "label": "About",
           "href": "/about"
         },
         {
-          "label": "Regional Hubs",
-          "href": "/locations"
+          "label": "Compare",
+          "href": "/vs"
+        },
+        {
+          "label": "Careers",
+          "href": "/careers"
+        },
+        {
+          "label": "Security",
+          "href": "/security"
+        },
+        {
+          "label": "Contact",
+          "href": "/contact"
         }
       ]
     },
@@ -93,6 +126,10 @@
           "href": "/blog"
         },
         {
+          "label": "Docs",
+          "href": "/docs"
+        },
+        {
           "label": "Help Center",
           "href": "/help"
         },
@@ -101,20 +138,8 @@
           "href": "/faq"
         },
         {
-          "label": "Contact",
-          "href": "/contact"
-        },
-        {
           "label": "Support",
           "href": "/support"
-        },
-        {
-          "label": "Security",
-          "href": "/security"
-        },
-        {
-          "label": "Google API Disclosure",
-          "href": "/google-api-disclosure"
         }
       ]
     }

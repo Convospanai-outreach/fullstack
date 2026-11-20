@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
 
@@ -13,6 +12,8 @@ import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
 import { PRICING_TIERS, type PricingTier } from "@/lib/pricing";
+import { montserrat } from "@/components/marketing/home/fonts";
+import "@/components/marketing/site/site.css";
 
 // Presentation-only fields (copy/visuals). The name/displayName/description/price/
 // credits come from PRICING_TIERS so this page, the JSON-LD, and the plan taxonomy
@@ -263,61 +264,59 @@ export default function PricingPage() {
     // conflicting hardcoded USD list - removed to leave a single source (F-02).
 
     return (
-        <div className="relative min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
-            <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
-            <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
+        <div className={`ph relative min-h-screen overflow-x-hidden bg-[#f5f5f5] text-[#0c1b30] ${montserrat.variable}`} style={{ fontFamily: "var(--font-home), system-ui, sans-serif" }}>
 
             <div className="relative z-10 mx-auto max-w-7xl px-6 py-24">
                 <div className="mb-20 space-y-6 text-center">
-                    <Badge variant="info" className="border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-[10px] uppercase tracking-widest">
+                    <Badge variant="info" className="border-[#0c1b30]/10 bg-[#ffc247]/30 px-4 py-1.5 text-[10px] uppercase tracking-widest">
                         Pricing & Plans
                     </Badge>
-                    <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">
+                    <h1 className="text-5xl font-medium tracking-tight md:text-6xl">
                         Choose your plan
                     </h1>
-                    <p className="mx-auto max-w-2xl text-lg text-slate-300">
+                    <p className="mx-auto max-w-2xl text-lg text-[#0c1b30]/75">
                         Start with a focused pilot, then scale the buyer-signal-to-meeting workflow with managed campaigns, follow-ups, and governance.
                     </p>
-                    <p className="mx-auto max-w-2xl text-sm text-slate-400">
+                    <p className="mx-auto max-w-2xl text-sm text-[#0c1b30]/60">
                         {plans.map((plan) => `${plan.displayName} $${plan.usdMonthly}/month`).join(", ")} (USD list prices; customers in India are billed in INR).
                     </p>
 
                     {ANNUAL_BILLING_AVAILABLE ? (
                     <div className="pt-4">
-                        <div className="inline-flex items-center gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                            <span className={`text-sm font-semibold transition-colors ${!isAnnual ? "text-white" : "text-slate-400"}`}>Monthly</span>
+                        <div className="inline-flex items-center gap-4 rounded-full border border-[#0c1b30]/10 bg-white px-4 py-2">
+                            <span className={`text-sm font-semibold transition-colors ${!isAnnual ? "text-[#0c1b30]" : "text-[#0c1b30]/60"}`}>Monthly</span>
                             <button
                                 onClick={() => setIsAnnual(!isAnnual)}
                                 aria-label="Toggle billing cycle"
-                                className="group relative h-7 w-14 rounded-full border border-white/10 bg-white/5 p-1 transition-all hover:border-white/20"
+                                className="group relative h-7 w-14 rounded-full border border-[#0c1b30]/10 bg-white p-1 transition-all hover:border-[#0c1b30]/30"
                             >
-                                <div className={`h-5 w-5 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/30 transition-all ${isAnnual ? "translate-x-7" : "translate-x-0"}`} />
+                                <div className={`h-5 w-5 rounded-full bg-[#0c1b30] shadow transition-all ${isAnnual ? "translate-x-7" : "translate-x-0"}`} />
                             </button>
                             <div className="flex items-center gap-2">
-                                <span className={`text-sm font-semibold transition-colors ${isAnnual ? "text-white" : "text-slate-400"}`}>Annual</span>
-                                <Badge className="border-none bg-emerald-500/10 py-0.5 text-[9px] text-emerald-300">SAVE 20%</Badge>
+                                <span className={`text-sm font-semibold transition-colors ${isAnnual ? "text-[#0c1b30]" : "text-[#0c1b30]/60"}`}>Annual</span>
+                                <Badge className="border-none bg-[#ffc247]/30 py-0.5 text-[9px] text-[#006a9a]">SAVE 20%</Badge>
                             </div>
                         </div>
                     </div>
                     ) : null}
                 </div>
 
-                <div className="mb-10 flex flex-col items-center justify-center gap-3 text-sm text-slate-300 sm:flex-row">
-                    <label htmlFor="pricing-country" className="font-semibold text-white">Prices shown for</label>
+                <div className="mb-10 flex flex-col items-center justify-center gap-3 text-sm text-[#0c1b30]/75 sm:flex-row">
+                    <label htmlFor="pricing-country" className="font-semibold text-[#0c1b30]">Prices shown for</label>
                     <select
                         id="pricing-country"
-                        className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white"
+                        className="rounded-full border border-[#0c1b30]/20 bg-white px-4 py-2 text-sm text-[#0c1b30]"
                         value={billingCountry}
                         onChange={(e) => setBillingCountry(e.target.value)}
                     >
                         {BILLING_COUNTRIES.map((c) => (
-                            <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                            <option key={c.code} value={c.code} className="bg-white">{c.label}</option>
                         ))}
                     </select>
                     {billingCountry === "OTHER" && (
                         <input
                             aria-label="Country name"
-                            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white"
+                            className="rounded-full border border-[#0c1b30]/20 bg-white px-4 py-2 text-sm text-[#0c1b30]"
                             value={billingCustomCountry}
                             onChange={(e) => setBillingCustomCountry(e.target.value)}
                             placeholder="Enter your country"
@@ -332,33 +331,33 @@ export default function PricingPage() {
                             <div key={plan.name} className="relative">
                                 {plan.highlight && (
                                     <div className="absolute -top-4 inset-x-0 z-20 flex justify-center">
-                                        <Badge variant="info" className="border-none bg-cyan-500 px-4 py-1 text-white shadow-lg shadow-cyan-500/30">
+                                        <Badge variant="info" className="border-none bg-[#0c1b30] px-4 py-1 text-[#0c1b30] shadow">
                                             Recommended
                                         </Badge>
                                     </div>
                                 )}
 
                                 <div
-                                    className={`flex h-full flex-col rounded-3xl border p-8 transition-all duration-500 ${
+                                    className={`flex h-full flex-col rounded-2xl border p-8 transition-all duration-500 ${
                                         plan.highlight
-                                            ? "border-cyan-400/40 bg-slate-900/50 shadow-[0_0_50px_rgba(34,211,238,0.16)]"
-                                            : "border-white/10 bg-slate-900/35 hover:border-white/25"
+                                            ? "border-[#ffc247] border-2 bg-white shadow-xl"
+                                            : "border-[#0c1b30]/10 bg-white hover:border-[#0c1b30]/30"
                                     }`}
                                 >
                                     <div className="mb-6">
-                                        <div className="mb-4 w-fit rounded-2xl bg-white/5 p-3 text-cyan-300">
+                                        <div className="mb-4 w-fit rounded-2xl bg-white p-3 text-[#006a9a]">
                                             <Icon className="h-7 w-7" />
                                         </div>
-                                        <h3 className="mb-2 text-2xl font-bold text-white">{plan.displayName}</h3>
-                                        <p className="text-sm leading-relaxed text-slate-300">{plan.description}</p>
+                                        <h3 className="mb-2 text-2xl font-bold text-[#0c1b30]">{plan.displayName}</h3>
+                                        <p className="text-sm leading-relaxed text-[#0c1b30]/75">{plan.description}</p>
                                     </div>
 
                                     <div className="mb-6">
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-4xl font-black text-white">{priceLabel(plan)}</span>
-                                            <span className="text-sm font-medium text-slate-400">/month</span>
+                                            <span className="text-4xl font-semibold text-[#0c1b30]">{priceLabel(plan)}</span>
+                                            <span className="text-sm font-medium text-[#0c1b30]/60">/month</span>
                                         </div>
-                                        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[#0c1b30]/55">
                                             Billed {isAnnual ? "annually" : "monthly"}
                                         </p>
                                     </div>
@@ -366,18 +365,18 @@ export default function PricingPage() {
                                     <Button
                                         variant={plan.highlight ? "default" : "outline"}
                                         className={`mb-8 w-full py-6 text-base font-bold ${
-                                            plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"
+                                            plan.highlight ? "bg-[#ffc247] text-[#0c1b30] hover:bg-[#ffc247]/90 rounded-full" : "border-[#0c1b30]/30 hover:bg-[#e8e6e3]"
                                         }`}
                                         onClick={() => handleCheckout(plan.name)}
                                     >
                                         {ctaFor(plan)}
                                     </Button>
 
-                                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">Key features</p>
+                                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#006a9a]">Key features</p>
                                     <ul className="flex-1 space-y-4">
                                         {plan.features.map((feature) => (
-                                            <li key={feature} className="flex items-start gap-3 text-sm text-slate-200">
-                                                <div className="mt-0.5 shrink-0 text-cyan-300">
+                                            <li key={feature} className="flex items-start gap-3 text-sm text-[#0c1b30]/85">
+                                                <div className="mt-0.5 shrink-0 text-[#006a9a]">
                                                     <Check className="h-4 w-4" />
                                                 </div>
                                                 {feature}
@@ -391,21 +390,21 @@ export default function PricingPage() {
                 </div>
 
                 <section aria-labelledby="compare-plans" className="mt-20">
-                    <h2 id="compare-plans" className="mb-8 text-center text-3xl font-black text-white md:text-4xl">Compare plans</h2>
-                    <div className="overflow-x-auto rounded-3xl border border-white/10 bg-slate-900/35">
+                    <h2 id="compare-plans" className="mb-8 text-center text-3xl font-semibold text-[#0c1b30] md:text-4xl">Compare plans</h2>
+                    <div className="overflow-x-auto rounded-2xl border border-[#0c1b30]/10 bg-white">
                         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                             <thead>
-                                <tr className="border-b border-white/10 bg-slate-900/90">
-                                    <th scope="col" className="sticky top-0 w-1/4 p-5 align-bottom text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Plan</th>
+                                <tr className="border-b border-[#0c1b30]/10 bg-[#0c1b30] [&_th]:text-[#f5f5f5]">
+                                    <th scope="col" className="sticky top-0 w-1/4 p-5 align-bottom text-xs font-semibold uppercase tracking-[0.16em] text-[#0c1b30]/60">Plan</th>
                                     {plans.map((plan) => (
                                         <th key={plan.name} scope="col" className="sticky top-0 p-5 align-bottom">
-                                            <div className="text-lg font-bold text-white">{plan.displayName}</div>
-                                            <div className="mt-1 text-2xl font-black text-white">
-                                                {priceLabel(plan)}<span className="ml-1 text-sm font-medium text-slate-400">/month</span>
+                                            <div className="text-lg font-bold text-[#0c1b30]">{plan.displayName}</div>
+                                            <div className="mt-1 text-2xl font-semibold text-[#0c1b30]">
+                                                {priceLabel(plan)}<span className="ml-1 text-sm font-medium text-[#0c1b30]/60">/month</span>
                                             </div>
                                             <Button
                                                 variant={plan.highlight ? "default" : "outline"}
-                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"}`}
+                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-[#ffc247] text-[#0c1b30] hover:bg-[#ffc247]/90 rounded-full" : "border-[#0c1b30]/30 hover:bg-[#e8e6e3]"}`}
                                                 onClick={() => handleCheckout(plan.name)}
                                             >
                                                 {plan.name === "Enterprise" ? "Talk to Sales" : "Choose plan"}
@@ -415,20 +414,20 @@ export default function PricingPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr className="border-b border-white/10 align-top">
-                                    <th scope="row" className="p-5 font-semibold text-white">Best for</th>
+                                <tr className="border-b border-[#0c1b30]/10 align-top">
+                                    <th scope="row" className="p-5 font-semibold text-[#0c1b30]">Best for</th>
                                     {plans.map((plan) => (
-                                        <td key={plan.name} className="p-5 text-slate-300">{plan.outcome}</td>
+                                        <td key={plan.name} className="p-5 text-[#0c1b30]/75">{plan.outcome}</td>
                                     ))}
                                 </tr>
                                 <tr className="align-top">
-                                    <th scope="row" className="p-5 font-semibold text-white">What&apos;s included</th>
+                                    <th scope="row" className="p-5 font-semibold text-[#0c1b30]">What&apos;s included</th>
                                     {plans.map((plan) => (
                                         <td key={plan.name} className="p-5">
                                             <ul className="space-y-3">
                                                 {plan.features.map((feature) => (
-                                                    <li key={feature} className="flex items-start gap-2 text-slate-200">
-                                                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                                                    <li key={feature} className="flex items-start gap-2 text-[#0c1b30]/85">
+                                                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#006a9a]" />
                                                         {feature}
                                                     </li>
                                                 ))}
@@ -441,34 +440,34 @@ export default function PricingPage() {
                     </div>
                 </section>
 
-                <div className="mt-16 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/8 to-slate-900/80 p-8 md:p-10">
+                <div className="mt-16 rounded-2xl border border-[#0c1b30]/10 bg-[#e8e6e3] p-8 md:p-10">
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr,0.9fr]">
                         <div>
-                            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#ffc247] bg-[#ffc247]/30 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#006a9a]">
                                 <PhoneCall className="h-3.5 w-3.5" />
                                 Optional add-on
                             </div>
-                            <h3 className="text-2xl font-black text-white md:text-3xl">
+                            <h3 className="text-2xl font-semibold text-[#0c1b30] md:text-3xl">
                                 Human booking and follow-up support
                             </h3>
-                            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-200">
+                            <p className="mt-3 max-w-xl text-sm leading-7 text-[#0c1b30]/85">
                                 When campaigns generate high-intent replies, route qualified leads to trained human callers who close the scheduling gap, capture remarks, and prepare meeting-ready context.
                             </p>
                             <div className="mt-6 flex flex-wrap gap-3">
-                                <Badge className="border-none bg-white/10 text-slate-100">Intent score threshold</Badge>
-                                <Badge className="border-none bg-white/10 text-slate-100">Consent-aware routing</Badge>
-                                <Badge className="border-none bg-white/10 text-slate-100">SLA-based follow-up</Badge>
+                                <Badge className="border-none bg-[#e8e6e3] text-[#0c1b30]">Intent score threshold</Badge>
+                                <Badge className="border-none bg-[#e8e6e3] text-[#0c1b30]">Consent-aware routing</Badge>
+                                <Badge className="border-none bg-[#e8e6e3] text-[#0c1b30]">SLA-based follow-up</Badge>
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-white/15 bg-slate-950/60 p-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Best fit</p>
-                            <ul className="mt-4 space-y-3 text-sm text-slate-200">
-                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Service companies already generating warm replies every week</li>
-                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Growth teams where follow-up speed is the bottleneck</li>
-                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Workflows requiring governance and auditable handoffs</li>
+                        <div className="rounded-2xl border border-[#0c1b30]/20 bg-white p-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#006a9a]">Best fit</p>
+                            <ul className="mt-4 space-y-3 text-sm text-[#0c1b30]/85">
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-[#006a9a]" />Service companies already generating warm replies every week</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-[#006a9a]" />Growth teams where follow-up speed is the bottleneck</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-[#006a9a]" />Workflows requiring governance and auditable handoffs</li>
                             </ul>
-                            <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-cyan-600 py-5 font-semibold hover:bg-cyan-500">
+                            <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-[#0c1b30] py-5 font-semibold hover:bg-[#293c5b]">
                                 Talk to sales about add-on pricing
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
@@ -476,78 +475,66 @@ export default function PricingPage() {
                     </div>
                 </div>
 
-                {/* Pilot & Guarantee Architecture Visual */}
-                <div className="mt-16 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
-                    <Image
-                        src="/images/platform/pricing-guarantee.webp"
-                        alt="CraftMyFunnel 30-Day Governed Pilot and Credit Allotment Guarantee"
-                        width={820}
-                        height={460}
-                        loading="lazy"
-                        className="w-full h-auto rounded-2xl"
-                    />
-                </div>
-
                 <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
 
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                        <div className="w-fit rounded-xl bg-cyan-500/10 p-3 text-cyan-300">
+                    <div className="space-y-3 rounded-2xl border border-[#0c1b30]/10 bg-white p-5">
+                        <div className="w-fit rounded-xl bg-[#ffc247]/30 p-3 text-[#006a9a]">
                             <Shield className="h-5 w-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Secure by default</h4>
-                        <p className="text-sm text-slate-300">Approval-first workflows and governance controls remain active as managed campaigns scale.</p>
+                        <h4 className="text-lg font-bold text-[#0c1b30]">Secure by default</h4>
+                        <p className="text-sm text-[#0c1b30]/75">Approval-first workflows and governance controls remain active as managed campaigns scale.</p>
                     </div>
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                    <div className="space-y-3 rounded-2xl border border-[#0c1b30]/10 bg-white p-5">
                         <div className="w-fit rounded-xl bg-amber-500/10 p-3 text-amber-300">
                             <Star className="h-5 w-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Support when it matters</h4>
-                        <p className="text-sm text-slate-300">Get implementation help for playbooks, handoffs, reporting, and launch readiness milestones.</p>
+                        <h4 className="text-lg font-bold text-[#0c1b30]">Support when it matters</h4>
+                        <p className="text-sm text-[#0c1b30]/75">Get implementation help for playbooks, handoffs, reporting, and launch readiness milestones.</p>
                     </div>
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                        <div className="w-fit rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
+                    <div className="space-y-3 rounded-2xl border border-[#0c1b30]/10 bg-white p-5">
+                        <div className="w-fit rounded-xl bg-[#ffc247]/30 p-3 text-[#006a9a]">
                             <ArrowRight className="h-5 w-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Clear growth path</h4>
-                        <p className="text-sm text-slate-300">Start with a pilot package, review qualified lead and meeting-tracking signals, then scale the managed workflow.</p>
+                        <h4 className="text-lg font-bold text-[#0c1b30]">Clear growth path</h4>
+                        <p className="text-sm text-[#0c1b30]/75">Start with a pilot package, review qualified lead and meeting-tracking signals, then scale the managed workflow.</p>
                     </div>
                 </div>
 
                 <section aria-labelledby="pricing-faq" className="mx-auto mt-20 max-w-3xl">
-                    <h2 id="pricing-faq" className="mb-8 text-center text-3xl font-black text-white md:text-4xl">Pricing questions</h2>
-                    <div className="divide-y divide-white/10 rounded-3xl border border-white/10 bg-slate-900/35">
+                    <h2 id="pricing-faq" className="mb-8 text-center text-3xl font-semibold text-[#0c1b30] md:text-4xl">Pricing questions</h2>
+                    <div className="divide-y divide-white/10 rounded-2xl border border-[#0c1b30]/10 bg-white">
                         {pricingFaqs.map((item) => (
                             <details key={item.q} className="group p-6">
-                                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-white">
+                                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-[#0c1b30]">
                                     {item.q}
-                                    <span className="text-cyan-300 transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                                    <span className="text-[#006a9a] transition-transform group-open:rotate-45" aria-hidden="true">+</span>
                                 </summary>
-                                <p className="mt-3 text-sm leading-7 text-slate-300">{item.a}</p>
+                                <p className="mt-3 text-sm leading-7 text-[#0c1b30]/75">{item.a}</p>
                             </details>
                         ))}
                     </div>
                 </section>
 
-                <section className="mt-20 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/8 to-slate-900/80 p-10 text-center">
-                    <h2 className="text-3xl font-black text-white md:text-4xl">Ready to start your pilot?</h2>
-                    <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-200">
+                <section className="mt-20 rounded-2xl border border-[#0c1b30]/10 bg-[#e8e6e3] p-10 text-center">
+                    <h2 className="text-3xl font-semibold text-[#0c1b30] md:text-4xl">Ready to start your pilot?</h2>
+                    <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#0c1b30]/85">
                         Create an account and set up your first governed campaign, or talk to us about a larger rollout.
                     </p>
                     <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                        <Button onClick={() => router.push("/signup")} className="bg-cyan-600 px-8 py-5 font-semibold hover:bg-cyan-500">
+                        <Button onClick={() => router.push("/signup")} className="bg-[#0c1b30] px-8 py-5 font-semibold hover:bg-[#293c5b]">
                             Get started
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
-                        <Button variant="outline" onClick={() => router.push("/contact")} className="border-white/20 px-8 py-5 font-semibold hover:bg-white/10">
+                        <Button variant="outline" onClick={() => router.push("/contact")} className="border-[#0c1b30]/30 px-8 py-5 font-semibold hover:bg-[#e8e6e3]">
                             Talk to sales
                         </Button>
                     </div>
                 </section>
 
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-xs text-[#0c1b30]/60">
                     {proofPoints.map((point) => (
-                        <span key={point} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
-                            <Check className="h-3.5 w-3.5 text-emerald-400" />
+                        <span key={point} className="inline-flex items-center gap-1 rounded-full border border-[#0c1b30]/10 bg-white px-3 py-1.5">
+                            <Check className="h-3.5 w-3.5 text-[#006a9a]" />
                             {point}
                         </span>
                     ))}

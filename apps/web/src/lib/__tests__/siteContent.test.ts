@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDecapConfig } from "../decapCms";
 import { cleanNavGroups, mergeHeroText, mergeText, type HeroText } from "../siteContent";
-import { HOME, HOME_DEFAULTS } from "../../components/marketing/v8/homeV8Content";
+import { HOME, HOME_DEFAULTS } from "../../components/marketing/home/homeContent";
 import navigation from "../../../content/settings/navigation.json";
 import hero from "../../../content/settings/hero.json";
 import homeJson from "../../../content/settings/home.json";

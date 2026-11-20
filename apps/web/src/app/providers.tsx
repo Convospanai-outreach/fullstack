@@ -9,7 +9,7 @@ export function Providers({ children, session }: any) {
         "/", "/about", "/contact", "/pricing",
         "/login", "/signup", "/privacy", "/terms",
         "/security", "/support", "/data-deletion",
-        "/google-api-disclosure", "/funnel", "/help", "/faq",
+        "/google-api-disclosure", "/help", "/faq",
         "/verify-email", "/forgot-password", "/magic-link",
     ];
 
