@@ -357,6 +357,7 @@ async function appProxy(req: NextRequest) {
         "/support",
         "/data-deletion",
         "/google-api-disclosure",
+        "/trust",
         "/funnel",
         "/sitemap.xml",
         "/robots.txt",

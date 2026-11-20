@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { GlobalCTA } from "@/components/marketing/GlobalCTA";
+import { PRIVACY_CONTACT_EMAIL } from "@/lib/trust";
 
 export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
     return (
@@ -57,8 +58,11 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                             <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Trust</h4>
                             <ul className="space-y-2 text-sm text-gray-400">
                                 <li><Link href="/security" className="hover:text-white transition-colors">Security</Link></li>
+                                <li><Link href="/trust/dpa" className="hover:text-white transition-colors">Data Processing Agreement</Link></li>
+                                <li><Link href="/trust/subprocessors" className="hover:text-white transition-colors">Sub-processors</Link></li>
                                 <li><Link href="/google-api-disclosure" className="hover:text-white transition-colors">Google API Disclosure</Link></li>
                                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                                <li><a href={`mailto:${PRIVACY_CONTACT_EMAIL}`} className="hover:text-white transition-colors">Privacy contact</a></li>
                             </ul>
                         </div>
                     </div>
