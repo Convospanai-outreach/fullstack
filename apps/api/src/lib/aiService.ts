@@ -27,6 +27,7 @@ import {
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
 import { buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
+import { maskForLLM, piiMaskingEnabled, PiiMaskingError } from "@/lib/ai/piiMask";
 import { buildConnectionPrompt } from "@/lib/ai/linkedinDraftPrompt";
 
 export type ProviderKeySet = {
@@ -589,8 +590,12 @@ async function callLLM(
         preferOpenModel?: boolean;
         /** false: use the team's key (else the platform's) but take no credits. Default true. */
         chargeCredits?: boolean;
+        /** Names of people in the prompt, so they are masked even where no field label gives them away. */
+        piiNames?: string[];
     }
 ) {
+    // DPDP: mask before anything is reserved or sent. Throws (fail closed) if masking cannot be done.
+    const masked = maskForLLM({ prompt, systemPrompt: options.systemPrompt }, options.piiNames);
     const actorId = options.actorId || RequestContext.get()?.userId;
     const observability = createAIObservabilityContext(actorId);
     const providers = await loadTeamProviders(options.teamId);
@@ -614,7 +619,9 @@ async function callLLM(
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
-                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, observability, options.systemPrompt), LLM_TIMEOUT_MS);
+                const sent = await withTimeout(callProvider(candidate, masked.prompt, observability, masked.systemPrompt), LLM_TIMEOUT_MS);
+                const { tokensIn, tokensOut } = sent;
+                const text = masked.restore(sent.text);
                 recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
@@ -724,6 +731,8 @@ export class AIService {
              * like per-team email-composer style guidance.
              */
             systemPrompt?: string;
+            /** Names of people in the prompt, masked before the model sees them (DPDP). */
+            piiNames?: string[];
             /**
              * Defaults to STRATEGIC. Pass TRIVIAL for calls whose entire
              * output is a single classification label/score with no prose
@@ -756,7 +765,8 @@ export class AIService {
             actorId: taskContext?.actorId,
             systemPrompt: safeSystemPrompt,
             preferOpenModel: taskContext?.preferOpenModel,
-            chargeCredits: taskContext?.chargeCredits
+            chargeCredits: taskContext?.chargeCredits,
+            ...(taskContext?.piiNames ? { piiNames: taskContext.piiNames } : {})
         });
 
         const expectsJson = !!taskContext?.expectsJson;
@@ -797,6 +807,11 @@ export class AIService {
         const providers = await loadTeamProviders(teamId);
         if (!providers.anthropic?.apiKey) {
             throw new Error("Batch generation requires a configured Anthropic API key for this team.");
+        }
+        // DPDP: a batch is read back later, by another job, so there is no request left to hold the placeholders
+        // that would put the personal data back. While masking is on, nothing is sent rather than sent unmasked.
+        if (piiMaskingEnabled()) {
+            throw new PiiMaskingError("Batch drafting is not available while personal-data masking is on, so the batch was not sent.");
         }
         const surface = options.surface || "EMAIL";
         const model = providers.anthropic.model || BATCH_MODEL;
@@ -910,11 +925,14 @@ export class AIService {
 
     async getEmbeddings(text: string, teamId?: string, actorId?: string): Promise<number[]> {
         const resolvedActorId = actorId || RequestContext.get()?.userId;
-        const safeText = enforceAIPromptPolicy(text, {
-            surface: "HELPER",
-            label: "Embedding input",
-            maxChars: EMBEDDING_MAX_INPUT_CHARS,
-        });
+        // Embeddings are never read back as text, so the placeholders are simply left in.
+        const safeText = maskForLLM({
+            prompt: enforceAIPromptPolicy(text, {
+                surface: "HELPER",
+                label: "Embedding input",
+                maxChars: EMBEDDING_MAX_INPUT_CHARS,
+            }),
+        }).prompt;
         const providers = await loadTeamProviders(teamId);
         const resolved = resolveProvider(providers, TaskComplexity.ROUTINE);
         const billedTeamId = isChargeableTeamId(teamId) ? teamId : undefined;
@@ -1083,7 +1101,7 @@ export class AIService {
 
     async generateImage(prompt: string, teamId?: string): Promise<Buffer> {
         const resolvedActorId = RequestContext.get()?.userId;
-        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Image prompt" });
+        const safePrompt = maskForLLM({ prompt: enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Image prompt" }) }).prompt;
         const providers = await loadTeamProviders(teamId);
         if (!providers.openai?.apiKey) {
             throw new Error("No image provider configured. Set OpenAI API key.");
@@ -1205,7 +1223,8 @@ export class AIService {
             teamId,
             complexity: TaskComplexity.STRATEGIC,
             taskTypeLabel: "EMAIL_DRAFT",
-            creditDescription: "AI email draft generation"
+            creditDescription: "AI email draft generation",
+            ...(lead?.fullName ? { piiNames: [String(lead.fullName)] } : {})
         });
         const json = JSON.parse(extractJsonBlock(result.text));
         return {
