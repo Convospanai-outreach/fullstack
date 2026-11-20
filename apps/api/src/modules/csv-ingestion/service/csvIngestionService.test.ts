@@ -8,6 +8,8 @@ const { mockPrisma } = vi.hoisted(() => ({
     },
 }));
 
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/modules/whatsapp/ConsentService", () => ({
     ConsentService: { recordConsent: vi.fn() },
@@ -143,5 +145,62 @@ describe("csvIngestionService.processCSV - LinkedIn URLs", () => {
         });
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
         expect(result.created).toBe(1);
+    });
+});
+
+describe("csvIngestionService.processCSV - per-row consent columns", () => {
+    const CONSENT_CSV = [
+        "email,fullName,consent,consent proof",
+        "yes@acme.example,Yes Person,yes,Signed form 14 March",
+        "no@acme.example,No Person,no,",
+        "blank@acme.example,Blank Person,,",
+    ].join("\n");
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockImplementation(async ({ data }: any) => ({ id: `id-${data.email}` }));
+        recordCaptureConsent.mockResolvedValue(true);
+    });
+
+    it("records consent only for rows whose consent cell says yes, with the row's proof", async () => {
+        const result = await csvIngestionService.processCSV(CONSENT_CSV, "team-a", undefined, undefined, { userId: "u1", hasConsent: false });
+
+        expect(result.created).toBe(3);
+        expect(recordCaptureConsent).toHaveBeenCalledTimes(1);
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({
+            leadId: "id-yes@acme.example",
+            userId: "u1",
+            method: "WEB_FORM",
+            channel: "EMAIL",
+            proof: "Signed form 14 March",
+        }));
+    });
+
+    it("falls back to naming the column as the proof when the row has no proof cell", async () => {
+        await csvIngestionService.processCSV("email,consent\nyes@acme.example,true\n", "team-a");
+
+        expect(recordCaptureConsent.mock.calls[0]![0].proof).toBe("CSV import: consent column said yes");
+    });
+
+    it("records consent for a lead that already exists when its row says yes", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-old", email: "yes@acme.example", domain: "acme.example" });
+
+        await csvIngestionService.processCSV("email,consent\nyes@acme.example,yes\n", "team-a");
+
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-old" }));
+        expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+    });
+
+    it("records nothing when there is no consent column", async () => {
+        await csvIngestionService.processCSV("email,fullName\nyes@acme.example,A\n", "team-a");
+
+        expect(recordCaptureConsent).not.toHaveBeenCalled();
+    });
+
+    it("keeps the importer's whole-file attestation working for new leads", async () => {
+        await csvIngestionService.processCSV("email,fullName\nnew@acme.example,New Person\n", "team-a", undefined, undefined, { userId: "u1", hasConsent: true });
+
+        expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({ leadId: "id-new@acme.example", userId: "u1", notes: "Attested by importer during CSV import" }));
     });
 });

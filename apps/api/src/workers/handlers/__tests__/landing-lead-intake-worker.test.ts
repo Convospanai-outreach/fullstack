@@ -31,6 +31,8 @@ vi.mock("@/modules/creator-funnel/playbookSwitches", () => ({ enrollPlanNurture:
 vi.mock("@/modules/lead-properties/leadCustomFields", () => ({ saveLandingAnswersToLead: vi.fn() }));
 const { pushLead } = vi.hoisted(() => ({ pushLead: vi.fn().mockResolvedValue({ success: true }) }));
 vi.mock("@/modules/mautic-integration/service/mauticService", () => ({ mauticService: { pushLead } }));
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
@@ -410,6 +412,26 @@ describe("landing-lead-intake-worker", () => {
             it("does not push the lead to Mautic when the page had no consent box", async () => {
                 await run({ answers: {} });
                 expect(pushLead).not.toHaveBeenCalled();
+            });
+
+            it("writes an email ledger row with the box text, page and time as proof, on every path, when consent was given", async () => {
+                await run(consent(true));
+
+                expect(recordCaptureConsent.mock.calls.map((c) => c[0].leadId)).toEqual(["lead-social", "lead-existing", "lead-new"]);
+                expect(recordCaptureConsent.mock.calls[2]![0]).toMatchObject({
+                    userId: null,
+                    method: "WEB_FORM",
+                    channel: "EMAIL",
+                    proof: expect.stringContaining("I agree."),
+                });
+                expect(recordCaptureConsent.mock.calls[2]![0].proof).toContain("guide");
+                expect(recordCaptureConsent.mock.calls[2]![0].proof).toContain("2026-11-01T10:00:00.000Z");
+            });
+
+            it("writes no ledger row when the box was not ticked or the page had none", async () => {
+                await run(consent(false));
+                await run({ answers: {} });
+                expect(recordCaptureConsent).not.toHaveBeenCalled();
             });
         });
 

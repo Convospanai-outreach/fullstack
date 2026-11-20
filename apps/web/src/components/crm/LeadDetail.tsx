@@ -63,6 +63,8 @@ interface Lead {
 
     // DPDP Consent
     consentObtained?: boolean;
+    // Latest ConsentLedger state per channel (read-only), from GET /api/leads/[id].
+    consentChannels?: Array<{ channel: "EMAIL" | "WHATSAPP" | "PHONE"; status: "GRANTED" | "REVOKED" | "NONE" }>;
 
     // Predictive Analytics
     clusterLabel?: string;
@@ -414,6 +416,16 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         {lead.consentObtained ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
                         {lead.consentObtained ? "Consent Granted" : "Consent Needed"}
                     </Button>
+                    {lead.consentChannels?.map((c) => (
+                        <Badge
+                            key={c.channel}
+                            variant={c.status === "GRANTED" ? "success" : c.status === "REVOKED" ? "warning" : "outline"}
+                            title="Latest consent on record for this channel (read-only)"
+                        >
+                            {c.channel === "EMAIL" ? "Email" : c.channel === "WHATSAPP" ? "WhatsApp" : "Phone"}:{" "}
+                            {c.status === "GRANTED" ? "consent on record" : c.status === "REVOKED" ? "withdrawn" : "none"}
+                        </Badge>
+                    ))}
                     <Button
                         variant="outline"
                         className="gap-1.5 hover:bg-white/5"
