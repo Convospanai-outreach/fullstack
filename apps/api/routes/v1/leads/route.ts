@@ -119,6 +119,7 @@ export async function POST(req: NextRequest) {
             await recordCaptureConsent({
                 leadId: lead.id,
                 userId: null,
+                method: "WEB_FORM",
                 channel: "EMAIL",
                 notes: "Consent asserted by the API caller when creating the lead",
                 proof: proof || "Recorded through the API when the lead was created",
