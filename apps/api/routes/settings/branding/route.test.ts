@@ -63,3 +63,43 @@ describe("POST /settings/branding — mandatory email footer", () => {
         );
     });
 });
+
+describe("POST /settings/branding - first-touch notice and privacy contact (DPDP)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+        mockPerms.checkTeamPermission.mockResolvedValue(true);
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: { emailFooterText: "Thanks" } });
+    });
+
+    const post = async (body: unknown) => {
+        const { POST } = await import("./route");
+        return POST(new Request("http://localhost/settings/branding", { method: "POST", body: JSON.stringify(body) }) as any);
+    };
+
+    it("saves the privacy contact and the notice text, keeping the rest of the branding", async () => {
+        const res = await post({ privacyContactEmail: " privacy@acme.example ", firstTouchNoticeText: "You are on our list because you run a logistics firm." });
+
+        expect(res.status).toBe(200);
+        expect(mockUpdateBranding).toHaveBeenCalledWith("team-1", expect.objectContaining({
+            emailFooterText: "Thanks",
+            privacyContactEmail: "privacy@acme.example",
+            firstTouchNoticeText: "You are on our list because you run a logistics firm.",
+        }));
+    });
+
+    it("rejects a privacy contact that is not an email address", async () => {
+        const res = await post({ privacyContactEmail: "not an email" });
+
+        expect(res.status).toBe(400);
+        expect(mockUpdateBranding).not.toHaveBeenCalled();
+    });
+
+    it("leaves both settings alone when a save does not mention them", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: { privacyContactEmail: "privacy@acme.example", firstTouchNoticeText: "Why" } });
+
+        await post({ portalTitle: "Acme" });
+
+        expect(mockUpdateBranding).toHaveBeenCalledWith("team-1", expect.objectContaining({ privacyContactEmail: "privacy@acme.example", firstTouchNoticeText: "Why" }));
+    });
+});

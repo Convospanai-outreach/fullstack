@@ -75,6 +75,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Email footer text cannot be blank" }, { status: 400 });
     }
 
+    // DPDP first-touch notice: who to ask about personal data, and why the person is being contacted.
+    const privacyContactEmail = typeof body.privacyContactEmail === "string" ? body.privacyContactEmail.trim() : undefined;
+    if (privacyContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(privacyContactEmail)) {
+        return NextResponse.json({ error: "Privacy contact must be an email address" }, { status: 400 });
+    }
+    const firstTouchNoticeText = body.firstTouchNoticeText !== undefined ? sanitizeText(body.firstTouchNoticeText, MAX_FOOTER_LENGTH) : undefined;
+
     const sanitizedTitle = sanitizeText(body.portalTitle);
     const sanitizedFooter = body.emailFooterText !== undefined
         ? sanitizeText(body.emailFooterText, MAX_FOOTER_LENGTH)
@@ -93,6 +100,8 @@ export async function POST(req: NextRequest) {
         portalTitle: sanitizedTitle !== undefined ? sanitizedTitle : currentBranding.portalTitle,
         faviconUrl: body.faviconUrl !== undefined ? body.faviconUrl : currentBranding.faviconUrl,
         emailFooterText: sanitizedFooter !== undefined ? sanitizedFooter : currentBranding.emailFooterText,
+        privacyContactEmail: privacyContactEmail !== undefined ? privacyContactEmail : currentBranding.privacyContactEmail,
+        firstTouchNoticeText: firstTouchNoticeText !== undefined ? firstTouchNoticeText : currentBranding.firstTouchNoticeText,
     };
 
     await BrandingService.updateBranding(ctx.teamId, branding);

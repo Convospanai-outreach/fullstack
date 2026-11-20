@@ -155,3 +155,35 @@ describe("Branding Route Validation (SEC-03)", () => {
         });
     });
 });
+
+describe("Branding Route - first-touch notice and privacy contact (DPDP)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+        mockPerms.checkTeamPermission.mockResolvedValue(true);
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: { emailFooterText: "Thanks" } });
+        mockPrisma.team.update.mockResolvedValue({});
+    });
+
+    const post = async (body: unknown) => {
+        const { POST } = await import("../route");
+        return POST(new Request("http://localhost/api/settings/branding", { method: "POST", body: JSON.stringify(body) }) as any);
+    };
+
+    it("saves the privacy contact and notice text without losing the rest", async () => {
+        const res = await post({ privacyContactEmail: " privacy@acme.example ", firstTouchNoticeText: "You are on our list because you run a logistics firm." });
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledWith({
+            where: { id: "team-1" },
+            data: { branding: expect.objectContaining({ emailFooterText: "Thanks", privacyContactEmail: "privacy@acme.example", firstTouchNoticeText: "You are on our list because you run a logistics firm." }) },
+        });
+    });
+
+    it("rejects a privacy contact that is not an email address", async () => {
+        const res = await post({ privacyContactEmail: "not an email" });
+
+        expect(res.status).toBe(400);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+});
