@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { createLeadSchema } from "@/lib/validation/schemas";
 import { tryNormalizeDomain } from "@/lib/crm/domain";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,17 @@ export async function POST(req: NextRequest) {
         const lead = existing
             ? await prisma.lead.update({ where: { id: existing.id }, data: leadData })
             : await prisma.lead.create({ data: leadData });
+
+        // Consent asserted by the person adding the lead goes on the ledger; nothing asserted writes nothing.
+        if (data.consentObtained === true) {
+            await recordCaptureConsent({
+                leadId: lead.id,
+                userId,
+                channel: "EMAIL",
+                notes: "Consent recorded by a team member when adding the lead",
+                proof: data.consentProof?.trim() || "Recorded by a team member when the lead was added",
+            });
+        }
 
         return NextResponse.json(lead, { status: existing ? 200 : 201 });
     } catch (error) {

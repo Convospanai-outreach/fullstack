@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { decryptCredential } from "@/lib/security/credentialVault";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
 
 // Polls Facebook/Instagram Lead Ads on an interval (no Zapier, no realtime webhook -
 // per the user's explicit ask, a ~5h poll is fine). The Meta pixel plays no part in
@@ -161,6 +162,18 @@ async function syncForm(teamId: string, sourceId: string, formId: string, access
                             metadata: { formId, facebookLeadId: lead.id },
                         },
                     }).catch(() => undefined);
+                    // Giving an email address on a lead ad is the person asking to be contacted there. Phone-only
+                    // leads gave no email, so nothing is recorded for email (WhatsApp needs its own opt-in).
+                    if (upserted.email) {
+                        await recordCaptureConsent({
+                            leadId: upserted.id,
+                            userId: null,
+                            method: "WEB_FORM",
+                            channel: "EMAIL",
+                            notes: "Submitted a Facebook/Instagram Lead Ad form",
+                            proof: `Facebook Lead Ad form ${formId}, lead ${lead.id}, submitted ${lead.created_time}`,
+                        });
+                    }
                 }
             } catch (leadError) {
                 // Don't let one bad lead abort the whole batch: the cursor below only

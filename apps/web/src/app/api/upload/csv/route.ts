@@ -3,6 +3,8 @@ import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
 import { canonicalLinkedInProfileUrl, linkedInForStorage } from "@/lib/crm/linkedin";
 import { internalErrorMessage } from "@/lib/internalError";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
+import { isAffirmative } from "@/modules/governance/consentCell";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,8 @@ function autoDetectFieldMapping(headers: string[]): Record<string, string> {
         else if (nh.includes("company") || nh === "org") mapping[h] = "company";
         else if (nh.includes("title") || nh.includes("role")) mapping[h] = "jobTitle";
         else if (nh.includes("location") || nh.includes("city")) mapping[h] = "location";
+        else if (nh.includes("consent") && nh.includes("proof")) mapping[h] = "consentProof";
+        else if (nh.includes("consent") || nh.includes("optin")) mapping[h] = "consent";
     });
     return mapping;
 }
@@ -128,6 +132,8 @@ export async function POST(req: NextRequest) {
         const jobTitleKey = Object.keys(activeMapping).find((k) => activeMapping[k] === "jobTitle");
         const linkedInKey = Object.keys(activeMapping).find((k) => activeMapping[k] === "linkedIn");
         const locationKey = Object.keys(activeMapping).find((k) => activeMapping[k] === "location");
+        const consentKey = Object.keys(activeMapping).find((k) => activeMapping[k] === "consent");
+        const consentProofKey = Object.keys(activeMapping).find((k) => activeMapping[k] === "consentProof");
 
         let created = 0;
         let skipped = 0;
@@ -163,7 +169,20 @@ export async function POST(req: NextRequest) {
                     existing = await prisma.lead.findFirst({ where: { teamId, linkedIn: profileUrl, email: null } });
                 }
 
+                // A consent column that plainly says yes is the person's consent on record; no column or any other
+                // value records nothing. The proof is the row's own proof cell when it has one.
+                const rowConsent = consentKey && isAffirmative(row[consentKey])
+                    ? {
+                        notes: "Consent column in a CSV import",
+                        proof: (consentProofKey && row[consentProofKey]?.trim()) || "CSV import: consent column said yes",
+                    }
+                    : null;
+                const recordRowConsent = (leadId: string) => rowConsent
+                    ? recordCaptureConsent({ leadId, userId, channel: "EMAIL", ...rowConsent })
+                    : Promise.resolve(false);
+
                 if (existing) {
+                    await recordRowConsent(existing.id);
                     const updateData: any = {};
                     if (!existing.email) updateData.email = email;
                     if (campaignId) updateData.campaignId = campaignId;
@@ -192,9 +211,10 @@ export async function POST(req: NextRequest) {
                     if (linkedIn) createData.linkedIn = linkedIn;
                     if (location) createData.location = location;
 
-                    await prisma.lead.create({
+                    const createdLead = await prisma.lead.create({
                         data: createData,
                     });
+                    await recordRowConsent(createdLead.id);
                     created++;
                 }
             } catch (e: any) {
