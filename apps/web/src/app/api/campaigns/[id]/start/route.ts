@@ -6,6 +6,7 @@ import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/send
 import { checkCampaignStartApproval } from "@/lib/governance/campaignStartApproval";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
 import { internalErrorMessage } from "@/lib/internalError";
+import { summarizeCampaignSendGate } from "@/modules/governance/campaignSendGate";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,17 @@ export async function POST(
             return NextResponse.json(gate.body, { status: gate.status });
         }
 
+        // DPDP send gate (team setting, off by default). Refuse when it would stop every lead; otherwise start and
+        // tell the caller how many it will skip (each send is gated again, per lead, at send time).
+        const dpdp = await summarizeCampaignSendGate(teamId, campaignId);
+        if (dpdp.gateOn && dpdp.total > 0 && dpdp.blocked === dpdp.total) {
+            return NextResponse.json(
+                { error: `${dpdp.reason}: none of this campaign's ${dpdp.total} leads can be contacted yet. Record consent or a public source first.`, code: "NO_LAWFUL_BASIS", blocked: dpdp.blocked, total: dpdp.total },
+                { status: 409 },
+            );
+        }
+        const blockedNote = dpdp.gateOn && dpdp.blocked > 0 ? { blocked: dpdp.blocked, blockedReason: dpdp.reason } : {};
+
         const enroll = await enrollCampaignLeads(campaignId, teamId);
 
         if (enroll.ok) {
@@ -66,6 +78,7 @@ export async function POST(
                 candidates: enroll.candidates,
                 enrolled: enroll.enrolled,
                 alreadyEnrolled: enroll.alreadyEnrolled,
+                ...blockedNote,
                 ...(enroll.message ? { message: enroll.message } : {}),
             });
         }
@@ -95,6 +108,7 @@ export async function POST(
             mode: "draft",
             status: "active",
             enqueued: result.enqueued,
+            ...blockedNote,
         });
     } catch (error: any) {
         console.error("POST /api/campaigns/[id]/start error:", error);

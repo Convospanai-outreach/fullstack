@@ -15,6 +15,7 @@ import {
     type GmailSendOutcome,
 } from "./googleMailboxService";
 import { sendViaResendMailbox, type ResendSendOutcome } from "./resendMailboxService";
+import { checkSendGate } from "@/modules/governance/lawfulBasis";
 import type { EmailAttachment } from "./emailAttachment";
 import { firstTouchNoticeEnabled, needsFirstTouchNotice, resolveFirstTouchNotice, type FirstTouchNotice } from "@/modules/governance/firstTouchNotice";
 import * as crypto from "crypto";
@@ -231,6 +232,11 @@ class EmailService {
             const pausedStatuses = new Set(["replied", "stopped", "bounced", "unsubscribed", "do_not_contact"]);
             if (lead?.status && pausedStatuses.has(lead.status.toLowerCase())) {
                 return { success: false, error: "LEAD_SEQUENCE_PAUSED" };
+            }
+            // DPDP send gate (team setting, off by default): needs consent or a proven public source.
+            if (teamId) {
+                const gate = await checkSendGate({ leadId: metadata.leadId, teamId, channel: "EMAIL" });
+                if (!gate.allowed) return { success: false, error: gate.reason };
             }
         }
         if (metadata?.campaignId && teamId) {
