@@ -88,7 +88,9 @@ export const createLeadSchema = z.object({
     crmSyncedAt: z.string().datetime().optional().nullable(),
 
     // Compliance
-    consentObtained: z.boolean().default(false)
+    consentObtained: z.boolean().default(false),
+    // Where the consent came from, for the ledger. Only read when consentObtained is true.
+    consentProof: z.string().max(500).optional().nullable()
 });
 
 export const updateLeadSchema = createLeadSchema.partial();

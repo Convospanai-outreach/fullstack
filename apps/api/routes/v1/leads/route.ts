@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
 
 // System-managed fields (pipelineState, intentScore, leadScore, isEnriched,
 // wonAt/lostAt, etc.) must not be settable from a caller-supplied body -
@@ -110,6 +111,20 @@ export async function POST(req: NextRequest) {
                 status: data.status || "NEW"
             }
         });
+
+        // Consent the caller asserts goes on the ledger too (no user: an API key made the call). The proof is
+        // kept on the ledger row, never on the lead.
+        if (data["consentObtained"] === true) {
+            const proof = typeof body?.consentProof === "string" ? body.consentProof.trim().slice(0, 500) : "";
+            await recordCaptureConsent({
+                leadId: lead.id,
+                userId: null,
+                method: "WEB_FORM",
+                channel: "EMAIL",
+                notes: "Consent asserted by the API caller when creating the lead",
+                proof: proof || "Recorded through the API when the lead was created",
+            });
+        }
 
         return NextResponse.json(lead, { status: 201 });
     } catch (error: any) {
