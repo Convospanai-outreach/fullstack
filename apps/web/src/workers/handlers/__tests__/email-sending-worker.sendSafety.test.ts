@@ -11,6 +11,7 @@ const { db, send, enqueue } = vi.hoisted(() => ({
         campaignAttachment: { findMany: vi.fn() },
         team: { findUnique: vi.fn() },
         auditLog: { create: vi.fn() },
+        consentLedger: { findMany: vi.fn() },
         $executeRaw: vi.fn(),
     },
     send: vi.fn(),
@@ -78,7 +79,8 @@ describe("email_sending pre-send gate", () => {
     });
 
     it("sends when the team settings cannot be read", async () => {
-        db.team.findUnique.mockRejectedValue(new Error("db"));
+        // The first read is the DPDP gate's, which fails closed when it cannot read (see the DPDP block below); this test is about the later pre-send read.
+        db.team.findUnique.mockResolvedValueOnce({ sendSafety: null }).mockRejectedValue(new Error("db"));
         await expect(handleEmailSending(failing)).rejects.toThrow("stop here");
         expect(send).toHaveBeenCalledTimes(1);
     });
@@ -179,8 +181,75 @@ describe("email_sending recipient send window", () => {
 
     it("sends when the team settings cannot be read", async () => {
         db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Tokyo, Japan" });
-        db.team.findUnique.mockRejectedValue(new Error("db"));
+        // The first read is the DPDP gate's (fails closed when unreadable); this test is about the later send-window read.
+        db.team.findUnique.mockResolvedValueOnce({ sendSafety: null }).mockRejectedValue(new Error("db"));
         await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
         expect(enqueue).not.toHaveBeenCalled();
+    });
+});
+
+describe("email_sending DPDP send gate", () => {
+    const gateOn = { sendSafety: { DPDP_SEND_GATE: true }, mailingAddress: "1 Main St" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        db.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "sam@acme.example", fullName: "Sam", lawfulBasis: "NONE", sourceUrl: null, publishedBySubject: false });
+        db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
+        db.suppressionEntry.findUnique.mockResolvedValue(null);
+        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
+        db.$executeRaw.mockResolvedValue(1);
+        db.email.findFirst.mockResolvedValue(null);
+        db.email.create.mockResolvedValue({ id: "e1", trackingId: "tr1" });
+        db.email.update.mockResolvedValue({ id: "e1" });
+        db.campaignAttachment.findMany.mockResolvedValue([]);
+        db.consentLedger.findMany.mockResolvedValue([]);
+        db.team.findUnique.mockResolvedValue(gateOn);
+        send.mockRejectedValue(new Error("stop here"));
+    });
+
+    it("skips a lead with no consent or public source, with the reason, before anything is created or sent", async () => {
+        const result = await handleEmailSending(payload);
+
+        expect(result).toEqual({ skipped: true, reason: "No consent or proven public source", code: "no_lawful_basis" });
+        expect(send).not.toHaveBeenCalled();
+        expect(db.email.create).not.toHaveBeenCalled();
+        expect(db.$executeRaw).not.toHaveBeenCalled();
+    });
+
+    it("skips a lead whose consent was revoked", async () => {
+        const granted = { channel: "EMAIL", status: "GRANTED", revokedAt: null, grantedAt: new Date(1), purpose: "MARKETING_AND_SUPPORT" };
+        const revoked = { channel: "EMAIL", status: "REVOKED", revokedAt: null, grantedAt: new Date(2), purpose: "REVOCATION" };
+        db.consentLedger.findMany.mockResolvedValue([granted, revoked]);
+
+        expect(await handleEmailSending(payload)).toMatchObject({ skipped: true, code: "no_lawful_basis" });
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("sends a lead with granted email consent", async () => {
+        db.consentLedger.findMany.mockResolvedValue([{ channel: "EMAIL", status: "GRANTED", revokedAt: null, grantedAt: new Date(1), purpose: "MARKETING_AND_SUPPORT" }]);
+
+        await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it("with the flag off, sends exactly as before and reads no consent", async () => {
+        db.team.findUnique.mockResolvedValue({ sendSafety: null, mailingAddress: "1 Main St" });
+
+        await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(db.consentLedger.findMany).not.toHaveBeenCalled();
+    });
+});
+
+describe("email_sending DPDP send gate when the team setting cannot be read", () => {
+    it("fails closed: the job errors instead of sending unchecked", async () => {
+        vi.clearAllMocks();
+        db.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "sam@acme.example", fullName: "Sam" });
+        db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
+        db.suppressionEntry.findUnique.mockResolvedValue(null);
+        db.team.findUnique.mockRejectedValue(new Error("db"));
+
+        await expect(handleEmailSending(payload)).rejects.toThrow("db");
+        expect(send).not.toHaveBeenCalled();
     });
 });
