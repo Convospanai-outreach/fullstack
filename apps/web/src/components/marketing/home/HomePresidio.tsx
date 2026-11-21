@@ -66,14 +66,10 @@ function HowWeHelp() {
           ))}
         </div>
         <div className="ph-tabpanel" id="ph-tabpanel" role="tabpanel" aria-labelledby={`ph-tab-${tab}`}>
-          <div>
+          <div className="ph-tp-copy">
             <p className="ph-label">{step.meta}</p>
             <h3>{step.title}</h3>
             <p>{step.text}</p>
-            <ul>
-              {step.bullets.map((b) => <li key={b}>{b}</li>)}
-            </ul>
-            <a className="ph-btn ph-btn-yellow" href="#start">Get started</a>
           </div>
           {/* Image for this step: the one uploaded in the CMS, else a placeholder carrying the scene brief. */}
           {desktop ? (
@@ -92,6 +88,12 @@ function HowWeHelp() {
               </figcaption>
             </figure>
           )}
+          <div className="ph-tp-more">
+            <ul>
+              {step.bullets.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+            <a className="ph-btn ph-btn-yellow" href="#start">Get started</a>
+          </div>
         </div>
       </div>
     </section>
