@@ -41,7 +41,7 @@ export default function BlogIndex() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
       />
       <div className="mb-12">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-foreground">
+        <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-4 text-foreground">
           The AI Agent & LLM Blog
         </h1>
         <p className="text-xl text-muted-foreground">

@@ -49,7 +49,7 @@ describe("Generative Engine Optimization (GEO) & AI Search Readiness", () => {
             expect(allowed).toContain("/llms-full.txt");
             expect(allowed).toContain("/pricing");
             expect(allowed).toContain("/docs");
-            expect(allowed).toContain("/use-cases");
+            expect(allowed).toContain("/industries");
             expect(allowed).toContain("/vs");
             expect(allowed).toContain("/google-api-disclosure");
             expect(allowed).toContain("/data-deletion");
@@ -69,9 +69,9 @@ describe("Generative Engine Optimization (GEO) & AI Search Readiness", () => {
 
             const urlStrings = urls.map((u) => u.url);
             expect(urlStrings.some((u) => u.endsWith("/pricing"))).toBe(true);
-            expect(urlStrings.some((u) => u.endsWith("/use-cases"))).toBe(true);
-            expect(urlStrings.some((u) => u.endsWith("/use-cases/facility-management"))).toBe(true);
-            expect(urlStrings.some((u) => u.endsWith("/use-cases/security-services"))).toBe(true);
+            expect(urlStrings.some((u) => u.endsWith("/industries"))).toBe(true);
+            expect(urlStrings.some((u) => u.endsWith("/industries/gcc-services"))).toBe(true);
+            expect(urlStrings.some((u) => u.endsWith("/industries/cybersecurity"))).toBe(true);
             expect(urlStrings.some((u) => u.endsWith("/docs"))).toBe(true);
             expect(urlStrings.some((u) => u.endsWith("/docs/governed-outreach"))).toBe(true);
             expect(urlStrings.some((u) => u.endsWith("/docs/deliverability-guardrails"))).toBe(true);

@@ -54,7 +54,7 @@ export default function LocationsIndexPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
       />
-      <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
+      <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#f5f5f5] text-[#0c1b30] overflow-hidden">
         <div className="max-w-6xl mx-auto px-6 py-20 relative z-10 space-y-16">
           {/* Header */}
           <div className="space-y-4 max-w-3xl">
@@ -62,16 +62,16 @@ export default function LocationsIndexPage() {
               <Globe className="w-3.5 h-3.5" />
               <span>National Coverage — 10 Commercial Engines</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl font-medium tracking-tight leading-tight">
               Regional B2B Outbound Sales Hubs
             </h1>
-            <p className="text-lg text-slate-300">
+            <p className="text-lg text-[#0c1b30]/75">
               Select your commercial corridor to view hyper-local buyer signal monitoring, sector-specific playbooks, and localized meeting pipeline tracking.
             </p>
           </div>
 
           {/* Regional Corridors Architecture Visual */}
-          <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+          <div className="rounded-3xl overflow-hidden border border-[#0c1b30]/10 bg-white p-2 sm:p-4 shadow-2xl">
             <h2 className="sr-only">10-City B2B Commercial Corridors Regional Outbound Engine</h2>
             <Image
               src="/images/platform/regional-corridors.webp"
@@ -90,34 +90,34 @@ export default function LocationsIndexPage() {
               <Link
                 key={loc.slug}
                 href={`/locations/${loc.slug}`}
-                className="group flex flex-col justify-between p-6 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-blue-500/40 hover:bg-slate-900/90 transition-all shadow-lg"
+                className="group flex flex-col justify-between p-6 rounded-2xl bg-white border border-[#0c1b30]/10 hover:border-blue-500/40 hover:bg-[#e8e6e3]/90 transition-all shadow-lg"
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
                       {loc.stateCode}
                     </span>
-                    <span className="text-xs text-slate-400 font-mono">{loc.latitude}°N, {loc.longitude}°E</span>
+                    <span className="text-xs text-[#0c1b30]/65 font-mono">{loc.latitude}°N, {loc.longitude}°E</span>
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                    <h2 className="text-2xl font-bold text-[#0c1b30] group-hover:text-blue-400 transition-colors">
                       {loc.name}
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1">{loc.state}, India</p>
+                    <p className="text-xs text-[#0c1b30]/65 mt-1">{loc.state}, India</p>
                   </div>
-                  <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-[#0c1b30]/75 line-clamp-3 leading-relaxed">
                     {loc.summary}
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-2">
                     {loc.corridors.slice(0, 3).map((c, i) => (
-                      <span key={i} className="text-[11px] px-2 py-0.5 rounded bg-slate-800/80 text-slate-300 border border-slate-700/50">
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded bg-[#e8e6e3]/80 text-[#0c1b30]/75 border border-[#0c1b30]/15/50">
                         {c}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-blue-400 group-hover:translate-x-1 transition-transform">
+                <div className="pt-6 mt-6 border-t border-[#0c1b30]/10/80 flex items-center justify-between text-xs font-semibold text-blue-400 group-hover:translate-x-1 transition-transform">
                   <span>Explore {loc.name} Corridors</span>
                   <ArrowRight className="w-4 h-4" />
                 </div>
