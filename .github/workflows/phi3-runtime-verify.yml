@@ -23,6 +23,10 @@ concurrency:
   group: phi3-runtime-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: nothing here writes to the repo, packages or pull requests.
+permissions:
+  contents: read
+
 jobs:
   runtime-verify:
     name: Phi-3 Runtime Evaluation

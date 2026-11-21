@@ -7,6 +7,10 @@ concurrency:
   group: web-prisma-migrate-${{ github.ref }}
   cancel-in-progress: false
 
+# Least privilege: nothing here writes to the repo, packages or pull requests.
+permissions:
+  contents: read
+
 jobs:
   migrate-web-db:
     name: Migrate apps/web Prisma schema
