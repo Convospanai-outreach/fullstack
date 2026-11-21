@@ -37,6 +37,13 @@ const DOC_TOPICS = [
         badge: "Architecture",
     },
     {
+        slug: "mcp",
+        title: "MCP Server for AI Agents",
+        desc: "Connect Claude, ChatGPT or any MCP client to your workspace. Tools, permissions, browser approval for every change, and what agents cannot do.",
+        icon: Cpu,
+        badge: "Integrations",
+    },
+    {
         slug: "api",
         title: "REST API & Webhooks Specification",
         desc: "Interactive API reference for programmatically creating leads, triggering workflows, querying knowledge bases, and listening to webhook events.",
