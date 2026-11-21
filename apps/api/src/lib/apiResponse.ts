@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PiiMaskingError } from "@/lib/ai/piiMask";
 
 export class APIError extends Error {
     statusCode: number;
@@ -20,6 +21,14 @@ export function handleAPIError(error: any) {
         return NextResponse.json(
             { error: error.message, code: error.code },
             { status: error.statusCode }
+        );
+    }
+
+    // The message is fixed text with none of the request in it, so it is safe to show.
+    if (error instanceof PiiMaskingError) {
+        return NextResponse.json(
+            { error: error.message, code: "PII_MASKING_FAILED" },
+            { status: 422 }
         );
     }
 

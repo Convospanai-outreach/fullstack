@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Papa from "papaparse";
-import { ConsentService, ConsentMethod } from "@/modules/whatsapp/ConsentService";
+import { recordCaptureConsent } from "@/modules/governance/captureConsent";
+import { isAffirmative } from "@/modules/governance/consentCell";
 import { tryNormalizeDomain, extractDomainFromEmail } from "@/lib/crm/domain";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { canonicalLinkedInProfileUrl, linkedInForStorage } from "@/lib/crm/linkedin";
@@ -46,6 +47,8 @@ class CSVIngestionService {
             else if (nh.includes('domain') || nh.includes('website') || nh === 'url') mapping[h] = 'domain';
             else if (nh.includes('title') || nh.includes('role')) mapping[h] = 'jobTitle';
             else if (nh.includes('location') || nh.includes('city')) mapping[h] = 'location';
+            else if (nh.includes('consent') && nh.includes('proof')) mapping[h] = 'consentProof';
+            else if (nh.includes('consent') || nh.includes('optin')) mapping[h] = 'consent';
         });
         return mapping;
     }
@@ -103,6 +106,8 @@ class CSVIngestionService {
             const jobTitleKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'jobTitle');
             const linkedInKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'linkedIn');
             const locationKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'location');
+            const consentKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'consent');
+            const consentProofKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'consentProof');
 
             let created = 0;
             let skipped = 0;
@@ -148,6 +153,20 @@ class CSVIngestionService {
                     const domain = domainKey
                         ? (tryNormalizeDomain(row[domainKey]) ?? extractDomainFromEmail(email))
                         : extractDomainFromEmail(email);
+
+                    // A consent column that plainly says yes is the person's consent on record; no column or any other
+                    // value records nothing. The proof is the row's own proof cell when it has one.
+                    const rowConsent = consentKey && isAffirmative(row[consentKey])
+                        ? {
+                            notes: "Consent column in a CSV import",
+                            proof: (consentProofKey && row[consentProofKey]?.trim()) || "CSV import: consent column said yes",
+                        }
+                        : null;
+                    const recordRowConsent = (leadId: string) => rowConsent
+                        ? recordCaptureConsent({ leadId, userId: consent?.userId ?? null, method: "WEB_FORM", channel: "EMAIL", ...rowConsent })
+                        : Promise.resolve(false);
+
+                    if (existing) await recordRowConsent(existing.id);
 
                     if (existing && !existing.email) {
                         const filledDomain = existing.domain || domain || undefined;
@@ -213,17 +232,18 @@ class CSVIngestionService {
                     if (domain) provenance.push({ leadId: createdLead.id, field: "domain", source: "CSV_IMPORT", value: domain });
                     await recordLeadDataSources(provenance);
 
-                    if (consent?.hasConsent) {
+                    if (rowConsent) {
+                        await recordRowConsent(createdLead.id);
+                    } else if (consent?.hasConsent) {
                         // DPDP Act 2023 / GDPR: log the importer's attestation of consent to the ledger.
-                        // Non-blocking — a logging failure shouldn't fail the row's lead creation.
-                        await ConsentService.recordConsent(
-                            createdLead.id,
-                            consent.userId,
-                            ConsentMethod.WEB_FORM,
-                            "Attested by importer during CSV import",
-                            "EMAIL"
-                        ).catch((e) => {
-                            console.warn("[CSVIngestion] Failed to record consent ledger entry:", e?.message || e);
+                        // Non-blocking: recordCaptureConsent never throws into the row's lead creation.
+                        await recordCaptureConsent({
+                            leadId: createdLead.id,
+                            userId: consent.userId,
+                            method: "WEB_FORM",
+                            channel: "EMAIL",
+                            notes: "Attested by importer during CSV import",
+                            proof: "Importer attested consent for this file during CSV import",
                         });
                     }
 

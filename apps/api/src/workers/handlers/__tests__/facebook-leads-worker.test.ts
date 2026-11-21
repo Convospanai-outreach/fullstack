@@ -13,6 +13,8 @@ const { mockPrisma, mockDecryptCredential } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: mockDecryptCredential }));
+const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 
 import { syncDueFacebookLeadSources } from "../facebook-leads-worker";
 
@@ -73,6 +75,38 @@ describe("syncDueFacebookLeadSources", () => {
             expect.objectContaining({ where: { id: "cursor-1" }, data: expect.objectContaining({ status: "IDLE" }) })
         );
         expect(results).toHaveLength(1);
+    });
+
+    describe("consent ledger", () => {
+        const syncOne = async (fieldData: Array<{ name: string; values: string[] }>) => {
+            mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+                { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+            ]);
+            mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
+            mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+            mockPrisma.lead.findFirst.mockResolvedValue(null);
+            mockPrisma.lead.create.mockResolvedValue({ id: "lead-1", email: fieldData.find((f) => f.name === "email")?.values[0] ?? null });
+            global.fetch = vi.fn()
+                .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1", name: "Contact Us" }] }))
+                .mockResolvedValueOnce(jsonResponse({ data: [{ id: "fb-lead-1", created_time: "2026-09-01T00:00:00+0000", field_data: fieldData }] })) as any;
+            await syncDueFacebookLeadSources();
+        };
+
+        it("records the lead-ad submission as email consent, with the form and Facebook lead as proof", async () => {
+            await syncOne([{ name: "email", values: ["lead@example.com"] }]);
+
+            expect(recordCaptureConsent).toHaveBeenCalledTimes(1);
+            expect(recordCaptureConsent).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-1", userId: null, method: "WEB_FORM", channel: "EMAIL" }));
+            const proof = recordCaptureConsent.mock.calls[0]![0].proof as string;
+            expect(proof).toContain("form-1");
+            expect(proof).toContain("fb-lead-1");
+        });
+
+        it("records nothing for a lead that gave only a phone number: no email consent was asked for", async () => {
+            await syncOne([{ name: "phone_number", values: ["+919999999999"] }]);
+
+            expect(recordCaptureConsent).not.toHaveBeenCalled();
+        });
     });
 
     it("follows Graph API pagination (paging.next) instead of only reading the first page of leads", async () => {

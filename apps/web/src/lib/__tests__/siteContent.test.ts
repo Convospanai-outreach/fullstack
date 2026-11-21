@@ -16,9 +16,9 @@ const DEFAULTS: HeroText = {
 describe("cleanNavGroups", () => {
     it("keeps the menus the site ships with", () => {
         const groups = cleanNavGroups(navigation);
-        expect(groups.map((g) => g.label)).toEqual(["Product", "Use Cases", "Platform", "Resources"]);
-        expect(groups[0]!.items[0]).toEqual({ label: "Fluid Funnel Engine", href: "/products/fluid-funnel-engine", badge: "New" });
-        expect(groups.flatMap((g) => g.items).length).toBe(24);
+        expect(groups.map((g) => g.label)).toEqual(["Product", "Industries", "Markets", "Company", "Resources"]);
+        expect(groups[0]!.items[0]).toEqual({ label: "Fluid Funnel Engine", href: "/products/fluid-funnel-engine" });
+        expect(groups.flatMap((g) => g.items).length).toBe(28);
     });
 
     it("drops links with an unsafe or missing address, and menus left empty", () => {

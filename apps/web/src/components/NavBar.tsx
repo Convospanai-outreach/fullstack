@@ -46,7 +46,7 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-80 rounded-2xl border border-[#0c1b30]/10 bg-white p-2 shadow-2xl shadow-[#0c1b30]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 top-full z-50 mt-1 w-80 before:absolute before:-top-1 before:left-0 before:h-1 before:w-full before:content-[''] rounded-2xl border border-[#0c1b30]/10 bg-white p-2 shadow-2xl shadow-[#0c1b30]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
           {group.items.map((item) => (
             <Link
               key={item.href + item.label}
@@ -133,7 +133,7 @@ export function NavBar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="border-t border-[#0c1b30]/10 bg-white px-6 py-5 xl:hidden">
+        <div className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-[#0c1b30]/10 bg-white px-6 py-5 xl:hidden">
           <div className="flex flex-col gap-1">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>

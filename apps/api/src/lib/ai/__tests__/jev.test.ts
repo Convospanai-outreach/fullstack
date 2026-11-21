@@ -300,3 +300,26 @@ describe("judgeEngagement", () => {
         expect(mockSystemOne).not.toHaveBeenCalled();
     });
 });
+
+describe("jev - personal data and TypeSafe (DPDP)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubEnv("JEV_API_KEY", "test-key");
+        vi.stubEnv("LLM_PII_MASKING", "on");
+        mockSystemOne.mockResolvedValue(replyAnswers({}));
+    });
+    afterEach(() => { vi.unstubAllEnvs(); });
+
+    it("sends no email, phone, PAN or Aadhaar of the sender to TypeSafe", async () => {
+        await classifyReply({ subject: "Re: hello", body: "Call me on +91 98765 43210 or mail asha.rao@acme.example. PAN ABCDE1234F, Aadhaar 2345 6789 0123" }, "team-1");
+
+        const sent = JSON.stringify(mockSystemOne.mock.calls[0][0].state);
+        for (const secret of ["98765", "asha.rao@acme.example", "ABCDE1234F", "2345 6789 0123"]) expect(sent).not.toContain(secret);
+    });
+
+    it("sends the thread as it is when masking is not switched on", async () => {
+        vi.stubEnv("LLM_PII_MASKING", "");
+        await classifyReply({ subject: "Re: hello", body: "mail asha.rao@acme.example" }, "team-1");
+        expect(JSON.stringify(mockSystemOne.mock.calls[0][0].state)).toContain("asha.rao@acme.example");
+    });
+});

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockDeductCredits, mockRefundCredits, mockBatchesCreate, mockBatchesRetrieve, mockBatchesResults } = vi.hoisted(() => ({
     mockPrisma: {
@@ -136,5 +136,23 @@ describe("AIService.isMessageBatchDone / readMessageBatchResults", () => {
             { customId: "empty", text: null, resultType: "empty" },
             { customId: "after-thinking", text: "ok", resultType: "succeeded" },
         ]);
+    });
+});
+
+describe("AIService.submitMessageBatch - personal-data masking (DPDP)", () => {
+    const original = process.env["LLM_PII_MASKING"];
+    afterEach(() => {
+        if (original === undefined) delete process.env["LLM_PII_MASKING"]; else process.env["LLM_PII_MASKING"] = original;
+    });
+
+    it("refuses to send a batch while masking is on, because its results are read later and the placeholders could not be restored", async () => {
+        process.env["LLM_PII_MASKING"] = "on";
+
+        await expect(
+            aiService.submitMessageBatch([{ customId: "lead-1", prompt: "Write to asha.rao@acme.example" }], TEAM, { taskType: "EMAIL_DRAFT_BATCH" })
+        ).rejects.toThrow(/not sent/i);
+
+        expect(mockBatchesCreate).not.toHaveBeenCalled();
+        expect(mockDeductCredits).not.toHaveBeenCalled();
     });
 });

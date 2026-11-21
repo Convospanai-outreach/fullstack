@@ -116,7 +116,7 @@ export default function HelpPage() {
     );
 
     return (
-        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#07111f] text-[#0c1b30]">
+        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#f5f5f5] text-[#0c1b30]">
             <section className="relative overflow-hidden border-b border-[#0c1b30]/10">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.16),transparent_32%),radial-gradient(circle_at_80%_20%,rgba(249,115,22,0.18),transparent_28%),linear-gradient(180deg,rgba(7,17,31,0.98),rgba(7,17,31,0.94))]" />
                 <div className="relative mx-auto flex max-w-7xl flex-col gap-10 px-6 py-20 lg:flex-row lg:items-end lg:justify-between">

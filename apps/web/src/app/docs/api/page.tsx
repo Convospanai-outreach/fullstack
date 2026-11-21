@@ -180,7 +180,7 @@ export default function ApiDocsPage() {
                 </div>
 
                 {/* Content - Column 2 */}
-                <div className="lg:col-span-12 xl:col-span-5 p-8 overflow-y-auto">
+                <div className="lg:col-span-9 xl:col-span-5 p-8 overflow-y-auto">
                     <div className="max-w-2xl space-y-8">
                         <div>
                             <div className="flex items-center gap-3 mb-4">
