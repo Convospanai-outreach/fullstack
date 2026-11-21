@@ -47,6 +47,8 @@ export default function BrandingSettingsPage() {
     const [emailFooterText, setEmailFooterText] = useState(DEFAULT_EMAIL_FOOTER_TEXT);
     const [privacyContactEmail, setPrivacyContactEmail] = useState("");
     const [firstTouchNoticeText, setFirstTouchNoticeText] = useState("[EDIT ME] You are receiving this because ... (say why you are contacting this person).");
+    // The notice fields are only saved once the stored values were read, so a failed load cannot overwrite them with the defaults.
+    const [noticeLoaded, setNoticeLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -70,8 +72,9 @@ export default function BrandingSettingsPage() {
 
     useEffect(() => {
         fetch("/api/settings/branding")
-            .then((res) => res.json())
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error("branding load failed"))))
             .then((data) => {
+                setNoticeLoaded(true);
                 const branding = data?.branding;
                 if (!branding) return;
                 if (branding.logoUrl) setLogoUrl(branding.logoUrl);
@@ -193,7 +196,7 @@ export default function BrandingSettingsPage() {
             const res = await fetch("/api/settings/branding", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ logoUrl, primaryColor, portalTitle, emailFooterText: emailFooterText.trim(), privacyContactEmail: privacyContactEmail.trim(), firstTouchNoticeText: firstTouchNoticeText.trim() })
+                body: JSON.stringify({ logoUrl, primaryColor, portalTitle, emailFooterText: emailFooterText.trim(), ...(noticeLoaded ? { privacyContactEmail: privacyContactEmail.trim(), firstTouchNoticeText: firstTouchNoticeText.trim() } : {}) })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data?.gated) {

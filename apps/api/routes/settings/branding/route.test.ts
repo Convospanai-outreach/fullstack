@@ -103,3 +103,20 @@ describe("POST /settings/branding - first-touch notice and privacy contact (DPDP
         expect(mockUpdateBranding).toHaveBeenCalledWith("team-1", expect.objectContaining({ privacyContactEmail: "privacy@acme.example", firstTouchNoticeText: "Why" }));
     });
 });
+
+describe("POST /settings/branding - notice text must be a string", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-1" });
+        mockPerms.checkTeamPermission.mockResolvedValue(true);
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: { firstTouchNoticeText: "Why" } });
+    });
+
+    it.each([42, { a: 1 }, ["x"], true])("rejects %j instead of saving it as an empty notice", async (value) => {
+        const { POST } = await import("./route");
+        const res = await POST(new Request("http://localhost/settings/branding", { method: "POST", body: JSON.stringify({ firstTouchNoticeText: value }) }) as any);
+
+        expect(res.status).toBe(400);
+        expect(mockUpdateBranding).not.toHaveBeenCalled();
+    });
+});

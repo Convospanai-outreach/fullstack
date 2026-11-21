@@ -80,6 +80,9 @@ export async function POST(req: NextRequest) {
     if (privacyContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(privacyContactEmail)) {
         return NextResponse.json({ error: "Privacy contact must be an email address" }, { status: 400 });
     }
+    if (body.firstTouchNoticeText !== undefined && typeof body.firstTouchNoticeText !== "string") {
+        return NextResponse.json({ error: "First-touch notice must be text" }, { status: 400 });
+    }
     const firstTouchNoticeText = body.firstTouchNoticeText !== undefined ? sanitizeText(body.firstTouchNoticeText, MAX_FOOTER_LENGTH) : undefined;
 
     const sanitizedTitle = sanitizeText(body.portalTitle);
