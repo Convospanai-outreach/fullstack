@@ -145,3 +145,33 @@ describe("maskForLLM - the wrapper the model call goes through", () => {
         expect(bad.mock.calls[0]![0]).not.toContain("12345");
     });
 });
+
+describe("createPiiMasker - names that are not plain ASCII", () => {
+    it.each([
+        ["Élodie Martin", "Hello Élodie Martin, thanks for the call."],
+        ["李雷", "Please follow up with 李雷 tomorrow."],
+        ["José", "Reply to José about pricing."],
+    ])("masks %s when the caller supplies it", (name, text) => {
+        const masker = createPiiMasker({ names: [name] });
+        const out = masker.mask(text);
+
+        expect(out).not.toContain(name);
+        expect(masker.restore(out)).toBe(text);
+    });
+
+    it("does not mask a name that is only part of a longer word", () => {
+        const masker = createPiiMasker({ names: ["Ann"] });
+
+        expect(masker.mask("Annual plan, Annabel")).toBe("Annual plan, Annabel");
+    });
+});
+
+describe("createPiiMasker - labelled name fields", () => {
+    it.each(["Name: Meera Iyer", "name = Meera Iyer", "Prospect: Meera Iyer", "Prospect Name: Meera Iyer"])("masks the value after %s", (line) => {
+        const masker = createPiiMasker();
+        const out = masker.mask(`${line}\nShe asked about pricing. Meera said yes.`);
+
+        expect(out).not.toContain("Meera");
+        expect(out).not.toContain("Iyer");
+    });
+});
