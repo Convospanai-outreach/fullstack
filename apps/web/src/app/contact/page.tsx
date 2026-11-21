@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { toast } from "sonner";
-import { Mail, Clock, Send, Headphones, Building2 } from "lucide-react";
+import { Page, PageHero } from "@/components/marketing/site/kit";
 import { trackCustomEvent } from "@/components/analytics/GoogleAnalytics";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
 
@@ -74,170 +73,59 @@ export default function ContactPage() {
 
 
     return (
-        <div className="relative min-h-screen bg-slate-950 text-white overflow-hidden">
-            {/* Background */}
-            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-
-            <div className="max-w-6xl mx-auto px-6 py-24 relative z-10 space-y-20">
-
-                {/* Header */}
-                <section className="text-center space-y-6">
-                    <p className="text-sm uppercase tracking-widest text-indigo-400 font-semibold">Contact</p>
-                    <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-                        Yes, we are here.
-                    </h1>
-                    <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                        Tell us what is blocking you. We will help you move forward.
-                    </p>
-                </section>
-
-                {/* Contact Methods + Form */}
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-
-                    {/* Contact Info */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2">
-                            <Image
-                                src="/images/platform/contact-support.webp"
-                                alt="CraftMyFunnel Enterprise Engineering and Support Desk Assistance"
-                                width={400}
-                                height={225}
-                                priority
-                                className="w-full h-auto rounded-xl"
-                            />
+        <Page>
+            <PageHero eyebrow="Contact" title="Talk to an expert." lead="Planning a pilot, comparing tools or stuck on setup? Tell us what you need and the right person will reply." />
+            <section className="ph-section ph-light">
+                <div className="ph-wrap ph-split">
+                    <div>
+                        <h2>Ways to reach us</h2>
+                        <div className="ph-grid ph-grid-2" style={{ marginTop: 24 }}>
+                            <article className="ph-card"><p className="ph-label">Sales & pilots</p><h3>Start with one service and one market.</h3><a href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a></article>
+                            <article className="ph-card"><p className="ph-label">Support</p><h3>Setup, mailboxes, billing.</h3><a href="/help">Help Center</a></article>
                         </div>
-
-                        <h2 className="text-2xl font-bold mb-6">Quick channels</h2>
-
-                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/20 transition-colors space-y-2">
-                            <div className="flex items-center gap-3 text-indigo-400">
-                                <Mail className="w-5 h-5" />
-                                <span className="font-semibold">Email support</span>
-                            </div>
-                            <p className="text-gray-400 text-sm">General questions and account help</p>
-                            <a href="mailto:contact.us@craftmyfunnel.live" className="text-white font-medium hover:text-indigo-400 transition-colors">contact.us@craftmyfunnel.live</a>
-                        </div>
-
-                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/20 transition-colors space-y-2">
-                            <div className="flex items-center gap-3 text-purple-400">
-                                <Building2 className="w-5 h-5" />
-                                <span className="font-semibold">Enterprise sales</span>
-                            </div>
-                            <p className="text-gray-400 text-sm">Custom plans, SSO, and rollout support</p>
-                            <a href="mailto:contact.us@craftmyfunnel.live" className="text-white font-medium hover:text-purple-400 transition-colors">contact.us@craftmyfunnel.live</a>
-                        </div>
-
-                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors space-y-2">
-                            <div className="flex items-center gap-3 text-emerald-400">
-                                <Headphones className="w-5 h-5" />
-                                <span className="font-semibold">In-product help</span>
-                            </div>
-                            <p className="text-gray-400 text-sm">Use the floating help assistant anywhere in the app</p>
-                            <p className="text-white font-medium">If you still need help, use this form.</p>
-                        </div>
-
-                        <div className="flex items-start gap-3 mt-6 text-gray-500 text-sm">
-                            <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                            <p>We will reply as soon as we can.</p>
-                        </div>
+                        <p className="ph-source">Operated by Sudhisha Digital Private Limited, India. Serving India, the US and Europe.</p>
                     </div>
-
-                    {/* Contact Form */}
-                    <div className="lg:col-span-3">
-                        <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md">
-                            <h2 className="text-2xl font-bold mb-2">Send a message</h2>
-                            <p className="text-sm text-gray-500 mb-8">Short is fine. Tell us what happened and what you expected.</p>
-
-                            <form onSubmit={handleSubmit} className="space-y-5">
-                                {/* Anti-bot honeypot field hidden from legitimate users */}
-                                <div className="hidden" aria-hidden="true" style={{ display: 'none' }}>
-                                    <label htmlFor="contact-website-url">Website</label>
-                                    <input
-                                        id="contact-website-url"
-                                        type="text"
-                                        tabIndex={-1}
-                                        autoComplete="off"
-                                        value={form.website_url}
-                                        onChange={(e) => setForm({ ...form, website_url: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                    <div>
-                                        <label htmlFor="contact-name" className="block text-sm font-medium text-gray-300 mb-2">Your name</label>
-                                        <input
-                                            id="contact-name"
-                                            type="text"
-                                            required
-                                            value={form.name}
-                                            onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-gray-600"
-                                            placeholder="Jane Smith"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="contact-email" className="block text-sm font-medium text-gray-300 mb-2">Work email</label>
-                                        <input
-                                            id="contact-email"
-                                            type="email"
-                                            required
-                                            value={form.email}
-                                            onChange={(e) => setForm({ ...form, email: e.target.value })}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-gray-600"
-                                            placeholder="jane@company.com"
-                                        />
-                                    </div>
-                                </div>
-
+                    <div className="ph-card" style={{ background: "#fff", padding: 36 }}>
+                        <h3>Send a message</h3>
+                        <p style={{ color: "var(--ph-muted)", marginBottom: 24 }}>Short is fine.</p>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
+                                <label htmlFor="contact-website-url">Website</label>
+                                <input id="contact-website-url" type="text" tabIndex={-1} autoComplete="off" value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} />
+                            </div>
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <div>
-                                    <label htmlFor="contact-subject" className="block text-sm font-medium text-gray-300 mb-2">What do you need help with?</label>
-                                    <select
-                                        id="contact-subject"
-                                        required
-                                        title="Select a contact subject"
-                                        value={form.subject}
-                                        onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-                                    >
-                                        <option value="" className="bg-slate-900">Select a topic...</option>
-                                        <option value="general" className="bg-slate-900">General question</option>
-                                        <option value="support" className="bg-slate-900">Technical support</option>
-                                        <option value="enterprise" className="bg-slate-900">Enterprise partnership</option>
-                                        <option value="billing" className="bg-slate-900">Billing & plans</option>
-                                        <option value="feature" className="bg-slate-900">Feature request</option>
-                                    </select>
+                                    <label htmlFor="contact-name" className="mb-2 block text-sm font-semibold text-[#0c1b30]">Your name</label>
+                                    <input id="contact-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-[#0c1b30]/20 bg-white px-4 py-3 text-[#0c1b30] placeholder:text-[#0c1b30]/40 focus:border-[#006a9a] focus:outline-none focus:ring-2 focus:ring-[#006a9a]/20" placeholder="Jane Smith" />
                                 </div>
-
                                 <div>
-                                    <label htmlFor="contact-message" className="block text-sm font-medium text-gray-300 mb-2">Tell us what happened</label>
-                                    <textarea
-                                        id="contact-message"
-                                        required
-                                        rows={5}
-                                        value={form.message}
-                                        onChange={(e) => setForm({ ...form, message: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-gray-600 resize-none"
-                                        placeholder="Where were you, and what did you expect?"
-                                    />
+                                    <label htmlFor="contact-email" className="mb-2 block text-sm font-semibold text-[#0c1b30]">Work email</label>
+                                    <input id="contact-email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-xl border border-[#0c1b30]/20 bg-white px-4 py-3 text-[#0c1b30] placeholder:text-[#0c1b30]/40 focus:border-[#006a9a] focus:outline-none focus:ring-2 focus:ring-[#006a9a]/20" placeholder="jane@company.com" />
                                 </div>
-
-                                <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
-
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl py-4 text-base font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
-                                >
-                                    {loading ? "Sending..." : "Send message"}
-                                    {!loading && <Send className="w-4 h-4" />}
-                                </button>
-                            </form>
-                        </div>
+                            </div>
+                            <div>
+                                <label htmlFor="contact-subject" className="mb-2 block text-sm font-semibold text-[#0c1b30]">What do you need?</label>
+                                <select id="contact-subject" required title="Select a contact subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-xl border border-[#0c1b30]/20 bg-white px-4 py-3 text-[#0c1b30] placeholder:text-[#0c1b30]/40 focus:border-[#006a9a] focus:outline-none focus:ring-2 focus:ring-[#006a9a]/20">
+                                    <option value="">Select a topic...</option>
+                                    <option value="enterprise">Start a pilot / talk to sales</option>
+                                    <option value="general">General question</option>
+                                    <option value="support">Technical support</option>
+                                    <option value="billing">Billing & plans</option>
+                                    <option value="feature">Feature request</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="contact-message" className="mb-2 block text-sm font-semibold text-[#0c1b30]">Your message</label>
+                                <textarea id="contact-message" required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="w-full rounded-xl border border-[#0c1b30]/20 bg-white px-4 py-3 text-[#0c1b30] placeholder:text-[#0c1b30]/40 focus:border-[#006a9a] focus:outline-none focus:ring-2 focus:ring-[#006a9a]/20" placeholder="Your industry, market and what you'd like to achieve." />
+                            </div>
+                            <TurnstileWidget key={widgetKey} onToken={setTurnstileToken} />
+                            <button type="submit" disabled={loading} className="ph-btn ph-btn-yellow" style={{ width: "100%" }}>
+                                {loading ? "Sending..." : "Send message"}
+                            </button>
+                        </form>
                     </div>
-
                 </div>
-            </div>
-        </div>
+            </section>
+        </Page>
     );
 }

@@ -1,6 +1,5 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { LogoMark } from "@/components/brand/LogoMark";
+import { ProsePage } from "@/components/marketing/site/kit";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions | CraftMyFunnel",
@@ -171,72 +170,19 @@ function slugify(value: string) {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[#070a18] text-white">
-      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_25%_15%,rgba(37,99,235,0.22),transparent_30%),radial-gradient(circle_at_70%_10%,rgba(124,58,237,0.28),transparent_34%),linear-gradient(135deg,#070a18_0%,#11174a_48%,#2b0b3d_100%)] px-6 py-16 sm:py-20">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-40" />
-        <div className="relative mx-auto max-w-6xl">
-          <Link href="/" className="inline-flex items-center gap-2 text-lg font-black text-white">
-            <LogoMark priority className="h-8 w-8" />
-            CraftMyFunnel
-          </Link>
-          <div className="mt-12 max-w-4xl">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200">Last updated: 09 June 2026</p>
-            <h1 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-6xl">Terms & Conditions</h1>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-              These Terms govern your access to and use of CraftMyFunnel, including our website, platform, tools, applications, workflows, automations, integrations, and related services.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-12 sm:py-16">
-        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[280px_1fr]">
-          <aside className="hidden lg:block">
-            <div className="sticky top-8 rounded-[24px] border border-white/10 bg-white/[0.055] p-5 shadow-2xl shadow-black/20 backdrop-blur-2xl">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200">On this page</p>
-              <nav className="mt-4 space-y-2">
-                {sections.map((section) => (
-                  <a key={section.title} href={`#${slugify(section.title)}`} className="block rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-white/[0.06] hover:text-white">
-                    {section.title}
-                  </a>
-                ))}
-              </nav>
-            </div>
-          </aside>
-
-          <article className="rounded-[28px] border border-white/10 bg-white/[0.055] p-6 shadow-2xl shadow-black/25 backdrop-blur-2xl sm:p-10">
-            <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-sm leading-7 text-amber-100">
-              <strong className="text-white">Disclaimer:</strong> This document is provided for general business use and does not constitute legal advice. You should consult a qualified legal professional before relying on it for compliance or contractual purposes.
-            </div>
-
-            <div className="mt-10 space-y-12">
-              {sections.map((section, index) => (
-                <section key={section.title} id={slugify(section.title)} className="scroll-mt-8 border-t border-white/10 pt-8 first:border-t-0 first:pt-0">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Section {index + 1}</p>
-                  <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{section.title}</h2>
-                  <div className="mt-4 space-y-4 text-sm leading-7 text-slate-300 sm:text-base">
-                    {section.body?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-                    {section.bullets && (
-                      <ul className="space-y-3">
-                        {section.bullets.map((item) => (
-                          <li key={item} className="flex gap-3">
-                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300" />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </section>
-              ))}
-            </div>
-
-            <div className="mt-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-5 text-sm leading-7 text-cyan-50">
-              Contact: <a className="font-semibold underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>
-            </div>
-          </article>
-        </div>
-      </section>
-    </div>
+    <ProsePage eyebrow="Legal" title="Terms & Conditions" updated="09 June 2026">
+      <p>These Terms govern your access to and use of CraftMyFunnel, including our website, platform, tools, applications, workflows, automations, integrations, and related services.</p>
+      <p><strong>Disclaimer:</strong> This document is provided for general business use and does not constitute legal advice. You should consult a qualified legal professional before relying on it for compliance or contractual purposes.</p>
+      <h2>On this page</h2>
+      <ol>{sections.map((section) => <li key={section.title}><a href={`#${slugify(section.title)}`}>{section.title}</a></li>)}</ol>
+      {sections.map((section, index) => (
+        <section key={section.title} id={slugify(section.title)} style={{ scrollMarginTop: 96 }}>
+          <h2>{index + 1}. {section.title}</h2>
+          {section.body?.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          {section.bullets && <ul>{section.bullets.map((item) => <li key={item}>{item}</li>)}</ul>}
+        </section>
+      ))}
+      <p>Contact: <a href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a></p>
+    </ProsePage>
   );
 }

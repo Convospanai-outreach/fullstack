@@ -45,6 +45,10 @@ export default function BrandingSettingsPage() {
     const [primaryColor, setPrimaryColor] = useState("#3B82F6");
     const [portalTitle, setPortalTitle] = useState("");
     const [emailFooterText, setEmailFooterText] = useState(DEFAULT_EMAIL_FOOTER_TEXT);
+    const [privacyContactEmail, setPrivacyContactEmail] = useState("");
+    const [firstTouchNoticeText, setFirstTouchNoticeText] = useState("[EDIT ME] You are receiving this because ... (say why you are contacting this person).");
+    // The notice fields are only saved once the stored values were read, so a failed load cannot overwrite them with the defaults.
+    const [noticeLoaded, setNoticeLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -68,14 +72,17 @@ export default function BrandingSettingsPage() {
 
     useEffect(() => {
         fetch("/api/settings/branding")
-            .then((res) => res.json())
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error("branding load failed"))))
             .then((data) => {
+                setNoticeLoaded(true);
                 const branding = data?.branding;
                 if (!branding) return;
                 if (branding.logoUrl) setLogoUrl(branding.logoUrl);
                 if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
                 if (branding.portalTitle) setPortalTitle(branding.portalTitle);
                 if (branding.emailFooterText) setEmailFooterText(branding.emailFooterText);
+                if (branding.privacyContactEmail) setPrivacyContactEmail(branding.privacyContactEmail);
+                if (branding.firstTouchNoticeText) setFirstTouchNoticeText(branding.firstTouchNoticeText);
             })
             .catch(() => {});
         loadDomains();
@@ -189,7 +196,7 @@ export default function BrandingSettingsPage() {
             const res = await fetch("/api/settings/branding", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ logoUrl, primaryColor, portalTitle, emailFooterText: emailFooterText.trim() })
+                body: JSON.stringify({ logoUrl, primaryColor, portalTitle, emailFooterText: emailFooterText.trim(), ...(noticeLoaded ? { privacyContactEmail: privacyContactEmail.trim(), firstTouchNoticeText: firstTouchNoticeText.trim() } : {}) })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data?.gated) {
@@ -305,6 +312,30 @@ export default function BrandingSettingsPage() {
                         />
                         <p className="text-xs text-muted-foreground">
                             Shown above the unsubscribe notice on every cold outreach email. Required — it can't be left blank.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label htmlFor="first-touch-notice" className="text-sm font-medium text-foreground">First-contact notice</label>
+                        <textarea
+                            id="first-touch-notice"
+                            rows={3}
+                            maxLength={500}
+                            className="w-full bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors resize-none"
+                            value={firstTouchNoticeText}
+                            onChange={e => setFirstTouchNoticeText(e.target.value)}
+                        />
+                        <label htmlFor="privacy-contact" className="text-sm font-medium text-foreground">Privacy contact email</label>
+                        <input
+                            id="privacy-contact"
+                            type="email"
+                            className="w-full bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors"
+                            placeholder="privacy@yourcompany.com"
+                            value={privacyContactEmail}
+                            onChange={e => setPrivacyContactEmail(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Added to the first email to people who did not fill in a form (imported, found or typed-in leads), once this is switched on for your workspace. Replace the [EDIT ME] text first: emails are not sent while it is still there.
                         </p>
                     </div>
 

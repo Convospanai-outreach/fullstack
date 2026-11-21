@@ -7,6 +7,7 @@ import { ClientOverlays } from "@/components/layout/ClientOverlays";
 import { StrictQualityBoundary } from "@/components/StrictQualityBoundary";
 import Script from "next/script";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Bricolage_Grotesque, Public_Sans } from "next/font/google";
+import { montserrat } from "@/components/marketing/home/fonts";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -124,7 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
       <html
         lang="en"
-        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} ${bricolage.variable} ${publicSans.variable}`}
+        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} ${bricolage.variable} ${publicSans.variable} ${montserrat.variable}`}
         data-scroll-behavior="smooth"
         suppressHydrationWarning
       >
