@@ -22,6 +22,7 @@ type Story = { eyebrow: string; title: string; accent: string; body: string; pun
 type Step = {
   node: string; meta: string; short: string; title: string; text: string;
   bullets: string[]; badges: string[]; mini: { label: string; text: string }[];
+  image: { desktop: string; mobile: string; alt: string };
 };
 type SignupPathText = { label: string; hint: string; cta: string };
 
@@ -105,32 +106,38 @@ export const HOME_DEFAULTS: HomeText = {
         text: "Bring inbound interest, imports and supported lead sources into one governed queue before they disappear into tabs, inboxes or DMs.",
         bullets: ["Capture form fills, campaign leads and supported channel responses in one place.", "Group signals with source context so the next move starts informed.", "Stop relying on memory, screenshots and scattered spreadsheets."],
         badges: ["Lead intake", "Source context", "Queue control"],
-        mini: [{ label: "LANDING PAGES", text: "New form enquiry logged" }, { label: "LINKEDIN", text: "Prospect interaction captured" }, { label: "WHATSAPP", text: "Conversation flagged for follow-up" }] },
+        mini: [{ label: "LANDING PAGES", text: "New form enquiry logged" }, { label: "LINKEDIN", text: "Prospect interaction captured" }, { label: "WHATSAPP", text: "Conversation flagged for follow-up" }],
+        image: { desktop: "", mobile: "", alt: "" } },
       { node: "Drafts", meta: "STEP 2 / DRAFTS", short: "AI drafts. You review before outreach goes out.", title: "Prepare AI-assisted outreach drafts",
         text: "Turn raw interest into a usable first move. Draft messages faster, keep context intact and avoid starting from a blank page every time.",
         bullets: ["Generate first-pass outreach with the right account and source context.", "Keep tone, offer and next-step intent aligned to the funnel stage.", "Remove busywork without surrendering judgment."],
         badges: ["AI assist", "First drafts", "Message context"],
-        mini: [{ label: "EMAIL", text: "Draft prepared for review" }, { label: "LINKEDIN", text: "Connection note suggested" }, { label: "WHATSAPP", text: "Follow-up reply drafted" }] },
+        mini: [{ label: "EMAIL", text: "Draft prepared for review" }, { label: "LINKEDIN", text: "Connection note suggested" }, { label: "WHATSAPP", text: "Follow-up reply drafted" }],
+        image: { desktop: "", mobile: "", alt: "" } },
       { node: "Channels", meta: "STEP 3 / CHANNELS", short: "One record. Multiple channels. Cleaner coordination.", title: "Connect supported channels and contact records",
         text: "Bring the contact, the channel and the context together. No more hopping between tabs to remember who said what and where.",
         bullets: ["Tie supported channels to the same opportunity record.", "See the conversation path across email, LinkedIn, WhatsApp and landing pages.", "Keep channel use aligned with supported integration rules and permissions."],
         badges: ["Unified records", "Channel map", "Context continuity"],
-        mini: [{ label: "CONTACT RECORD", text: "Source and owner matched" }, { label: "CHANNEL STATUS", text: "Email, social and call view" }, { label: "CALL HANDOFF", text: "Leads queued for your team to call" }] },
+        mini: [{ label: "CONTACT RECORD", text: "Source and owner matched" }, { label: "CHANNEL STATUS", text: "Email, social and call view" }, { label: "CALL HANDOFF", text: "Leads queued for your team to call" }],
+        image: { desktop: "", mobile: "", alt: "" } },
       { node: "Tracking", meta: "STEP 4 / TRACKING", short: "If a reply lands, the team should know what it means.", title: "Track replies and channel status",
         text: "Watch responses, delivery states and follow-up timing from one governed view. A reply should trigger momentum, not confusion.",
         bullets: ["Surface replies, opens and channel states in a shared workflow.", "Identify stalled conversations before they disappear.", "Give each active opportunity a visible status and next signal."],
         badges: ["Reply tracking", "Status view", "Momentum alerts"],
-        mini: [{ label: "REPLY STATUS", text: "Positive response detected" }, { label: "CHANNEL VIEW", text: "Waiting, active or stalled" }, { label: "TASK CUE", text: "Next follow-up suggested" }] },
+        mini: [{ label: "REPLY STATUS", text: "Positive response detected" }, { label: "CHANNEL VIEW", text: "Waiting, active or stalled" }, { label: "TASK CUE", text: "Next follow-up suggested" }],
+        image: { desktop: "", mobile: "", alt: "" } },
       { node: "Review", meta: "STEP 5 / REVIEW", short: "Not every next move should go out unchecked.", title: "Review and approve appropriate next actions",
         text: "Put control where it matters. Review drafts, approve the right next move and keep the workflow governed instead of guess-driven.",
         bullets: ["Review recipients and messages before outreach.", "Hold uncertain drafts back for a person to check.", "Maintain oversight without slowing everything to a crawl."],
         badges: ["Review step", "Governance", "Quality control"],
-        mini: [{ label: "APPROVAL QUEUE", text: "Action pending review" }, { label: "RISK CHECK", text: "Low / medium / high sensitivity" }, { label: "NEXT MOVE", text: "Approve, edit or pause" }] },
+        mini: [{ label: "APPROVAL QUEUE", text: "Action pending review" }, { label: "RISK CHECK", text: "Low / medium / high sensitivity" }, { label: "NEXT MOVE", text: "Approve, edit or pause" }],
+        image: { desktop: "", mobile: "", alt: "" } },
       { node: "Advance", meta: "STEP 6 / ADVANCE", short: "The point is progress, not activity.", title: "Advance opportunities with human oversight",
         text: "Once the next move is approved, keep the opportunity advancing. The goal is a clearer conversation, a booked meeting or a live deal—not a busier dashboard.",
         bullets: ["Move the best opportunities toward meetings, proposals and next-step tasks.", "Keep people in the loop where human judgment wins business.", "Turn activity into a pipeline that actually moves."],
         badges: ["Meetings", "Proposals", "Human follow-through"],
-        mini: [{ label: "QUALIFIED INTEREST", text: "Marked ready to progress" }, { label: "MEETING", text: "Booked or requested" }, { label: "PIPELINE", text: "Opportunity advanced" }] },
+        mini: [{ label: "QUALIFIED INTEREST", text: "Marked ready to progress" }, { label: "MEETING", text: "Booked or requested" }, { label: "PIPELINE", text: "Opportunity advanced" }],
+        image: { desktop: "", mobile: "", alt: "" } },
     ],
   },
   signup: {
