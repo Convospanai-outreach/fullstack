@@ -12,6 +12,8 @@
   color: var(--ph-navy);
   background: var(--ph-off);
 }
+/* globals.css gives h1-h3 the app's display font (Bricolage). Marketing pages use Montserrat throughout, and an element rule beats inheritance, so say so here. */
+.ph h1, .ph h2, .ph h3, .ph h4 { font-family: inherit; }
 .ph *, .ph *::before, .ph *::after { box-sizing: border-box; }
 .ph-wrap { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
 .ph h1, .ph h2 { font-size: 48px; line-height: 1.2; font-weight: 500; letter-spacing: -0.04em; margin: 0 0 20px; max-width: 900px; }
