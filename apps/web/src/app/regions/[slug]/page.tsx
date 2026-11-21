@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RegionPage({ params }: Props) {
   const r = regionBySlug((await params).slug);
   if (!r) notFound();
-  const industries = INDUSTRIES.filter((i) => i.market === r.market || i.market === "global" || r.market === "global");
+  const industries = INDUSTRIES.filter((i) => !i.more && (i.market === r.market || i.market === "global" || r.market === "global"));
   return (
     <Page>
       <PageHero eyebrow={r.name} title={r.title} lead={r.lead} primary={{ label: "Discuss a pilot", href: "/contact" }} secondary={{ label: "See pricing", href: "/pricing" }} />
