@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function IndustriesPage() {
-  const group = (m: string) => INDUSTRIES.filter((i) => i.market === m || (m === "us-eu" && i.market === "global"));
+  const group = (m: string) => INDUSTRIES.filter((i) => !i.more && (i.market === m || (m === "us-eu" && i.market === "global")));
   const card = (i: (typeof INDUSTRIES)[number]) => ({ tag: MARKET_LABEL[i.market], title: i.name, body: i.lead, href: `/industries/${i.slug}`, linkText: "Explore" });
   return (
     <Page>
@@ -20,6 +20,9 @@ export default function IndustriesPage() {
       </Section>
       <Section tone="navy" eyebrow="India" title="The GCC boom and DPDP are reshaping who buys services." lead="New capability centres need workplace, security and staffing partners, and every business needs a privacy plan before May 2027.">
         <Cards dark items={group("india").map(card)} />
+      </Section>
+      <Section tone="white" eyebrow="More niches" title="See a sample funnel built for your kind of business." lead="Click through a worked example, from first capture to a recorded meeting, using fictional data.">
+        <Cards items={INDUSTRIES.filter((i) => i.more).map(card)} />
       </Section>
       <Section tone="beige" eyebrow="Markets" title="Rules and channels differ by market. Your workflow should too.">
         <Cards cols={3} items={REGIONS.map((r) => ({ label: r.name, title: r.channels, href: `/regions/${r.slug}`, linkText: `${r.name} guide` }))} />
