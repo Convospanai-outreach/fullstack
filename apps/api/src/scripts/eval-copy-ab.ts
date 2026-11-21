@@ -6,8 +6,9 @@ import { loadEvalData, type EvalCase } from "../evals/copy/evalData";
 import { abPlan, runAb, type Variant } from "../evals/copy/abRunner";
 import { buildJudgePrompt, parseJudgeReply, type DraftCopy } from "../evals/copy/runCopyEval";
 import { parseExtraPhrases } from "../evals/copy/slopScore";
+import { parseVariantSpec } from "../evals/copy/variantSpec";
 
-// npm run eval:ab -- [--variants current,other] [--split dev|heldout] [--max-cases N] [--yes]
+// npm run eval:ab -- [--variants current,current@openai:gpt-4o] [--split dev|heldout] [--max-cases N] [--yes]
 //
 // Runs the same private eval cases through each variant and compares them with the first one, on the
 // rubric judge and the rule-based slop score. Every case is a generate call plus a judge call per
@@ -52,8 +53,10 @@ async function main() {
     if (cases.length === 0) throw new Error(`No ${split} cases in cases.json.`);
     if (max) cases = cases.slice(0, max);
 
+    // Each entry is "name" or "name@provider:model" (the latter pins the LLM for that variant).
     const names = (flag("variants") ?? "current").split(",").map((s) => s.trim()).filter(Boolean);
-    for (const n of names) if (!VARIANTS[n]) throw new Error(`Unknown variant "${n}". Known: ${Object.keys(VARIANTS).join(", ")}.`);
+    const specs = names.map(parseVariantSpec);
+    for (const s of specs) if (!VARIANTS[s.name]) throw new Error(`Unknown variant "${s.name}". Known: ${Object.keys(VARIANTS).join(", ")}.`);
 
     const slopFile = path.join(dir!, "slop.json");
     const extraPhrases = fs.existsSync(slopFile) ? parseExtraPhrases(JSON.parse(fs.readFileSync(slopFile, "utf8"))) : [];
@@ -69,8 +72,16 @@ async function main() {
 
     const teamId = process.env["EVAL_TEAM_ID"];
     if (!teamId) throw new Error("Set EVAL_TEAM_ID to the team whose provider keys the eval should use.");
-    const { aiService, extractJsonBlock } = await import("../lib/aiService");
-    const variants = await Promise.all(names.map((n) => VARIANTS[n]!(teamId)));
+    const { aiService, extractJsonBlock, withModelOverride } = await import("../lib/aiService");
+    // The pin covers the variant's generation, including the composer's own critique. The judge below
+    // is outside it, so every variant is judged by the same model.
+    const variants = await Promise.all(
+        specs.map(async (s, i): Promise<Variant> => {
+            const base = await VARIANTS[s.name]!(teamId);
+            const override = s.override;
+            return { id: names[i]!, generate: override ? (c) => withModelOverride(override, () => base.generate(c)) : base.generate };
+        }),
+    );
 
     const judge = async (c: EvalCase, draft: DraftCopy, rubric: typeof data.rubric) => {
         const raw = await aiService.askAI(buildJudgePrompt(c, draft, rubric), teamId, {
