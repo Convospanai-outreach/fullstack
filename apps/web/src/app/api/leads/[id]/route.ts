@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
 import { internalErrorMessage } from "@/lib/internalError";
+import { consentChannels } from "@/modules/governance/consentChannels";
 
 export async function GET(
     request: Request,
@@ -24,6 +25,7 @@ export async function GET(
             include: {
                 campaign: { select: { id: true, name: true, status: true } },
                 emails: { orderBy: { createdAt: "desc" }, take: 10 },
+                consentLedger: { select: { channel: true, status: true, purpose: true, grantedAt: true } },
             },
         });
 
@@ -31,7 +33,9 @@ export async function GET(
             return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
 
-        return NextResponse.json(lead);
+        // The page shows consent per channel (read-only); the raw ledger rows stay on the server.
+        const { consentLedger, ...rest } = lead;
+        return NextResponse.json({ ...rest, consentChannels: consentChannels(consentLedger) });
     } catch (error: any) {
         console.error("GET /api/leads/[id] error:", error);
         return NextResponse.json({ error: internalErrorMessage(error, "Internal Server Error") }, { status: 500 });

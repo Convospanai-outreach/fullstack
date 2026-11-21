@@ -19,6 +19,7 @@ vi.mock("@/lib/permissions", () => ({
     TeamRole: { MEMBER: "MEMBER" },
 }));
 vi.mock("@/lib/campaigns/enrollment", () => ({ enrollCampaignLeads: mockEnroll }));
+vi.mock("@/modules/governance/campaignSendGate", () => ({ summarizeCampaignSendGate: vi.fn().mockResolvedValue({ gateOn: false }) }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ checkCampaignStartApproval: mockApproval }));
 vi.mock("@/workers/handlers/campaign-execution-worker", () => ({ handleCampaignExecution: mockExecute }));
 

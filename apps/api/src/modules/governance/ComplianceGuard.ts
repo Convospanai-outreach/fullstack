@@ -70,6 +70,13 @@ export class ComplianceGuard {
             }
         });
 
+        // 1b. Withdraw every consent on record, on every channel, so the ledger agrees with the flag above.
+        // Not swallowed: if this fails the job retries rather than reporting the opt-out as done.
+        await prisma.consentLedger.updateMany({
+            where: { leadId, status: "GRANTED" },
+            data: { status: "REVOKED", revokedAt: new Date() },
+        });
+
         // 2. If this lead belongs to a campaign, mark them as DNC in all campaign contexts
         if (leadId) {
             // Find all leads with the same email or linkedIn in other campaigns and mark them DNC too
@@ -89,6 +96,12 @@ export class ComplianceGuard {
                         status: { not: 'DNC' }
                     },
                     data: { status: 'DNC', consentObtained: false }
+                });
+                // The duplicates are opted out too, so their recorded consent is withdrawn. Scoped to this team: the
+                // status update above matches by email alone, but another team's consent is not ours to revoke.
+                if (lead.teamId) await prisma.consentLedger.updateMany({
+                    where: { status: "GRANTED", lead: { email: lead.email, teamId: lead.teamId, id: { not: leadId } } },
+                    data: { status: "REVOKED", revokedAt: new Date() },
                 });
                 if (updated.count > 0) {
                     console.log(`[Compliance] Deactivated ${updated.count} related lead records for opt-out`);

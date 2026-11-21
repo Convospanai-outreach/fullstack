@@ -50,6 +50,16 @@ export async function handleEmailSending(payload: JobPayload) {
     }
   }
 
+  // 2a. DPDP send gate (team setting sendSafety.DPDP_SEND_GATE, off by default): consent or a proven public source.
+  if (teamId) {
+    const { checkSendGate } = await import("@/modules/governance/lawfulBasis");
+    const gate = await checkSendGate({ leadId, teamId, channel: "EMAIL" });
+    if (!gate.allowed) {
+      logger.warn("[email_sending] Not sending: " + gate.reason, { leadId, campaignId });
+      return { skipped: true, reason: gate.reason, code: "no_lawful_basis" };
+    }
+  }
+
   // 2b. Recipient send window (team setting sendSafety.sendWindow, off unless enabled). Outside the window the same
   // job is queued again for the next window start, so nothing is dropped and no daily slot is used yet. If the
   // settings cannot be read the email is sent, as it was before.
