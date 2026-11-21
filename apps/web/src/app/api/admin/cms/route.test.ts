@@ -154,3 +154,33 @@ describe("/api/admin/cms - audit trail", () => {
     });
 });
 
+
+describe("/api/admin/cms - file names are limited to content files", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetServerSession.mockResolvedValue(sessionWithRole("SUPER_ADMIN"));
+        mockAuditCreate.mockResolvedValue({});
+    });
+
+    it.each(["blog/ok-post_1.md", "settings/navigation.json"])("writes %s", async (file) => {
+        const { POST } = await import("./route");
+        const res = await POST(new Request("http://localhost/api/admin/cms", { method: "POST", body: JSON.stringify({ file, content: "x" }) }) as any);
+
+        expect(res.status).toBe(200);
+    });
+
+    it.each(["../x.md", "blog/../../x.md", "/etc/passwd.md", "C:/x.md", String.fromCharCode(98,108,111,103,92)+"x.md", "blog/x.sh", "x.md\0.png", ".git/config.md", "blog/.hidden.md", "blog/a b.md", "blog/x.md "])("refuses to write %j", async (file) => {
+        const { POST } = await import("./route");
+        const res = await POST(new Request("http://localhost/api/admin/cms", { method: "POST", body: JSON.stringify({ file, content: "x" }) }) as any);
+
+        expect(res.status).toBe(400);
+        expect(mockAuditCreate).not.toHaveBeenCalled();
+    });
+
+    it("refuses to read a file outside the allowed names", async () => {
+        const { GET } = await import("./route");
+        const res = await GET(new Request("http://localhost/api/admin/cms?file=blog/x.sh") as any);
+
+        expect(res.status).toBe(400);
+    });
+});

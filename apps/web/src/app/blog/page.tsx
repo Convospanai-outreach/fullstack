@@ -1,3 +1,4 @@
+import { jsonLdScript } from "@/lib/jsonLd";
 import { getBlogPosts } from '@/lib/blog';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -38,7 +39,7 @@ export default function BlogIndex() {
     <div className="container mx-auto px-4 pt-6 pb-16 max-w-5xl">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(collectionSchema) }}
       />
       <div className="mb-12">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-foreground">

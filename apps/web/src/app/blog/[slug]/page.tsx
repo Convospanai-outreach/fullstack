@@ -1,3 +1,4 @@
+import { jsonLdScript } from "@/lib/jsonLd";
 import { getBlogPostBySlug, getBlogPosts } from '@/lib/blog';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
@@ -123,7 +124,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
       <article className="container mx-auto px-4 pt-6 pb-16 max-w-4xl">
         <Link href="/blog" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-8 transition-colors">
