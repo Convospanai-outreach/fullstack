@@ -1,9 +1,7 @@
-import Image from "next/image";
 import { getContent } from "@/lib/cms";
 import ReactMarkdown from "react-markdown";
-import { HelpCircle, ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { Testimonials } from "@/components/marketing/Testimonials";
+import { Page, PageHero, Section, CtaBand, JsonLd } from "@/components/marketing/site/kit";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -67,90 +65,23 @@ export default function FAQPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#020617] text-slate-100 pt-28 pb-24 px-4 sm:px-6 lg:px-8">
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-            />
-
-            <div className="max-w-4xl mx-auto space-y-12">
-                {/* Header */}
-                <div className="text-center space-y-4 max-w-2xl mx-auto">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider">
-                        <HelpCircle className="w-3.5 h-3.5" />
-                        Platform Knowledge
+        <Page>
+            <JsonLd data={faqSchema} />
+            <PageHero eyebrow="FAQ" title={title} lead="Clear answers on governed outreach, buyer signals, human review and deliverability." />
+            <Section tone="light">
+                {sections.length > 0 ? (
+                    <div className="ph-faq">
+                        {sections.map((section) => (
+                            <details key={section.title}>
+                                <summary>{section.title}</summary>
+                                <div className="ph-prose" style={{ marginTop: 12 }}><ReactMarkdown>{section.body}</ReactMarkdown></div>
+                            </details>
+                        ))}
                     </div>
-                    <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
-                        {title}
-                    </h1>
-                    <p className="text-base sm:text-lg text-slate-400 leading-relaxed">
-                        Clear answers on governed outreach, buyer signals, human review queues, and deliverability guardrails. Built for operators.
-                    </p>
-                </div>
-
-                {/* Architecture Visual Preview */}
-                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
-                    <Image
-                        src="/images/platform/governed-workflow.webp"
-                        alt="Governed B2B Outbound Sales Workflow and Deliverability Guardrails FAQ"
-                        width={820}
-                        height={460}
-                        priority
-                        className="w-full h-auto rounded-2xl"
-                    />
-                </div>
-
-                {/* FAQ Accordions / Cards */}
-                <div className="space-y-4">
-
-                    {sections.length > 0 ? (
-                        sections.map((section, idx) => (
-                            <div
-                                key={idx}
-                                className="p-6 sm:p-7 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3 hover:border-slate-700 transition-colors"
-                            >
-                                <h2 className="text-lg font-bold text-white flex items-start gap-3">
-                                    <span className="text-blue-400 font-mono text-sm shrink-0 mt-0.5">{String(idx + 1).padStart(2, "0")}.</span>
-                                    <span>{section.title}</span>
-                                </h2>
-                                <div className="pl-7 text-sm text-slate-300 leading-relaxed prose prose-invert prose-p:my-1.5 prose-strong:text-white prose-ul:my-2">
-                                    <ReactMarkdown>{section.body}</ReactMarkdown>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-center text-slate-400">No questions configured yet.</p>
-                    )}
-                </div>
-
-                {/* CTA Card */}
-                <div className="p-8 rounded-3xl bg-gradient-to-r from-blue-900/40 via-indigo-950/40 to-slate-900 border border-blue-500/30 text-center space-y-5">
-                    <h3 className="text-2xl font-extrabold text-white">
-                        Have a specific pipeline architecture question?
-                    </h3>
-                    <p className="text-sm text-slate-300 max-w-lg mx-auto">
-                        Speak directly with an outbound engineer or explore our technical architecture guides.
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-                        <Link
-                            href="/docs"
-                            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center gap-2"
-                        >
-                            Read Documentation
-                            <ArrowRight className="w-4 h-4" />
-                        </Link>
-                        <Link
-                            href="/contact"
-                            className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition-all"
-                        >
-                            Contact Engineering
-                        </Link>
-                    </div>
-                </div>
-            </div>
-            <div className="max-w-4xl mx-auto px-4 pb-16">
-                <Testimonials />
-            </div>
-        </div>
+                ) : <p className="ph-lead">No questions configured yet.</p>}
+            </Section>
+            <Testimonials />
+            <CtaBand title="Have a specific question?" lead="Talk to our team or read the docs." primary={{ label: "Contact us", href: "/contact" }} secondary={{ label: "Read the docs", href: "/docs" }} />
+        </Page>
     );
 }

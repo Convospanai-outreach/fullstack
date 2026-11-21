@@ -94,7 +94,8 @@ Yes. Workspaces feature strict multi-tenant isolation, role-based access control
 - Pricing & Plans: https://craftmyfunnel.live/pricing
 - Dedicated Product Modules: https://craftmyfunnel.live/products/fluid-funnel-engine, https://craftmyfunnel.live/products/buyer-signals, https://craftmyfunnel.live/products/ai-outreach, https://craftmyfunnel.live/products/human-layer, https://craftmyfunnel.live/products/covospan-edge
 - Competitor Comparisons: https://craftmyfunnel.live/vs (Apollo: /vs/apollo, Instantly: /vs/instantly, Lemlist: /vs/lemlist)
-- Vertical Use Cases: https://craftmyfunnel.live/use-cases (/use-cases/facility-management, /use-cases/security-services, /use-cases/staffing, /use-cases/training, /use-cases/consulting, /use-cases/managed-services)
+- Industries: https://craftmyfunnel.live/industries (/industries/cybersecurity, /industries/managed-it-cloud, /industries/sap-erp, /industries/gcc-services, /industries/staffing, /industries/dpdp-consulting)
+- Markets: /regions/india, /regions/united-states, /regions/europe, /regions/uae, /regions/canada
 - Regional Outbound Hubs: https://craftmyfunnel.live/locations (/locations/gurugram, /locations/delhi, /locations/noida, /locations/mumbai, /locations/bengaluru, /locations/hyderabad, /locations/pune, /locations/chennai, /locations/kolkata, /locations/ahmedabad)
 - Trust & Compliance: https://craftmyfunnel.live/security, https://craftmyfunnel.live/google-api-disclosure, https://craftmyfunnel.live/data-deletion, https://craftmyfunnel.live/terms, https://craftmyfunnel.live/privacy
 - Engineering & AI Blog: https://craftmyfunnel.live/blog (27 in-depth technical guides on AI sales agents, RAG architectures, deliverability, and AGO optimization)

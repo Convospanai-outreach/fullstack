@@ -44,7 +44,7 @@ const HIDE_FOOTER_PREFIXES = ["/setup"];
 // route group and rely on LayoutShell's generic Header/Footer fallback below.
 const MARKETING_PREFIXES = [
     "/", "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/p", "/funnel", "/accept-invite", "/agent-login",
+    "/verify-email", "/p", "/accept-invite", "/agent-login",
     "/client-login",
 ];
 

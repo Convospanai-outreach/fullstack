@@ -235,7 +235,12 @@
             "label": "WHATSAPP",
             "text": "Conversation flagged for follow-up"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       },
       {
         "node": "Drafts",
@@ -266,7 +271,12 @@
             "label": "WHATSAPP",
             "text": "Follow-up reply drafted"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       },
       {
         "node": "Channels",
@@ -297,7 +307,12 @@
             "label": "CALL HANDOFF",
             "text": "Leads queued for your team to call"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       },
       {
         "node": "Tracking",
@@ -328,7 +343,12 @@
             "label": "TASK CUE",
             "text": "Next follow-up suggested"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       },
       {
         "node": "Review",
@@ -359,7 +379,12 @@
             "label": "NEXT MOVE",
             "text": "Approve, edit or pause"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       },
       {
         "node": "Advance",
@@ -390,7 +415,12 @@
             "label": "PIPELINE",
             "text": "Opportunity advanced"
           }
-        ]
+        ],
+        "image": {
+          "desktop": "",
+          "mobile": "",
+          "alt": ""
+        }
       }
     ]
   },

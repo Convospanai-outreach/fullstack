@@ -32,3 +32,9 @@ vi.mock('next-auth/react', () => ({
 // Mock environment variables
 process.env.NEXTAUTH_URL = 'http://localhost:3000';
 process.env.NEXTAUTH_SECRET = 'test-secret';
+
+// next/font/google only works inside a Next build; in tests any font loader returns a stub.
+vi.mock('next/font/google', () => {
+    const font = () => ({ className: '', variable: '', style: { fontFamily: '' } });
+    return { Inter: font, Plus_Jakarta_Sans: font, JetBrains_Mono: font, Bricolage_Grotesque: font, Public_Sans: font, Montserrat: font };
+});
