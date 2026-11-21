@@ -2,8 +2,9 @@
 // sizes, so the CMS hint, the page and the CI test can never disagree. Ratio and minimum width are enforced
 // (a 2x upload is fine); the exact size below is what to export.
 export const STEP_IMAGE = {
-    desktop: { width: 1600, height: 600 },
-    mobile: { width: 900, height: 750 },
+    // Shown beside the step text on desktop, and under it when the layout stacks (1024px and below).
+    desktop: { width: 1200, height: 1000, shape: "6:5" },
+    mobile: { width: 900, height: 675, shape: "4:3" },
 } as const;
 
 // Decap writes /uploads/<file> (see media_folder / public_folder in decapCms.ts). Anything else is refused.

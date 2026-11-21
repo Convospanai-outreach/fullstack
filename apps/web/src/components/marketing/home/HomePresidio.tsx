@@ -70,16 +70,16 @@ function HowWeHelp() {
             <p className="ph-label">{step.meta}</p>
             <h3>{step.title}</h3>
             <p>{step.text}</p>
+            <ul>
+              {step.bullets.map((b) => <li key={b}>{b}</li>)}
+            </ul>
             <a className="ph-btn ph-btn-yellow" href="#start">Get started</a>
           </div>
-          <ul>
-            {step.bullets.map((b) => <li key={b}>{b}</li>)}
-          </ul>
           {/* Image for this step: the one uploaded in the CMS, else a placeholder carrying the scene brief. */}
           {desktop ? (
             <figure className="ph-imgslot ph-imgslot-filled">
               <picture>
-                {mobile && <source media="(max-width: 760px)" srcSet={mobile} width={STEP_IMAGE.mobile.width} height={STEP_IMAGE.mobile.height} />}
+                {mobile && <source media="(max-width: 1024px)" srcSet={mobile} width={STEP_IMAGE.mobile.width} height={STEP_IMAGE.mobile.height} />}
                 <img src={desktop} alt={step.image.alt} width={STEP_IMAGE.desktop.width} height={STEP_IMAGE.desktop.height} loading="lazy" decoding="async" />
               </picture>
             </figure>
