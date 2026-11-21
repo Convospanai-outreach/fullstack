@@ -270,6 +270,17 @@ describe('remote MCP protocol and authorization', () => {
     expect(new Set(tools.map(t => t.name)).size).toBe(tools.length);
     for (const tool of tools) expect(tool.inputSchema.additionalProperties).toBe(false);
   });
+  it('marks only record-overwriting tools destructive and titles every tool', () => {
+    const tools = describeTools();
+    const destructive = tools.filter(t => t.annotations.destructiveHint).map(t => t.name).sort();
+    expect(destructive).toEqual(['move_lead_stage', 'update_campaign_details', 'update_lead']);
+    for (const tool of tools) {
+      expect(tool.annotations.title).toBe(tool.title);
+      expect(tool.title).toMatch(/^[A-Z][a-z]+( [A-Z][a-z]+)*$/);
+      if (tool.annotations.readOnlyHint) expect(tool.annotations.destructiveHint).toBe(false);
+    }
+    expect(tools.find(t => t.name === 'create_task')!.annotations).toMatchObject({ destructiveHint: false, idempotentHint: false });
+  });
 });
 
 describe('OAuth connection lifecycle', () => {

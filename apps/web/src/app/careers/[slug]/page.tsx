@@ -23,9 +23,9 @@ export default async function JobPage({ params }: Props) {
             <Link href="/careers" className="text-sm text-muted-foreground hover:underline">
                 All openings
             </Link>
-            <h1 className="mt-3 text-4xl font-extrabold tracking-tight">{job.title}</h1>
+            <h1 className="mt-3 text-4xl font-medium tracking-tight">{job.title}</h1>
             <p className="mt-2 text-muted-foreground">{[job.department, job.location, job.type].filter(Boolean).join(" · ")}</p>
-            <div className="prose prose-invert mt-8 max-w-none">
+            <div className="prose mt-8 max-w-none">
                 <ReactMarkdown>{job.description}</ReactMarkdown>
             </div>
             <h2 className="mt-12 mb-4 text-2xl font-bold">Apply</h2>

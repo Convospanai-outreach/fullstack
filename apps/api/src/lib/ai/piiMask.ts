@@ -25,8 +25,9 @@ const PAN = /\b[A-Z]{5}\d{4}[A-Z]\b/gi;
 const AADHAAR = /(?<!\d)[2-9]\d{3}[\s-]?\d{4}[\s-]?\d{4}(?!\d)/g;
 // Indian mobile: 10 digits starting 6-9, with an optional +91, 91 or 0 in front and an optional gap in the middle.
 const PHONE = /(?<!\d)(?:(?:\+91|91|0)[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)/g;
+// JavaScript's word-boundary escape only knows ASCII letters, so names are matched with Unicode-aware lookarounds.
 // The value of a labelled name field ("fullName: Meera Iyer", "Recipient Name: Meera"). Capitalised words on one line.
-const LABELLED_NAME = /\b(?:[Ff]ull|[Ff]irst|[Ll]ast|[Cc]ontact|[Rr]ecipient|[Ll]ead)[ _-]?[Nn]ame["']?[ \t]*[:=][ \t]*["']?([A-Z][\p{L}'.-]*(?:[ \t]+[A-Z][\p{L}'.-]*){0,3})/gu;
+const LABELLED_NAME = /(?<![\p{L}\p{N}_])(?:(?:(?:[Ff]ull|[Ff]irst|[Ll]ast|[Cc]ontact|[Rr]ecipient|[Ll]ead|[Pp]rospect)[ _-]?)?[Nn]ame|[Pp]rospect)["']?[ \t]*[:=][ \t]*["']?([A-Z][\p{L}'.-]*(?:[ \t]+[A-Z][\p{L}'.-]*){0,3})/gu;
 
 const MIN_NAME_PART = 3;
 
@@ -73,7 +74,7 @@ export function createPiiMasker(options: { names?: string[] } = {}) {
         }
         if (phrases.size > 0) {
             const alternation = [...phrases].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|");
-            out = out.replace(new RegExp(`\\b(?:${alternation})\\b`, "giu"), (m) => tokenFor("NAME", m));
+            out = out.replace(new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alternation})(?![\\p{L}\\p{N}_])`, "giu"), (m) => tokenFor("NAME", m));
         }
         return out;
     }

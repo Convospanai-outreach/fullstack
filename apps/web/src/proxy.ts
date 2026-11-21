@@ -358,6 +358,8 @@ async function appProxy(req: NextRequest) {
         "/data-deletion",
         "/google-api-disclosure",
         "/trust",
+        "/industries",
+        "/regions",
         "/funnel",
         "/sitemap.xml",
         "/robots.txt",
@@ -385,6 +387,8 @@ async function appProxy(req: NextRequest) {
         cleanPath.startsWith("/_next") ||
         cleanPath.startsWith("/static") ||
         cleanPath.startsWith("/images") ||
+        // CMS-uploaded images (media_folder in decapCms.ts) are shown on public pages.
+        underPrefix(cleanPath, "/uploads") ||
         webhookApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         extensionApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix)) ||
         publicApiPrefixes.some((prefix) => underPrefix(cleanPath, prefix));
