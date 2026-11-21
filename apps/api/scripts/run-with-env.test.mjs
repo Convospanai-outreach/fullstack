@@ -49,3 +49,37 @@ test("resolves an ancestor local .cmd shim and forwards arguments, environment, 
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+function runWithShim(extraEnv, args) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "run-with-env-"));
+  try {
+    const apiDir = path.join(tempRoot, "workspace", "apps", "api");
+    const binDir = path.join(tempRoot, "workspace", "node_modules", ".bin");
+    fs.mkdirSync(apiDir, { recursive: true });
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.writeFileSync(path.join(binDir, "fixture.cmd"), "@echo off\r\necho ran\r\nexit /b 0\r\n");
+    return spawnSync(process.execPath, [runnerPath, "--", "fixture", ...args], {
+      cwd: apiDir,
+      encoding: "utf8",
+      env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== "comspec")), ...extraEnv },
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+test("does not take the command interpreter from the ComSpec environment variable", { skip: process.platform !== "win32" }, () => {
+  const result = runWithShim({ ComSpec: "C:\does-not-exist\evil.exe" }, ["plain"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /ran/);
+});
+
+test("refuses cmd.exe metacharacters in arguments instead of passing them to the shell", { skip: process.platform !== "win32" }, () => {
+  for (const bad of ["a&calc", "a|b", "a>b", "a^b", "%PATH%", "a\nb"]) {
+    const result = runWithShim({}, [bad]);
+
+    assert.equal(result.status, 1, `${JSON.stringify(bad)} should be refused`);
+    assert.doesNotMatch(result.stdout, /ran/);
+  }
+});
