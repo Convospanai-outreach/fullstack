@@ -28,7 +28,14 @@ async function auditCms(req: NextRequest, action: "CMS_WRITE" | "CMS_PUSH", file
 }
 
 // Helper to sanitize and resolve paths safely
-function getSafePath(file: string): string {
+// Only plain content file names: dot-free path segments of letters, digits, "_" and "-", ending in .md or .json.
+// Anything else (absolute paths, "..", backslashes, hidden files, other extensions) is refused before it is resolved.
+const CONTENT_FILE = /^[A-Za-z0-9_-][A-Za-z0-9_-]*(?:\/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*\.(?:md|json)$/;
+
+function getSafePath(file: unknown): string {
+    if (typeof file !== "string" || !CONTENT_FILE.test(file) || file.includes("..")) {
+        throw new Error("Invalid file name");
+    }
     const resolved = path.resolve(CONTENT_DIR, file);
     if (resolved !== CONTENT_DIR && !resolved.startsWith(CONTENT_DIR + path.sep)) {
         throw new Error("Directory traversal detected");
