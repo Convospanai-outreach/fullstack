@@ -98,8 +98,27 @@ describe("submitLeadBySlug Meta Lead event", () => {
         await submit();
         const serialized = JSON.stringify(metaEvents()[0]![0].payload);
         expect(serialized).not.toContain("john_smith");
-        expect(serialized).not.toContain("650");
+        // Check the phone number by its distinctive forms. A bare "650" also matches the event time (epoch seconds),
+        // which made this test fail for a few minutes at a time.
+        expect(serialized).not.toContain("(650)");
+        expect(serialized).not.toContain("5551212");
+        expect(serialized).not.toContain("555-1212");
         expect(serialized).not.toContain("Mary");
+    });
+
+    it("still passes when the event time happens to contain the digits 650", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date(1795265040 * 1000));
+        try {
+            vi.spyOn(landingAgentService, "getPublicPageBySlug").mockResolvedValue(page({ metaPixelId: "123456789012345" }) as never);
+            await submit();
+            const serialized = JSON.stringify(metaEvents()[0]![0].payload);
+            expect(serialized).toContain("1795265040");
+            expect(serialized).not.toContain("(650)");
+            expect(serialized).not.toContain("5551212");
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("queues nothing for a page without a Meta Pixel", async () => {
