@@ -68,6 +68,9 @@
 .ph-tabpanel h3 { font-size: 32px; letter-spacing: -0.04em; }
 .ph-tabpanel p { font-size: 18px; line-height: 1.5; color: var(--ph-muted); margin-bottom: 28px; }
 .ph-tabpanel ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.ph-imgslot { grid-column: 1 / -1; margin: 0; min-height: 260px; aspect-ratio: 16 / 6; display: flex; align-items: center; justify-content: center; text-align: center; border: 2px dashed rgba(12,27,48,.28); border-radius: 16px; background: repeating-linear-gradient(135deg, rgba(12,27,48,.03) 0 14px, transparent 14px 28px), #fff; }
+.ph-imgslot figcaption { display: grid; gap: 6px; justify-items: center; padding: 24px; color: var(--ph-muted); font-size: 15px; }
+.ph-imgslot figcaption strong { color: var(--ph-navy); font-size: 16px; letter-spacing: .04em; }
 .ph-tabpanel li { background: #fff; border-radius: 12px; padding: 20px 24px; font-size: 16px; line-height: 1.45; border-left: 4px solid var(--ph-yellow); }
 
 /* cards */
@@ -115,6 +118,7 @@
   .ph-step { padding: 24px; gap: 20px; }
   .ph-step-n { font-size: 34px; min-width: 48px; }
   .ph-tabs button { flex: none; }
+  .ph-imgslot { aspect-ratio: auto; min-height: 200px; }
   .ph-inputrow { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .ph-btn { transition: none; } .ph-btn:hover { transform: none; } }

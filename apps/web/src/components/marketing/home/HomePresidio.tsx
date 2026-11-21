@@ -56,6 +56,14 @@ function HowWeHelp() {
           <ul>
             {step.bullets.map((b) => <li key={b}>{b}</li>)}
           </ul>
+          {/* Image slot for this step. Replace the figure with the real image when it exists. */}
+          <figure className="ph-imgslot" role="img" aria-label={`Image placeholder for ${step.meta}: ${step.title}`}>
+            <figcaption>
+              <span className="ph-label">Image placeholder</span>
+              <strong>{step.meta}</strong>
+              <span>{step.title}</span>
+            </figcaption>
+          </figure>
         </div>
       </div>
     </section>
