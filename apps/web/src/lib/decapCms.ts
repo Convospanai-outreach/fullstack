@@ -272,7 +272,7 @@ collections:
                 min: 6
                 max: 6
                 summary: "{{fields.title}}"
-                hint: "Six steps, in order. Edit the words only."
+                hint: "Six steps, in order. Edit the words and the images; the steps themselves cannot be added or removed."
                 fields:
                   - { label: Short name (progress bar), name: node, widget: string }
                   - { label: Step label, name: meta, widget: string }
@@ -281,6 +281,14 @@ collections:
                   - { label: Text, name: text, widget: text }
                   - { label: Bullets, name: bullets, widget: list, allow_add: false, min: 3, max: 3, field: { label: Bullet, name: bullet, widget: string } }
                   - { label: Badges, name: badges, widget: list, allow_add: false, min: 3, max: 3, field: { label: Badge, name: badge, widget: string } }
+                  - label: Image
+                    name: image
+                    widget: object
+                    hint: "Optional. Leave empty to show the placeholder. Desktop and mobile are separate files so each is cropped correctly."
+                    fields:
+                      - { label: "Desktop image (export 1600 x 600 px, wide)", name: desktop, widget: image, required: false, choose_url: false, hint: "JPG, PNG or WebP. Same shape as 1600 x 600 (8:3); a larger file of that shape is fine. Shown on screens wider than 760 px." }
+                      - { label: "Mobile image (export 900 x 750 px, 6:5)", name: mobile, widget: image, required: false, choose_url: false, hint: "Shown on phones. If empty, the desktop image is used and may be cropped." }
+                      - { label: Description for screen readers, name: alt, widget: string, required: false, hint: "Say what the picture shows. Required once an image is added." }
                   - label: Operational view
                     name: mini
                     widget: list

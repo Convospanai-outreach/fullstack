@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { InviteRequestForm } from "../InviteRequestForm";
 import { CHANNELS, HOME, type SignupPath } from "./homeContent";
 import { montserrat } from "./fonts";
+import { cleanImagePath, STEP_IMAGE } from "@/lib/siteImages";
 import { INDUSTRIES, MARKET_LABEL } from "@/lib/marketing/industries";
 import "../site/site.css";
 
@@ -49,6 +50,8 @@ function HowWeHelp() {
   const [tab, setTab] = useState(0);
   const step = steps[tab]!;
   const chapter = STORY[tab]!;
+  const desktop = cleanImagePath(step.image.desktop);
+  const mobile = desktop ? cleanImagePath(step.image.mobile) : "";
   return (
     <section className="ph-section ph-light" id="how" aria-labelledby="how-title">
       <div className="ph-wrap">
@@ -72,14 +75,23 @@ function HowWeHelp() {
           <ul>
             {step.bullets.map((b) => <li key={b}>{b}</li>)}
           </ul>
-          {/* Image slot for this step: replace the figure with the real image (alt text = the scene). */}
-          <figure className="ph-imgslot" role="img" aria-label={`Image placeholder, chapter ${tab + 1} of ${steps.length}: ${chapter.scene}. ${chapter.brief}`}>
-            <figcaption>
-              <span className="ph-label">Image placeholder · Chapter {tab + 1} of {steps.length}</span>
-              <strong>{chapter.scene}</strong>
-              <span>{chapter.brief}</span>
-            </figcaption>
-          </figure>
+          {/* Image for this step: the one uploaded in the CMS, else a placeholder carrying the scene brief. */}
+          {desktop ? (
+            <figure className="ph-imgslot ph-imgslot-filled">
+              <picture>
+                {mobile && <source media="(max-width: 760px)" srcSet={mobile} width={STEP_IMAGE.mobile.width} height={STEP_IMAGE.mobile.height} />}
+                <img src={desktop} alt={step.image.alt} width={STEP_IMAGE.desktop.width} height={STEP_IMAGE.desktop.height} loading="lazy" decoding="async" />
+              </picture>
+            </figure>
+          ) : (
+            <figure className="ph-imgslot" role="img" aria-label={`Image placeholder, chapter ${tab + 1} of ${steps.length}: ${chapter.scene}. ${chapter.brief}`}>
+              <figcaption>
+                <span className="ph-label">Image placeholder · Chapter {tab + 1} of {steps.length}</span>
+                <strong>{chapter.scene}</strong>
+                <span>{chapter.brief}</span>
+              </figcaption>
+            </figure>
+          )}
         </div>
       </div>
     </section>
