@@ -29,10 +29,26 @@ function Eyebrow({ children }: { children: ReactNode }) {
   return <p className="ph-eyebrow">{children}</p>;
 }
 
+/**
+ * One connected story told across the six steps, so the images read as a single day in the life of a small team:
+ * Maya (founder, sells the firm's services) and Dev (her colleague who reviews what goes out), and one fictional
+ * prospect, Priya. Briefs for whoever makes the images: real-looking people at work, warm daylight, no logos, no
+ * readable screen text, no real people or brands. Show the people and the moment, not a dashboard.
+ */
+const STORY = [
+  { scene: "Maya's Monday morning", brief: "Maya at her desk with coffee, a laptop and a few sticky notes. An enquiry has just come in and she is reading it, calm for once instead of hunting through tabs." },
+  { scene: "A first draft, still hers to change", brief: "Over Maya's shoulder: she reads a short drafted message to Priya and changes one line with her pen. The draft is a starting point; she is the author." },
+  { scene: "Everything about Priya in one place", brief: "Maya and Dev side by side at one screen, both looking at the same contact, one talking, one pointing. A phone beside them for the call hand-off." },
+  { scene: "The reply lands", brief: "Maya's phone lights up on the desk. She glances at it and smiles. Priya has answered, and she knows what it means and what to do next." },
+  { scene: "Dev checks before it goes out", brief: "Dev at a meeting table with a notebook, reviewing what is queued. He pauses one message to ask Maya a question: a second pair of eyes, not a bottleneck." },
+  { scene: "Maya meets Priya", brief: "Maya and Priya meet for the first time, in person or on a video call, both mid-conversation and relaxed. The point of the six steps: a real conversation with a real person." },
+] as const;
+
 function HowWeHelp() {
   const steps = HOME.workflow.steps;
   const [tab, setTab] = useState(0);
   const step = steps[tab]!;
+  const chapter = STORY[tab]!;
   return (
     <section className="ph-section ph-light" id="how" aria-labelledby="how-title">
       <div className="ph-wrap">
@@ -56,12 +72,12 @@ function HowWeHelp() {
           <ul>
             {step.bullets.map((b) => <li key={b}>{b}</li>)}
           </ul>
-          {/* Image slot for this step. Replace the figure with the real image when it exists. */}
-          <figure className="ph-imgslot" role="img" aria-label={`Image placeholder for ${step.meta}: ${step.title}`}>
+          {/* Image slot for this step: replace the figure with the real image (alt text = the scene). */}
+          <figure className="ph-imgslot" role="img" aria-label={`Image placeholder, chapter ${tab + 1} of ${steps.length}: ${chapter.scene}. ${chapter.brief}`}>
             <figcaption>
-              <span className="ph-label">Image placeholder</span>
-              <strong>{step.meta}</strong>
-              <span>{step.title}</span>
+              <span className="ph-label">Image placeholder · Chapter {tab + 1} of {steps.length}</span>
+              <strong>{chapter.scene}</strong>
+              <span>{chapter.brief}</span>
             </figcaption>
           </figure>
         </div>
