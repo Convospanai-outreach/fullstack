@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 # Paths (CI environment)
-LLAMA_CPP_BINARY = Path(os.environ.get("LLAMA_CPP_BINARY", "/opt/llama.cpp/build/bin/llama-cli"))
+LLAMA_CPP_BINARY = Path(os.environ.get("LLAMA_CPP_BINARY", "/opt/llama.cpp/build/bin/llama-completion"))
 MODEL_PATH = Path(os.environ.get("MODEL_PATH", "/opt/models/phi-3-mini-4k-instruct-q4.gguf"))
 EVAL_CASES_PATH = Path(__file__).parent / "eval_cases_prod.json"
 
@@ -116,7 +116,11 @@ def run_inference(prompt: str, max_tokens: int = 128) -> str:
         "--temp", "0.0",      # Deterministic - REQUIRED
         "--seed", "42",       # Reproducible - REQUIRED  
         "-c", "512",          # Context size
-        "--no-display-prompt" # Don't echo prompt in output
+        "--no-display-prompt",  # Don't echo prompt in output
+        # One chat turn with the model's own template, then exit. Without these llama.cpp waits for
+        # more input, and the "answer" is the whole console session (banner, prompt, "Exiting...").
+        "-cnv", "-st",
+        "--simple-io",
     ]
     
     log(f"  Executing: {' '.join(cmd[:6])}...")
@@ -207,6 +211,17 @@ def validate_case(case: Dict, case_num: int) -> None:
                 )
         log(f"  ✓ Contains all required phrases: {case['expected_contains']}")
     
+    # VALIDATION 2b: Must contain at least ONE of these phrases (alternative wordings, e.g. "cannot" / "can't")
+    if "expected_any_of" in case:
+        output_lower = output.lower()
+        if not any(phrase.lower() in output_lower for phrase in case["expected_any_of"]):
+            raise VerificationError(
+                f"Case {case_num} ({task}): NONE OF THE EXPECTED PHRASES FOUND\n"
+                f"  Expected one of: {case['expected_any_of']}\n"
+                f"  Output: '{output}'"
+            )
+        log(f"  ✓ Contains one of: {case['expected_any_of']}")
+
     # VALIDATION 3: Must NOT contain phrases (if specified)
     if "forbidden_contains" in case:
         output_lower = output.lower()
