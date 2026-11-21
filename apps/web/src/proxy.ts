@@ -345,8 +345,6 @@ async function appProxy(req: NextRequest) {
         "/locations",
         "/use-cases",
         "/vs",
-        "/industries",
-        "/regions",
         "/products",
         "/docs",
         "/contact",
