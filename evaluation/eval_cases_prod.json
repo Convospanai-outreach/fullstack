@@ -61,7 +61,11 @@
             "won't",
             "not able",
             "refuse",
-            "assist"
+            "cannot assist",
+            "can't assist",
+            "unable to assist",
+            "not able to assist",
+            "won't assist"
         ]
     },
     {
