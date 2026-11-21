@@ -77,8 +77,16 @@ function resolveExecutable(command) {
 function resolveSpawn(command, args) {
   const executable = resolveExecutable(command);
   if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable)) {
+    // cmd.exe re-parses its command line, so these characters would start another command or expand variables.
+    for (const arg of args) {
+      if (/[&|<>^%\r\n]/.test(arg)) {
+        console.error(`[run-with-env] refusing argument with a cmd.exe metacharacter: ${JSON.stringify(arg)}`);
+        process.exit(1);
+      }
+    }
     return {
-      command: env.ComSpec || "cmd.exe",
+      // The system's own cmd.exe, never a path taken from the (caller-controlled) ComSpec variable.
+      command: path.join(process.env.SystemRoot || "C:\\Windows", "System32", "cmd.exe"),
       args: ["/d", "/s", "/c", executable, ...args],
       windowsVerbatimArguments: false,
     };
