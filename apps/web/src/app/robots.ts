@@ -51,7 +51,8 @@ Allow: /
 Allow: /blog
 Allow: /pricing
 Allow: /products
-Allow: /use-cases
+Allow: /industries
+Allow: /regions
 Allow: /faq
 Allow: /docs
 Allow: /vs
@@ -118,7 +119,8 @@ export default function robots(): MetadataRoute.Robots {
                     "/blog",
                     "/pricing",
                     "/products",
-                    "/use-cases",
+                    "/industries",
+                    "/regions",
                     "/faq",
                     "/docs",
                     "/vs",

@@ -1,6 +1,7 @@
-import HomeV8 from "@/components/marketing/v8/HomeV8";
+import HomePresidio from "@/components/marketing/home/HomePresidio";
 import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import { getTestimonials } from "@/lib/testimonials";
 
 export const metadata = {
   title: "CraftMyFunnel AI — Fluid Funnel Engine",
@@ -13,10 +14,10 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen flex flex-col bg-[#020617] text-white">
+    <div className="relative min-h-screen flex flex-col bg-[#f5f5f5] text-[#0c1b30]">
       <NavBar />
       <div className="flex-1 w-full relative z-10">
-        <HomeV8 />
+        <HomePresidio testimonial={getTestimonials()[0] ?? null} />
       </div>
       <Footer hideCTA={true} />
     </div>

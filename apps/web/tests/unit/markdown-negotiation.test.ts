@@ -97,12 +97,12 @@ describe('Markdown for Agents — Content Negotiation (Accept: text/markdown)', 
             expect(md).toContain('Commercial Facility Management');
         });
 
-        it('handles dynamic routes (/locations/[city], /use-cases/[vertical], /blog/[slug])', () => {
+        it('handles dynamic routes (/locations/[city], /industries/[vertical], /blog/[slug])', () => {
             const locMd = getMarkdownForPath('/locations/bengaluru');
             expect(locMd).toContain('Bengaluru');
 
-            const useCaseMd = getMarkdownForPath('/use-cases/facility-management');
-            expect(useCaseMd).toContain('Facility Management');
+            const useCaseMd = getMarkdownForPath('/industries/gcc-services');
+            expect(useCaseMd).toContain('Gcc Services');
 
             const blogMd = getMarkdownForPath('/blog/ai-search-optimization-ago');
             expect(blogMd).toContain('Ai Search Optimization Ago');
