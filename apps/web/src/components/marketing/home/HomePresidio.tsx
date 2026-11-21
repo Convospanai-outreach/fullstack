@@ -234,7 +234,7 @@ export default function HomePresidio({ testimonial = null }: { testimonial?: Quo
           <h2 id="ind-title">Every industry has a buying window. Be there when it opens.</h2>
           <p className="ph-lead">NIS2, the SAP 2027 deadline, India's GCC boom and DPDP are pushing buyers to act now.</p>
           <div className="ph-grid ph-grid-3">
-            {INDUSTRIES.map((c) => (
+            {INDUSTRIES.filter((c) => !c.more).map((c) => (
               <article key={c.slug} className="ph-card-dark">
                 <p className="ph-label">{MARKET_LABEL[c.market]}</p>
                 <h3>{c.name}</h3>
