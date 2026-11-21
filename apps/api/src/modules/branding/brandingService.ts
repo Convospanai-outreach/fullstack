@@ -9,6 +9,10 @@ export interface BrandingConfig {
     // footer on every outbound email — see emailService.ts's resolveEmailFooterText().
     // Never persisted as blank; the route layer rejects that before it reaches here.
     emailFooterText?: string;
+    // DPDP first-touch notice (modules/governance/firstTouchNotice.ts): whom to ask about personal data, and
+    // why a person who never filled in a form is being contacted. Unset until the team writes them.
+    privacyContactEmail?: string;
+    firstTouchNoticeText?: string;
 }
 
 export const DEFAULT_BRANDING: BrandingConfig = {
