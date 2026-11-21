@@ -1,0 +1,32 @@
+{
+  "slug": "example-clinics",
+  "prospect": "Example Clinic Group (fictional)",
+  "credits": 0,
+  "offer": "Multi-site specialist clinic group seeking referral partners and corporate health contracts.",
+  "icp": {
+    "name": "Referral partners and corporate health buyers",
+    "description": "Fictional BUSINESS contacts only: GP practices and employers. No patient data and no health information is ever held in a tear-down.",
+    "criteria": { "titles": ["Practice manager", "HR director", "Benefits manager"], "industries": ["Primary care", "Employers"], "regions": ["UK", "India"] }
+  },
+  "campaigns": [
+    { "name": "Sample: referral partner outreach", "description": "Draft campaign. Nothing is sent.", "status": "draft" }
+  ],
+  "leads": [
+    { "name": "Quinn Abara", "title": "Practice manager", "company": "Sample Family Practice", "domain": "samplefamilypractice.example", "stage": "COLD" },
+    { "name": "Rhea Kapoor", "title": "HR director", "company": "Sample Manufacturing", "domain": "samplemanufacturing.example", "stage": "WARM" },
+    { "name": "Sven Olsen", "title": "Benefits manager", "company": "Sample Retail Group", "domain": "sampleretail.example", "stage": "HOT", "value": 40000 },
+    { "name": "Tara Nolan", "title": "Practice manager", "company": "Sample Health Centre", "domain": "samplehealthcentre.example", "stage": "MEETING_CONFIRMED", "value": 25000 }
+  ],
+  "activities": [
+    { "lead": 3, "channel": "EMAIL", "type": "REPLIED", "title": "Replied (sample)", "notes": "Asked about corporate package pricing.", "ageDays": 3 }
+  ],
+  "thread": {
+    "lead": 3,
+    "messages": [
+      { "direction": "OUTBOUND", "sender": "Sample Rep", "content": "Hi Sven, a short note on occupational health packages for your teams. Open to a quick call? (Sample message)", "ageDays": 5 },
+      { "direction": "INBOUND", "sender": "Sven Olsen", "content": "Possibly. Can you send package pricing? (Sample message)", "ageDays": 3 }
+    ]
+  },
+  "tasks": [{ "title": "Sample: send package pricing to Sven Olsen", "lead": 3, "priority": "HIGH", "dueInDays": 1 }],
+  "meeting": { "title": "Sample: partnership call with Sample Health Centre", "lead": 4, "startInDays": 2, "minutes": 30, "notes": "Fictional meeting record." }
+}
