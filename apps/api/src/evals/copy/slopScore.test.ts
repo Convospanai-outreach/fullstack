@@ -44,6 +44,23 @@ describe("scoreSlop", () => {
         expect(scoreSlop({ subject: "s", body }).score).toBe(100);
     });
 
+    it("scores a repeated or already built-in phrase once per occurrence", () => {
+        const body = "We want to circle back soon.";
+        const once = scoreSlop({ subject: "s", body }).score;
+        expect(scoreSlop({ subject: "s", body }, { extraPhrases: ["circle back", "Circle Back", " circle back "] }).score).toBe(once);
+        expect(scoreSlop({ subject: "s", body }, { extraPhrases: ["best-in-class", "best-in-class"] }).hits.filter((h) => h.rule === "stock-phrase")).toHaveLength(1);
+    });
+
+    it("does not count an en dash inside a range, but does count a spaced dash used like an em dash", () => {
+        expect(scoreSlop({ subject: "s", body: "A 10–15 minute call on 3–5 May." }).hits.filter((h) => h.rule === "em-dash")).toHaveLength(0);
+        expect(scoreSlop({ subject: "s", body: "We fixed it – and it works. Or — maybe not." }).hits.filter((h) => h.rule === "em-dash")).toHaveLength(2);
+    });
+
+    it("treats a combining accent as part of its word", () => {
+        expect(scoreSlop({ subject: "s", body: "A cafe\u0301 on the corner." }, { extraPhrases: ["cafe"] }).hits).toHaveLength(0);
+        expect(scoreSlop({ subject: "s", body: "A cafe on the corner." }, { extraPhrases: ["cafe"] }).hits).toHaveLength(1);
+    });
+
     it("uses extra private phrases when given", () => {
         const r = scoreSlop({ subject: "s", body: "We are best-in-class." }, { extraPhrases: ["best-in-class"] });
         expect(r.hits.map((h) => h.match.toLowerCase())).toContain("best-in-class");

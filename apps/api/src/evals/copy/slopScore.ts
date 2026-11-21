@@ -55,21 +55,25 @@ function escapeRegExp(s: string) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Whole-word match on both sides; `u` so letters outside ASCII count as word characters.
+// Whole-word match on both sides; `u` so letters outside ASCII count as word characters, and \p{M} so an
+// accent written as a combining mark stays part of its word.
 function phraseRegex(phrase: string) {
-    return new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(phrase)}(?![\\p{L}\\p{N}_])`, "giu");
+    return new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])${escapeRegExp(phrase)}(?![\\p{L}\\p{N}\\p{M}_])`, "giu");
 }
 
 export function scoreSlop(message: { subject: string; body: string }, options: SlopOptions = {}): SlopResult {
     const text = `${message.subject}\n${message.body}`;
     const hits: SlopHit[] = [];
 
-    for (const phrase of [...STOCK_PHRASES, ...(options.extraPhrases ?? [])]) {
+    // A phrase listed twice (or an extra phrase already built in) must not score the same occurrence twice.
+    const phrases = new Set([...STOCK_PHRASES, ...(options.extraPhrases ?? [])].map((p) => p.trim().toLowerCase()).filter(Boolean));
+    for (const phrase of phrases) {
         for (const m of text.matchAll(phraseRegex(phrase))) {
             hits.push({ rule: "stock-phrase", match: m[0], points: POINTS.stockPhrase });
         }
     }
-    for (const m of text.matchAll(/—|–/g)) hits.push({ rule: "em-dash", match: m[0], points: POINTS.emDash });
+    // An em dash, or an en dash used as one (spaces on both sides). A range such as 10–15 minutes is fine.
+    for (const m of text.matchAll(/—|(?<=\s)–(?=\s)/g)) hits.push({ rule: "em-dash", match: m[0], points: POINTS.emDash });
     for (const m of text.matchAll(/\bnot (?:just|only|merely)\b[^.!?\n]{0,60}?\bbut\b/giu)) {
         hits.push({ rule: "not-just-but", match: m[0], points: POINTS.notJustBut });
     }
