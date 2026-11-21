@@ -18,6 +18,8 @@ export type Industry = {
   limits: string;
   notFit: string;
   faq: { q: string; a: string }[];
+  /** Not a compliance-deadline niche: kept off the home page, region pages and the deadline groups on /industries. */
+  more?: true;
 };
 
 export const INDUSTRIES: Industry[] = [
@@ -205,6 +207,102 @@ export const INDUSTRIES: Industry[] = [
     faq: [
       { q: "Is CraftMyFunnel itself DPDP-ready?", a: "See our Privacy and Security pages for current controls. Consent handling and approval logs are part of the product; confirm specifics for your use case with our team." },
       { q: "Does it tell me which companies are non-compliant?", a: "No. Use your own research and qualification." },
+    ],
+  },
+  {
+    slug: "b2b-saas",
+    name: "B2B SaaS",
+    market: "global",
+    more: true,
+    title: "Your pipeline stalls between interested and booked. Fix the follow-up.",
+    lead: "Prepare researched accounts, review every draft and see which replies deserve a person today, for software teams selling to a considered buyer.",
+    whyNow: { title: "Follow-up clarity decides which interested accounts become meetings.", stats: [], source: "" },
+    buyer: "Founders and sales heads at B2B software companies with a small outbound team.",
+    challenge: "Leads arrive from several places, replies land in different inboxes and nobody can say which accounts are warm today.",
+    situations: [
+      ["Replies get lost", "See incoming replies with a suggested label, and decide who answers."],
+      ["Drafts vary by rep", "AI prepares the draft from the account's context; a person reviews it before sending."],
+      ["Nobody owns the next step", "Track stages and follow-up tasks on each lead's timeline."],
+    ],
+    example: ["Pick one product line and one customer profile.", "Prepare messages about each account's own context.", "Review every draft, then send.", "Sort replies and move stages as buyers respond."],
+    pilot: "One product line, one customer profile and a small researched account set.",
+    limits: "CraftMyFunnel does not guarantee replies or meetings, and nothing is sent without your review.",
+    notFit: "Teams wanting high-volume unreviewed sending, or a self-serve product-led funnel tool.",
+    faq: [
+      { q: "Does it book meetings automatically?", a: "No. It records meetings against the lead. Booking through your calendar is a separate step." },
+      { q: "Can it send without review?", a: "No. Every draft is reviewed by a person first." },
+    ],
+  },
+  {
+    slug: "enterprise-services",
+    name: "Enterprise services",
+    market: "global",
+    more: true,
+    title: "Long deals go quiet between meetings. Keep every contact and next step in one place.",
+    lead: "Built for consulting, advisory and managed-service teams whose deals involve several stakeholders over several months.",
+    whyNow: { title: "Considered deals are won by consistent follow-up across many conversations.", stats: [], source: "" },
+    buyer: "Partners and practice leads at consulting, advisory and managed-service firms.",
+    challenge: "Each deal has many contacts and a long timeline. Notes sit in personal inboxes, and no one sees the whole account.",
+    situations: [
+      ["Several stakeholders per deal", "Keep every contact and conversation against the account."],
+      ["Long gaps between touches", "Follow-up tasks and the activity timeline show what is due."],
+      ["Messages must be careful", "A person reviews every draft before it goes out."],
+    ],
+    example: ["Pick one service and one account group.", "Map the contacts you already have at each account.", "Review and send a first message per contact.", "Track replies and next steps as they come in."],
+    pilot: "One service, one account group and a few months of follow-up.",
+    limits: "CraftMyFunnel organises outreach and follow-up. It does not run your sales process or judge deal quality.",
+    notFit: "Firms that want a full CRM replacement or fully automated outbound.",
+    faq: [
+      { q: "Does it replace our CRM?", a: "It is an outreach and follow-up workspace. Use it beside your CRM as you see fit." },
+      { q: "How long before we see anything?", a: "Long sales cycles take time. A narrow pilot on one service is the honest way to judge fit." },
+    ],
+  },
+  {
+    slug: "real-estate",
+    name: "Real estate & developers",
+    market: "global",
+    more: true,
+    title: "Enquiries arrive from everywhere. Answer each one properly, on time.",
+    lead: "Keep enquiries, channel-partner conversations and follow-ups in one workflow, with a person reviewing every message.",
+    whyNow: { title: "A fast, accurate first answer separates serious sellers from the rest.", stats: [], source: "" },
+    buyer: "Sales heads at developers, brokerages and commercial real-estate advisers.",
+    challenge: "Enquiries come from forms, portals and partners. Follow-up depends on who saw them first.",
+    situations: [
+      ["Enquiries are scattered", "Save each lead with its source and conversation history."],
+      ["Partner conversations drift", "Track stages and owners for each partner and project."],
+      ["Contact must be lawful", "You decide who is eligible. Consent handling is your responsibility."],
+    ],
+    example: ["Pick one project or partner programme.", "Import enquiries you are allowed to contact.", "Review every message before sending.", "Sort replies and record site visits and calls."],
+    pilot: "One project or partner programme with a small, eligible contact set.",
+    limits: "Only contact people who enquired or have a lawful basis. WhatsApp needs recorded consent. CraftMyFunnel does not check eligibility for you.",
+    notFit: "Teams wanting to message purchased or scraped lists without consent.",
+    faq: [
+      { q: "Can it message buyers on WhatsApp?", a: "WhatsApp needs recorded consent and its setup status varies. Confirm what is enabled for your workspace before relying on it." },
+      { q: "Who checks that a contact can be messaged?", a: "You do. Your team owns recipient eligibility and consent." },
+    ],
+  },
+  {
+    slug: "clinics",
+    name: "Clinics & healthcare providers",
+    market: "global",
+    more: true,
+    title: "Grow employer and referral partnerships without losing track of a conversation.",
+    lead: "For clinics, diagnostics and healthcare groups that sell services to businesses and referrers. Every message is reviewed by a person.",
+    whyNow: { title: "Partnership deals are slow, and every conversation needs a clear owner.", stats: [], source: "" },
+    buyer: "Business-development and operations leads at clinics, diagnostics groups and multi-site providers.",
+    challenge: "Employer and referral conversations run over weeks. Nobody sees where each one stands.",
+    situations: [
+      ["Many partner conversations", "Keep each employer or referrer with its history and next step."],
+      ["Messages must be careful", "A person reviews every draft before it is sent."],
+      ["Data must stay out", "Use business contacts only. Do not enter patient information."],
+    ],
+    example: ["Pick one service, such as employer health checks.", "Prepare a message for each business contact.", "Review every draft before sending.", "Track replies and meetings with each employer."],
+    pilot: "One service, one city and a small set of business contacts.",
+    limits: "Business contacts only. Never enter patient data or clinical records. CraftMyFunnel is not a medical-records system and makes no clinical or compliance claims.",
+    notFit: "Anyone wanting to market to patients, or to store clinical or patient information.",
+    faq: [
+      { q: "Can we upload patient lists?", a: "No. Use CraftMyFunnel for business and referral contacts only." },
+      { q: "Does this make us compliant?", a: "No. Your own legal and compliance review decides what you may send and store." },
     ],
   },
 ];
