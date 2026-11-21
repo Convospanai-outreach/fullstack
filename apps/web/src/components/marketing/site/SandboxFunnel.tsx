@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import type { Sandbox } from "@/lib/marketing/sandboxes";
 
 /**
@@ -20,15 +20,25 @@ const STEPS = [
 
 export function SandboxFunnel({ data }: { data: Sandbox }) {
   const [i, setI] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  // Standard tab pattern: arrows, Home and End move between tabs; only the selected tab is in the Tab order.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const last = STEPS.length - 1;
+    const next = e.key === "ArrowRight" ? (i === last ? 0 : i + 1) : e.key === "ArrowLeft" ? (i === 0 ? last : i - 1) : e.key === "Home" ? 0 : e.key === "End" ? last : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    setI(next);
+    tabs.current[next]?.focus();
+  };
   const step = STEPS[i];
   const { prospect: p } = data;
 
   return (
     <div className="ph-sbx">
       <p className="ph-sbx-badge">Sample funnel · fictional data</p>
-      <div className="ph-sbx-tabs" role="tablist" aria-label="Funnel steps">
+      <div className="ph-sbx-tabs" role="tablist" aria-label="Funnel steps" onKeyDown={onKeyDown}>
         {STEPS.map((s, n) => (
-          <button key={s.id} type="button" role="tab" id={`sbx-tab-${s.id}`} aria-selected={n === i} aria-controls="sbx-panel"
+          <button key={s.id} ref={(el) => { tabs.current[n] = el; }} type="button" role="tab" id={`sbx-tab-${s.id}`} aria-selected={n === i} aria-controls="sbx-panel" tabIndex={n === i ? 0 : -1}
             className={n === i ? "active" : ""} onClick={() => setI(n)}>
             <span>{n + 1}</span> {s.name}
           </button>
