@@ -75,6 +75,22 @@ test("does not take the command interpreter from the ComSpec environment variabl
   assert.match(result.stdout, /ran/);
 });
 
+test("ignores a SystemRoot that is not a real Windows directory", { skip: process.platform !== "win32" }, () => {
+  const fake = fs.mkdtempSync(path.join(os.tmpdir(), "fake-root-"));
+  try {
+    fs.mkdirSync(path.join(fake, "System32"), { recursive: true });
+    // A stand-in cmd.exe that would make the run fail if it were ever used.
+    fs.copyFileSync(process.execPath, path.join(fake, "System32", "cmd.exe"));
+    for (const root of [fake, "C:\Windows\..\Users", "relative\Windows"]) {
+      const result = runWithShim({ SystemRoot: root }, ["plain"]);
+      assert.equal(result.status, 0, `${root}: ${result.stderr}`);
+      assert.match(result.stdout, /ran/);
+    }
+  } finally {
+    fs.rmSync(fake, { recursive: true, force: true });
+  }
+});
+
 test("refuses cmd.exe metacharacters in arguments instead of passing them to the shell", { skip: process.platform !== "win32" }, () => {
   for (const bad of ["a&calc", "a|b", "a>b", "a^b", "%PATH%", "a\nb"]) {
     const result = runWithShim({}, [bad]);

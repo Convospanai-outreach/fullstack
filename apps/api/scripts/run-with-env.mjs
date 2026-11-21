@@ -74,6 +74,15 @@ function resolveExecutable(command) {
   return command;
 }
 
+// SystemRoot comes from the caller's environment, so only use it when it is a plain drive path whose last
+// folder is a Windows directory name and that really holds System32\\cmd.exe. Anything else falls back to C:\\Windows.
+function trustedWindowsDir() {
+  const fallback = "C:\\Windows";
+  const root = process.env.SystemRoot;
+  if (typeof root !== "string" || !/^[A-Za-z]:\\(?:Windows|WINNT)$/i.test(root)) return fallback;
+  return fs.existsSync(path.join(root, "System32", "cmd.exe")) ? root : fallback;
+}
+
 function resolveSpawn(command, args) {
   const executable = resolveExecutable(command);
   if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable)) {
@@ -86,7 +95,7 @@ function resolveSpawn(command, args) {
     }
     return {
       // The system's own cmd.exe, never a path taken from the (caller-controlled) ComSpec variable.
-      command: path.join(process.env.SystemRoot || "C:\\Windows", "System32", "cmd.exe"),
+      command: path.join(trustedWindowsDir(), "System32", "cmd.exe"),
       args: ["/d", "/s", "/c", executable, ...args],
       windowsVerbatimArguments: false,
     };
