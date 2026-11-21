@@ -1,0 +1,32 @@
+{
+  "slug": "example-b2b-saas",
+  "prospect": "Example SaaS Co (fictional)",
+  "credits": 0,
+  "offer": "Workflow automation software for finance teams at growing companies.",
+  "icp": {
+    "name": "Heads of Finance Ops at scale-ups",
+    "description": "Fictional buyer profile for a sample tear-down.",
+    "criteria": { "titles": ["Head of Finance Ops", "Controller", "CFO"], "industries": ["Software", "Fintech"], "companySize": "50-500", "regions": ["US", "UK"] }
+  },
+  "campaigns": [
+    { "name": "Sample: month-end close pain", "description": "Draft campaign. Nothing is sent.", "status": "draft" }
+  ],
+  "leads": [
+    { "name": "Eli Warren", "title": "Controller", "company": "Sample Cloud Ledger", "domain": "samplecloudledger.example", "stage": "COLD" },
+    { "name": "Fay Okoro", "title": "Head of Finance Ops", "company": "Sample Payments Hub", "domain": "samplepayments.example", "stage": "WARM" },
+    { "name": "Gus Lindqvist", "title": "CFO", "company": "Sample Data Works", "domain": "sampledataworks.example", "stage": "HOT", "value": 18000 },
+    { "name": "Hana Sato", "title": "VP Finance", "company": "Sample Metrics", "domain": "samplemetrics.example", "stage": "MEETING_CONFIRMED", "value": 22000 }
+  ],
+  "activities": [
+    { "lead": 3, "channel": "EMAIL", "type": "REPLIED", "title": "Replied (sample)", "notes": "Asked whether it integrates with their ERP.", "ageDays": 3 }
+  ],
+  "thread": {
+    "lead": 3,
+    "messages": [
+      { "direction": "OUTBOUND", "sender": "Sample Rep", "content": "Hi Gus, a short note on shortening month-end close. Worth a quick chat? (Sample message)", "ageDays": 5 },
+      { "direction": "INBOUND", "sender": "Gus Lindqvist", "content": "Maybe. Does it connect to our ERP? (Sample message)", "ageDays": 3 }
+    ]
+  },
+  "tasks": [{ "title": "Sample: answer ERP question for Gus Lindqvist", "lead": 3, "priority": "HIGH", "dueInDays": 1 }],
+  "meeting": { "title": "Sample: demo with Sample Metrics", "lead": 4, "startInDays": 2, "minutes": 30, "notes": "Fictional meeting record." }
+}
