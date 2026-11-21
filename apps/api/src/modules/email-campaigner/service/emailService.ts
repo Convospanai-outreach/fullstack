@@ -17,6 +17,7 @@ import {
 import { sendViaResendMailbox, type ResendSendOutcome } from "./resendMailboxService";
 import { checkSendGate } from "@/modules/governance/lawfulBasis";
 import type { EmailAttachment } from "./emailAttachment";
+import { firstTouchNoticeEnabled, needsFirstTouchNotice, resolveFirstTouchNotice, type FirstTouchNotice } from "@/modules/governance/firstTouchNotice";
 import * as crypto from "crypto";
 
 export type EmailSendResult = {
@@ -49,7 +50,11 @@ function escapeHtml(value: string): string {
 }
 
 class EmailService {
-    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null, footerText?: string) {
+    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null, footerText?: string, firstTouch?: { teamName: string; notice: FirstTouchNotice }) {
+        // First-touch notice (DPDP): who is writing, why, how to stop, whom to ask. HTML-escaped: it is team-authored text.
+        const firstTouchBlock = firstTouch
+            ? `<p style="font-size:13px;line-height:1.5;color:#0f172a;margin:0 0 10px 0">${escapeHtml(`This message is from ${firstTouch.teamName}. ${firstTouch.notice.text}`)} To stop receiving messages from us, reply "unsubscribe". Questions about your personal data: <a href="mailto:${escapeHtml(firstTouch.notice.privacyContactEmail)}">${escapeHtml(firstTouch.notice.privacyContactEmail)}</a>.</p>`
+            : "";
         // CAN-SPAM requires a physical postal address in every marketing email; omitted when the team hasn't set one.
         const addressLine = mailingAddress
             ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
@@ -70,6 +75,7 @@ class EmailService {
         const antiSpamFooter = `
                 <table role="presentation" width="100%" style="margin-top:20px;border-top:2px solid #1e293b">
                     <tr><td style="padding-top:14px">
+                        ${firstTouchBlock}
                         ${customFooterLine}
                         <p style="font-size:13px;line-height:1.5;color:#0f172a;font-weight:700;margin:0 0 8px 0">
                             If you don't want to receive emails from us, please do NOT mark this as SPAM &mdash;
@@ -213,11 +219,13 @@ class EmailService {
         if (teamId && await isSuppressed(teamId, to)) {
             return { success: false, error: "RECIPIENT_SUPPRESSED" };
         }
+        let leadSource: string | null = null;
         if (metadata?.leadId) {
             const lead = await prisma.lead.findUnique({
                 where: { id: metadata.leadId },
-                select: { status: true, teamId: true },
+                select: { status: true, teamId: true, source: true },
             });
+            leadSource = lead?.source ?? null;
             if (teamId && lead && lead.teamId !== teamId) {
                 return { success: false, error: "LEAD_TEAM_MISMATCH" };
             }
@@ -244,11 +252,22 @@ class EmailService {
         const trackingId = crypto.randomUUID();
         const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
         const teamComms = teamId
-            ? await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true, branding: true } })
+            ? await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, mailingAddress: true, branding: true, sendSafety: true } })
             : null;
         const mailingAddress = teamComms?.mailingAddress;
         const footerText = resolveEmailFooterText(teamComms?.branding);
-        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress, footerText);
+
+        // DPDP first-touch notice: only for leads without form consent, only on the first email, only with the team flag on.
+        let firstTouch: { teamName: string; notice: FirstTouchNotice } | undefined;
+        if (metadata?.leadId && firstTouchNoticeEnabled(teamComms?.sendSafety) && needsFirstTouchNotice(leadSource)) {
+            const alreadyEmailed = (await prisma.email.count({ where: { leadId: metadata.leadId, status: "sent" } })) > 0;
+            if (!alreadyEmailed) {
+                const notice = resolveFirstTouchNotice(teamComms?.branding);
+                if (!notice) return { success: false, error: "FIRST_TOUCH_NOTICE_NOT_SET" };
+                firstTouch = { teamName: teamComms?.name || "the sender", notice };
+            }
+        }
+        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress, footerText, firstTouch);
         const unsubscribeUrl = publicBaseUrl
             ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
             : undefined;
