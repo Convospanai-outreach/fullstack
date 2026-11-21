@@ -49,3 +49,53 @@ test("resolves an ancestor local .cmd shim and forwards arguments, environment, 
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+function runWithShim(extraEnv, args) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "run-with-env-"));
+  try {
+    const apiDir = path.join(tempRoot, "workspace", "apps", "api");
+    const binDir = path.join(tempRoot, "workspace", "node_modules", ".bin");
+    fs.mkdirSync(apiDir, { recursive: true });
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.writeFileSync(path.join(binDir, "fixture.cmd"), "@echo off\r\necho ran\r\nexit /b 0\r\n");
+    return spawnSync(process.execPath, [runnerPath, "--", "fixture", ...args], {
+      cwd: apiDir,
+      encoding: "utf8",
+      env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== "comspec")), ...extraEnv },
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+test("does not take the command interpreter from the ComSpec environment variable", { skip: process.platform !== "win32" }, () => {
+  const result = runWithShim({ ComSpec: "C:\does-not-exist\evil.exe" }, ["plain"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /ran/);
+});
+
+test("ignores a SystemRoot that is not a real Windows directory", { skip: process.platform !== "win32" }, () => {
+  const fake = fs.mkdtempSync(path.join(os.tmpdir(), "fake-root-"));
+  try {
+    fs.mkdirSync(path.join(fake, "System32"), { recursive: true });
+    // A stand-in cmd.exe that would make the run fail if it were ever used.
+    fs.copyFileSync(process.execPath, path.join(fake, "System32", "cmd.exe"));
+    for (const root of [fake, "C:\Windows\..\Users", "relative\Windows"]) {
+      const result = runWithShim({ SystemRoot: root }, ["plain"]);
+      assert.equal(result.status, 0, `${root}: ${result.stderr}`);
+      assert.match(result.stdout, /ran/);
+    }
+  } finally {
+    fs.rmSync(fake, { recursive: true, force: true });
+  }
+});
+
+test("refuses cmd.exe metacharacters in arguments instead of passing them to the shell", { skip: process.platform !== "win32" }, () => {
+  for (const bad of ["a&calc", "a|b", "a>b", "a^b", "%PATH%", "a\nb"]) {
+    const result = runWithShim({}, [bad]);
+
+    assert.equal(result.status, 1, `${JSON.stringify(bad)} should be refused`);
+    assert.doesNotMatch(result.stdout, /ran/);
+  }
+});

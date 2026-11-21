@@ -12,6 +12,8 @@
   color: var(--ph-navy);
   background: var(--ph-off);
 }
+/* globals.css gives h1-h3 the app's display font (Bricolage). Marketing pages use Montserrat throughout, and an element rule beats inheritance, so say so here. */
+.ph h1, .ph h2, .ph h3, .ph h4 { font-family: inherit; }
 .ph *, .ph *::before, .ph *::after { box-sizing: border-box; }
 .ph-wrap { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
 .ph h1, .ph h2 { font-size: 48px; line-height: 1.2; font-weight: 500; letter-spacing: -0.04em; margin: 0 0 20px; max-width: 900px; }
@@ -64,10 +66,19 @@
 .ph-tabs { display: flex; gap: 8px; margin: 40px 0 0; padding: 6px; border: 1px solid rgba(12,27,48,.18); border-radius: 40px; overflow-x: auto; }
 .ph-tabs button { flex: 1; border: 0; background: transparent; color: var(--ph-navy); font: 500 15px/1 var(--font-home), sans-serif; padding: 14px 20px; border-radius: 40px; cursor: pointer; white-space: nowrap; }
 .ph-tabs button.active { background: var(--ph-navy); color: var(--ph-off); }
-.ph-tabpanel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; margin-top: 48px; }
+.ph-tabpanel { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; grid-template-areas: "copy art" "more art"; gap: 0 64px; margin-top: 48px; align-items: start; }
+.ph-tp-copy { grid-area: copy; }
+.ph-tp-more { grid-area: more; }
+.ph-tabpanel .ph-imgslot { grid-area: art; }
 .ph-tabpanel h3 { font-size: 32px; letter-spacing: -0.04em; }
 .ph-tabpanel p { font-size: 18px; line-height: 1.5; color: var(--ph-muted); margin-bottom: 28px; }
-.ph-tabpanel ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.ph-tabpanel ul { list-style: none; padding: 0; margin: 0 0 28px; display: grid; gap: 14px; }
+.ph-imgslot { margin: 0; aspect-ratio: 6 / 5; width: 100%; display: flex; align-items: center; justify-content: center; text-align: center; border: 2px dashed rgba(12,27,48,.28); border-radius: 16px; background: repeating-linear-gradient(135deg, rgba(12,27,48,.03) 0 14px, transparent 14px 28px), #fff; }
+.ph-imgslot figcaption { display: grid; gap: 8px; justify-items: center; max-width: 620px; padding: 24px; color: var(--ph-muted); font-size: 15px; line-height: 1.5; }
+.ph-imgslot figcaption strong { color: var(--ph-navy); font-size: 20px; letter-spacing: -.01em; }
+.ph-imgslot-filled { border: 0; overflow: hidden; background: none; }
+.ph-imgslot-filled picture { display: block; width: 100%; height: 100%; }
+.ph-imgslot-filled img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .ph-tabpanel li { background: #fff; border-radius: 12px; padding: 20px 24px; font-size: 16px; line-height: 1.45; border-left: 4px solid var(--ph-yellow); }
 
 /* cards */
@@ -104,6 +115,11 @@
   .ph-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .ph-grid-3 { grid-template-columns: repeat(2, 1fr); }
   .ph-tabpanel, .ph-closing-grid { grid-template-columns: 1fr; gap: 32px; }
+  .ph-tabpanel { grid-template-rows: none; grid-template-areas: "copy" "art" "more"; }
+  .ph-tp-copy p:last-child { margin-bottom: 0; }
+  .ph-imgslot { max-width: 720px; }
+  .ph-imgslot-filled { aspect-ratio: 4 / 3; }
+  .ph-imgslot:not(.ph-imgslot-filled) { aspect-ratio: auto; min-height: 240px; }
 }
 @media (max-width: 760px) {
   .ph-wrap { padding: 0 20px; }
@@ -115,6 +131,7 @@
   .ph-step { padding: 24px; gap: 20px; }
   .ph-step-n { font-size: 34px; min-width: 48px; }
   .ph-tabs button { flex: none; }
+  .ph-imgslot figcaption { padding: 20px 16px; }
   .ph-inputrow { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .ph-btn { transition: none; } .ph-btn:hover { transform: none; } }

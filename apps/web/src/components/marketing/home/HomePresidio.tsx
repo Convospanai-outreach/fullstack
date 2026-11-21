@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { InviteRequestForm } from "../InviteRequestForm";
 import { CHANNELS, HOME, type SignupPath } from "./homeContent";
 import { montserrat } from "./fonts";
+import { cleanImagePath, STEP_IMAGE } from "@/lib/siteImages";
 import { INDUSTRIES, MARKET_LABEL } from "@/lib/marketing/industries";
 import "../site/site.css";
 
@@ -29,10 +30,28 @@ function Eyebrow({ children }: { children: ReactNode }) {
   return <p className="ph-eyebrow">{children}</p>;
 }
 
+/**
+ * One connected story told across the six steps, so the images read as a single day in the life of a small team:
+ * Maya (founder, sells the firm's services) and Dev (her colleague who reviews what goes out), and one fictional
+ * prospect, Priya. Briefs for whoever makes the images: real-looking people at work, warm daylight, no logos, no
+ * readable screen text, no real people or brands. Show the people and the moment, not a dashboard.
+ */
+const STORY = [
+  { scene: "Maya's Monday morning", brief: "Maya at her desk with coffee, a laptop and a few sticky notes. An enquiry has just come in and she is reading it, calm for once instead of hunting through tabs." },
+  { scene: "A first draft, still hers to change", brief: "Over Maya's shoulder: she reads a short drafted message to Priya and changes one line with her pen. The draft is a starting point; she is the author." },
+  { scene: "Everything about Priya in one place", brief: "Maya and Dev side by side at one screen, both looking at the same contact, one talking, one pointing. A phone beside them for the call hand-off." },
+  { scene: "The reply lands", brief: "Maya's phone lights up on the desk. She glances at it and smiles. Priya has answered, and she knows what it means and what to do next." },
+  { scene: "Dev checks before it goes out", brief: "Dev at a meeting table with a notebook, reviewing what is queued. He pauses one message to ask Maya a question: a second pair of eyes, not a bottleneck." },
+  { scene: "Maya meets Priya", brief: "Maya and Priya meet for the first time, in person or on a video call, both mid-conversation and relaxed. The point of the six steps: a real conversation with a real person." },
+] as const;
+
 function HowWeHelp() {
   const steps = HOME.workflow.steps;
   const [tab, setTab] = useState(0);
   const step = steps[tab]!;
+  const chapter = STORY[tab]!;
+  const desktop = cleanImagePath(step.image.desktop);
+  const mobile = desktop ? cleanImagePath(step.image.mobile) : "";
   return (
     <section className="ph-section ph-light" id="how" aria-labelledby="how-title">
       <div className="ph-wrap">
@@ -47,15 +66,34 @@ function HowWeHelp() {
           ))}
         </div>
         <div className="ph-tabpanel" id="ph-tabpanel" role="tabpanel" aria-labelledby={`ph-tab-${tab}`}>
-          <div>
+          <div className="ph-tp-copy">
             <p className="ph-label">{step.meta}</p>
             <h3>{step.title}</h3>
             <p>{step.text}</p>
+          </div>
+          {/* Image for this step: the one uploaded in the CMS, else a placeholder carrying the scene brief. */}
+          {desktop ? (
+            <figure className="ph-imgslot ph-imgslot-filled">
+              <picture>
+                {mobile && <source media="(max-width: 1024px)" srcSet={mobile} width={STEP_IMAGE.mobile.width} height={STEP_IMAGE.mobile.height} />}
+                <img src={desktop} alt={step.image.alt} width={STEP_IMAGE.desktop.width} height={STEP_IMAGE.desktop.height} loading="lazy" decoding="async" />
+              </picture>
+            </figure>
+          ) : (
+            <figure className="ph-imgslot" role="img" aria-label={`Image placeholder, chapter ${tab + 1} of ${steps.length}: ${chapter.scene}. ${chapter.brief}`}>
+              <figcaption>
+                <span className="ph-label">Image placeholder · Chapter {tab + 1} of {steps.length}</span>
+                <strong>{chapter.scene}</strong>
+                <span>{chapter.brief}</span>
+              </figcaption>
+            </figure>
+          )}
+          <div className="ph-tp-more">
+            <ul>
+              {step.bullets.map((b) => <li key={b}>{b}</li>)}
+            </ul>
             <a className="ph-btn ph-btn-yellow" href="#start">Get started</a>
           </div>
-          <ul>
-            {step.bullets.map((b) => <li key={b}>{b}</li>)}
-          </ul>
         </div>
       </div>
     </section>
