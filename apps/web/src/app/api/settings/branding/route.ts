@@ -103,6 +103,16 @@ export async function POST(req: Request | NextRequest) {
             return NextResponse.json({ ok: false, error: "Email footer text cannot be blank" }, { status: 400 });
         }
 
+        // DPDP first-touch notice: whom to ask about personal data, and why the person is being contacted.
+        const privacyContactEmail = typeof body?.privacyContactEmail === "string" ? body.privacyContactEmail.trim() : undefined;
+        if (privacyContactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(privacyContactEmail)) {
+            return NextResponse.json({ ok: false, error: "Privacy contact must be an email address" }, { status: 400 });
+        }
+        if (body?.firstTouchNoticeText !== undefined && typeof body.firstTouchNoticeText !== "string") {
+            return NextResponse.json({ ok: false, error: "First-touch notice must be text" }, { status: 400 });
+        }
+        const firstTouchNoticeText = body?.firstTouchNoticeText !== undefined ? sanitizeText(body.firstTouchNoticeText, 500) : undefined;
+
         const sanitizedTitle = sanitizeText(portalTitle);
         const sanitizedFooter = emailFooterText !== undefined ? sanitizeText(emailFooterText, 500) : undefined;
 
@@ -120,6 +130,8 @@ export async function POST(req: Request | NextRequest) {
             primaryColor: primaryColor !== undefined ? primaryColor : currentBranding["primaryColor"],
             portalTitle: sanitizedTitle !== undefined ? sanitizedTitle : currentBranding["portalTitle"],
             emailFooterText: sanitizedFooter !== undefined ? sanitizedFooter : currentBranding["emailFooterText"],
+            privacyContactEmail: privacyContactEmail !== undefined ? privacyContactEmail : currentBranding["privacyContactEmail"],
+            firstTouchNoticeText: firstTouchNoticeText !== undefined ? firstTouchNoticeText : currentBranding["firstTouchNoticeText"],
         };
 
         await prisma.team.update({

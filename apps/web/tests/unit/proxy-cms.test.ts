@@ -27,6 +27,19 @@ describe("the CMS admin and its GitHub login", () => {
         }
     );
 
+    it("serves CMS-uploaded images to visitors with no session, so the home page shows them", async () => {
+        const res = await proxy(request("https://craftmyfunnel.live/uploads/step-1-desktop.jpg"));
+
+        expect(res.headers.get("location")).toBeNull();
+        expect(res.status).toBe(200);
+    });
+
+    it("does not make a lookalike of /uploads public", async () => {
+        const res = await proxy(request("https://craftmyfunnel.live/uploadsx"));
+
+        expect(res.headers.get("location") ?? "").not.toBe("");
+    });
+
     it("does not make lookalike paths public", async () => {
         const res = await proxy(request("https://craftmyfunnel.live/cmsx"));
 

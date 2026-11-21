@@ -1,6 +1,8 @@
 // Settings for the Decap CMS admin at /cms. Editors sign in with GitHub; every save becomes a pull
 // request on the site's repo (editorial workflow), so nothing goes live until it is reviewed and merged.
 
+import { STEP_IMAGE } from "./siteImages";
+
 export const DECAP_SCRIPT = {
     src: "https://unpkg.com/decap-cms@3.17.3/dist/decap-cms.js",
     integrity: "sha384-RWRzuHfiZSWCt3nEvG7B0v3cMgM1C2UuJmgBSL92GQh4uXmNSkbcthql/mNBqvjr",
@@ -272,7 +274,7 @@ collections:
                 min: 6
                 max: 6
                 summary: "{{fields.title}}"
-                hint: "Six steps, in order. Edit the words only."
+                hint: "Six steps, in order. Edit the words and the images; the steps themselves cannot be added or removed."
                 fields:
                   - { label: Short name (progress bar), name: node, widget: string }
                   - { label: Step label, name: meta, widget: string }
@@ -281,6 +283,14 @@ collections:
                   - { label: Text, name: text, widget: text }
                   - { label: Bullets, name: bullets, widget: list, allow_add: false, min: 3, max: 3, field: { label: Bullet, name: bullet, widget: string } }
                   - { label: Badges, name: badges, widget: list, allow_add: false, min: 3, max: 3, field: { label: Badge, name: badge, widget: string } }
+                  - label: Image
+                    name: image
+                    widget: object
+                    hint: "Optional. Leave empty to show the placeholder. Desktop and mobile are separate files so each is cropped correctly."
+                    fields:
+                      - { label: "Desktop image (export ${STEP_IMAGE.desktop.width} x ${STEP_IMAGE.desktop.height} px, ${STEP_IMAGE.desktop.shape})", name: desktop, widget: image, required: false, choose_url: false, hint: "JPG, PNG or WebP. Same shape as ${STEP_IMAGE.desktop.width} x ${STEP_IMAGE.desktop.height} (${STEP_IMAGE.desktop.shape}); a larger file of that shape is fine. Shown beside the text on screens wider than 1024 px." }
+                      - { label: "Mobile image (export ${STEP_IMAGE.mobile.width} x ${STEP_IMAGE.mobile.height} px, ${STEP_IMAGE.mobile.shape})", name: mobile, widget: image, required: false, choose_url: false, hint: "Shown under the text on phones and tablets (1024 px and narrower). If empty, the desktop image is used and may be cropped." }
+                      - { label: Description for screen readers, name: alt, widget: string, required: false, hint: "Say what the picture shows. Required once an image is added." }
                   - label: Operational view
                     name: mini
                     widget: list

@@ -226,8 +226,8 @@ Regional sales intelligence, commercial corridor signal monitoring, and governed
 `;
             }
 
-            if (cleanPath.startsWith('/use-cases/')) {
-                const vertical = cleanPath.replace('/use-cases/', '');
+            if (cleanPath.startsWith('/industries/')) {
+                const vertical = cleanPath.replace('/industries/', '');
                 const formattedVertical = vertical.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 return `# ${formattedVertical} — Outbound Playbook & Architecture
 
@@ -239,7 +239,7 @@ Dedicated B2B sales automation playbook for ${formattedVertical} organizations.
 3. **Approval Queue**: Practice leads review and approve messaging before dispatch.
 4. **Meeting Tracking**: Real-time attribution of inbound responses to booked meetings.
 
-Explore all vertical playbooks: [${baseUrl}/use-cases](${baseUrl}/use-cases)
+Explore all vertical playbooks: [${baseUrl}/industries](${baseUrl}/industries)
 Full architecture documentation: [${baseUrl}/llms-full.txt](${baseUrl}/llms-full.txt)
 `;
             }
