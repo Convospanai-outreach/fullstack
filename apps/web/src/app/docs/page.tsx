@@ -85,7 +85,7 @@ export default function DocsHubPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#020617] text-slate-100 pt-28 pb-24 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#f5f5f5] text-[#0c1b30] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -98,10 +98,10 @@ export default function DocsHubPage() {
                         <BookOpen className="w-3.5 h-3.5" />
                         Knowledge Hub
                     </div>
-                    <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
+                    <h1 className="text-4xl sm:text-5xl font-medium tracking-tight text-[#0c1b30]">
                         Platform Documentation
                     </h1>
-                    <p className="text-lg text-slate-400 leading-relaxed">
+                    <p className="text-lg text-[#0c1b30]/65 leading-relaxed">
                         Comprehensive architecture specifications, deliverability standards, approval queue mechanics, and developer references.
                     </p>
                 </div>
@@ -114,7 +114,7 @@ export default function DocsHubPage() {
                             <Link
                                 key={topic.slug}
                                 href={`/docs/${topic.slug}`}
-                                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-7 flex flex-col justify-between hover:border-blue-500/40 transition-all hover:shadow-xl hover:shadow-blue-500/5 group"
+                                className="bg-white border border-[#0c1b30]/10 rounded-2xl p-7 flex flex-col justify-between hover:border-blue-500/40 transition-all hover:shadow-xl hover:shadow-blue-500/5 group"
                             >
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
@@ -125,15 +125,15 @@ export default function DocsHubPage() {
                                             {topic.badge}
                                         </span>
                                     </div>
-                                    <h2 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                                    <h2 className="text-xl font-bold text-[#0c1b30] group-hover:text-blue-300 transition-colors">
                                         {topic.title}
                                     </h2>
-                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                    <p className="text-sm text-[#0c1b30]/65 leading-relaxed">
                                         {topic.desc}
                                     </p>
                                 </div>
 
-                                <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center gap-2 text-sm font-semibold text-blue-400 group-hover:text-blue-300">
+                                <div className="pt-6 mt-6 border-t border-[#0c1b30]/10/80 flex items-center gap-2 text-sm font-semibold text-blue-400 group-hover:text-blue-300">
                                     <span>Read Technical Guide</span>
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </div>
@@ -143,13 +143,13 @@ export default function DocsHubPage() {
                 </div>
 
                 {/* LLM / AI Crawler Notice */}
-                <div className="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="p-8 rounded-2xl bg-white border border-[#0c1b30]/10 flex flex-col sm:flex-row items-center justify-between gap-6">
                     <div className="space-y-2 text-center sm:text-left">
-                        <div className="text-white font-bold text-base flex items-center justify-center sm:justify-start gap-2">
-                            <Cpu className="w-4 h-4 text-emerald-400" />
+                        <div className="text-[#0c1b30] font-bold text-base flex items-center justify-center sm:justify-start gap-2">
+                            <Cpu className="w-4 h-4 text-[#006a9a]" />
                             Machine & AI Readable Documentation
                         </div>
-                        <p className="text-xs text-slate-400 max-w-xl">
+                        <p className="text-xs text-[#0c1b30]/65 max-w-xl">
                             All platform specifications and architecture designs are also formatted for automated agent and LLM ingestion via the <code className="text-blue-300">/llms.txt</code> and <code className="text-blue-300">/llms-full.txt</code> standards.
                         </p>
                     </div>
@@ -158,7 +158,7 @@ export default function DocsHubPage() {
                             href="/llms.txt"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+                            className="px-4 py-2 rounded-xl bg-[#e8e6e3] hover:bg-slate-700 text-[#0c1b30]/85 text-xs font-semibold border border-[#0c1b30]/15 transition-colors"
                         >
                             llms.txt
                         </a>
@@ -166,7 +166,7 @@ export default function DocsHubPage() {
                             href="/llms-full.txt"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+                            className="px-4 py-2 rounded-xl bg-[#e8e6e3] hover:bg-slate-700 text-[#0c1b30]/85 text-xs font-semibold border border-[#0c1b30]/15 transition-colors"
                         >
                             llms-full.txt
                         </a>

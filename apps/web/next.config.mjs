@@ -134,6 +134,19 @@ const nextConfig = {
             ['/team', '/settings/team'],
             ['/crm', '/settings/crm'],
             ['/dashboard/settings', '/settings'],
+            // Old marketing URLs -> Industries / Regions (Nov 2026 site rework).
+            ['/use-cases', '/industries'],
+            ['/use-cases/cybersecurity', '/industries/cybersecurity'],
+            ['/use-cases/security-services', '/industries/gcc-services'],
+            ['/use-cases/facility-management', '/industries/gcc-services'],
+            ['/use-cases/managed-it-cloud', '/industries/managed-it-cloud'],
+            ['/use-cases/managed-services', '/industries/managed-it-cloud'],
+            ['/use-cases/ai-data-erp', '/industries/sap-erp'],
+            ['/use-cases/staffing', '/industries/staffing'],
+            ['/use-cases/consulting', '/industries/dpdp-consulting'],
+            ['/use-cases/training', '/industries'],
+            ['/use-cases/regions/:region', '/regions/:region'],
+            ['/funnel', '/'],
         ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
             // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
             toNextRedirects(loadSiteRedirects())

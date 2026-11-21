@@ -69,13 +69,14 @@ CraftMyFunnel uses HMAC-SHA256 deterministic blind indexing for encrypted PII se
 
 ## Vertical Use Cases & Playbooks
 
-- [Industry Use Cases Hub](https://craftmyfunnel.live/use-cases): Overview of vertical outbound playbooks and signal workflows.
-- [Facility Management](https://craftmyfunnel.live/use-cases/facility-management): Commercial property lease renewals, expansions, and RFP discovery.
-- [Security Services](https://craftmyfunnel.live/use-cases/security-services): Manager-approved physical guarding and corporate risk proposals.
-- [Staffing & Recruiting](https://craftmyfunnel.live/use-cases/staffing): Hiring surge intent signals and batch candidate availability pitches.
-- [L&D / Corporate Training](https://craftmyfunnel.live/use-cases/training): Enterprise software adoption triggers and executive learning curriculum proposals.
-- [Consulting & Advisory](https://craftmyfunnel.live/use-cases/consulting): Executive-level partner-approved outreach for strategic advisory firms.
-- [Managed IT Services](https://craftmyfunnel.live/use-cases/managed-services): Recurring IT retainer and MSP client acquisition workflows.
+- [Industries](https://craftmyfunnel.live/industries): Industries where signal-led, human-approved outreach fits first.
+- [Cybersecurity & MSSPs](https://craftmyfunnel.live/industries/cybersecurity): US/EU security providers selling into NIS2- and DORA-driven demand.
+- [Managed IT & cloud](https://craftmyfunnel.live/industries/managed-it-cloud): MSPs and cloud consultancies keeping follow-up moving during delivery.
+- [SAP & ERP partners](https://craftmyfunnel.live/industries/sap-erp): Partners working the SAP ECC 2027 end-of-maintenance window.
+- [GCC workplace services](https://craftmyfunnel.live/industries/gcc-services): Facility, security and workplace providers selling to new Global Capability Centres in India.
+- [Staffing & recruitment](https://craftmyfunnel.live/industries/staffing): Staffing and RPO firms acting on hiring surges.
+- [Privacy & DPDP consulting](https://craftmyfunnel.live/industries/dpdp-consulting): Consultancies selling DPDP readiness ahead of May 2027.
+- [Markets](https://craftmyfunnel.live/regions/india): Market guides for India, the United States, Europe & UK, UAE and Canada.
 
 ## Regional Outbound Hubs & Local Geo-Targeting
 
