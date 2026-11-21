@@ -1,11 +1,11 @@
 import type { TeardownSpec } from './build';
 
 /**
- * The MCP directory-review demo workspace. Ids and team id are pinned to what the original seed script
- * wrote to production (demo-mcp-*), so re-running updates those rows in place instead of creating copies.
+ * The MCP directory-review demo workspace. Its ids are pinned (PINNED_IDENTITIES in build.ts) to what the original seed
+ * script wrote to production (demo-mcp-*), so re-running updates those rows in place instead of creating copies.
  */
 export const DEMO_SPEC: TeardownSpec = {
-  slug: 'demo-mcp', prospect: 'CraftMyFunnel Demo', teamId: 'demo-mcp-review-team', teamName: 'CraftMyFunnel Demo', idPrefix: 'demo-mcp', credits: 100,
+  slug: 'demo-mcp', prospect: 'CraftMyFunnel Demo', credits: 100,
   offer: 'Outreach workspace with human review of every message.',
   icp: { name: 'Demo: B2B SaaS sales leaders', description: 'Fictional example profile for directory review.',
     criteria: { titles: ['VP Sales', 'Head of Growth', 'CRO'], industries: ['B2B SaaS', 'Logistics'], companySize: '50-500', regions: ['US', 'UK'] } },

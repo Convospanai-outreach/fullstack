@@ -17,13 +17,10 @@ export const specSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]{3,40}$/),
   /** Display name of the prospect company. Appears only in the team name. */
   prospect: text(120),
-  /** Explicit overrides, used by the built-in MCP demo so its existing production ids stay stable. */
-  teamId: z.string().regex(/^[a-z0-9-]{3,80}$/).optional(),
-  teamName: text(160).optional(),
-  idPrefix: z.string().regex(/^[a-z0-9-]{3,60}$/).optional(),
   /** Credits on the new team. The Team column defaults to 100 when omitted. */
   credits: z.number().int().min(0).max(100_000).default(100),
-  offer: text(500),
+  /** Rep's note on what the prospect sells. Documentation only: not written to the workspace. */
+  offer: text(500).optional(),
   icp: z.object({ name: text(160), description: text(500), criteria: z.record(z.string(), z.unknown()) }).strict(),
   campaigns: z.array(z.object({ name: text(160), description: text(500), status: z.enum(['draft', 'paused']) }).strict()).min(1).max(5),
   leads: z.array(z.object({
@@ -67,6 +64,18 @@ export type TeardownRows = {
   knowledgeItems: Array<{ id: string; knowledgeBaseId: string; content: string }>;
 };
 
+/**
+ * The only workspaces allowed to keep a fixed id outside the `teardown-` namespace. A JSON spec can never choose its
+ * team id or id prefix: that is what stops `--remove` from ever reaching a real customer workspace.
+ */
+export const PINNED_IDENTITIES: Record<string, { teamId: string; idPrefix: string; teamName: string }> = {
+  'demo-mcp': { teamId: 'demo-mcp-review-team', idPrefix: 'demo-mcp', teamName: 'CraftMyFunnel Demo' },
+};
+
+/** True only for a team this tooling is allowed to write to or delete from. */
+export const isDedicatedTeam = (teamId: string) =>
+  /^teardown-[a-z0-9-]{3,40}$/.test(teamId) || Object.values(PINNED_IDENTITIES).some(p => p.teamId === teamId);
+
 export const rowId = (prefix: string, kind: string, n: number) => `${prefix}-${kind}-${String(n).padStart(2, '0')}`;
 
 function leadRef(spec: Parsed, n: number, where: string) {
@@ -74,13 +83,15 @@ function leadRef(spec: Parsed, n: number, where: string) {
   return n;
 }
 
-export function buildTeardown(input: unknown): TeardownRows {
+export function buildTeardown(input: unknown, opts: { allowPinned?: boolean } = {}): TeardownRows {
   const parsed = specSchema.safeParse(input);
   if (!parsed.success) throw new Error(`Invalid tear-down spec: ${parsed.error.issues.map(i => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ')}`);
   const spec = parsed.data;
-  const idPrefix = spec.idPrefix ?? `teardown-${spec.slug}`;
-  const teamId = spec.teamId ?? `teardown-${spec.slug}`;
-  const teamName = spec.teamName ?? `Tear-down: ${spec.prospect}`;
+  const pinned = PINNED_IDENTITIES[spec.slug];
+  if (pinned && !opts.allowPinned) throw new Error(`The slug "${spec.slug}" is reserved for a built-in workspace.`);
+  const idPrefix = pinned ? pinned.idPrefix : `teardown-${spec.slug}`;
+  const teamId = pinned ? pinned.teamId : `teardown-${spec.slug}`;
+  const teamName = pinned ? pinned.teamName : `Tear-down: ${spec.prospect}`;
   const id = (kind: string, n: number) => rowId(idPrefix, kind, n);
 
   const leads = spec.leads.map((l, i) => {
@@ -115,6 +126,7 @@ export function buildTeardown(input: unknown): TeardownRows {
 export function assertInvariants(rows: TeardownRows): void {
   const owned = [rows.icp.id, ...rows.campaigns.map(r => r.id), ...rows.leads.map(r => r.id), ...rows.activities.map(r => r.id), ...rows.messages.map(r => r.id),
     ...rows.tasks.map(r => r.id), ...rows.meetings.map(r => r.id), ...rows.templates.map(r => r.id), ...rows.knowledgeBases.map(r => r.id), ...rows.knowledgeItems.map(r => r.id)];
+  if (!isDedicatedTeam(rows.teamId)) throw new Error(`Team ${rows.teamId} is not a dedicated tear-down workspace`);
   for (const id of owned) if (!id.startsWith(`${rows.idPrefix}-`)) throw new Error(`Row id ${id} is outside the ${rows.idPrefix} namespace`);
   if (new Set(owned).size !== owned.length) throw new Error('Duplicate row ids');
   for (const l of rows.leads) {

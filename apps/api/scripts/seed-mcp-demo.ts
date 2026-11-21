@@ -9,4 +9,4 @@
 import { main } from '../src/scripts/teardown/cli';
 import { DEMO_SPEC } from '../src/scripts/teardown/demoSpec';
 
-void main(() => DEMO_SPEC);
+void main(() => DEMO_SPEC, { allowPinned: true });

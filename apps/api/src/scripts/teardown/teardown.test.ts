@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildTeardown, assertInvariants } from './build';
+import { buildTeardown, assertInvariants, isDedicatedTeam } from './build';
 import { DEMO_SPEC } from './demoSpec';
-import { removeTeardown } from './write';
+import { applyTeardown, removeTeardown } from './write';
 
 const base = () => ({
   slug: 'acme-sec', prospect: 'Acme Security', offer: 'Managed detection for mid-market firms',
@@ -54,17 +54,35 @@ describe('buildTeardown', () => {
   });
 
   it('keeps the demo workspace ids stable so a re-run updates production rows in place', () => {
-    const rows = buildTeardown(DEMO_SPEC);
+    const rows = buildTeardown(DEMO_SPEC, { allowPinned: true });
     expect(rows.teamId).toBe('demo-mcp-review-team');
     expect(rows.icp.id).toBe('demo-mcp-icp-01');
     expect(rows.leads[0]!.id).toBe('demo-mcp-lead-01');
     expect(rows.leads).toHaveLength(12);
     expect(rows.campaigns.map(c => c.status)).toEqual(['draft', 'paused']);
   });
+
+  it('does not let a spec choose its team id or id prefix', () => {
+    expect(() => buildTeardown({ ...base(), teamId: 'some-real-team' })).toThrow();
+    expect(() => buildTeardown({ ...base(), idPrefix: 'demo-mcp' })).toThrow();
+    expect(() => buildTeardown({ ...base(), teamName: 'x' })).toThrow();
+  });
+
+  it('reserves the demo slug for the built-in spec', () => {
+    expect(() => buildTeardown({ ...base(), slug: 'demo-mcp' })).toThrow(/reserved/);
+    expect(isDedicatedTeam('demo-mcp-review-team')).toBe(true);
+    expect(isDedicatedTeam('teardown-acme-sec')).toBe(true);
+    expect(isDedicatedTeam('a-real-customer-team')).toBe(false);
+  });
+
+  it('treats the offer as an optional note', () => {
+    const { offer: _offer, ...noOffer } = base();
+    expect(() => buildTeardown(noOffer)).not.toThrow();
+  });
 });
 
 describe('removeTeardown', () => {
-  it('only deletes within the tear-down team and deactivates that membership', async () => {
+  it('only deletes within the tear-down team and deactivates every membership on it', async () => {
     const rows = buildTeardown(base());
     const calls: Array<[string, unknown]> = [];
     const op = (name: string) => vi.fn((args: unknown) => { calls.push([name, args]); return Promise.resolve({ count: 0 }); });
@@ -74,10 +92,10 @@ describe('removeTeardown', () => {
       message: { deleteMany: op('message') }, leadActivity: { deleteMany: op('leadActivity') }, task: { deleteMany: op('task') },
       meeting: { deleteMany: op('meeting') }, campaign: { deleteMany: op('campaign') }, iCP: { deleteMany: op('icp') },
       emailTemplate: { deleteMany: op('template') }, knowledgeItem: { deleteMany: op('knowledgeItem') },
-      teamMember: { updateMany: op('teamMember') }, team: { delete: vi.fn() },
+      teamMember: { updateMany: op('teamMember') }, team: { delete: vi.fn(), findUnique: vi.fn().mockResolvedValue({ name: 'Tear-down: Acme Security' }) },
       $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     };
-    await removeTeardown(prisma as never, rows, { id: 'user-1', email: 'rep@example.com' });
+    await removeTeardown(prisma as never, rows);
 
     expect(prisma.team.delete).not.toHaveBeenCalled();
     const json = JSON.stringify(calls);
@@ -87,7 +105,38 @@ describe('removeTeardown', () => {
       const scoped = where.includes('teardown-acme-sec') || where.includes('"in"');
       expect(scoped, `${name} delete must be scoped, got ${where}`).toBe(true);
     }
-    expect(calls.find(([n]) => n === 'teamMember')![1]).toEqual({ where: { teamId: 'teardown-acme-sec', userId: 'user-1' }, data: { status: 'inactive' } });
+    expect(calls.find(([n]) => n === 'teamMember')![1]).toEqual({ where: { teamId: 'teardown-acme-sec' }, data: { status: 'inactive' } });
+  });
+});
+
+describe('writer safety', () => {
+  const noWrites = (existingName: string | null) => ({
+    team: { findUnique: vi.fn().mockResolvedValue(existingName === null ? null : { name: existingName }), upsert: vi.fn() },
+    lead: { findMany: vi.fn().mockResolvedValue([]) }, knowledgeBase: { findMany: vi.fn().mockResolvedValue([]) },
+    $transaction: vi.fn(),
+  });
+
+  it('refuses to apply or remove over an existing team with a different name', async () => {
+    const rows = buildTeardown(base());
+    const prisma = noWrites('Acme Security Production');
+    await expect(removeTeardown(prisma as never, rows)).rejects.toThrow(/Refusing/);
+    await expect(applyTeardown(prisma as never, rows, { id: 'u', email: 'a@b.example' })).rejects.toThrow(/Refusing/);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.team.upsert).not.toHaveBeenCalled();
+  });
+
+  it('refuses a team outside the dedicated namespace even if the rows were built by hand', async () => {
+    const rows = { ...buildTeardown(base()), teamId: 'real-customer-team' };
+    await expect(removeTeardown(noWrites(null) as never, rows)).rejects.toThrow(/not a dedicated/);
+  });
+
+  it('updates credits on an existing team so a re-apply with 0 takes effect', async () => {
+    const rows = buildTeardown({ ...base(), credits: 0 });
+    const prisma = { ...noWrites('Tear-down: Acme Security'), teamMember: { findFirst: vi.fn().mockResolvedValue({ id: 'm1' }), update: vi.fn() },
+      iCP: { upsert: vi.fn() }, campaign: { upsert: vi.fn() }, lead: { upsert: vi.fn() }, leadActivity: { upsert: vi.fn() }, message: { upsert: vi.fn() },
+      task: { upsert: vi.fn() }, meeting: { upsert: vi.fn() }, emailTemplate: { upsert: vi.fn() }, knowledgeBase: { upsert: vi.fn() }, knowledgeItem: { upsert: vi.fn() } };
+    await applyTeardown(prisma as never, rows, { id: 'u', email: 'a@b.example' });
+    expect(prisma.team.upsert.mock.calls[0]![0].update).toMatchObject({ credits: 0 });
   });
 });
 
