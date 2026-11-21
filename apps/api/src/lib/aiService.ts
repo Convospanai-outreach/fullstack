@@ -424,6 +424,15 @@ export function withModelOverride<T>(override: ModelOverride, fn: () => Promise<
     return modelOverrideStore.run(override, fn);
 }
 
+// Extra style rules appended to the draft-generation call (EMAIL_DRAFT) only, inside `fn`. For
+// A/B tests of prompt variants across all three email nodes without editing their prompts; the
+// critic and every other task are left alone. Scoped like withModelOverride.
+const promptAddendumStore = new AsyncLocalStorage<string>();
+
+export function withPromptAddendum<T>(rules: string, fn: () => Promise<T>): Promise<T> {
+    return promptAddendumStore.run(rules, fn);
+}
+
 const LLM_PROVIDER_BY_NAME = {
     gemini: LLMProvider.GEMINI,
     openai: LLMProvider.OPENAI,
@@ -619,6 +628,8 @@ async function callLLM(
         piiNames?: string[];
     }
 ) {
+    const addendum = promptAddendumStore.getStore();
+    if (addendum && options.taskTypeLabel === "EMAIL_DRAFT") prompt = `${prompt}\n\n## ADDITIONAL STYLE RULES\n${addendum}`;
     // DPDP: mask before anything is reserved or sent. Throws (fail closed) if masking cannot be done.
     const masked = maskForLLM({ prompt, systemPrompt: options.systemPrompt }, options.piiNames);
     const actorId = options.actorId || RequestContext.get()?.userId;
