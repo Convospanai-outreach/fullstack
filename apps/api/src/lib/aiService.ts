@@ -417,7 +417,8 @@ type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string;
 
 // Pins every model call made inside `fn` to one provider and model, for A/B tests of different
 // LLMs. Scoped to the async call chain, so concurrent runs do not see each other's choice.
-export type ModelOverride = { provider: "gemini" | "openai" | "anthropic" | "deepseek"; model: string };
+// "open" is the OpenAI-compatible host set by the OPEN_MODEL_* env vars (Groq, OpenRouter, ...).
+export type ModelOverride = { provider: "gemini" | "openai" | "anthropic" | "deepseek" | "open"; model: string };
 const modelOverrideStore = new AsyncLocalStorage<ModelOverride>();
 
 export function withModelOverride<T>(override: ModelOverride, fn: () => Promise<T>): Promise<T> {
@@ -445,6 +446,7 @@ const LLM_PROVIDER_BY_NAME = {
 function pinnedChain(providers: ProviderKeySet, override: ModelOverride): ProviderCandidate[] {
     const apiKey = providers[override.provider]?.apiKey;
     if (!apiKey) throw new Error(`No ${override.provider} key for the model override.`);
+    if (override.provider === "open") return [{ provider: LLMProvider.OPEN_MODEL, apiKey, baseURL: providers.open!.baseURL, model: override.model }];
     return [{ provider: LLM_PROVIDER_BY_NAME[override.provider], apiKey, model: override.model }];
 }
 

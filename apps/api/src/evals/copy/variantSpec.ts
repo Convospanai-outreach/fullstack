@@ -1,7 +1,7 @@
 // A variant given on the command line: "name" or "name@provider:model", for example
 // "current@openai:gpt-4o". The part after @ pins the LLM the variant's generation runs on.
 
-const PROVIDERS = ["gemini", "openai", "anthropic", "deepseek"] as const;
+const PROVIDERS = ["gemini", "openai", "anthropic", "deepseek", "open"] as const;
 type Provider = (typeof PROVIDERS)[number];
 
 export interface VariantSpec {

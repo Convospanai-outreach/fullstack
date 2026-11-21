@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockOpenAICreate, ctor } = vi.hoisted(() => ({
     ctor: { openai: [] as any[] },
@@ -58,6 +58,23 @@ describe("withModelOverride", () => {
     it("fails before any call when the team has no key for the pinned provider", async () => {
         await expect(withModelOverride({ provider: "gemini", model: "gemini-x" }, ask)).rejects.toThrow(/no gemini key/i);
         expect(mockOpenAICreate).not.toHaveBeenCalled();
+    });
+
+    describe("open (any OpenAI-compatible host)", () => {
+        const ENV = { OPEN_MODEL_API_KEY: "open-key", OPEN_MODEL_BASE_URL: "https://open.example/v1", OPEN_MODEL_SMALL: "small-m", OPEN_MODEL_LARGE: "large-m" };
+        afterEach(() => { for (const k of Object.keys(ENV)) delete process.env[k]; });
+
+        it("sends calls to the open host with the model named in the override", async () => {
+            Object.assign(process.env, ENV);
+            await withModelOverride({ provider: "open", model: "llama-3-70b" }, ask);
+            expect(ctor.openai[0]).toMatchObject({ apiKey: "open-key", baseURL: "https://open.example/v1" });
+            expect(mockOpenAICreate.mock.calls[0]![0].model).toBe("llama-3-70b");
+        });
+
+        it("fails before any call when the open host is not configured", async () => {
+            await expect(withModelOverride({ provider: "open", model: "llama-3-70b" }, ask)).rejects.toThrow(/no open key/i);
+            expect(mockOpenAICreate).not.toHaveBeenCalled();
+        });
     });
 
     it("keeps concurrent overrides apart", async () => {
