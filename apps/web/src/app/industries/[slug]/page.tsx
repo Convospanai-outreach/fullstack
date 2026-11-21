@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Page, PageHero, Section, Cards, Steps, Stats, Checklist, Faq, CtaBand, JsonLd } from "@/components/marketing/site/kit";
 import { INDUSTRIES, MARKET_LABEL, industryBySlug } from "@/lib/marketing/industries";
+import { SANDBOXES } from "@/lib/marketing/sandboxes";
+import { SandboxFunnel } from "@/components/marketing/site/SandboxFunnel";
 
 type Props = { params: Promise<{ slug: string }> };
 export const dynamicParams = false;
@@ -22,13 +24,24 @@ export default async function IndustryPage({ params }: Props) {
     <Page>
       <JsonLd data={{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: i.faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) }} />
       <PageHero eyebrow={`${i.name} · ${MARKET_LABEL[i.market]}`} title={i.title} lead={i.lead} primary={{ label: "Start a pilot", href: "/contact" }} secondary={{ label: "How it works", href: "/products/fluid-funnel-engine" }} />
-      <Section tone="fade" eyebrow="Why now" title={i.whyNow.title}>
-        <Stats items={i.whyNow.stats} source={i.whyNow.source} />
-      </Section>
+      {i.whyNow.stats.length > 0 && (
+        <Section tone="fade" eyebrow="Why now" title={i.whyNow.title}>
+          <Stats items={i.whyNow.stats} source={i.whyNow.source} />
+        </Section>
+      )}
       <Section tone="light" title="Where deals get stuck" lead={i.challenge}>
         <Cards items={i.situations.map(([title, body]) => ({ title, body }))} />
         <p className="ph-source">Built for: {i.buyer}</p>
       </Section>
+      {SANDBOXES[i.slug] && (
+        <Section tone="white" eyebrow="See it work" title={`A sample ${i.name} funnel, step by step.`}
+          lead="Click through one example from first capture to a recorded meeting. We build the strategy with you and run this engine under it. Want it on your own offer first? We can prepare a tear-down before you commit.">
+          <SandboxFunnel data={SANDBOXES[i.slug]!} />
+          <div className="ph-actions" style={{ marginTop: 32 }}>
+            <Link className="ph-btn ph-btn-yellow" href="/contact">Request a tear-down for your business</Link>
+          </div>
+        </Section>
+      )}
       <Section tone="white" eyebrow="A first campaign" title="Start narrow. Prove it. Then widen.">
         <Steps items={i.example.map((title) => ({ title }))} />
         <p className="ph-source">Suggested pilot: {i.pilot}</p>

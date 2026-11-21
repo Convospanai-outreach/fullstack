@@ -1,4 +1,5 @@
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/db";
 import { LLMProvider, TaskComplexity } from "@/ai/types";
@@ -414,6 +415,41 @@ function recordProviderSuccess(provider: LLMProvider): void {
 
 type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string; baseURL?: string };
 
+// Pins every model call made inside `fn` to one provider and model, for A/B tests of different
+// LLMs. Scoped to the async call chain, so concurrent runs do not see each other's choice.
+// "open" is the OpenAI-compatible host set by the OPEN_MODEL_* env vars (Groq, OpenRouter, ...).
+export type ModelOverride = { provider: "gemini" | "openai" | "anthropic" | "deepseek" | "open"; model: string };
+const modelOverrideStore = new AsyncLocalStorage<ModelOverride>();
+
+export function withModelOverride<T>(override: ModelOverride, fn: () => Promise<T>): Promise<T> {
+    return modelOverrideStore.run(override, fn);
+}
+
+// Extra style rules appended to the draft-generation call (EMAIL_DRAFT) only, inside `fn`. For
+// A/B tests of prompt variants across all three email nodes without editing their prompts; the
+// critic and every other task are left alone. Scoped like withModelOverride.
+const promptAddendumStore = new AsyncLocalStorage<string>();
+
+export function withPromptAddendum<T>(rules: string, fn: () => Promise<T>): Promise<T> {
+    return promptAddendumStore.run(rules, fn);
+}
+
+const LLM_PROVIDER_BY_NAME = {
+    gemini: LLMProvider.GEMINI,
+    openai: LLMProvider.OPENAI,
+    anthropic: LLMProvider.ANTHROPIC,
+    deepseek: LLMProvider.DEEPSEEK,
+} as const;
+
+// One candidate and no fallback: if the pinned model fails, the call fails, so a result is never
+// quietly produced by a different LLM than the one under test.
+function pinnedChain(providers: ProviderKeySet, override: ModelOverride): ProviderCandidate[] {
+    const apiKey = providers[override.provider]?.apiKey;
+    if (!apiKey) throw new Error(`No ${override.provider} key for the model override.`);
+    if (override.provider === "open") return [{ provider: LLMProvider.OPEN_MODEL, apiKey, baseURL: providers.open!.baseURL, model: override.model }];
+    return [{ provider: LLM_PROVIDER_BY_NAME[override.provider], apiKey, model: override.model }];
+}
+
 function buildProviderChain(
     providers: ProviderKeySet,
     complexity: TaskComplexity = TaskComplexity.ROUTINE,
@@ -594,12 +630,15 @@ async function callLLM(
         piiNames?: string[];
     }
 ) {
+    const addendum = promptAddendumStore.getStore();
+    if (addendum && options.taskTypeLabel === "EMAIL_DRAFT") prompt = `${prompt}\n\n## ADDITIONAL STYLE RULES\n${addendum}`;
     // DPDP: mask before anything is reserved or sent. Throws (fail closed) if masking cannot be done.
     const masked = maskForLLM({ prompt, systemPrompt: options.systemPrompt }, options.piiNames);
     const actorId = options.actorId || RequestContext.get()?.userId;
     const observability = createAIObservabilityContext(actorId);
     const providers = await loadTeamProviders(options.teamId);
-    const chain = buildProviderChain(providers, options.complexity, options.preferOpenModel);
+    const override = modelOverrideStore.getStore();
+    const chain = override ? pinnedChain(providers, override) : buildProviderChain(providers, options.complexity, options.preferOpenModel);
     const primary = chain[0];
     const start = Date.now();
     const billedTeamId = options.chargeCredits !== false && isChargeableTeamId(options.teamId) ? options.teamId : undefined;
