@@ -156,50 +156,50 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         </div>
 
         {/* Related Product Solutions Cross-Links for SEO & Internal Equity */}
-        <div className="mt-16 pt-10 border-t border-[#0c1b30]/10">
+        <div className="mt-16 pt-10 border-t border-[#1A1414]/10">
           <div className="mb-6">
             <h3 className="text-xl font-bold text-foreground">Explore Governed Outreach Solutions</h3>
             <p className="text-sm text-muted-foreground">Discover dedicated systems designed for signal capture, AI personalization, and deliverability control.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link href="/products/fluid-funnel-engine" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-blue-500/40 hover:bg-[#e8e6e3] transition-all group">
+            <Link href="/products/fluid-funnel-engine" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-blue-500/40 hover:bg-[#E8DFD2] transition-all group">
               <div className="font-semibold text-foreground group-hover:text-blue-400 text-sm mb-1">Fluid Funnel Engine &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Adaptive multi-stage sequence routing that shifts cadences based on prospect engagement.</p>
             </Link>
-            <Link href="/products/buyer-signals" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-emerald-500/40 hover:bg-[#e8e6e3] transition-all group">
-              <div className="font-semibold text-foreground group-hover:text-[#006a9a] text-sm mb-1">Buyer Signals — NetJana &rarr;</div>
+            <Link href="/products/buyer-signals" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-emerald-500/40 hover:bg-[#E8DFD2] transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-[#5C1A2B] text-sm mb-1">Buyer Signals — NetJana &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Zero-latency intent capture across job postings, executive moves, and tech migrations.</p>
             </Link>
-            <Link href="/products/ai-outreach" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-purple-500/40 hover:bg-[#e8e6e3] transition-all group">
-              <div className="font-semibold text-foreground group-hover:text-[#006a9a] text-sm mb-1">AI Outreach — CMF Core &rarr;</div>
+            <Link href="/products/ai-outreach" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-purple-500/40 hover:bg-[#E8DFD2] transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-[#5C1A2B] text-sm mb-1">AI Outreach — CMF Core &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Multi-model draft generation with strict prompt guardrails and deliverability headers.</p>
             </Link>
-            <Link href="/products/human-layer" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-amber-500/40 hover:bg-[#e8e6e3] transition-all group">
+            <Link href="/products/human-layer" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-amber-500/40 hover:bg-[#E8DFD2] transition-all group">
               <div className="font-semibold text-foreground group-hover:text-amber-400 text-sm mb-1">Human Layer &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Mandatory human review and batch approval queue to ensure 100% brand voice alignment.</p>
             </Link>
-            <Link href="/products/covospan-edge" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-[#006a9a] hover:bg-[#e8e6e3] transition-all group">
-              <div className="font-semibold text-foreground group-hover:text-[#006a9a] text-sm mb-1">Covospan EDGE &rarr;</div>
+            <Link href="/products/covospan-edge" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-[#5C1A2B] hover:bg-[#E8DFD2] transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-[#5C1A2B] text-sm mb-1">Covospan EDGE &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Sub-100ms inference runtime for local tenant data isolation and zero external leakage.</p>
             </Link>
-            <Link href="/industries" className="p-4 rounded-xl border border-[#0c1b30]/10 bg-white hover:border-[#006a9a] hover:bg-[#e8e6e3] transition-all group">
-              <div className="font-semibold text-foreground group-hover:text-[#006a9a] text-sm mb-1">Vertical Playbooks &rarr;</div>
+            <Link href="/industries" className="p-4 rounded-xl border border-[#1A1414]/10 bg-white hover:border-[#5C1A2B] hover:bg-[#E8DFD2] transition-all group">
+              <div className="font-semibold text-foreground group-hover:text-[#5C1A2B] text-sm mb-1">Vertical Playbooks &rarr;</div>
               <p className="text-xs text-muted-foreground line-clamp-2">Pre-engineered outbound playbooks for SaaS, staffing, consulting, IT MSPs, and FM.</p>
             </Link>
           </div>
         </div>
 
         {/* In-Article Conversion & Backlink Box */}
-        <div className="mt-12 p-8 rounded-2xl bg-[#e8e6e3] border border-[#0c1b30]/10 text-center space-y-4">
-          <h3 className="text-2xl font-bold text-[#0c1b30]">Scale Your Outbound with Governed AI Agents</h3>
+        <div className="mt-12 p-8 rounded-2xl bg-[#E8DFD2] border border-[#1A1414]/10 text-center space-y-4">
+          <h3 className="text-2xl font-bold text-[#1A1414]">Scale Your Outbound with Governed AI Agents</h3>
           <p className="text-muted-foreground max-w-xl mx-auto text-sm">
             Put these AI sales strategies into production with built-in human-in-the-loop review queues, mailbox deliverability protection, and multi-channel workflow automation.
           </p>
           <div className="pt-2 flex justify-center gap-4">
-            <Link href="/signup" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-[#0c1b30] font-semibold text-sm transition-all shadow-lg shadow-blue-500/20">
+            <Link href="/signup" className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-[#1A1414] font-semibold text-sm transition-all shadow-lg shadow-blue-500/20">
               Start Pilot &rarr;
             </Link>
-            <Link href="/pricing" className="px-6 py-2.5 rounded-xl border border-[#0c1b30]/15 hover:bg-[#e8e6e3] text-[#0c1b30]/75 font-semibold text-sm transition-all">
+            <Link href="/pricing" className="px-6 py-2.5 rounded-xl border border-[#1A1414]/15 hover:bg-[#E8DFD2] text-[#1A1414]/75 font-semibold text-sm transition-all">
               View Pricing
             </Link>
           </div>

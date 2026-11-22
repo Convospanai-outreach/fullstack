@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Page, PageHero, Section, Cards, Steps, CtaBand } from "@/components/marketing/site/kit";
+import { Page, PageHero, Section, Cards, Steps, CtaBand, SovereignBand } from "@/components/marketing/site/kit";
 import { INDUSTRIES, MARKET_LABEL } from "@/lib/marketing/industries";
 import { REGIONS, regionBySlug } from "@/lib/marketing/regions";
 
@@ -38,6 +38,7 @@ export default async function RegionPage({ params }: Props) {
           <p className="ph-lead" style={{ opacity: 0.8 }}>CraftMyFunnel supports preparation, approval and tracking. Your team remains responsible for lawful outreach, recipient eligibility, sender identification and unsubscribe handling. This is not legal advice. {r.pricing}</p>
         </div>
       </Section>
+      <SovereignBand law={r.law} tone="teal" />
       <Section tone="beige" eyebrow={`Industries in ${r.name}`} title="Where it fits first.">
         <Cards items={industries.map((i) => ({ tag: MARKET_LABEL[i.market], title: i.name, href: `/industries/${i.slug}`, linkText: "Explore" }))} />
       </Section>

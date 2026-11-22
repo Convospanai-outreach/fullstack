@@ -55,7 +55,7 @@ export default function GovernedOutreachDocPage() {
     };
 
     return (
-        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#f5f5f5] text-[#0c1b30] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#F3EDE4] text-[#1A1414] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -65,30 +65,30 @@ export default function GovernedOutreachDocPage() {
                 {/* Back navigation */}
                 <Link
                     href="/docs"
-                    className="inline-flex items-center gap-2 text-xs font-semibold text-[#0c1b30]/65 hover:text-[#006a9a] transition-colors"
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-[#1A1414]/65 hover:text-[#5C1A2B] transition-colors"
                 >
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Back to Documentation Hub
                 </Link>
 
                 {/* Article Header */}
-                <div className="space-y-4 border-b border-[#0c1b30]/10 pb-8">
+                <div className="space-y-4 border-b border-[#1A1414]/10 pb-8">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold uppercase tracking-wider">
                         Core Workflow Guide
                     </div>
-                    <h1 className="text-3xl sm:text-4xl font-medium text-[#0c1b30] tracking-tight">
+                    <h1 className="text-3xl sm:text-4xl font-medium text-[#1A1414] tracking-tight">
                         Governed Outreach & Human Approval Queue
                     </h1>
-                    <p className="text-base sm:text-lg text-[#0c1b30]/65 leading-relaxed">
+                    <p className="text-base sm:text-lg text-[#1A1414]/65 leading-relaxed">
                         How CraftMyFunnel combines generative AI draft synthesis with a strict human approval gate to eliminate AI hallucinations, protect domain health, and maintain high reply rates.
                     </p>
                 </div>
 
                 {/* Article Body */}
-                <div className="space-y-10 text-[#0c1b30]/75 leading-relaxed text-sm sm:text-base">
+                <div className="space-y-10 text-[#1A1414]/75 leading-relaxed text-sm sm:text-base">
                     {/* Section 1 */}
                     <div className="space-y-4">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">The Problem With Autonomous "Spray & Pray"</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">The Problem With Autonomous "Spray & Pray"</h2>
                         <p>
                             Traditional cold email automation tools rely on ungoverned background loops: prospect lists are uploaded, generic spintax or unconstrained LLM prompts are executed, and thousands of emails are blasted directly from connected mailboxes.
                         </p>
@@ -101,7 +101,7 @@ export default function GovernedOutreachDocPage() {
                                     <AlertTriangle className="w-4 h-4" />
                                     AI Hallucinations
                                 </div>
-                                <p className="text-xs text-[#0c1b30]/65">
+                                <p className="text-xs text-[#1A1414]/65">
                                     LLMs invent false company facts, quote incorrect pricing, or reference competitor features, destroying deal credibility in the first touch.
                                 </p>
                             </div>
@@ -110,7 +110,7 @@ export default function GovernedOutreachDocPage() {
                                     <AlertTriangle className="w-4 h-4" />
                                     Domain Burn
                                 </div>
-                                <p className="text-xs text-[#0c1b30]/65">
+                                <p className="text-xs text-[#1A1414]/65">
                                     High complaint and bounce rates trigger algorithmic spam filters across Google Workspace and Microsoft 365, blacklisting sending domains.
                                 </p>
                             </div>
@@ -119,7 +119,7 @@ export default function GovernedOutreachDocPage() {
 
                     {/* Section 2 */}
                     <div className="space-y-4">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">The Governed Outreach Lifecycle</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">The Governed Outreach Lifecycle</h2>
                         <p>
                             CraftMyFunnel enforces a five-stage state machine that keeps human sales reps in control of every message sent on their behalf:
                         </p>
@@ -146,13 +146,13 @@ export default function GovernedOutreachDocPage() {
                                     desc: "Inbound replies are synced via lease-locked Gmail PubSub. The platform detects sentiment, tracks meetings secured, and pauses sequences automatically."
                                 }
                             ].map((s, i) => (
-                                <div key={i} className="p-4 rounded-xl bg-white border border-[#0c1b30]/10 flex items-start gap-4">
+                                <div key={i} className="p-4 rounded-xl bg-white border border-[#1A1414]/10 flex items-start gap-4">
                                     <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
                                         {i + 1}
                                     </div>
                                     <div>
-                                        <div className="font-bold text-[#0c1b30] text-sm">{s.step}</div>
-                                        <div className="text-xs text-[#0c1b30]/65 mt-1">{s.desc}</div>
+                                        <div className="font-bold text-[#1A1414] text-sm">{s.step}</div>
+                                        <div className="text-xs text-[#1A1414]/65 mt-1">{s.desc}</div>
                                     </div>
                                 </div>
                             ))}
@@ -161,23 +161,23 @@ export default function GovernedOutreachDocPage() {
 
                     {/* Section 3 */}
                     <div className="space-y-4">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Key Features of the Approval Interface</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Key Features of the Approval Interface</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-5 rounded-xl bg-white border border-[#0c1b30]/10 space-y-2">
-                                <div className="font-bold text-[#0c1b30] flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-[#006a9a]" />
+                            <div className="p-5 rounded-xl bg-white border border-[#1A1414]/10 space-y-2">
+                                <div className="font-bold text-[#1A1414] flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4 text-[#5C1A2B]" />
                                     One-Click Batch Approvals
                                 </div>
-                                <p className="text-xs text-[#0c1b30]/65">
+                                <p className="text-xs text-[#1A1414]/65">
                                     Review 50+ drafts simultaneously with side-by-side prospect profile snapshots and AI reasoning logs.
                                 </p>
                             </div>
-                            <div className="p-5 rounded-xl bg-white border border-[#0c1b30]/10 space-y-2">
-                                <div className="font-bold text-[#0c1b30] flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-[#006a9a]" />
+                            <div className="p-5 rounded-xl bg-white border border-[#1A1414]/10 space-y-2">
+                                <div className="font-bold text-[#1A1414] flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4 text-[#5C1A2B]" />
                                     Inline Dynamic Editing
                                 </div>
-                                <p className="text-xs text-[#0c1b30]/65">
+                                <p className="text-xs text-[#1A1414]/65">
                                     Tweak any generated sentence directly in the queue before approving. Edits are logged for continuous prompt refinement.
                                 </p>
                             </div>
@@ -186,10 +186,10 @@ export default function GovernedOutreachDocPage() {
                 </div>
 
                 {/* Footer Navigation */}
-                <div className="border-t border-[#0c1b30]/10 pt-8 flex items-center justify-between">
+                <div className="border-t border-[#1A1414]/10 pt-8 flex items-center justify-between">
                     <Link
                         href="/docs"
-                        className="text-xs font-semibold text-[#0c1b30]/65 hover:text-[#006a9a] flex items-center gap-1.5"
+                        className="text-xs font-semibold text-[#1A1414]/65 hover:text-[#5C1A2B] flex items-center gap-1.5"
                     >
                         <ArrowLeft className="w-3.5 h-3.5" />
                         Docs Index

@@ -21,7 +21,8 @@
         },
         {
           "label": "Covospan EDGE",
-          "href": "/products/covospan-edge"
+          "href": "/products/covospan-edge",
+          "badge": "GDPR · DPDP"
         }
       ]
     },

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { montserrat } from "../home/fonts";
+import { siteSans, siteSerif } from "../home/fonts";
 import "./site.css";
 
 /** Presidio-style building blocks shared by every marketing page. Server-safe. */
@@ -17,7 +17,7 @@ function Btn({ cta, kind }: { cta: Cta; kind: "yellow" | "navy" | "ghost" }) {
 }
 
 export function Page({ children }: { children: ReactNode }) {
-  return <div className={`ph ${montserrat.variable}`}>{children}</div>;
+  return <div className={`ph ${siteSans.variable} ${siteSerif.variable}`}>{children}</div>;
 }
 
 export function PageHero({ eyebrow, title, lead, primary, secondary }: { eyebrow?: string | undefined; title: ReactNode; lead?: ReactNode | undefined; primary?: Cta | undefined; secondary?: Cta | undefined }) {
@@ -124,5 +124,27 @@ export function ProsePage({ eyebrow, title, updated, children }: { eyebrow?: str
       <PageHero eyebrow={eyebrow} title={title} lead={updated ? `Last updated: ${updated}` : undefined} />
       <section className="ph-section ph-white"><div className="ph-wrap"><div className="ph-prose">{children}</div></div></section>
     </Page>
+  );
+}
+
+/**
+ * Data-sovereignty band: points GDPR / DPDP-sensitive buyers to Covospan EDGE. Claims mirror the EDGE
+ * product page (lib/marketing/products.ts); keep them in step. Never claim EDGE makes anyone compliant.
+ */
+export function SovereignBand({ law = "GDPR and DPDP", tone = "navy" }: { law?: string; tone?: "navy" | "teal" }) {
+  return (
+    <Section tone={tone} id="data-sovereignty" eyebrow={`Data sovereignty · ${law} · Covospan EDGE`} title="Personal data stays on your hardware. Not in someone else's cloud."
+      lead="Covospan EDGE is an optional node on your own network. It swaps names, emails and identifiers for tokens before any prompt reaches cloud AI, and keeps signed audit logs on-site.">
+      <Cards dark items={[
+        { label: "Minimisation", title: "Tokenised before it leaves", body: "Cloud AI writes the message from tokens. It never learns who the prospect is." },
+        { label: "Accountability", title: "An audit trail you hold", body: "Signed logs stay on-site. Stream them to your SIEM or export them for your DPO or auditor." },
+        { label: "Control", title: "Air-gapped if you need it", body: "Local masking and drafting with no internet connection, for the strictest clients." },
+      ]} />
+      <div className="ph-actions" style={{ marginTop: 40 }}>
+        <Link className="ph-btn ph-btn-yellow" href="/products/covospan-edge">Explore Covospan EDGE</Link>
+        <Link className="ph-btn ph-btn-ghost" href="/security">Security</Link>
+      </div>
+      <p className="ph-source" style={{ color: "rgba(243,237,228,.75)" }}>Optional enterprise add-on. EDGE supports data-minimisation and accountability duties under {law}; it does not make you compliant on its own. Not legal advice.</p>
+    </Section>
   );
 }
