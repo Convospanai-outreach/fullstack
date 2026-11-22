@@ -31,30 +31,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ==============================================================================
 # STEP 1: Build llama.cpp from source
-# Using a pinned release tag for reproducibility
+# Pinned to one commit for reproducibility. This used to clone master, and when llama-cli
+# became an interactive chat program (banner, echoed prompt) every eval case started failing.
+# To move forward, change the SHA, run the workflow, and read the eval output.
 # ==============================================================================
 WORKDIR /opt
 
-# Clone and build llama.cpp
-# Using master branch for latest features and guaranteed branch existence
-RUN git clone --depth 1 https://github.com/ggerganov/llama.cpp.git && \
+ARG LLAMA_CPP_SHA=46eb1742db6d2caec1bfa848c5702b1bdcc815e5
+RUN git init llama.cpp && \
     cd llama.cpp && \
+    git remote add origin https://github.com/ggml-org/llama.cpp.git && \
+    git fetch --depth 1 origin "${LLAMA_CPP_SHA}" && \
+    git checkout --detach FETCH_HEAD && \
     mkdir build && \
     cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF && \
     cmake --build . --config Release -j$(nproc)
 
 # Verify llama.cpp binary was built - search common locations
-RUN BINARY=$(find /opt/llama.cpp -name 'llama-cli' -type f -o -name 'main' -type f 2>/dev/null | head -1) && \
+# llama-completion is the non-interactive program (llama-cli is the interactive chat UI).
+RUN BINARY=$(find /opt/llama.cpp/build -name 'llama-completion' -type f 2>/dev/null | head -1) && \
     if [ -z "$BINARY" ]; then \
-      echo "FATAL: No llama.cpp binary found after build" && exit 1; \
+      echo "FATAL: llama-completion not found after build" && exit 1; \
     fi && \
     echo "Found binary at: $BINARY" && \
     chmod +x "$BINARY" && \
-    ln -sf "$BINARY" /usr/local/bin/llama-cli
+    ln -sf "$BINARY" /usr/local/bin/llama-completion
 
 # Make binary available globally
-ENV LLAMA_CPP_BINARY=/usr/local/bin/llama-cli
+ENV LLAMA_CPP_BINARY=/usr/local/bin/llama-completion
 
 # ==============================================================================
 # STEP 2: Download Phi-3 model (Q4_K_M quantization)

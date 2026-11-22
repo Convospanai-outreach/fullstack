@@ -7,6 +7,8 @@ on:
     paths:
       - 'apps/edge-fastapi/**'
       - 'models/**'
+      - 'docker/Dockerfile.verify'
+      - 'evaluation/**'
       - 'scripts/**phi*'
       - 'scripts/**llama*'
       - '.github/workflows/*phi*'
@@ -15,6 +17,8 @@ on:
     paths:
       - 'apps/edge-fastapi/**'
       - 'models/**'
+      - 'docker/Dockerfile.verify'
+      - 'evaluation/**'
       - 'scripts/**phi*'
       - 'scripts/**llama*'
       - '.github/workflows/*phi*'

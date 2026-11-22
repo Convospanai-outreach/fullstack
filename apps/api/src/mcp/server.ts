@@ -31,15 +31,24 @@ function identityHeaders(principal: McpPrincipal, method: string, path: string) 
   };
 }
 
+// Writes that overwrite fields on an existing record. Every other write only adds a new record,
+// so it is not destructive. Repeating one of these with the same arguments leaves the same state.
+const OVERWRITING_TOOLS = new Set(['update_campaign_details', 'update_lead', 'move_lead_stage']);
+const toTitle = (name: string) => name.split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+
 export function describeTools() {
-  return MCP_OPERATIONS.map(op => ({
-    name: op.name, title: op.name.replaceAll('_', ' '), description: op.description,
+  return MCP_OPERATIONS.map(op => {
+    const title = toTitle(op.name);
+    const overwrites = OVERWRITING_TOOLS.has(op.name);
+    return {
+    name: op.name, title, description: op.description,
     inputSchema: z.toJSONSchema(op.schema, { unrepresentable: 'any' }) as any,
-    annotations: { readOnlyHint: op.method === 'GET', destructiveHint: op.method !== 'GET',
-      idempotentHint: op.method === 'GET', openWorldHint: op.scope === 'cmf:generate' || op.name === 'record_meeting' },
+    annotations: { title, readOnlyHint: op.method === 'GET', destructiveHint: overwrites,
+      idempotentHint: op.method === 'GET' || overwrites, openWorldHint: op.scope === 'cmf:generate' || op.name === 'record_meeting' },
     _meta: { securitySchemes: [{ type: 'oauth2', scopes: [op.scope] }] },
     securitySchemes: [{ type: 'oauth2', scopes: [op.scope] }],
-  }));
+    };
+  });
 }
 
 async function invoke(app: FastifyInstance, config: McpConfig, principal: McpPrincipal, op: McpOperation, args: Record<string, any>, actionId?: string) {
