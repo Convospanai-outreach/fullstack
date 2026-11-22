@@ -297,20 +297,38 @@ def main() -> int:
         
         # STEP 3: Run ALL cases - collect failures but keep going
         failures: List[str] = []
+        known_failures: List[str] = []
+        now_passing: List[str] = []
         passed = 0
-        
+
         for i, case in enumerate(cases, start=1):
+            # "known_failure" holds the reason a case is a recorded weakness of the stock model.
+            # It is still run and reported every time, but does not fail the job. Any other
+            # failure does.
+            known = case.get("known_failure")
             try:
                 validate_case(case, i)
                 passed += 1
+                if known:
+                    now_passing.append(f"Case {i} ({case.get('task', 'UNKNOWN')})")
             except VerificationError as e:
-                failures.append(f"Case {i}: {str(e)}")
-                log(f"  ✗ CASE FAILED: {e}")
-        
+                if known:
+                    known_failures.append(f"Case {i} ({case.get('task', 'UNKNOWN')}): {known}")
+                    log(f"  ⚠ KNOWN FAILURE (not counted): {known}")
+                else:
+                    failures.append(f"Case {i}: {str(e)}")
+                    log(f"  ✗ CASE FAILED: {e}")
+
         # STEP 4: Report final results
         log("")
         log("=" * 70)
-        
+        if known_failures:
+            log(f"KNOWN FAILURES ({len(known_failures)}, recorded, not failing the job):")
+            for k in known_failures:
+                log(f"  • {k}")
+        if now_passing:
+            log("NOW PASSING: remove known_failure from " + ", ".join(now_passing))
+
         if failures:
             log(f"VERIFICATION FAILED: {len(failures)}/{len(cases)} cases failed")
             log("=" * 70)
