@@ -1,0 +1,32 @@
+{
+  "slug": "example-enterprise-services",
+  "prospect": "Example Consulting Co (fictional)",
+  "credits": 0,
+  "offer": "Systems integration and managed services for large enterprises.",
+  "icp": {
+    "name": "CIOs and transformation leads at large enterprises",
+    "description": "Fictional buyer profile for a sample tear-down.",
+    "criteria": { "titles": ["CIO", "VP Transformation", "Head of Procurement"], "industries": ["Manufacturing", "Energy"], "companySize": "1000+", "regions": ["EU", "India"] }
+  },
+  "campaigns": [
+    { "name": "Sample: multi-stakeholder account plan", "description": "Draft campaign. Nothing is sent.", "status": "draft" }
+  ],
+  "leads": [
+    { "name": "Ira Menon", "title": "CIO", "company": "Sample Heavy Industries", "domain": "sampleheavy.example", "stage": "COLD" },
+    { "name": "Jan Novak", "title": "VP Transformation", "company": "Sample Energy Group", "domain": "sampleenergy.example", "stage": "WARM" },
+    { "name": "Kim Adler", "title": "Head of Procurement", "company": "Sample Heavy Industries", "domain": "sampleheavy.example", "stage": "COORDINATING", "value": 60000 },
+    { "name": "Lu Zhang", "title": "Director IT Operations", "company": "Sample Rail Systems", "domain": "samplerail.example", "stage": "MEETING_CONFIRMED", "value": 75000 }
+  ],
+  "activities": [
+    { "lead": 3, "channel": "EMAIL", "type": "REPLIED", "title": "Replied (sample)", "notes": "Procurement asked for the vendor onboarding checklist.", "ageDays": 4 }
+  ],
+  "thread": {
+    "lead": 3,
+    "messages": [
+      { "direction": "OUTBOUND", "sender": "Sample Rep", "content": "Hi Kim, following a conversation with the CIO office about the integration programme. Could we share a short overview? (Sample message)", "ageDays": 6 },
+      { "direction": "INBOUND", "sender": "Kim Adler", "content": "Please send your vendor onboarding checklist first. (Sample message)", "ageDays": 4 }
+    ]
+  },
+  "tasks": [{ "title": "Sample: send onboarding checklist to Kim Adler", "lead": 3, "priority": "HIGH", "dueInDays": 2 }],
+  "meeting": { "title": "Sample: scoping call with Sample Rail Systems", "lead": 4, "startInDays": 3, "minutes": 45, "notes": "Fictional meeting record." }
+}

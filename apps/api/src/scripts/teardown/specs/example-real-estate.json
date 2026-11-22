@@ -1,0 +1,32 @@
+{
+  "slug": "example-real-estate",
+  "prospect": "Example Realty Co (fictional)",
+  "credits": 0,
+  "offer": "Residential developer and brokerage for investors and relocating professionals.",
+  "icp": {
+    "name": "Investor and relocation enquiries",
+    "description": "Fictional buyer profile for a sample tear-down. WhatsApp is not shown here because it needs recorded consent.",
+    "criteria": { "titles": ["Investor", "Relocation manager", "HR lead"], "industries": ["Corporate relocation", "Private investment"], "regions": ["UAE", "India"] }
+  },
+  "campaigns": [
+    { "name": "Sample: new-launch enquiry follow-up", "description": "Draft campaign. Nothing is sent.", "status": "draft" }
+  ],
+  "leads": [
+    { "name": "Mira Haddad", "title": "Relocation manager", "company": "Sample Global Mobility", "domain": "sampleglobalmobility.example", "stage": "COLD" },
+    { "name": "Nils Berg", "title": "Private investor", "company": "Sample Holdings", "domain": "sampleholdings.example", "stage": "WARM" },
+    { "name": "Omar Reddy", "title": "HR lead", "company": "Sample Tech Park", "domain": "sampletechpark.example", "stage": "HOT", "value": 90000 },
+    { "name": "Pia Costa", "title": "Family office manager", "company": "Sample Family Office", "domain": "samplefamilyoffice.example", "stage": "MEETING_CONFIRMED", "value": 150000 }
+  ],
+  "activities": [
+    { "lead": 3, "channel": "EMAIL", "type": "REPLIED", "title": "Replied (sample)", "notes": "Asked about site visit availability.", "ageDays": 2 }
+  ],
+  "thread": {
+    "lead": 3,
+    "messages": [
+      { "direction": "OUTBOUND", "sender": "Sample Rep", "content": "Hi Omar, thanks for your enquiry about the new launch. Would a site visit this week suit you? (Sample message)", "ageDays": 4 },
+      { "direction": "INBOUND", "sender": "Omar Reddy", "content": "Yes, any slot on Thursday afternoon? (Sample message)", "ageDays": 2 }
+    ]
+  },
+  "tasks": [{ "title": "Sample: confirm Thursday site visit for Omar Reddy", "lead": 3, "priority": "HIGH", "dueInDays": 1 }],
+  "meeting": { "title": "Sample: site visit with Sample Family Office", "lead": 4, "startInDays": 3, "minutes": 60, "notes": "Fictional meeting record." }
+}

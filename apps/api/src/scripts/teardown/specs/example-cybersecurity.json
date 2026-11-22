@@ -1,0 +1,32 @@
+{
+  "slug": "example-cybersecurity",
+  "prospect": "Example Security Co (fictional)",
+  "credits": 0,
+  "offer": "Managed detection and response for mid-market companies.",
+  "icp": {
+    "name": "Mid-market CISOs and IT directors",
+    "description": "Fictional buyer profile for a sample tear-down.",
+    "criteria": { "titles": ["CISO", "IT Director"], "industries": ["Financial services", "Healthcare"], "companySize": "200-1000", "regions": ["EU"] }
+  },
+  "campaigns": [
+    { "name": "Sample: audit-season outreach", "description": "Draft campaign. Nothing is sent.", "status": "draft" }
+  ],
+  "leads": [
+    { "name": "Ana Reyes", "title": "CISO", "company": "Sample Bank One", "domain": "samplebank-one.example", "stage": "COLD" },
+    { "name": "Bo Chan", "title": "IT Director", "company": "Sample Clinic Group", "domain": "sampleclinic.example", "stage": "WARM" },
+    { "name": "Cy Ford", "title": "Head of Security", "company": "Sample Insurance", "domain": "sampleinsurance.example", "stage": "HOT", "value": 24000 },
+    { "name": "Dee Park", "title": "VP IT", "company": "Sample Logistics", "domain": "samplelogistics.example", "stage": "MEETING_CONFIRMED", "value": 30000 }
+  ],
+  "activities": [
+    { "lead": 3, "channel": "EMAIL", "type": "REPLIED", "title": "Replied (sample)", "notes": "Asked about onboarding time.", "ageDays": 3 }
+  ],
+  "thread": {
+    "lead": 3,
+    "messages": [
+      { "direction": "OUTBOUND", "sender": "Sample Rep", "content": "Hi Cy, a short note on audit-season readiness. Open to a quick chat? (Sample message)", "ageDays": 5 },
+      { "direction": "INBOUND", "sender": "Cy Ford", "content": "Possibly. How long does onboarding take? (Sample message)", "ageDays": 3 }
+    ]
+  },
+  "tasks": [{ "title": "Sample: answer onboarding question for Cy Ford", "lead": 3, "priority": "HIGH", "dueInDays": 1 }],
+  "meeting": { "title": "Sample: discovery call with Sample Logistics", "lead": 4, "startInDays": 2, "minutes": 30, "notes": "Fictional meeting record." }
+}
