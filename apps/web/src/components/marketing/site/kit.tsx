@@ -20,9 +20,9 @@ export function Page({ children }: { children: ReactNode }) {
   return <div className={`ph ${siteSans.variable} ${siteSerif.variable}`}>{children}</div>;
 }
 
-export function PageHero({ eyebrow, title, lead, primary, secondary }: { eyebrow?: string | undefined; title: ReactNode; lead?: ReactNode | undefined; primary?: Cta | undefined; secondary?: Cta | undefined }) {
+export function PageHero({ eyebrow, title, lead, primary, secondary, image }: { eyebrow?: string | undefined; title: ReactNode; lead?: ReactNode | undefined; primary?: Cta | undefined; secondary?: Cta | undefined; image?: string | undefined }) {
   return (
-    <section className="ph-page-hero">
+    <section className="ph-page-hero" style={image ? { backgroundImage: `linear-gradient(90deg, rgba(26,20,20,.8), rgba(26,20,20,.35)), url(${image})` } : undefined}>
       <div className="ph-wrap">
         {eyebrow && <p className="ph-eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
@@ -122,7 +122,7 @@ export function ProsePage({ eyebrow, title, updated, children }: { eyebrow?: str
   return (
     <Page>
       <PageHero eyebrow={eyebrow} title={title} lead={updated ? `Last updated: ${updated}` : undefined} />
-      <section className="ph-section ph-white"><div className="ph-wrap"><div className="ph-prose">{children}</div></div></section>
+      <section className="ph-section ph-white ph-plain"><div className="ph-wrap"><div className="ph-prose">{children}</div></div></section>
     </Page>
   );
 }
@@ -144,7 +144,7 @@ export function SovereignBand({ law = "GDPR and DPDP", tone = "navy" }: { law?: 
         <Link className="ph-btn ph-btn-yellow" href="/products/covospan-edge">Explore Covospan EDGE</Link>
         <Link className="ph-btn ph-btn-ghost" href="/security">Security</Link>
       </div>
-      <p className="ph-source" style={{ color: "rgba(243,237,228,.75)" }}>Optional enterprise add-on. EDGE supports data-minimisation and accountability duties under {law}; it does not make you compliant on its own. Not legal advice.</p>
+      <p className="ph-source">Optional enterprise add-on. EDGE supports data-minimisation and accountability duties under {law}; it does not make you compliant on its own. Not legal advice.</p>
     </Section>
   );
 }

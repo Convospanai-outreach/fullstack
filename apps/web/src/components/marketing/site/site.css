@@ -232,3 +232,44 @@
 .ph-cta-band { border-top: 1px solid var(--ph-yellow); }
 .ph-table th { letter-spacing: .14em; }
 @media (max-width: 760px) { .ph h1, .ph h2 { font-size: 38px; } .ph h3 { font-size: 24px; } }
+/* Section rhythm, palette only: hero = photo (ink placeholder) -> 1st section burgundy -> 2nd section gold.
+   tone="navy" key sections are gold too; tone="teal" strips are ink. Legal/prose pages opt out with .ph-plain.
+   Primary buttons are burgundy; on burgundy grounds they flip to cream. */
+.ph-hero, .ph-page-hero { background: radial-gradient(120% 100% at 85% 0%, #3a302c 0%, transparent 60%), linear-gradient(135deg, #1A1414 0%, #2a2220 100%); background-size: cover; background-position: center; }
+.ph-wine, .ph-hero + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain) { background: var(--ph-navy); color: var(--ph-off); }
+.ph-wine h2, .ph-hero + .ph-section h2, .ph-page-hero + .ph-section:not(.ph-plain) h2, .ph-wine .ph-lead, .ph-hero + .ph-section .ph-lead, .ph-page-hero + .ph-section:not(.ph-plain) .ph-lead { color: var(--ph-off); }
+.ph-wine .ph-label, .ph-hero + .ph-section .ph-label, .ph-page-hero + .ph-section:not(.ph-plain) .ph-label, .ph-wine .ph-eyebrow, .ph-hero + .ph-section .ph-eyebrow, .ph-page-hero + .ph-section:not(.ph-plain) .ph-eyebrow { color: var(--ph-yellow); }
+.ph-wine .ph-source, .ph-hero + .ph-section .ph-source, .ph-page-hero + .ph-section:not(.ph-plain) .ph-source { color: rgba(243,237,228,.75) !important; }
+.ph-wine .ph-stat, .ph-hero + .ph-section .ph-stat, .ph-page-hero + .ph-section:not(.ph-plain) .ph-stat { border-top-color: rgba(194,163,107,.6); }
+.ph-wine .ph-stat strong, .ph-hero + .ph-section .ph-stat strong, .ph-page-hero + .ph-section:not(.ph-plain) .ph-stat strong { color: var(--ph-yellow); }
+.ph-wine .ph-stat p, .ph-hero + .ph-section .ph-stat p, .ph-page-hero + .ph-section:not(.ph-plain) .ph-stat p, .ph-wine .ph-list li, .ph-hero + .ph-section .ph-list li, .ph-page-hero + .ph-section:not(.ph-plain) .ph-list li { color: rgba(243,237,228,.85); }
+.ph-wine .ph-faq summary, .ph-hero + .ph-section .ph-faq summary, .ph-page-hero + .ph-section:not(.ph-plain) .ph-faq summary { color: var(--ph-off); }
+.ph-wine .ph-faq details p, .ph-hero + .ph-section .ph-faq details p, .ph-page-hero + .ph-section:not(.ph-plain) .ph-faq details p { color: rgba(243,237,228,.8); }
+.ph-wine .ph-faq, .ph-hero + .ph-section .ph-faq, .ph-page-hero + .ph-section:not(.ph-plain) .ph-faq, .ph-wine .ph-faq details, .ph-hero + .ph-section .ph-faq details, .ph-page-hero + .ph-section:not(.ph-plain) .ph-faq details { border-color: rgba(194,163,107,.45); }
+.ph-wine .ph-card h3, .ph-hero + .ph-section .ph-card h3, .ph-page-hero + .ph-section:not(.ph-plain) .ph-card h3, .ph-wine .ph-card p, .ph-hero + .ph-section .ph-card p, .ph-page-hero + .ph-section:not(.ph-plain) .ph-card p { color: var(--ph-ink); }
+.ph-wine .ph-card .ph-label, .ph-hero + .ph-section .ph-card .ph-label, .ph-page-hero + .ph-section:not(.ph-plain) .ph-card .ph-label { color: var(--ph-navy); }
+.ph-navy, .ph-hero + .ph-section + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section { background: var(--ph-yellow); color: var(--ph-ink); }
+.ph-navy h2, .ph-hero + .ph-section + .ph-section h2, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section h2, .ph-navy .ph-lead, .ph-hero + .ph-section + .ph-section .ph-lead, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-lead { color: var(--ph-ink); }
+.ph-navy .ph-label, .ph-hero + .ph-section + .ph-section .ph-label, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-label, .ph-navy .ph-eyebrow, .ph-hero + .ph-section + .ph-section .ph-eyebrow, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-eyebrow { color: var(--ph-navy); }
+.ph-navy .ph-card-dark, .ph-hero + .ph-section + .ph-section .ph-card-dark, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-card-dark { border-top-color: rgba(26,20,20,.3); }
+.ph-navy .ph-card-dark p:not(.ph-label), .ph-hero + .ph-section + .ph-section .ph-card-dark p:not(.ph-label), .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-card-dark p:not(.ph-label) { color: rgba(26,20,20,.82); }
+.ph-navy .ph-card-dark a, .ph-hero + .ph-section + .ph-section .ph-card-dark a, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-card-dark a { color: var(--ph-navy); }
+.ph-navy .ph-list li, .ph-hero + .ph-section + .ph-section .ph-list li, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-list li { color: var(--ph-ink); }
+.ph-navy .ph-list li::before, .ph-hero + .ph-section + .ph-section .ph-list li::before, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-list li::before, .ph-navy .ph-tabpanel li, .ph-hero + .ph-section + .ph-section .ph-tabpanel li, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-tabpanel li { border-color: var(--ph-navy); }
+.ph-navy .ph-list li::before, .ph-hero + .ph-section + .ph-section .ph-list li::before, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-list li::before { background: var(--ph-navy); }
+.ph-navy .ph-source, .ph-hero + .ph-section + .ph-section .ph-source, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-source { color: rgba(26,20,20,.75) !important; }
+.ph-navy .ph-btn-ghost, .ph-hero + .ph-section + .ph-section .ph-btn-ghost, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-btn-ghost { border-color: var(--ph-ink); color: var(--ph-ink); }
+.ph-navy .ph-step-n, .ph-hero + .ph-section + .ph-section .ph-step-n, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section .ph-step-n { color: var(--ph-navy); }
+.ph-navy.ph-closing { background: var(--ph-navy); color: var(--ph-off); }
+.ph-navy.ph-closing .ph-eyebrow { color: var(--ph-yellow); }
+.ph-teal { background: var(--ph-ink); color: var(--ph-off); }
+.ph-teal .ph-label, .ph-teal .ph-eyebrow { color: var(--ph-yellow); }
+.ph-teal .ph-card-dark { border-top-color: rgba(194,163,107,.55); }
+.ph-teal .ph-card-dark p:not(.ph-label) { color: rgba(243,237,228,.8); }
+.ph-btn-yellow { background: var(--ph-navy); color: var(--ph-off); }
+.ph-hero .ph-btn-yellow, .ph-page-hero .ph-btn-yellow, .ph-cta-band .ph-btn-yellow, .ph-closing .ph-btn-yellow, .ph-wine .ph-btn-yellow, .ph-hero + .ph-section .ph-btn-yellow, .ph-page-hero + .ph-section:not(.ph-plain) .ph-btn-yellow { background: var(--ph-off); color: var(--ph-navy); }
+.ph-wine .ph-btn-ghost, .ph-hero + .ph-section .ph-btn-ghost, .ph-page-hero + .ph-section:not(.ph-plain) .ph-btn-ghost { border-color: var(--ph-yellow); color: var(--ph-off); }
+/* Gradients for the two brand grounds (sections only; buttons stay solid). */
+.ph { --ph-wine-grad: linear-gradient(135deg, #74253A 0%, #5C1A2B 45%, #3A0E1A 100%); --ph-gold-grad: linear-gradient(135deg, #DCC392 0%, #C2A36B 50%, #A8884F 100%); }
+.ph-wine, .ph-hero + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain), .ph-navy.ph-closing, .ph-cta-band { background: var(--ph-wine-grad); }
+.ph-navy:not(.ph-closing), .ph-hero + .ph-section + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section { background: var(--ph-gold-grad); }

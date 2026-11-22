@@ -365,7 +365,7 @@ export default function PricingPage() {
                                     <Button
                                         variant={plan.highlight ? "default" : "outline"}
                                         className={`mb-8 w-full py-6 text-base font-bold ${
-                                            plan.highlight ? "bg-[#C2A36B] text-[#1A1414] hover:bg-[#C2A36B]/90 rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"
+                                            plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"
                                         }`}
                                         onClick={() => handleCheckout(plan.name)}
                                     >
@@ -404,7 +404,7 @@ export default function PricingPage() {
                                             </div>
                                             <Button
                                                 variant={plan.highlight ? "default" : "outline"}
-                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-[#C2A36B] text-[#1A1414] hover:bg-[#C2A36B]/90 rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"}`}
+                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"}`}
                                                 onClick={() => handleCheckout(plan.name)}
                                             >
                                                 {plan.name === "Enterprise" ? "Talk to Sales" : "Choose plan"}

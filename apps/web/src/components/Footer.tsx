@@ -8,7 +8,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
     return (
         <>
             {!hideCTA && <GlobalCTA />}
-            <footer className={`py-16 px-6 relative overflow-hidden bg-[#5C1A2B] text-[#F3EDE4] ${siteSans.className} ${siteSerif.variable}`}>
+            <footer className={`py-16 px-6 relative overflow-hidden bg-gradient-to-br from-[#74253A] via-[#5C1A2B] to-[#3A0E1A] text-[#F3EDE4] ${siteSans.className} ${siteSerif.variable}`}>
                 <div className="max-w-[1280px] mx-auto">
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
                         <div className="col-span-2 md:col-span-1 space-y-4">
