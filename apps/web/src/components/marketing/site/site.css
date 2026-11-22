@@ -273,3 +273,5 @@
 .ph { --ph-wine-grad: linear-gradient(135deg, #74253A 0%, #5C1A2B 45%, #3A0E1A 100%); --ph-gold-grad: linear-gradient(135deg, #DCC392 0%, #C2A36B 50%, #A8884F 100%); }
 .ph-wine, .ph-hero + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain), .ph-navy.ph-closing, .ph-cta-band { background: var(--ph-wine-grad); }
 .ph-navy:not(.ph-closing), .ph-hero + .ph-section + .ph-section, .ph-page-hero + .ph-section:not(.ph-plain) + .ph-section { background: var(--ph-gold-grad); }
+@media (max-width: 520px) { .ph-btn { white-space: normal; text-align: center; max-width: 100%; } }
+.ph-navy.ph-closing h2, .ph-navy.ph-closing .ph-lead { color: var(--ph-off); }

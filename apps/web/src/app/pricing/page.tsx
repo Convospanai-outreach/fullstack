@@ -365,7 +365,7 @@ export default function PricingPage() {
                                     <Button
                                         variant={plan.highlight ? "default" : "outline"}
                                         className={`mb-8 w-full py-6 text-base font-bold ${
-                                            plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"
+                                            plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 bg-transparent text-[#1A1414] hover:bg-[#E8DFD2]"
                                         }`}
                                         onClick={() => handleCheckout(plan.name)}
                                     >
@@ -394,7 +394,7 @@ export default function PricingPage() {
                     <div className="overflow-x-auto rounded-2xl border border-[#1A1414]/10 bg-white">
                         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                             <thead>
-                                <tr className="border-b border-[#1A1414]/10 bg-[#5C1A2B] [&_th]:text-[#F3EDE4]">
+                                <tr className="border-b border-[#1A1414]/10 bg-[#E8DFD2]">
                                     <th scope="col" className="sticky top-0 w-1/4 p-5 align-bottom text-xs font-semibold uppercase tracking-[0.16em] text-[#1A1414]/60">Plan</th>
                                     {plans.map((plan) => (
                                         <th key={plan.name} scope="col" className="sticky top-0 p-5 align-bottom">
@@ -404,7 +404,7 @@ export default function PricingPage() {
                                             </div>
                                             <Button
                                                 variant={plan.highlight ? "default" : "outline"}
-                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 hover:bg-[#E8DFD2]"}`}
+                                                className={`mt-3 w-full font-bold ${plan.highlight ? "bg-[#5C1A2B] text-[#F3EDE4] hover:bg-[#46121F] rounded-full" : "border-[#1A1414]/30 bg-transparent text-[#1A1414] hover:bg-[#E8DFD2]"}`}
                                                 onClick={() => handleCheckout(plan.name)}
                                             >
                                                 {plan.name === "Enterprise" ? "Talk to Sales" : "Choose plan"}
@@ -467,7 +467,7 @@ export default function PricingPage() {
                                 <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-[#5C1A2B]" />Growth teams where follow-up speed is the bottleneck</li>
                                 <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-[#5C1A2B]" />Workflows requiring governance and auditable handoffs</li>
                             </ul>
-                            <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-[#5C1A2B] py-5 font-semibold hover:bg-[#46121F]">
+                            <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-[#5C1A2B] py-5 font-semibold text-[#F3EDE4] hover:bg-[#46121F]">
                                 Talk to sales about add-on pricing
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
@@ -521,11 +521,11 @@ export default function PricingPage() {
                         Create an account and set up your first governed campaign, or talk to us about a larger rollout.
                     </p>
                     <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                        <Button onClick={() => router.push("/signup")} className="bg-[#5C1A2B] px-8 py-5 font-semibold hover:bg-[#46121F]">
+                        <Button onClick={() => router.push("/signup")} className="bg-[#5C1A2B] px-8 py-5 font-semibold text-[#F3EDE4] hover:bg-[#46121F]">
                             Get started
                             <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
-                        <Button variant="outline" onClick={() => router.push("/contact")} className="border-[#1A1414]/30 px-8 py-5 font-semibold hover:bg-[#E8DFD2]">
+                        <Button variant="outline" onClick={() => router.push("/contact")} className="border-[#1A1414]/30 bg-transparent px-8 py-5 font-semibold text-[#1A1414] hover:bg-[#E8DFD2]">
                             Talk to sales
                         </Button>
                     </div>
