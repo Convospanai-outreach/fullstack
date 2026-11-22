@@ -164,8 +164,7 @@ export class SovereignFirewall {
 
         let restored = content;
         for (const [token, original] of tokenMap.entries()) {
-            const escapedToken = token.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
-                .replace(/\</g, '\\<').replace(/\>/g, '\\>');
+            const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             restored = restored.replace(new RegExp(escapedToken, 'g'), original);
         }
         return restored;
