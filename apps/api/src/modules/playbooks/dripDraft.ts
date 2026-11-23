@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { HUMAN_VOICE_RULES, NURTURE_RULES, frameworkFor } from "@/lib/ai/writingRules";
+import { stripEmDashes } from "@/lib/ai/aiTells/aiTells";
 import { prisma } from "@/lib/db";
 import { readIcpCriteria } from "@/modules/icp-builder/service/icpCriteria";
 import { emailHtml } from "@/modules/creator-funnel/playbookSequences";
@@ -92,8 +94,11 @@ export function buildDripEmailPrompt(context: string[], playbook: DripPlaybook, 
         "",
         `This is email ${index + 1} of ${playbook.emails.length}. Goal of this email: ${email.brief}`,
         "Plain text, at most 150 words, short paragraphs separated by a blank line. Write like one person to one person, not a brand. One idea and one call to action only.",
+        ...(index > 0 && email.cta !== "none" ? [frameworkFor(index - 1)] : []),
         ending,
         "Don't include links or URLs, placeholders like [Name], prices, discounts, numbers, customer names or testimonials that aren't given above.",
+        NURTURE_RULES,
+        HUMAN_VOICE_RULES,
         'Return JSON only: {"subject":"...","body":"..."}',
     ].join("\n");
 }
@@ -137,7 +142,7 @@ export async function createDripDraft(
             const link = linkFor(email, links);
             const raw = await writer(buildDripEmailPrompt(lines, playbook, email, i, Boolean(link)));
             const parsed = emailSchema.parse(JSON.parse(raw));
-            return { subject: clip(parsed.subject, 200), body: emailHtml(clip(parsed.body, 4000), link) };
+            return { subject: clip(stripEmDashes(parsed.subject), 200), body: emailHtml(clip(stripEmDashes(parsed.body), 4000), link) };
         }),
     );
 

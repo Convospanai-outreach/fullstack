@@ -1,3 +1,4 @@
+import { LANDING_COPY_RULES, HUMAN_VOICE_RULES } from "@/lib/ai/writingRules";
 import type { LandingBrief } from "./types";
 
 export function buildBriefPrompt(input: {
@@ -61,5 +62,9 @@ hero, challenge_solution, pain_points, benefits, proof, logos, faq, cta_form, fi
 - For "hero" and "proof" sections only, include imagePrompt: a short, concrete
   visual description (no text/logos) suitable for an image generation model.
   Omit imagePrompt for every other section type.
+
+${LANDING_COPY_RULES}
+
+${HUMAN_VOICE_RULES}
 `.trim();
 }
