@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { normalizeLinkedInProfileUrl } from "./linkedinUrl";
 
 export interface HelperTool {
     name: string;
@@ -34,14 +35,7 @@ export class LinkedInMCPServer {
                     throw new Error("LinkedIn automation is globally disabled");
                 }
                 // Normalize URL to prevent any random string injection
-                let normalizedUrl = profileUrl;
-                try {
-                    const u = new URL(profileUrl);
-                    if (!u.hostname.includes("linkedin.com")) throw new Error();
-                    normalizedUrl = u.toString();
-                } catch {
-                    throw new Error("Invalid LinkedIn profile URL");
-                }
+                const normalizedUrl = normalizeLinkedInProfileUrl(profileUrl);
                 
                 const job = await prisma.job.create({
                     data: {

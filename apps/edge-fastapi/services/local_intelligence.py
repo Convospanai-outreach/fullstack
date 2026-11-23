@@ -269,7 +269,7 @@ class LocalIntelligenceService:
             return {"status": "APPROVED", "score": similarity}
         except Exception as exc:
             logger.error("Critique failed: %s", exc)
-            return {"status": "ERROR", "score": 0.0, "reason": str(exc)}
+            return {"status": "ERROR", "score": 0.0, "reason": "Critique failed"}
         finally:
             db.close()
 
