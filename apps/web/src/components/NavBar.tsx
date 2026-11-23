@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { cleanNavGroups } from "@/lib/siteContent";
 import navigation from "../../content/settings/navigation.json";
-import { montserrat } from "@/components/marketing/home/fonts";
+import { siteSans, siteSerif } from "@/components/marketing/home/fonts";
 
 const NAV_GROUPS = cleanNavGroups(navigation);
 
@@ -36,7 +36,7 @@ function DropdownMenu({
       <button
         type="button"
         onClick={(event) => setOpen((value) => event.detail === 0 ? !value : true)}
-        className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
+        className="flex items-center gap-1 rounded-none px-3 py-2 text-sm font-semibold text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06] hover:text-[#5C1A2B]"
         aria-expanded={open}
       >
         {group.label}
@@ -46,17 +46,17 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-80 before:absolute before:-top-1 before:left-0 before:h-1 before:w-full before:content-[''] rounded-2xl border border-[#0c1b30]/10 bg-white p-2 shadow-2xl shadow-[#0c1b30]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 top-full z-50 mt-1 w-80 before:absolute before:-top-1 before:left-0 before:h-1 before:w-full before:content-[''] rounded-2xl border border-[#1A1414]/10 bg-white p-2 shadow-2xl shadow-[#1A1414]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
           {group.items.map((item) => (
             <Link
               key={item.href + item.label}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
+              className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06] hover:text-[#5C1A2B]"
             >
               {item.label}
               {"badge" in item && item.badge && (
-                <span className="rounded-full bg-[#ffc247]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#0c1b30]">
+                <span className="rounded-none bg-[#C2A36B]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#1A1414]">
                   {item.badge}
                 </span>
               )}
@@ -72,12 +72,12 @@ export function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 border-b border-[#0c1b30]/10 bg-white/95 backdrop-blur-xl ${montserrat.className}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 border-b border-[#1A1414]/10 bg-white/95 backdrop-blur-xl ${siteSans.className} ${siteSerif.variable}`}>
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-2">
           <LogoMark priority className="h-8 w-8" />
-          <span className="text-lg font-semibold tracking-tight text-[#0c1b30]">
+          <span className="text-lg font-semibold tracking-tight text-[#1A1414]">
             CraftMyFunnel AI
           </span>
         </Link>
@@ -93,20 +93,20 @@ export function NavBar() {
         <div className="hidden items-center gap-3 md:flex">
           <Link
             href="/pricing"
-            className="rounded-full px-3 py-2 text-sm font-semibold text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
+            className="rounded-none px-3 py-2 text-sm font-semibold text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06] hover:text-[#5C1A2B]"
           >
             Pricing
           </Link>
-          <div className="h-5 w-px bg-[#0c1b30]/15" />
+          <div className="h-5 w-px bg-[#5C1A2B]/15" />
           <Link
             href="/login"
-            className="rounded-full border border-[#0c1b30] px-5 py-2.5 text-[15px] font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06]"
+            className="rounded-none border border-[#1A1414] px-5 py-2.5 text-[15px] font-medium text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06]"
           >
             Sign In
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-[#0c1b30] px-5 py-2.5 text-[15px] font-semibold text-[#f5f5f5] transition hover:bg-[#293c5b]"
+            className="rounded-none bg-[#5C1A2B] px-5 py-2.5 text-[15px] font-semibold text-[#F3EDE4] transition hover:bg-[#46121F]"
           >
             Start free
           </Link>
@@ -115,7 +115,7 @@ export function NavBar() {
         {/* Mobile hamburger */}
         <button
           type="button"
-          className="rounded-md p-2 text-[#0c1b30] transition hover:bg-[#0c1b30]/10 hover:text-[#006a9a] xl:hidden"
+          className="rounded-md p-2 text-[#1A1414] transition hover:bg-[#5C1A2B]/10 hover:text-[#5C1A2B] xl:hidden"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setMobileOpen((v) => !v)}
         >
@@ -133,7 +133,7 @@ export function NavBar() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-[#0c1b30]/10 bg-white px-6 py-5 xl:hidden">
+        <div className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-[#1A1414]/10 bg-white px-6 py-5 xl:hidden">
           <div className="flex flex-col gap-1">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
@@ -145,37 +145,37 @@ export function NavBar() {
                     key={item.href + item.label}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06] hover:text-[#5C1A2B]"
                   >
                     {item.label}
                     {"badge" in item && item.badge && (
-                      <span className="rounded-full bg-[#ffc247]/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#0c1b30]">
+                      <span className="rounded-none bg-[#C2A36B]/40 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#1A1414]">
                         {item.badge}
                       </span>
                     )}
                   </Link>
                 ))}
-                <div className="my-2 h-px bg-[#0c1b30]/10" />
+                <div className="my-2 h-px bg-[#5C1A2B]/10" />
               </div>
             ))}
             <div className="flex flex-col gap-3 pt-2">
               <Link
                 href="/pricing"
-                className="rounded-xl px-3 py-2.5 text-sm font-medium text-[#0c1b30] transition hover:bg-[#0c1b30]/[0.06] hover:text-[#006a9a]"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-[#1A1414] transition hover:bg-[#5C1A2B]/[0.06] hover:text-[#5C1A2B]"
                 onClick={() => setMobileOpen(false)}
               >
                 Pricing
               </Link>
               <Link
                 href="/login"
-                className="rounded-full border border-[#0c1b30] px-4 py-2.5 text-center text-sm font-medium text-[#0c1b30]"
+                className="rounded-none border border-[#1A1414] px-4 py-2.5 text-center text-sm font-medium text-[#1A1414]"
                 onClick={() => setMobileOpen(false)}
               >
                 Sign In
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-[#0c1b30] px-4 py-2.5 text-center text-sm font-semibold text-[#f5f5f5]"
+                className="rounded-none bg-[#5C1A2B] px-4 py-2.5 text-center text-sm font-semibold text-[#F3EDE4]"
                 onClick={() => setMobileOpen(false)}
               >
                 Start free
