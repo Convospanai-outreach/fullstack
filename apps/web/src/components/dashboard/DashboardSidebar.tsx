@@ -142,7 +142,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_40%_at_0%_0%,rgba(194,163,107,.20),transparent_70%)]" />
         {/* Logo row */}
         <div className="flex items-center justify-between px-4 pt-4 pb-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
             <i aria-hidden className="block h-[26px] w-[26px] bg-[linear-gradient(135deg,#DCC392,#A8884F)] [clip-path:polygon(0_0,100%_0,60%_55%,60%_100%,40%_100%,40%_55%)]" />
             <span className="text-[22px] font-semibold text-sidebar-foreground font-display">CraftMyFunnel</span>
           </Link>

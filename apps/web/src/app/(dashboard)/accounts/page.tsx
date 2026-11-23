@@ -91,7 +91,7 @@ export default async function AccountsPage({
                         name="search"
                         placeholder="Search by company or domain..."
                         defaultValue={search}
-                        className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="w-full bg-card border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                     />
                 </div>
             </form>

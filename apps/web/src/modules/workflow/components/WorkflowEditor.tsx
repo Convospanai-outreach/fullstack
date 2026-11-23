@@ -142,7 +142,7 @@ export default function WorkflowEditor({ initialNodes = [], initialEdges = [], w
     };
 
     return (
-        <div className="h-[750px] w-full border border-white/10 rounded-2xl bg-slate-950 overflow-hidden shadow-2xl shadow-purple-950/20 relative">
+        <div className="h-[750px] w-full border border-foreground/10 rounded-2xl bg-background overflow-hidden shadow-2xl shadow-primary/20 relative">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -155,47 +155,47 @@ export default function WorkflowEditor({ initialNodes = [], initialEdges = [], w
             >
                 <Controls />
                 <MiniMap
-                    style={{ background: '#020617' }}
+                    style={{ background: 'hsl(var(--background))' }}
                     maskColor="rgba(0, 0, 0, 0.7)"
                     nodeColor={(n: any) => {
-                        if (n.type === 'ai') return '#a855f7';
-                        if (n.type === 'condition') return '#f97316';
-                        if (n.type === 'action') return '#3b82f6';
-                        return '#475569';
+                        if (n.type === 'ai') return 'hsl(var(--chart-1))';
+                        if (n.type === 'condition') return 'hsl(var(--warning))';
+                        if (n.type === 'action') return 'hsl(var(--chart-2))';
+                        return 'hsl(var(--muted-foreground))';
                     }}
                 />
-                <Background gap={20} size={1} color="#1e293b" />
+                <Background gap={20} size={1} color="hsl(var(--border))" />
 
-                <Panel position="top-left" className="bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl max-h-[80%] overflow-y-auto">
-                    <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">Nodes Palette</h3>
+                <Panel position="top-left" className="bg-background/90 backdrop-blur-md p-4 rounded-2xl border border-foreground/10 flex flex-col gap-3 shadow-xl max-h-[80%] overflow-y-auto">
+                    <h3 className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">Nodes Palette</h3>
 
-                    <button onClick={() => addNode('ai', 'AI Outreach Draft', { tone: 'professional' })} className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs rounded-xl hover:bg-purple-600/30 transition">
+                    <button onClick={() => addNode('ai', 'AI Outreach Draft', { tone: 'professional' })} className="flex items-center gap-2 px-3 py-2 bg-primary/20 text-primary border border-primary/30 text-xs rounded-xl hover:bg-primary/30 transition">
                         <Bot className="w-4 h-4" /> AI Persona Step
                     </button>
 
-                    <button onClick={() => addNode('action', 'Send Email', { actionType: 'EMAIL' })} className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 text-blue-300 border border-blue-500/30 text-xs rounded-xl hover:bg-blue-600/30 transition">
+                    <button onClick={() => addNode('action', 'Send Email', { actionType: 'EMAIL' })} className="flex items-center gap-2 px-3 py-2 bg-primary/20 text-primary border border-primary/30 text-xs rounded-xl hover:bg-primary/30 transition">
                         <Mail className="w-4 h-4" /> Email Action
                     </button>
 
-                    <button onClick={() => addNode('delay', 'Wait', { delay: '1 day' })} className="flex items-center gap-2 px-3 py-2 bg-slate-600/20 text-slate-300 border border-slate-500/30 text-xs rounded-xl hover:bg-slate-600/30 transition">
+                    <button onClick={() => addNode('delay', 'Wait', { delay: '1 day' })} className="flex items-center gap-2 px-3 py-2 bg-secondary/20 text-foreground/80 border border-border/30 text-xs rounded-xl hover:bg-secondary/30 transition">
                         <Clock className="w-4 h-4" /> Time Delay
                     </button>
 
-                    <button onClick={() => addNode('condition', 'Has Replied?', { type: 'REPLIED' })} className="flex items-center gap-2 px-3 py-2 bg-orange-600/20 text-orange-300 border border-orange-500/30 text-xs rounded-xl hover:bg-orange-600/30 transition">
+                    <button onClick={() => addNode('condition', 'Has Replied?', { type: 'REPLIED' })} className="flex items-center gap-2 px-3 py-2 bg-warning/20 text-warning border border-warning/30 text-xs rounded-xl hover:bg-warning/30 transition">
                         <Split className="w-4 h-4" /> Logic Split
                     </button>
 
-                    <div className="h-[1px] bg-white/10 my-1"></div>
+                    <div className="h-[1px] bg-foreground/10 my-1"></div>
 
                     <button
                         onClick={handleAiSuggest}
                         disabled={suggesting}
-                        className="flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold rounded-xl hover:opacity-90 shadow-lg shadow-pink-900/20 transition disabled:opacity-50"
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-chart-4 to-chart-4/60 text-primary-foreground text-xs font-bold rounded-xl hover:opacity-90 shadow-lg shadow-chart-4/20 transition disabled:opacity-50"
                     >
                         {suggesting ? <span className="animate-spin">✨</span> : "✨"} AI Magic Suggest
                     </button>
 
-                    <button onClick={handleSave} className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-500 shadow-lg shadow-purple-900/40 transition">
+                    <button onClick={handleSave} className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary shadow-lg shadow-primary/40 transition">
                         Save Workflow
                     </button>
                 </Panel>

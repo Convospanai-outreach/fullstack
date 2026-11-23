@@ -128,7 +128,7 @@ export default function CalendarPage() {
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full bg-card border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Intro call with Acme Corp"
                         />
                     </div>
@@ -140,7 +140,7 @@ export default function CalendarPage() {
                                 type="datetime-local"
                                 value={startTime}
                                 onChange={(e) => setStartTime(e.target.value)}
-                                className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full bg-card border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                         <div className="space-y-1">
@@ -150,7 +150,7 @@ export default function CalendarPage() {
                                 type="datetime-local"
                                 value={endTime}
                                 onChange={(e) => setEndTime(e.target.value)}
-                                className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full bg-card border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                     </div>
@@ -160,7 +160,7 @@ export default function CalendarPage() {
                             id="meeting-notes"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full bg-card border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             rows={3}
                         />
                     </div>

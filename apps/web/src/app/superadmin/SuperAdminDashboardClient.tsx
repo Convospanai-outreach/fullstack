@@ -1317,7 +1317,7 @@ function TabButton({
       className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
         active
           ? "bg-primary/10 text-primary border border-primary/30"
-          : "text-muted-foreground hover:bg-background border border-input hover:text-foreground"
+          : "text-muted-foreground hover:bg-card border border-input hover:text-foreground"
       }`}
     >
       <Icon className="h-4 w-4" />

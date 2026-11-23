@@ -67,7 +67,7 @@ export default function PricingPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 30 }}>
                 {/* Starter Plan */}
-                <div style={{ background: "#fff", padding: 32, borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+                <div style={{ background: "#fff", padding: 32, borderRadius: 16, border: '1px solid hsl(var(--border))', boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
                     <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Starter</h3>
                     <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 24 }}>$29<span style={{ fontSize: 16, fontWeight: 400, color: "#6b7280" }}>/mo</span></div>
                     <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px 0", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -85,7 +85,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Pro Plan */}
-                <div style={{ background: "#111827", padding: 32, borderRadius: 16, border: "1px solid #1f2937", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", color: "#fff", position: "relative" }}>
+                <div style={{ background: "#111827", padding: 32, borderRadius: 16, border: '1px solid hsl(var(--border))', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)", color: "#fff", position: "relative" }}>
                     <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "#3b82f6", color: "#fff", padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>MOST POPULAR</div>
                     <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Pro</h3>
                     <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 24 }}>$79<span style={{ fontSize: 16, fontWeight: 400, color: "#9ca3af" }}>/mo</span></div>
@@ -105,7 +105,7 @@ export default function PricingPage() {
                 </div>
 
                 {/* Enterprise Plan */}
-                <div style={{ background: "#fff", padding: 32, borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+                <div style={{ background: "#fff", padding: 32, borderRadius: 16, border: '1px solid hsl(var(--border))', boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
                     <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Enterprise</h3>
                     <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 24 }}>Custom</div>
                     <ul style={{ listStyle: "none", padding: 0, margin: "0 0 32px 0", display: "flex", flexDirection: "column", gap: 12 }}>

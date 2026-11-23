@@ -34,14 +34,14 @@ type AccountLead = {
 // PIPELINE_STAGES - a node's color is a live readout of where that person actually
 // is in outreach, not a static org-chart label.
 const STAGE_COLORS: Record<string, string> = {
-    COLD: "#334155",
-    WARM: "#a16207",
-    HOT: "#c2410c",
-    COORDINATING: "#1d4ed8",
-    MEETING_CONFIRMED: "#7e22ce",
-    COMPLETED: "#15803d",
-    CLOSED_WON: "#15803d",
-    CLOSED_LOST: "#64748b",
+    COLD: "hsl(var(--muted-foreground))",
+    WARM: "hsl(var(--warning))",
+    HOT: "hsl(var(--destructive))",
+    COORDINATING: "hsl(var(--chart-1))",
+    MEETING_CONFIRMED: "hsl(var(--primary))",
+    COMPLETED: "hsl(var(--success))",
+    CLOSED_WON: "hsl(var(--success))",
+    CLOSED_LOST: "hsl(var(--muted-foreground))",
 };
 const STAGE_LABELS: Record<string, string> = {
     COLD: "Cold", WARM: "Warm", HOT: "Hot", COORDINATING: "Coordinating",
@@ -60,7 +60,7 @@ function toNodesAndEdges(leads: AccountLead[]): { nodes: Node[]; edges: Edge[] }
                 whiteSpace: "pre-line",
                 textAlign: "center" as const,
                 background: STAGE_COLORS[stage] || STAGE_COLORS["COLD"],
-                color: "#fff",
+                color: "hsl(var(--background))",
                 border: "1px solid rgba(255,255,255,0.2)",
                 cursor: "pointer",
             },
@@ -135,21 +135,21 @@ export default function OrgChart({ domain, company }: { domain?: string | null; 
         }
     }, [load]);
 
-    if (loading) return <div className="h-[500px] flex items-center justify-center text-white/50">Loading account map...</div>;
+    if (loading) return <div className="h-[500px] flex items-center justify-center text-foreground/50">Loading account map...</div>;
 
     return (
         <div className="space-y-2">
             {error && (
-                <div className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">{error}</div>
+                <div className="text-sm text-chart-4 bg-chart-4/10 border border-chart-4/20 rounded-lg px-3 py-2">{error}</div>
             )}
-            <div className="h-[600px] w-full bg-slate-900 rounded-xl border border-white/10 overflow-hidden relative">
+            <div className="h-[600px] w-full bg-background rounded-xl border border-foreground/10 overflow-hidden relative">
                 {nodes.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-white/50 text-sm px-6 text-center">
+                    <div className="h-full flex items-center justify-center text-foreground/50 text-sm px-6 text-center">
                         No other leads found for this account yet.
                     </div>
                 ) : (
                     <>
-                        <div className="absolute top-4 left-4 z-10 bg-black/60 p-2 rounded text-xs text-white space-y-1">
+                        <div className="absolute top-4 left-4 z-10 bg-foreground/60 p-2 rounded text-xs text-foreground space-y-1">
                             {Object.entries(STAGE_LABELS).map(([stage, label]) => (
                                 <div key={stage} className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded" style={{ background: STAGE_COLORS[stage] }} />
@@ -166,7 +166,7 @@ export default function OrgChart({ domain, company }: { domain?: string | null; 
                             onNodeClick={onNodeClick}
                             fitView
                         >
-                            <Background color="#aaa" gap={16} />
+                            <Background color="hsl(var(--border))" gap={16} />
                             <Controls />
                         </ReactFlow>
                     </>

@@ -55,14 +55,14 @@ export default function ProfilePage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading profile...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading profile...</div>;
 
     return (
-        <div className="p-8 min-h-screen bg-black relative overflow-hidden">
+        <div className="p-8 min-h-screen bg-foreground relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
             </div>
 
             <div className="relative z-10 max-w-3xl mx-auto">
@@ -70,12 +70,12 @@ export default function ProfilePage() {
 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Profile Card */}
-                    <div className="md:col-span-2 glass p-8 rounded-xl border border-white/10">
+                    <div className="md:col-span-2 glass p-8 rounded-xl border border-foreground/10">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-white">Personal Info</h3>
+                            <h3 className="text-xl font-bold text-foreground">Personal Info</h3>
                             <button
                                 onClick={() => setEditing(!editing)}
-                                className="text-sm text-blue-400 hover:text-blue-300"
+                                className="text-sm text-primary hover:text-primary"
                             >
                                 {editing ? "Cancel" : "Edit"}
                             </button>
@@ -84,35 +84,35 @@ export default function ProfilePage() {
                         {editing ? (
                             <form onSubmit={handleUpdate} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Name</label>
+                                    <label className="block text-sm text-muted-foreground mb-1">Name</label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-4 py-2 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Avatar URL</label>
+                                    <label className="block text-sm text-muted-foreground mb-1">Avatar URL</label>
                                     <input
                                         type="text"
                                         value={formData.image}
                                         onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-4 py-2 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Address</label>
+                                    <label className="block text-sm text-muted-foreground mb-1">Address</label>
                                     <textarea
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-4 py-2 text-foreground"
                                         rows={3}
                                     />
                                 </div>
                                 <button
                                     type="submit"
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-lg font-medium"
                                 >
                                     Save Changes
                                 </button>
@@ -120,7 +120,7 @@ export default function ProfilePage() {
                         ) : (
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden relative">
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center overflow-hidden relative">
                                         {profile.image ? (
                                             <Image
                                                 src={profile.image}
@@ -130,38 +130,38 @@ export default function ProfilePage() {
                                                 className="object-cover w-full h-full"
                                             />
                                         ) : (
-                                            <span className="text-2xl font-bold text-white">{profile.name?.charAt(0) || "U"}</span>
+                                            <span className="text-2xl font-bold text-foreground">{profile.name?.charAt(0) || "U"}</span>
                                         )}
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-bold text-white">{profile.name}</h2>
-                                        <p className="text-gray-400">{profile.email}</p>
-                                        <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-white/10 text-xs text-gray-300 border border-white/10">
+                                        <h2 className="text-2xl font-bold text-foreground">{profile.name}</h2>
+                                        <p className="text-muted-foreground">{profile.email}</p>
+                                        <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-foreground/10 text-xs text-foreground/80 border border-foreground/10">
                                             {profile.role}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="pt-6 border-t border-white/10">
-                                    <h4 className="text-sm font-medium text-gray-400 mb-2">Address</h4>
-                                    <p className="text-white">{profile.address || "No address set"}</p>
+                                <div className="pt-6 border-t border-foreground/10">
+                                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Address</h4>
+                                    <p className="text-foreground">{profile.address || "No address set"}</p>
                                 </div>
                             </div>
                         )}
                     </div>
 
                     {/* Stats Card */}
-                    <div className="glass p-6 rounded-xl border border-white/10 h-fit">
-                        <h3 className="text-lg font-bold text-white mb-4">Usage Stats</h3>
+                    <div className="glass p-6 rounded-xl border border-foreground/10 h-fit">
+                        <h3 className="text-lg font-bold text-foreground mb-4">Usage Stats</h3>
                         <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                                <div className="text-sm text-gray-400 mb-1">AI Credits</div>
-                                <div className="text-2xl font-bold text-green-400">{profile.credits}</div>
-                                <div className="text-xs text-gray-500 mt-1">Available for use</div>
+                            <div className="p-4 rounded-lg bg-foreground/5 border border-foreground/10">
+                                <div className="text-sm text-muted-foreground mb-1">AI Credits</div>
+                                <div className="text-2xl font-bold text-success">{profile.credits}</div>
+                                <div className="text-xs text-muted-foreground mt-1">Available for use</div>
                             </div>
-                            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                                <div className="text-sm text-gray-400 mb-1">Member Since</div>
-                                <div className="text-lg font-medium text-white">
+                            <div className="p-4 rounded-lg bg-foreground/5 border border-foreground/10">
+                                <div className="text-sm text-muted-foreground mb-1">Member Since</div>
+                                <div className="text-lg font-medium text-foreground">
                                     {new Date(profile.createdAt).toLocaleDateString()}
                                 </div>
                             </div>

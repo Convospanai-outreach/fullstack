@@ -40,6 +40,7 @@
   --color-chart-7: hsl(var(--chart-7));
   --color-chart-8: hsl(var(--chart-8));
   --font-display: var(--font-bricolage), "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-home), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -621,3 +622,10 @@ select option {
 
 
 
+
+/* Bordeaux theme: buttons are square (cards 4px, inputs 2px). Catches raw <button className="rounded-md"> in pages. */
+button[class*="rounded-md"],
+button[class*="rounded-lg"],
+button[class*="rounded-xl"] {
+  border-radius: 0;
+}

@@ -176,7 +176,7 @@ function InviteForm({ onInvite }: { onInvite: (email: string, role: string) => v
             <div>
                 <label className="text-xs font-medium text-muted-foreground block mb-1">Role</label>
                 <select
-                    className="w-full bg-background border border-input rounded-lg p-2 text-sm text-foreground outline-none"
+                    className="w-full bg-card border border-input rounded-lg p-2 text-sm text-foreground outline-none"
                     value={role}
                     onChange={e => setRole(e.target.value)}
                 >

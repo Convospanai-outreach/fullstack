@@ -159,7 +159,7 @@ export default function WebhooksPage() {
                                     <input
                                         type="url"
                                         placeholder="https://api.yourdomain.com/webhooks"
-                                        className="w-full bg-background border border-input rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
+                                        className="w-full bg-card border border-input rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
                                         value={newUrl}
                                         onChange={e => setNewUrl(e.target.value)}
                                     />

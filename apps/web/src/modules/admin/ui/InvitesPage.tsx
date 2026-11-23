@@ -95,18 +95,18 @@ export default function InvitesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-black p-8 text-white">
+        <div className="min-h-screen bg-foreground p-8 text-foreground">
             <div className="mx-auto max-w-6xl">
                 <div className="mb-8 flex items-center justify-between">
                     <SectionHeader title="Invite Requests" subtitle="Waitlist requests, approvals, and invite links" />
-                    <Link href="/admin/users" className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+                    <Link href="/admin/users" className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary/90">
                         Invite User
                     </Link>
                 </div>
 
-                <div className="mb-8 overflow-hidden rounded-xl border border-white/10">
+                <div className="mb-8 overflow-hidden rounded-xl border border-foreground/10">
                     <table className="w-full text-left">
-                        <thead className="bg-white/5 text-sm uppercase text-gray-400">
+                        <thead className="bg-foreground/5 text-sm uppercase text-muted-foreground">
                             <tr>
                                 <th className="px-6 py-4">Requester</th>
                                 <th className="px-6 py-4">Company</th>
@@ -115,24 +115,24 @@ export default function InvitesPage() {
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/10">
+                        <tbody className="divide-y divide-foreground/10">
                             {loading ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={5}>Loading invite requests...</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={5}>Loading invite requests...</td></tr>
                             ) : error ? (
-                                <tr><td className="px-6 py-6 text-red-400" colSpan={5}>{error}</td></tr>
+                                <tr><td className="px-6 py-6 text-destructive" colSpan={5}>{error}</td></tr>
                             ) : inviteRequests.length === 0 ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={5}>No invite requests yet.</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={5}>No invite requests yet.</td></tr>
                             ) : inviteRequests.map((request) => (
-                                <tr key={request.id} className="hover:bg-white/5">
+                                <tr key={request.id} className="hover:bg-foreground/5">
                                     <td className="px-6 py-4">
                                         <div className="font-medium">{request.name}</div>
-                                        <div className="text-xs text-gray-500">{request.email}</div>
-                                        <a className="text-xs text-blue-300 hover:text-blue-200" href={request.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn profile</a>
+                                        <div className="text-xs text-muted-foreground">{request.email}</div>
+                                        <a className="text-xs text-primary hover:text-primary" href={request.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn profile</a>
                                     </td>
-                                    <td className="px-6 py-4 text-gray-300">{request.company}</td>
-                                    <td className="max-w-sm px-6 py-4 text-sm text-gray-400">{request.useCase}</td>
+                                    <td className="px-6 py-4 text-foreground/80">{request.company}</td>
+                                    <td className="max-w-sm px-6 py-4 text-sm text-muted-foreground">{request.useCase}</td>
                                     <td className="px-6 py-4">
-                                        <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-gray-200">{request.status}</span>
+                                        <span className="rounded-full bg-foreground/10 px-3 py-1 text-xs text-foreground">{request.status}</span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
@@ -140,7 +140,7 @@ export default function InvitesPage() {
                                             <button
                                                 onClick={() => updateRequest(request.id, "approve-request")}
                                                 disabled={approvingId === request.id}
-                                                className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-sm text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-60"
+                                                className="rounded-lg bg-success/15 px-3 py-1.5 text-sm text-success hover:bg-success/25 disabled:opacity-60"
                                             >
                                                 {approvingId === request.id ? "Approving..." : "Approve"}
                                             </button>
@@ -149,7 +149,7 @@ export default function InvitesPage() {
                                             <button
                                                 onClick={() => updateRequest(request.id, "reject-request")}
                                                 disabled={approvingId === request.id}
-                                                className="rounded-lg bg-red-500/15 px-3 py-1.5 text-sm text-red-200 hover:bg-red-500/25 disabled:opacity-60"
+                                                className="rounded-lg bg-destructive/15 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/25 disabled:opacity-60"
                                             >
                                                 Reject
                                             </button>
@@ -157,7 +157,7 @@ export default function InvitesPage() {
                                         {request.inviteToken && (
                                             <button
                                                 onClick={() => copyInviteLink(request.inviteToken)}
-                                                className="rounded-lg bg-blue-500/15 px-3 py-1.5 text-sm text-blue-200 hover:bg-blue-500/25"
+                                                className="rounded-lg bg-primary/15 px-3 py-1.5 text-sm text-primary hover:bg-primary/25"
                                             >
                                                 Copy Invite Link
                                             </button>
@@ -166,7 +166,7 @@ export default function InvitesPage() {
                                             <button
                                                 onClick={() => updateRequest(request.id, "mark-used-request")}
                                                 disabled={approvingId === request.id}
-                                                className="rounded-lg bg-white/10 px-3 py-1.5 text-sm text-gray-200 hover:bg-white/15 disabled:opacity-60"
+                                                className="rounded-lg bg-foreground/10 px-3 py-1.5 text-sm text-foreground hover:bg-foreground/15 disabled:opacity-60"
                                             >
                                                 Mark Used
                                             </button>
@@ -179,9 +179,9 @@ export default function InvitesPage() {
                     </table>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-white/10">
+                <div className="overflow-hidden rounded-xl border border-foreground/10">
                     <table className="w-full text-left">
-                        <thead className="bg-white/5 text-sm uppercase text-gray-400">
+                        <thead className="bg-foreground/5 text-sm uppercase text-muted-foreground">
                             <tr>
                                 <th className="px-6 py-4">Email</th>
                                 <th className="px-6 py-4">Role</th>
@@ -191,28 +191,28 @@ export default function InvitesPage() {
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/10">
+                        <tbody className="divide-y divide-foreground/10">
                             {loading ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>Loading invites...</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={6}>Loading invites...</td></tr>
                             ) : error ? (
-                                <tr><td className="px-6 py-6 text-red-400" colSpan={6}>{error}</td></tr>
+                                <tr><td className="px-6 py-6 text-destructive" colSpan={6}>{error}</td></tr>
                             ) : invites.length === 0 ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>No invites yet.</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={6}>No invites yet.</td></tr>
                             ) : invites.map((invite) => (
-                                <tr key={invite.id} className="hover:bg-white/5">
+                                <tr key={invite.id} className="hover:bg-foreground/5">
                                     <td className="px-6 py-4">
                                         <div className="font-medium">{invite.email}</div>
-                                        <div className="text-xs text-gray-500">Invited by {invite.invitedBy?.name || invite.invitedBy?.email || "admin"}</div>
+                                        <div className="text-xs text-muted-foreground">Invited by {invite.invitedBy?.name || invite.invitedBy?.email || "admin"}</div>
                                     </td>
-                                    <td className="px-6 py-4 text-gray-300">{invite.role}</td>
-                                    <td className="px-6 py-4 text-gray-300">{invite.team?.name || "-"}</td>
+                                    <td className="px-6 py-4 text-foreground/80">{invite.role}</td>
+                                    <td className="px-6 py-4 text-foreground/80">{invite.team?.name || "-"}</td>
                                     <td className="px-6 py-4">
-                                        <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-gray-200">{invite.status}</span>
+                                        <span className="rounded-full bg-foreground/10 px-3 py-1 text-xs text-foreground">{invite.status}</span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-400">{new Date(invite.expiresAt).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(invite.expiresAt).toLocaleDateString()}</td>
                                     <td className="px-6 py-4 text-right">
                                         {invite.status === "pending" && (
-                                            <button onClick={() => revokeInvite(invite.id)} className="rounded-lg bg-red-500/15 px-3 py-1.5 text-sm text-red-200 hover:bg-red-500/25">
+                                            <button onClick={() => revokeInvite(invite.id)} className="rounded-lg bg-destructive/15 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/25">
                                                 Revoke
                                             </button>
                                         )}

@@ -77,7 +77,7 @@ export default function NewLeadPage() {
                         value={formData.fullName}
                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                         placeholder="Jane Doe"
-                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="w-full bg-card border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 
@@ -91,7 +91,7 @@ export default function NewLeadPage() {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder="jane@company.com"
-                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="w-full bg-card border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 
@@ -105,7 +105,7 @@ export default function NewLeadPage() {
                             value={formData.company}
                             onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                             placeholder="Acme Corp"
-                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            className="w-full bg-card border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                     </div>
 
@@ -118,7 +118,7 @@ export default function NewLeadPage() {
                             value={formData.jobTitle}
                             onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                             placeholder="VP of Growth"
-                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                            className="w-full bg-card border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                     </div>
                 </div>
@@ -132,7 +132,7 @@ export default function NewLeadPage() {
                         value={formData.linkedIn}
                         onChange={(e) => setFormData({ ...formData, linkedIn: e.target.value })}
                         placeholder="https://linkedin.com/in/janedoe"
-                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="w-full bg-card border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 

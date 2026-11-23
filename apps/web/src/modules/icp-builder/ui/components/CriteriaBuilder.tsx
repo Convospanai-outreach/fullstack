@@ -45,7 +45,7 @@ export default function CriteriaBuilder({ criteria, onChange }: Props) {
                             e.currentTarget.value = "";
                         }
                     }}
-                    style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+                    style={{ padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6, width: "100%" }}
                 />
             </div>
 
@@ -69,7 +69,7 @@ export default function CriteriaBuilder({ criteria, onChange }: Props) {
                             e.currentTarget.value = "";
                         }
                     }}
-                    style={{ padding: 8, border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }}
+                    style={{ padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6, width: "100%" }}
                 />
             </div>
         </div>

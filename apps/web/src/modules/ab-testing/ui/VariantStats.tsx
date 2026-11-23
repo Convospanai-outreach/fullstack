@@ -23,7 +23,7 @@ export default function VariantStats() {
     const calculateRate = (part: number, total: number) => ((part / total) * 100).toFixed(1) + "%";
 
     return (
-        <div style={{ background: "#fff", padding: 16, borderRadius: 8, border: "1px solid #e5e7eb" }}>
+        <div style={{ background: "#fff", padding: 16, borderRadius: 8, border: '1px solid hsl(var(--border))' }}>
             <h4 style={{ margin: 0, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>A/B Test Results</h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div style={{ background: "#f9fafb", padding: 12, borderRadius: 6 }}>
@@ -35,7 +35,7 @@ export default function VariantStats() {
                         <span>Clicks:</span> <strong>{calculateRate(stats.A.clicks, stats.A.sent)}</strong>
                     </div>
                 </div>
-                <div style={{ background: "#f0fdf4", padding: 12, borderRadius: 6, border: "1px solid #bbf7d0" }}>
+                <div style={{ background: "#f0fdf4", padding: 12, borderRadius: 6, border: '1px solid hsl(var(--border))' }}>
                     <div style={{ fontWeight: 600, marginBottom: 8, color: "#166534" }}>Variant B 🏆</div>
                     <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <span>Opens:</span> <strong>{calculateRate(stats.B.opens, stats.B.sent)}</strong>

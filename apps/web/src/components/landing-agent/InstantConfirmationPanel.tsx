@@ -119,7 +119,7 @@ export default function InstantConfirmationPanel({
                                 setSequenceId(e.target.value);
                                 setSavedNoLongerQualifies(false);
                             }}
-                            className="w-full md:w-96 bg-background border border-input rounded-lg px-3 py-2 text-foreground"
+                            className="w-full md:w-96 bg-card border border-input rounded-lg px-3 py-2 text-foreground"
                         >
                             <option value="">Choose a sequence</option>
                             {sequences.map((sequence) => (

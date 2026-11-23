@@ -213,7 +213,7 @@ export default function TeamSettingsPage() {
                                             disabled={member.role === TeamRole.OWNER && !isOwner}
                                             value={member.role}
                                             onChange={(e) => handleRoleUpdate(member.id, e.target.value)}
-                                            className="bg-background border border-input rounded-lg px-2 py-1 text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
+                                            className="bg-card border border-input rounded-lg px-2 py-1 text-xs font-semibold text-foreground focus:outline-none focus:border-primary"
                                         >
                                             <option value="member">Member</option>
                                             <option value="admin">Admin</option>
@@ -270,7 +270,7 @@ export default function TeamSettingsPage() {
                                     value={inviteEmail}
                                     onChange={(e) => setInviteEmail(e.target.value)}
                                     placeholder="partner@company.com"
-                                    className="w-full bg-background border border-input rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary shadow-inner"
+                                    className="w-full bg-card border border-input rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary shadow-inner"
                                 />
                             </div>
                             <div>

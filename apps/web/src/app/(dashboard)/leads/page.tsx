@@ -132,7 +132,7 @@ export default async function LeadsPage({
                             type="text"
                             name="search"
                             placeholder="Search by name, email, or domain..."
-                            className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                            className="w-full bg-card border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                             defaultValue={search}
                             id="lead-search-input"
                         />
@@ -142,7 +142,7 @@ export default async function LeadsPage({
                         <select
                             name="status"
                             defaultValue={status}
-                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                            className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                             id="lead-status-select"
                         >
                             <option value="">All Statuses</option>
@@ -164,7 +164,7 @@ export default async function LeadsPage({
                         name="company"
                         placeholder="Filter by company..."
                         defaultValue={company}
-                        className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="flex-1 bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         id="lead-company-input"
                     />
                     <input
@@ -172,14 +172,14 @@ export default async function LeadsPage({
                         name="jobTitle"
                         placeholder="Filter by job title..."
                         defaultValue={jobTitle}
-                        className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="flex-1 bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         id="lead-jobtitle-input"
                     />
                     <div className="relative md:w-56">
                         <select
                             name="pipelineState"
                             defaultValue={pipelineState}
-                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                            className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                             id="lead-pipeline-select"
                         >
                             <option value="">All funnel stages</option>
@@ -193,7 +193,7 @@ export default async function LeadsPage({
                         <select
                             name="clusterLabel"
                             defaultValue={clusterLabel}
-                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                            className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                             id="lead-cluster-select"
                         >
                             <option value="">All cohorts</option>
@@ -211,7 +211,7 @@ export default async function LeadsPage({
                         max={100}
                         placeholder="Min. ICP fit %"
                         defaultValue={minIcpFitScore}
-                        className="md:w-36 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="md:w-36 bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         id="lead-icp-fit-input"
                     />
                 </div>
@@ -238,7 +238,7 @@ export default async function LeadsPage({
                             <select
                                 name="property"
                                 defaultValue={propertyKey}
-                                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                                className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                                 id="lead-property-select"
                             >
                                 <option value="">Any custom property</option>
@@ -252,7 +252,7 @@ export default async function LeadsPage({
                             <select
                                 name="op"
                                 defaultValue={propertyOp}
-                                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                                className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                                 id="lead-property-op-select"
                             >
                                 <option value="equals">equals</option>
@@ -265,7 +265,7 @@ export default async function LeadsPage({
                             name="value"
                             placeholder="Value: yes/no as true or false, dates as YYYY-MM-DD"
                             defaultValue={propertyValue}
-                            className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                            className="flex-1 bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                             id="lead-property-value-input"
                         />
                     </div>

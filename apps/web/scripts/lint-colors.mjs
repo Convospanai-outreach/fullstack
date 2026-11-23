@@ -12,6 +12,8 @@ const MARKETING = new Set(['about', 'blog', 'careers', 'contact', 'data-deletion
 const BRAND_FILE = /(google|linkedin|whatsapp|stripe|razorpay)/i;
 // PublishedLandingRenderer draws customers' own landing pages with their own themes, not the app theme.
 const SKIP_FILE = new Set(['NavBar.tsx', 'Footer.tsx', 'PublishedLandingRenderer.tsx']);
+// Legacy module UIs nothing imports (not rendered anywhere). Left as is; delete them rather than restyle them.
+const UNUSED_FILE = new Set(['PricingPage.tsx', 'JobStatusList.tsx', 'NotificationCenter.tsx', 'CrmSettings.tsx', 'ContentGenerator.tsx', 'VariantStats.tsx', 'CriteriaBuilder.tsx', 'ICPListPage.tsx', 'ICPCard.tsx', 'BillingPage.tsx', 'Sparkline.tsx', 'OrgGraph.tsx']);
 const THEME_HEX = new Set(['5C1A2B', '74253A', '3A0E1A', '2E0C15', 'F3EDE4', 'E8DFD2', 'FBF8F3', '1A1414', '2A2220', '8C7B6B', '6E5F52', 'C2A36B', 'DCC392', 'A8884F', '5B6B3A', 'B7862E', 'A63D2F', '4A4040', 'B5677A', '241C1C', '2A2120', '3A2C2A', '3D302C', 'BFB2A3', '9DB06E', 'D9AE5C', 'D06A5B', 'C9BBB0', 'DCCFB8', 'EADFC9']);
 
 const FAMILIES = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
@@ -32,10 +34,10 @@ function inScope(p) {
   const rel = path.relative(root, p).split(path.sep).join('/');
   const parts = rel.split('/');
   if (SKIP_DIR.test(rel)) return false;
-  if (parts[0] !== 'app' && parts[0] !== 'components') return false;
+  if (!['app', 'components', 'modules'].includes(parts[0])) return false;
   if (parts[0] === 'app' && MARKETING.has(parts[1])) return false;
   const base = path.basename(p);
-  if (SKIP_FILE.has(base) || BRAND_FILE.test(base)) return false;
+  if (SKIP_FILE.has(base) || UNUSED_FILE.has(base) || BRAND_FILE.test(base)) return false;
   return !(base.endsWith('.test.tsx') || rel.includes('__tests__'));
 }
 

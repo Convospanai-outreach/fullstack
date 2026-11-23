@@ -108,7 +108,7 @@ export default function GovernancePage() {
                                 type="number"
                                 value={policy.maxDailyActions}
                                 onChange={(e) => handleUpdate("maxDailyActions", parseInt(e.target.value))}
-                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
+                                className="w-full bg-card border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                         <div className="space-y-2">
@@ -117,7 +117,7 @@ export default function GovernancePage() {
                                 type="number"
                                 value={policy.maxCampaigns}
                                 onChange={(e) => handleUpdate("maxCampaigns", parseInt(e.target.value))}
-                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
+                                className="w-full bg-card border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                     </div>

@@ -42,7 +42,7 @@ export function JobStatusList() {
             <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Recent Jobs</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {jobs.map((job) => (
-                    <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, border: "1px solid #eee", borderRadius: 6 }}>
+                    <div key={job.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, border: '1px solid hsl(var(--border))', borderRadius: 6 }}>
                         <div>
                             <div style={{ fontWeight: 500 }}>{job.type}</div>
                             <div style={{ fontSize: 12, color: "#666" }}>ID: {job.id}</div>

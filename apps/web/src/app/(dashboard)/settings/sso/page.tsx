@@ -140,7 +140,7 @@ export default function SsoSettingsPage() {
                                         value={config.certificate}
                                         onChange={(e) => handleUpdate("certificate", e.target.value)}
                                         placeholder="-----BEGIN CERTIFICATE----- ... ----END CERTIFICATE-----"
-                                        className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground text-xs font-mono focus:outline-none focus:border-primary min-h-[100px]"
+                                        className="w-full bg-card border border-input rounded-lg px-4 py-2 text-foreground text-xs font-mono focus:outline-none focus:border-primary min-h-[100px]"
                                     />
                                 </div>
                             </div>
@@ -193,7 +193,7 @@ export default function SsoSettingsPage() {
                                 value={newDomain}
                                 onChange={(e) => setNewDomain(e.target.value)}
                                 placeholder="acme.com"
-                                className="flex-1 bg-background border border-input rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                                className="flex-1 bg-card border border-input rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                             />
                             <button onClick={addDomain} className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary transition-all">Add</button>
                         </div>
@@ -236,7 +236,7 @@ function Input({ label, value, onChange, placeholder, type = "text" }: any) {
                 value={value || ""}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-background border border-input rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                className="w-full bg-card border border-input rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
             />
         </div>
     );

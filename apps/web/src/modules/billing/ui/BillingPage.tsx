@@ -196,29 +196,29 @@ export default function BillingPage() {
     };
 
     return (
-        <div className="p-8 min-h-screen bg-black relative overflow-hidden">
+        <div className="p-8 min-h-screen bg-foreground relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
             </div>
 
             <div className="relative z-10 max-w-5xl mx-auto space-y-12">
 
                 {/* Credits Section */}
-                <div className="glass p-8 rounded-2xl border border-white/10">
+                <div className="glass p-8 rounded-2xl border border-foreground/10">
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <SectionHeader title="Credit Balance" subtitle="Pay as you go for extra usage" />
-                            <div className="text-sm text-gray-400 mt-1">
+                            <div className="text-sm text-muted-foreground mt-1">
                                 Used for AI generation, lead enrichment, and extra emails.
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className="text-3xl font-bold text-white">
+                            <div className="text-3xl font-bold text-foreground">
                                 {balanceLoading ? "..." : balance !== null ? balance.toLocaleString() : "---"}
                             </div>
-                            <div className="text-xs text-gray-400">Current Credits</div>
+                            <div className="text-xs text-muted-foreground">Current Credits</div>
                         </div>
                     </div>
 
@@ -232,16 +232,16 @@ export default function BillingPage() {
                                 key={pack.credits}
                                 onClick={() => handleTopUp(pack.tierId)}
                                 disabled={!!loading}
-                                className="relative group p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-green-500/50 transition-all text-left"
+                                className="relative group p-4 rounded-xl border border-foreground/10 bg-foreground/5 hover:bg-foreground/10 hover:border-success/50 transition-all text-left"
                             >
                                 {pack.save && (
-                                    <span className="absolute -top-3 right-4 px-2 py-0.5 bg-green-600 text-[10px] font-bold uppercase rounded-full text-white">
+                                    <span className="absolute -top-3 right-4 px-2 py-0.5 bg-success text-[10px] font-bold uppercase rounded-full text-primary-foreground">
                                         {pack.save}
                                     </span>
                                 )}
-                                <div className="text-lg font-bold text-white mb-1">{pack.credits} Credits</div>
-                                <div className="text-gray-400 text-sm mb-3">{pack.label}</div>
-                                <div className="text-xl font-bold text-green-400">₹{pack.amount}</div>
+                                <div className="text-lg font-bold text-foreground mb-1">{pack.credits} Credits</div>
+                                <div className="text-muted-foreground text-sm mb-3">{pack.label}</div>
+                                <div className="text-xl font-bold text-success">₹{pack.amount}</div>
                             </button>
                         ))}
                     </div>
@@ -249,24 +249,24 @@ export default function BillingPage() {
 
                 {/* Plans Section */}
                 <div>
-                    <h3 className="text-2xl font-bold text-white mb-6">Subscription Plans</h3>
+                    <h3 className="text-2xl font-bold text-foreground mb-6">Subscription Plans</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="glass p-8 rounded-2xl border border-white/10 relative flex flex-col">
-                            <h3 className="text-xl font-bold text-white mb-2">Free</h3>
-                            <div className="text-4xl font-bold text-white mb-6">
-                                $0<span className="text-lg text-gray-400 font-normal">/mo</span>
+                        <div className="glass p-8 rounded-2xl border border-foreground/10 relative flex flex-col">
+                            <h3 className="text-xl font-bold text-foreground mb-2">Free</h3>
+                            <div className="text-4xl font-bold text-foreground mb-6">
+                                $0<span className="text-lg text-muted-foreground font-normal">/mo</span>
                             </div>
                             <ul className="space-y-4 mb-8 flex-1">
                                 {["100 AI Credits/mo", "Basic Analytics", "1 Campaign"].map((feature) => (
-                                    <li key={feature} className="flex items-center text-gray-300">
-                                        <svg className="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <li key={feature} className="flex items-center text-foreground/80">
+                                        <svg className="w-5 h-5 text-success mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
                                         {feature}
                                     </li>
                                 ))}
                             </ul>
-                            <button disabled className="w-full py-3 rounded-xl font-bold bg-white/10 text-gray-400 cursor-default">
+                            <button disabled className="w-full py-3 rounded-xl font-bold bg-foreground/10 text-muted-foreground cursor-default">
                                 Current Plan
                             </button>
                         </div>
@@ -278,23 +278,23 @@ export default function BillingPage() {
                             return (
                                 <div
                                     key={plan.slug}
-                                    className={`glass p-8 rounded-2xl border ${plan.popular ? 'border-blue-500 shadow-blue-500/20 shadow-lg' : 'border-white/10'} relative flex flex-col`}
+                                    className={`glass p-8 rounded-2xl border ${plan.popular ? 'border-primary/30 shadow-primary/20 shadow-lg' : 'border-foreground/10'} relative flex flex-col`}
                                 >
                                     {plan.popular && (
-                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                                             Most Popular
                                         </div>
                                     )}
 
-                                    <h3 className="text-xl font-bold text-white mb-2">{plan.label}</h3>
-                                    <div className="text-4xl font-bold text-white mb-6">
-                                        {price != null ? `${symbol}${price}` : "—"}<span className="text-lg text-gray-400 font-normal">/mo</span>
+                                    <h3 className="text-xl font-bold text-foreground mb-2">{plan.label}</h3>
+                                    <div className="text-4xl font-bold text-foreground mb-6">
+                                        {price != null ? `${symbol}${price}` : "—"}<span className="text-lg text-muted-foreground font-normal">/mo</span>
                                     </div>
 
                                     <ul className="space-y-4 mb-8 flex-1">
                                         {plan.features.map((feature) => (
-                                            <li key={feature} className="flex items-center text-gray-300">
-                                                <svg className="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <li key={feature} className="flex items-center text-foreground/80">
+                                                <svg className="w-5 h-5 text-success mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                                 </svg>
                                                 {feature}
@@ -305,7 +305,7 @@ export default function BillingPage() {
                                     <button
                                         onClick={() => handleUpgrade(plan.slug)}
                                         disabled={!!loading}
-                                        className="w-full py-3 rounded-xl font-bold transition-all bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-90 text-white disabled:opacity-50"
+                                        className="w-full py-3 rounded-xl font-bold transition-all bg-gradient-to-r from-primary to-primary/60 hover:opacity-90 text-primary-foreground disabled:opacity-50"
                                     >
                                         {loading === plan.slug ? "Processing..." : "Upgrade Now"}
                                     </button>
@@ -333,38 +333,38 @@ export default function BillingPage() {
                 }
             >
                 <div className="space-y-4">
-                    <p className="text-xs text-gray-400">Used to determine tax treatment and currency on your invoice.</p>
+                    <p className="text-xs text-muted-foreground">Used to determine tax treatment and currency on your invoice.</p>
                     <div>
-                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <label className="text-xs font-semibold text-foreground block mb-1">Country</label>
                         <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                             value={billingCountry}
                             onChange={(e) => setBillingCountry(e.target.value)}
                         >
                             {BILLING_COUNTRIES.map((c) => (
-                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                                <option key={c.code} value={c.code} className="bg-background">{c.label}</option>
                             ))}
                         </select>
                     </div>
                     {billingCountry === "IN" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">State</label>
                             <select
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                                 value={billingState}
                                 onChange={(e) => setBillingState(e.target.value)}
                             >
                                 {INDIAN_STATES.map((s) => (
-                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                    <option key={s} value={s} className="bg-background">{s}</option>
                                 ))}
                             </select>
                         </div>
                     )}
                     {billingCountry === "OTHER" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">Country name</label>
                             <input
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                                 value={billingCustomCountry}
                                 onChange={(e) => setBillingCustomCountry(e.target.value)}
                                 placeholder="Enter your country"

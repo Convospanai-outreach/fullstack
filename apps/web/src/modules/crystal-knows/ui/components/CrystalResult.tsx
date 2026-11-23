@@ -7,7 +7,7 @@ type Props = {
 export default function CrystalResult({ result }: Props) {
     if (result.state === "not_found") {
         return (
-            <div className="rounded-lg border border-dashed border-border bg-card p-6 mt-4 flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="glass border-dashed p-6 mt-4 flex items-center gap-3 text-sm text-muted-foreground">
                 <UserX className="w-5 h-5" />
                 No Crystal profile found for this person.
             </div>
@@ -16,7 +16,7 @@ export default function CrystalResult({ result }: Props) {
 
     if (result.state === "pending") {
         return (
-            <div className="rounded-lg border border-dashed border-border bg-card p-6 mt-4 flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="glass border-dashed p-6 mt-4 flex items-center gap-3 text-sm text-muted-foreground">
                 <Clock className="w-5 h-5" />
                 Crystal is still building this profile - search again in a few seconds.
             </div>

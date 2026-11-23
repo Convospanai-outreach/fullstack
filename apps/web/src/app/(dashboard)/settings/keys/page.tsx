@@ -123,7 +123,7 @@ export default function ApiKeysPage() {
                             <input
                                 autoFocus
                                 type="text"
-                                className="w-full bg-background border border-input rounded px-3 py-2 text-foreground"
+                                className="w-full bg-card border border-input rounded px-3 py-2 text-foreground"
                                 placeholder="e.g. Zapier Integration"
                                 value={createName}
                                 onChange={e => setCreateName(e.target.value)}

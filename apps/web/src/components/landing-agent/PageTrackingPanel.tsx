@@ -83,7 +83,7 @@ export default function PageTrackingPanel({
                             value={values[field.key]}
                             onChange={(e) => setValues({ ...values, [field.key]: e.target.value.trim().toUpperCase() })}
                             placeholder={field.placeholder}
-                            className="w-full bg-background border border-input rounded-lg px-3 py-2 text-foreground"
+                            className="w-full bg-card border border-input rounded-lg px-3 py-2 text-foreground"
                             aria-invalid={invalid.includes(field)}
                         />
                         {invalid.includes(field) ? <p className="text-xs text-destructive">Expected a value like {field.placeholder}</p> : null}
@@ -120,7 +120,7 @@ export default function PageTrackingPanel({
                         autoComplete="off"
                         value={token}
                         onChange={(e) => setToken(e.target.value.trim())}
-                        className="w-full md:w-96 bg-background border border-input rounded-lg px-3 py-2 text-foreground"
+                        className="w-full md:w-96 bg-card border border-input rounded-lg px-3 py-2 text-foreground"
                     />
                     <div className="flex items-center gap-3">
                         <button

@@ -6,7 +6,6 @@ import {
     DollarSign,
     Target,
     PieChart,
-    Calendar,
     Download
 } from "lucide-react";
 import {
@@ -157,7 +156,7 @@ export default function ROIDashboardPage() {
             <AnalyticsTabs />
             <div className="flex justify-between items-end mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">Campaign ROI</h1>
+                    <h1 className="text-[40px] leading-[1.15] font-semibold text-foreground mb-1">Campaign ROI</h1>
                     <p className="text-muted-foreground max-w-xl">
                         Track the financial impact of your AI agents. Measure spend, attribution, and bottom-line revenue.
                     </p>
@@ -167,7 +166,6 @@ export default function ROIDashboardPage() {
                         className="glass inline-flex items-center gap-[3px] rounded-[3px] p-[3px]"
                         title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
                     >
-                        <Calendar className="w-4 h-4 mx-2 text-muted-foreground" />
                         {MONTH_OPTIONS.map((opt) => (
                             <Button
                                 key={opt}
@@ -188,7 +186,7 @@ export default function ROIDashboardPage() {
             </div>
 
             {/* KPI Grid */}
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Lifetime totals</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-2">Lifetime totals</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
                     <>
