@@ -103,10 +103,10 @@ export default function AboutPage() {
                     { title: "Outcomes, not activity", body: "We measure replies, meetings and follow-up quality, not emails sent." },
                 ]} />
             </Section>
-            <Section tone="navy" eyebrow="Where we work" title="Built in India. Selling to India, the US and Europe.">
+            <Section tone="teal" eyebrow="Where we work" title="Built in India. Selling to India, the US and Europe.">
                 <Cards dark items={REGIONS.slice(0, 3).map((r) => ({ label: r.name, title: r.channels, href: `/regions/${r.slug}`, linkText: `${r.name} guide` }))} />
             </Section>
-            <Section tone="teal" title="Built by people who have carried a quota." lead="Our team comes from enterprise demand generation and AI engineering. We've lived the gap between a signal and a signed contract.">
+            <Section tone="white" title="Built by people who have carried a quota." lead="Our team comes from enterprise demand generation and AI engineering. We've lived the gap between a signal and a signed contract.">
                 <div style={{ marginTop: 32 }}><a className="ph-btn ph-btn-yellow" href="/careers">Explore careers</a></div>
             </Section>
             <Section tone="beige" tight={false} title="Company">

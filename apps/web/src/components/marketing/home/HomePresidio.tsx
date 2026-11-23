@@ -5,8 +5,9 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { InviteRequestForm } from "../InviteRequestForm";
 import { CHANNELS, HOME, type SignupPath } from "./homeContent";
-import { montserrat } from "./fonts";
+import { siteSans, siteSerif } from "./fonts";
 import { cleanImagePath, STEP_IMAGE } from "@/lib/siteImages";
+import { SovereignBand } from "../site/kit";
 import { INDUSTRIES, MARKET_LABEL } from "@/lib/marketing/industries";
 import "../site/site.css";
 
@@ -165,7 +166,7 @@ type Quote = { quote: string; name: string; role: string; company: string };
 export default function HomePresidio({ testimonial = null }: { testimonial?: Quote | null }) {
   const [hero, problem, guide] = HOME.story;
   return (
-    <div className={`ph ${montserrat.variable}`}>
+    <div className={`ph ${siteSans.variable} ${siteSerif.variable}`}>
       <section className="ph-hero" aria-labelledby="hero-title">
         {HERO_IMAGE && <img className="ph-hero-img" src={HERO_IMAGE} alt="" />}
         <div className="ph-wrap ph-hero-inner">
@@ -273,6 +274,8 @@ export default function HomePresidio({ testimonial = null }: { testimonial?: Quo
           <a className="ph-btn ph-btn-navy" href="#start">Talk to our team</a>
         </div>
       </section>
+
+      <SovereignBand />
 
       <section className="ph-section ph-teal" aria-labelledby="turn-title">
         <div className="ph-wrap">

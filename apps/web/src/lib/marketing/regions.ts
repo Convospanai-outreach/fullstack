@@ -1,11 +1,12 @@
 import type { Market } from "./industries";
 
 // Market pages. Guidance text is a prompt for the customer's own legal review, not legal advice.
-export type Region = { slug: string; name: string; market: Market; title: string; lead: string; channels: string; scenarios: string[]; guidance: string; pricing: string };
+export type Region = { slug: string; name: string; market: Market; law: string; title: string; lead: string; channels: string; scenarios: string[]; guidance: string; pricing: string };
 
 export const REGIONS: Region[] = [
   {
     slug: "india",
+    law: "DPDP",
     name: "India",
     market: "india",
     title: "Built for how India buys: WhatsApp, email, a phone call and a person who follows up.",
@@ -17,6 +18,7 @@ export const REGIONS: Region[] = [
   },
   {
     slug: "united-states",
+    law: "US state privacy laws",
     name: "United States",
     market: "us-eu",
     title: "Governed outbound for US service firms. Every send reviewed, every reply owned.",
@@ -28,6 +30,7 @@ export const REGIONS: Region[] = [
   },
   {
     slug: "europe",
+    law: "GDPR and UK GDPR",
     name: "Europe & UK",
     market: "us-eu",
     title: "Outreach that respects GDPR, for European technical service teams.",
@@ -39,6 +42,7 @@ export const REGIONS: Region[] = [
   },
   {
     slug: "uae",
+    law: "UAE PDPL",
     name: "UAE",
     market: "global",
     title: "A focused workflow for UAE technical service teams.",
@@ -50,6 +54,7 @@ export const REGIONS: Region[] = [
   },
   {
     slug: "canada",
+    law: "PIPEDA",
     name: "Canada",
     market: "global",
     title: "A focused workflow for Canadian technical service teams.",
