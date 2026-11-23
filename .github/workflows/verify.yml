@@ -24,6 +24,10 @@ concurrency:
   group: verify-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: nothing here writes to the repo, packages or pull requests.
+permissions:
+  contents: read
+
 jobs:
   detect-docs-only:
     name: Docs-only Change Detection
