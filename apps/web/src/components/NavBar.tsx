@@ -46,7 +46,7 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-80 before:absolute before:-top-1 before:left-0 before:h-1 before:w-full before:content-[''] rounded-2xl border border-[#1A1414]/10 bg-white p-2 shadow-2xl shadow-[#1A1414]/15 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 top-full z-50 mt-1 w-80 before:absolute before:-top-1 before:left-0 before:h-1 before:w-full before:content-[''] rounded-[4px] border border-[#C2A36B]/60 bg-[#F3EDE4]/[0.85] p-2 shadow-[0_12px_32px_-8px_rgba(26,20,20,0.22)] backdrop-blur-[16px] animate-in fade-in zoom-in-95 duration-150">
           {group.items.map((item) => (
             <Link
               key={item.href + item.label}
@@ -72,7 +72,7 @@ export function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 border-b border-[#1A1414]/10 bg-white/95 backdrop-blur-xl ${siteSans.className} ${siteSerif.variable}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 border-b border-[#C2A36B]/45 bg-[#F3EDE4]/[0.72] backdrop-blur-[16px] ${siteSans.className} ${siteSerif.variable}`}>
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
         <Link href="/" className="group flex items-center gap-2">
