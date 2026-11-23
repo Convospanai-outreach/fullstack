@@ -18,7 +18,7 @@ const THEME_HEX = new Set(['5C1A2B', '74253A', '3A0E1A', '2E0C15', 'F3EDE4', 'E8
 
 const FAMILIES = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
 const UTIL = 'bg|text|border|ring|from|via|to|fill|stroke|shadow|divide|outline|decoration|placeholder|accent|caret';
-const PALETTE_CLASS = new RegExp(`(?<![\w-])(?:${UTIL})-(?:(?:${FAMILIES})-\d{2,3}|white|black)(?![\w-])`);
+const PALETTE_CLASS = new RegExp(String.raw`(?<![\w-])(?:${UTIL})-(?:(?:${FAMILIES})-\d{2,3}|white|black)(?![\w-])`);
 const HEX = /#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g;
 
 function* walk(dir) {
