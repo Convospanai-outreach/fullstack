@@ -165,45 +165,45 @@ export default function StudioClient() {
 
     return (
         <div className="space-y-8">
-            <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.12),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(251,191,36,0.18),transparent_24%),linear-gradient(135deg,rgba(7,18,32,0.98),rgba(20,32,49,0.96))] p-8">
+            <section className="overflow-hidden rounded-[32px] border border-foreground/10 glass-card p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-3xl">
                         <div className="flex flex-wrap items-center gap-2">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-emerald-100">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-success/20 bg-success/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-success">
                                 <Languages className="h-3.5 w-3.5" />
                                 International Campaign Studio
                             </div>
-                            <span className="rounded-full border border-amber-500/30 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300">
+                            <span className="rounded-full border border-warning/30 bg-warning/20 px-3 py-1 text-xs font-semibold text-warning">
                                 Experimental / Internal Preview
                             </span>
                         </div>
-                        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">
+                        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-foreground">
                             Edit campaign language, audience fit, and PowerPoint narrative in one place.
                         </h1>
-                        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                        <p className="mt-4 max-w-2xl text-sm leading-7 text-foreground/80 sm:text-base">
                             Build content that looks global, sounds local, and stays editable for the team preparing outreach,
                             executive decks, and follow-up collateral.
                         </p>
-                        <div className="mt-6 text-xs uppercase tracking-[0.28em] text-slate-400">
+                        <div className="mt-6 text-xs uppercase tracking-[0.28em] text-muted-foreground">
                             Hello - Bonjour - Hola - Namaste - Marhaba - Konnichiwa
                         </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-4">
-                            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Language</div>
-                            <div className="mt-2 text-sm font-medium text-white">{languageMeta.label}</div>
-                            <div className="mt-1 text-xs text-slate-400">{languageMeta.nativeLabel}</div>
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.05] px-4 py-4">
+                            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Language</div>
+                            <div className="mt-2 text-sm font-medium text-foreground">{languageMeta.label}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">{languageMeta.nativeLabel}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-4">
-                            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Direction</div>
-                            <div className="mt-2 text-sm font-medium text-white">{languageMeta.direction.toUpperCase()}</div>
-                            <div className="mt-1 text-xs text-slate-400">{languageMeta.region}</div>
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.05] px-4 py-4">
+                            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Direction</div>
+                            <div className="mt-2 text-sm font-medium text-foreground">{languageMeta.direction.toUpperCase()}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">{languageMeta.region}</div>
                         </div>
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-4">
-                            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Deck output</div>
-                            <div className="mt-2 text-sm font-medium text-white">Editable PPTX</div>
-                            <div className="mt-1 text-xs text-slate-400">PowerPoint-native text boxes</div>
+                        <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.05] px-4 py-4">
+                            <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Deck output</div>
+                            <div className="mt-2 text-sm font-medium text-foreground">Editable PPTX</div>
+                            <div className="mt-1 text-xs text-muted-foreground">PowerPoint-native text boxes</div>
                         </div>
                     </div>
                 </div>
@@ -224,7 +224,7 @@ export default function StudioClient() {
                                     id="studio-language"
                                     value={config.language}
                                     onChange={(e) => setConfig((prev) => ({ ...prev, language: e.target.value }))}
-                                    className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                    className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 >
                                     {LANGUAGES.map((language) => (
                                         <option key={language.value} value={language.value} className="bg-popover">
@@ -240,7 +240,7 @@ export default function StudioClient() {
                                     id="studio-market"
                                     value={config.market}
                                     onChange={(e) => setConfig((prev) => ({ ...prev, market: e.target.value }))}
-                                    className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                    className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 >
                                     {MARKETS.map((market) => (
                                         <option key={market} value={market} className="bg-popover">
@@ -252,7 +252,7 @@ export default function StudioClient() {
                         </div>
 
                         <div className="rounded-2xl border border-border bg-muted px-4 py-4">
-                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-emerald-700">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-success">
                                 <MapPinned className="h-3.5 w-3.5" />
                                 Locale Signal
                             </div>
@@ -282,7 +282,7 @@ export default function StudioClient() {
                                 id="studio-audience"
                                 value={config.audience}
                                 onChange={(e) => setConfig((prev) => ({ ...prev, audience: e.target.value }))}
-                                className="min-h-[88px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                className="min-h-[88px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 placeholder="Who is the campaign for?"
                             />
                         </div>
@@ -293,7 +293,7 @@ export default function StudioClient() {
                                 id="studio-audience-needs"
                                 value={config.audienceNeeds}
                                 onChange={(e) => setConfig((prev) => ({ ...prev, audienceNeeds: e.target.value }))}
-                                className="min-h-[96px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                className="min-h-[96px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 placeholder="What do they need to hear, prove, or avoid?"
                             />
                         </div>
@@ -301,7 +301,7 @@ export default function StudioClient() {
 
                     <GlassCard className="flex flex-col gap-5">
                         <div className="flex items-center gap-2">
-                            <Target className="h-4 w-4 text-cyan-600" />
+                            <Target className="h-4 w-4 text-primary" />
                             <h2 className="text-lg font-semibold text-foreground">Voice and constraints</h2>
                         </div>
 
@@ -325,7 +325,7 @@ export default function StudioClient() {
                             <label htmlFor="studio-points" className="text-sm font-medium text-muted-foreground">Key talking points</label>
                             <textarea
                                 id="studio-points"
-                                className="min-h-[110px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                className="min-h-[110px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 placeholder="One point per line"
                                 value={config.talkingPoints}
                                 onChange={(e) => setConfig((prev) => ({ ...prev, talkingPoints: e.target.value }))}
@@ -346,7 +346,7 @@ export default function StudioClient() {
                                 id="studio-reqs"
                                 value={config.contentRequirements}
                                 onChange={(e) => setConfig((prev) => ({ ...prev, contentRequirements: e.target.value }))}
-                                className="min-h-[100px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                className="min-h-[100px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 placeholder="Describe compliance, tone, regional nuance, and editing needs"
                             />
                         </div>
@@ -354,7 +354,7 @@ export default function StudioClient() {
 
                     <GlassCard className="flex flex-col gap-5">
                         <div className="flex items-center gap-2">
-                            <Presentation className="h-4 w-4 text-amber-300" />
+                            <Presentation className="h-4 w-4 text-warning" />
                             <h2 className="text-lg font-semibold text-foreground">PPT and deck editing</h2>
                         </div>
 
@@ -378,7 +378,7 @@ export default function StudioClient() {
                                 id="studio-slides"
                                 value={config.slideOutline}
                                 onChange={(e) => setConfig((prev) => ({ ...prev, slideOutline: e.target.value }))}
-                                className="min-h-[132px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-cyan-400"
+                                className="min-h-[132px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:border-primary/30"
                                 placeholder={"1. Problem framing\n2. Audience pain points\n3. Solution and proof"}
                             />
                             <p className="text-xs text-muted-foreground">One line per slide. The exported deck stays editable in PowerPoint for local teams.</p>
@@ -388,7 +388,7 @@ export default function StudioClient() {
                             Exported PPTs use editable text boxes, regional brief panels, and speaker notes pulled from this Studio brief.
                         </div>
 
-                        <Link href="/templates" className="inline-flex items-center gap-2 text-sm text-cyan-600 transition hover:text-cyan-700">
+                        <Link href="/templates" className="inline-flex items-center gap-2 text-sm text-primary transition hover:text-primary">
                             <Globe2 className="h-4 w-4" />
                             Refine reusable templates after saving this brief
                         </Link>
@@ -414,7 +414,7 @@ export default function StudioClient() {
                                         onClick={() => setChannel(tab.id)}
                                         className={`rounded-full px-4 py-2 text-sm transition ${
                                             channel === tab.id
-                                                ? "bg-cyan-300 text-slate-950"
+                                                ? "bg-primary/20 text-foreground"
                                                 : "text-muted-foreground hover:text-foreground"
                                         }`}
                                     >
@@ -428,7 +428,7 @@ export default function StudioClient() {
                             <div className="min-h-[24rem] rounded-[24px] border border-border bg-background p-5 font-mono text-sm leading-7 text-foreground whitespace-pre-wrap">
                                 {loading ? (
                                     <div className="flex h-full items-center justify-center">
-                                        <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     </div>
                                 ) : (
                                     preview
@@ -436,7 +436,7 @@ export default function StudioClient() {
                             </div>
 
                             <div className="space-y-4 rounded-[24px] border border-border bg-muted p-5">
-                                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-amber-700">
+                                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-warning">
                                     <Sparkles className="h-3.5 w-3.5" />
                                     Editable Slide Plan
                                 </div>
@@ -457,7 +457,7 @@ export default function StudioClient() {
                                 </div>
 
                                 <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-muted-foreground">
-                                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-emerald-700">
+                                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-success">
                                         <ArrowRightLeft className="h-3.5 w-3.5" />
                                         International cue
                                     </div>
@@ -477,7 +477,7 @@ export default function StudioClient() {
                         </div>
 
                         <div className="rounded-2xl border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2 text-emerald-600">
+                            <div className="flex items-center gap-2 text-success">
                                 <CheckCircle2 className="h-4 w-4" />
                                 Language remains editable throughout the Studio brief and exported PowerPoint.
                             </div>
@@ -495,7 +495,7 @@ export default function StudioClient() {
                             <button
                                 type="button"
                                 onClick={handleExportDeck}
-                                className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-foreground transition hover:border-cyan-300/40 hover:text-cyan-700 disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-foreground transition hover:border-primary/40 hover:text-primary disabled:opacity-50"
                                 disabled={loading || exporting}
                             >
                                 {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}

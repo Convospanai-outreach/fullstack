@@ -81,7 +81,7 @@ export default function GovernancePage() {
                 />
                 <Link
                     href="/settings/governance/analytics"
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium transition-all border border-blue-500/20"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium transition-all border border-primary/20"
                 >
                     <BarChart3 className="w-4 h-4" />
                     View Analytics
@@ -92,8 +92,8 @@ export default function GovernancePage() {
                 {/* Operational Limits */}
                 <GlassCard className="p-6 space-y-6 col-span-1">
                     <div className="flex items-center gap-4 border-b border-border pb-4">
-                        <div className="bg-blue-500/20 p-3 rounded-xl">
-                            <Activity className="w-6 h-6 text-blue-400" />
+                        <div className="bg-primary/20 p-3 rounded-xl">
+                            <Activity className="w-6 h-6 text-primary" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Operational Limits</h3>
@@ -108,7 +108,7 @@ export default function GovernancePage() {
                                 type="number"
                                 value={policy.maxDailyActions}
                                 onChange={(e) => handleUpdate("maxDailyActions", parseInt(e.target.value))}
-                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-blue-500"
+                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                         <div className="space-y-2">
@@ -117,7 +117,7 @@ export default function GovernancePage() {
                                 type="number"
                                 value={policy.maxCampaigns}
                                 onChange={(e) => handleUpdate("maxCampaigns", parseInt(e.target.value))}
-                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-blue-500"
+                                className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                     </div>
@@ -126,8 +126,8 @@ export default function GovernancePage() {
                 {/* Automation Guardrails */}
                 <GlassCard className="p-6 space-y-6 col-span-1">
                     <div className="flex items-center gap-4 border-b border-border pb-4">
-                        <div className="bg-purple-500/20 p-3 rounded-xl">
-                            <Zap className="w-6 h-6 text-purple-400" />
+                        <div className="bg-primary/20 p-3 rounded-xl">
+                            <Zap className="w-6 h-6 text-primary" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Platform Guardrails</h3>
@@ -172,8 +172,8 @@ export default function GovernancePage() {
                 {/* Compliance & Approvals */}
                 <GlassCard className="p-6 space-y-6 col-span-full">
                     <div className="flex items-center gap-4 border-b border-border pb-4">
-                        <div className="bg-emerald-500/20 p-3 rounded-xl">
-                            <ClipboardCheck className="w-6 h-6 text-emerald-400" />
+                        <div className="bg-success/20 p-3 rounded-xl">
+                            <ClipboardCheck className="w-6 h-6 text-success" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Compliance & Approvals</h3>
@@ -181,9 +181,9 @@ export default function GovernancePage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-emerald-950/20 rounded-xl border border-emerald-500/10">
+                    <div className="flex items-center justify-between p-4 bg-success/20 rounded-xl border border-success/10">
                         <div className="flex items-center gap-4">
-                            <div className="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
+                            <div className="bg-success/10 p-2 rounded-lg text-success">
                                 <Users className="w-5 h-5" />
                             </div>
                             <div>
@@ -197,9 +197,9 @@ export default function GovernancePage() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-emerald-950/20 rounded-xl border border-emerald-500/10">
+                    <div className="flex items-center justify-between p-4 bg-success/20 rounded-xl border border-success/10">
                         <div className="flex items-center gap-4">
-                            <div className="bg-emerald-500/10 p-2 rounded-lg text-emerald-400">
+                            <div className="bg-success/10 p-2 rounded-lg text-success">
                                 <ClipboardCheck className="w-5 h-5" />
                             </div>
                             <div>
@@ -217,8 +217,8 @@ export default function GovernancePage() {
                 {/* Identity & Access */}
                 <GlassCard className="p-6 space-y-6 col-span-full">
                     <div className="flex items-center gap-4 border-b border-border pb-4">
-                        <div className="bg-orange-500/20 p-3 rounded-xl">
-                            <LockIcon className="w-6 h-6 text-orange-400" />
+                        <div className="bg-warning/20 p-3 rounded-xl">
+                            <LockIcon className="w-6 h-6 text-warning" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-foreground">Identity & Access</h3>
@@ -226,9 +226,9 @@ export default function GovernancePage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-orange-950/20 rounded-xl border border-orange-500/10">
+                    <div className="flex items-center justify-between p-4 bg-warning/20 rounded-xl border border-warning/10">
                         <div className="flex items-center gap-4">
-                            <div className="bg-orange-500/10 p-2 rounded-lg text-orange-400">
+                            <div className="bg-warning/10 p-2 rounded-lg text-warning">
                                 <ShieldCheck className="w-5 h-5" />
                             </div>
                             <div>
@@ -238,7 +238,7 @@ export default function GovernancePage() {
                         </div>
                         <Link
                             href="/settings/sso"
-                            className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-xs font-bold transition-all border border-orange-500/20"
+                            className="px-4 py-2 bg-warning/20 hover:bg-warning/30 text-warning rounded-lg text-xs font-bold transition-all border border-warning/20"
                         >
                             Configure SSO
                         </Link>
@@ -246,68 +246,68 @@ export default function GovernancePage() {
                 </GlassCard>
 
                 {/* Budgeting & Quotas Link (Quick Access) */}
-                <GlassCard className="p-6 space-y-4 col-span-1 border-blue-500/20 bg-blue-500/5">
+                <GlassCard className="p-6 space-y-4 col-span-1 border-primary/20 bg-primary/5">
                     <div className="flex items-center gap-3">
-                        <div className="bg-blue-500/20 p-2 rounded-lg">
-                            <Wallet className="w-5 h-5 text-blue-400" />
+                        <div className="bg-primary/20 p-2 rounded-lg">
+                            <Wallet className="w-5 h-5 text-primary" />
                         </div>
                         <h3 className="font-bold text-foreground text-sm">Financial Controls</h3>
                     </div>
                     <p className="text-[10px] text-muted-foreground">Manage per-user credit limits and overage approvals.</p>
                     <Link
                         href="/settings/budgeting"
-                        className="block text-center py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all"
+                        className="block text-center py-2 bg-primary hover:bg-primary text-primary-foreground text-xs font-bold rounded-lg transition-all"
                     >
                         Configure Budgeting
                     </Link>
                 </GlassCard>
 
                 {/* CRM Integration Link */}
-                <GlassCard className="p-6 space-y-4 col-span-1 border-emerald-500/20 bg-emerald-500/5">
+                <GlassCard className="p-6 space-y-4 col-span-1 border-success/20 bg-success/5">
                     <div className="flex items-center gap-3">
-                        <div className="bg-emerald-500/20 p-2 rounded-lg">
-                            <Database className="w-5 h-5 text-emerald-400" />
+                        <div className="bg-success/20 p-2 rounded-lg">
+                            <Database className="w-5 h-5 text-success" />
                         </div>
                         <h3 className="font-bold text-foreground text-sm">Data Pipelines</h3>
                     </div>
                     <p className="text-[10px] text-muted-foreground">Sync lead intelligence directly to HubSpot or Salesforce.</p>
                     <Link
                         href="/settings/crm"
-                        className="block text-center py-2 bg-emerald-600 hover:bg-emerald-600/80 text-white text-xs font-bold rounded-lg transition-all"
+                        className="block text-center py-2 bg-success hover:bg-success/80 text-primary-foreground text-xs font-bold rounded-lg transition-all"
                     >
                         Manage CRM
                     </Link>
                 </GlassCard>
 
                 {/* HITL Link */}
-                <GlassCard className="p-6 space-y-4 col-span-1 border-purple-500/20 bg-purple-500/5">
+                <GlassCard className="p-6 space-y-4 col-span-1 border-primary/20 bg-primary/5">
                     <div className="flex items-center gap-3">
-                        <div className="bg-purple-500/20 p-2 rounded-lg">
-                            <Eye className="w-5 h-5 text-purple-400" />
+                        <div className="bg-primary/20 p-2 rounded-lg">
+                            <Eye className="w-5 h-5 text-primary" />
                         </div>
                         <h3 className="font-bold text-foreground text-sm">Review AI actions</h3>
                     </div>
                     <p className="text-[10px] text-muted-foreground">Review AI decisions before they are executed.</p>
                     <Link
                         href="/inbox?tab=approvals"
-                        className="block text-center py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-all"
+                        className="block text-center py-2 bg-primary hover:bg-primary text-primary-foreground text-xs font-bold rounded-lg transition-all"
                     >
                         Open approvals
                     </Link>
                 </GlassCard>
 
                 {/* Guardrails Link */}
-                <GlassCard className="p-6 space-y-4 col-span-1 border-red-500/20 bg-red-500/5">
+                <GlassCard className="p-6 space-y-4 col-span-1 border-destructive/20 bg-destructive/5">
                     <div className="flex items-center gap-3">
-                        <div className="bg-red-500/20 p-2 rounded-lg">
-                            <Shield className="w-5 h-5 text-red-400" />
+                        <div className="bg-destructive/20 p-2 rounded-lg">
+                            <Shield className="w-5 h-5 text-destructive" />
                         </div>
                         <h3 className="font-bold text-foreground text-sm">Policy Engine</h3>
                     </div>
                     <p className="text-[10px] text-muted-foreground">Block unsafe keywords, PII, and custom regex patterns.</p>
                     <Link
                         href="/settings/guardrails"
-                        className="block text-center py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-all"
+                        className="block text-center py-2 bg-destructive hover:bg-destructive text-primary-foreground text-xs font-bold rounded-lg transition-all"
                     >
                         Configure Rules
                     </Link>
@@ -324,7 +324,7 @@ export default function GovernancePage() {
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="px-8 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20"
+                    className="px-8 py-2 bg-primary hover:bg-primary disabled:bg-primary/30 text-primary-foreground font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
                 >
                     {saving ? "Saving..." : "Apply Governance Policy"}
                 </button>
@@ -342,7 +342,7 @@ function Toggle({ checked, onChange }: { checked: boolean, onChange: (val: boole
                 checked={checked}
                 onChange={(e) => onChange(e.target.checked)}
             />
-            <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
         </label>
     );
 }

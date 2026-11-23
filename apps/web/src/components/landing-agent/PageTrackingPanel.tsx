@@ -97,7 +97,7 @@ export default function PageTrackingPanel({
                     >
                         {saving ? "Saving..." : "Save tracking"}
                     </button>
-                    {message ? <p className={`text-sm ${message.ok ? "text-emerald-600" : "text-destructive"}`}>{message.text}</p> : null}
+                    {message ? <p className={`text-sm ${message.ok ? "text-success" : "text-destructive"}`}>{message.text}</p> : null}
                 </div>
             </form>
             {onSaveMetaToken ? (
@@ -107,7 +107,7 @@ export default function PageTrackingPanel({
                         Sends each lead to Meta from the server, so Meta can count it even when the browser Pixel is blocked.
                     </p>
                     {tokenSaved ? (
-                        <p className="text-sm text-emerald-600">Access token saved. It is stored encrypted and never shown again.</p>
+                        <p className="text-sm text-success">Access token saved. It is stored encrypted and never shown again.</p>
                     ) : (
                         <p className="text-sm text-muted-foreground">No access token saved yet.</p>
                     )}
@@ -166,7 +166,7 @@ export default function PageTrackingPanel({
                             </button>
                         ) : null}
                     </div>
-                    {tokenMessage ? <p className={`text-sm ${tokenMessage.ok ? "text-emerald-600" : "text-destructive"}`}>{tokenMessage.text}</p> : null}
+                    {tokenMessage ? <p className={`text-sm ${tokenMessage.ok ? "text-success" : "text-destructive"}`}>{tokenMessage.text}</p> : null}
                 </div>
             ) : null}
         </GlassCard>

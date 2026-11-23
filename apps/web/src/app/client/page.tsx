@@ -59,22 +59,22 @@ export default function ClientPortalPage() {
     }, [campaigns]);
 
     return (
-        <div className="min-h-screen bg-slate-950 p-6 text-white">
+        <div className="min-h-screen bg-background p-6 text-foreground">
             <div className="mx-auto max-w-6xl space-y-8">
-                <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-center md:justify-between">
+                <header className="flex flex-col gap-4 border-b border-foreground/10 pb-6 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-cyan-300">
+                        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-primary">
                             <LogoMark className="h-7 w-7" />
                             CraftMyFunnel Client Portal
                         </Link>
                         <h1 className="mt-4 text-3xl font-black tracking-tight">Campaign progress</h1>
-                        <p className="mt-2 max-w-2xl text-sm text-slate-400">
+                        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                             Read-only view of outreach progress, campaign status, completed work, and lead workflow tracking.
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="text-right text-xs text-slate-400">
-                            <p className="font-semibold text-slate-200">{session?.user?.name || "Client user"}</p>
+                        <div className="text-right text-xs text-muted-foreground">
+                            <p className="font-semibold text-foreground">{session?.user?.name || "Client user"}</p>
                             <p>{session?.user?.email}</p>
                         </div>
                         <Button variant="outline" onClick={() => signOut({ callbackUrl: "/client-login" })} className="gap-2">
@@ -87,22 +87,22 @@ export default function ClientPortalPage() {
                 <section className="grid gap-4 md:grid-cols-3">
                     <GlassCard className="p-5">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-slate-400">Active campaigns</p>
-                            <Megaphone className="h-5 w-5 text-cyan-300" />
+                            <p className="text-sm text-muted-foreground">Active campaigns</p>
+                            <Megaphone className="h-5 w-5 text-primary" />
                         </div>
                         <p className="mt-3 text-3xl font-black">{totals.active}</p>
                     </GlassCard>
                     <GlassCard className="p-5">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-slate-400">Completed outreach steps</p>
-                            <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+                            <p className="text-sm text-muted-foreground">Completed outreach steps</p>
+                            <CheckCircle2 className="h-5 w-5 text-success" />
                         </div>
                         <p className="mt-3 text-3xl font-black">{totals.completed}</p>
                     </GlassCard>
                     <GlassCard className="p-5">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-slate-400">Tracked lead targets</p>
-                            <BarChart3 className="h-5 w-5 text-violet-300" />
+                            <p className="text-sm text-muted-foreground">Tracked lead targets</p>
+                            <BarChart3 className="h-5 w-5 text-primary" />
                         </div>
                         <p className="mt-3 text-3xl font-black">{totals.target}</p>
                     </GlassCard>
@@ -118,17 +118,17 @@ export default function ClientPortalPage() {
                         <div className="grid gap-4 md:grid-cols-2">
                             {[1, 2, 3, 4].map((item) => (
                                 <GlassCard key={item} className="h-48 animate-pulse p-6">
-                                    <div className="h-full rounded-2xl bg-white/5" />
+                                    <div className="h-full rounded-2xl bg-foreground/5" />
                                 </GlassCard>
                             ))}
                         </div>
                     ) : error ? (
-                        <GlassCard className="p-8 text-center text-sm text-red-200">{error}</GlassCard>
+                        <GlassCard className="p-8 text-center text-sm text-destructive">{error}</GlassCard>
                     ) : campaigns.length === 0 ? (
                         <GlassCard className="p-10 text-center">
-                            <Clock3 className="mx-auto h-10 w-10 text-slate-500" />
+                            <Clock3 className="mx-auto h-10 w-10 text-muted-foreground" />
                             <h3 className="mt-4 text-lg font-semibold">No campaign progress available yet</h3>
-                            <p className="mt-2 text-sm text-slate-400">Once your team starts campaign operations, progress will appear here.</p>
+                            <p className="mt-2 text-sm text-muted-foreground">Once your team starts campaign operations, progress will appear here.</p>
                         </GlassCard>
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2">
@@ -139,33 +139,33 @@ export default function ClientPortalPage() {
                                         <div className="flex items-start justify-between gap-4">
                                             <div>
                                                 <h3 className="text-lg font-bold">{campaign.name}</h3>
-                                                <p className="mt-1 line-clamp-2 text-sm text-slate-400">{campaign.description || "Campaign progress is being tracked."}</p>
+                                                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{campaign.description || "Campaign progress is being tracked."}</p>
                                             </div>
                                             <Badge variant={campaign.status === "active" ? "success" : "default"}>{campaign.status}</Badge>
                                         </div>
 
                                         <div className="mt-6">
-                                            <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+                                            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                                                 <span>Progress</span>
                                                 <span>{progress}%</span>
                                             </div>
-                                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                                                <div className="h-full rounded-full bg-cyan-400" style={{ width: `${progress}%` }} />
+                                            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                                                <div className="h-full rounded-full bg-primary/80" style={{ width: `${progress}%` }} />
                                             </div>
                                         </div>
 
                                         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                                <p className="text-xs text-slate-500">Target</p>
+                                            <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                                <p className="text-xs text-muted-foreground">Target</p>
                                                 <p className="mt-1 text-xl font-bold">{campaign.targetCount || campaign._count?.leads || 0}</p>
                                             </div>
-                                            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                                <p className="text-xs text-slate-500">Completed</p>
+                                            <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                                <p className="text-xs text-muted-foreground">Completed</p>
                                                 <p className="mt-1 text-xl font-bold">{campaign.completedCount || 0}</p>
                                             </div>
                                         </div>
 
-                                        <div className="mt-5 text-xs text-slate-500">
+                                        <div className="mt-5 text-xs text-muted-foreground">
                                             Read-only campaign progress view <ArrowRight className="ml-1 inline h-3 w-3" />
                                         </div>
                                     </GlassCard>

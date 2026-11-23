@@ -40,7 +40,7 @@ export default function VariantBuilder({ variants, onChange }: VariantBuilderPro
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-white">A/B Test Variants</h3>
+                <h3 className="text-lg font-semibold text-foreground">A/B Test Variants</h3>
                 <Button onClick={addVariant} variant="outline" className="px-3 py-1 text-sm">
                     + Add Variant
                 </Button>
@@ -51,43 +51,43 @@ export default function VariantBuilder({ variants, onChange }: VariantBuilderPro
                     <div className="absolute top-2 right-2">
                         <button
                             onClick={() => removeVariant(variant.id)}
-                            className="text-gray-400 hover:text-red-400"
+                            className="text-muted-foreground hover:text-destructive"
                         >
                             &times;
                         </button>
                     </div>
-                    <h4 className="text-sm font-medium text-gray-300">Variant {String.fromCharCode(65 + index)}</h4>
+                    <h4 className="text-sm font-medium text-foreground/80">Variant {String.fromCharCode(65 + index)}</h4>
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">Subject</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Subject</label>
                         <input
                             type="text"
                             value={variant.subject}
                             onChange={(e) => updateVariant(variant.id, "subject", e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             placeholder="Email Subject"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">Body</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Body</label>
                         <textarea
                             value={variant.body}
                             onChange={(e) => updateVariant(variant.id, "body", e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 h-24"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-primary/30 h-24"
                             placeholder="Message Body..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">Traffic Weight (%)</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Traffic Weight (%)</label>
                         <input
                             type="number"
                             min="0"
                             max="100"
                             value={variant.weight}
                             onChange={(e) => updateVariant(variant.id, "weight", parseInt(e.target.value))}
-                            className="w-24 bg-white/5 border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                            className="w-24 bg-foreground/5 border border-foreground/10 rounded px-3 py-2 text-foreground focus:outline-none focus:border-primary/30"
                         />
                     </div>
                 </GlassCard>

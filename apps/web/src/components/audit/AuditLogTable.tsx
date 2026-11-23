@@ -49,7 +49,7 @@ export function AuditLogTable({ apiUrl = getBrowserApiBase() + "/settings/audit"
                 <h3 className="text-xl font-bold gradient-text">System Activity Logs</h3>
                 <div className="flex gap-2">
                     <select
-                        className="bg-white/5 border border-white/10 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                        className="bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-foreground text-sm focus:outline-none focus:border-primary/30"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     >
@@ -67,8 +67,8 @@ export function AuditLogTable({ apiUrl = getBrowserApiBase() + "/settings/audit"
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-300">
-                    <thead className="text-xs uppercase bg-white/5 text-gray-400">
+                <table className="w-full text-left text-sm text-foreground/80">
+                    <thead className="text-xs uppercase bg-foreground/5 text-muted-foreground">
                         <tr>
                             <th className="px-4 py-3 rounded-tl-lg">Time</th>
                             <th className="px-4 py-3">User</th>
@@ -80,15 +80,15 @@ export function AuditLogTable({ apiUrl = getBrowserApiBase() + "/settings/audit"
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-white/40">Loading logs...</td>
+                                <td colSpan={5} className="px-4 py-8 text-center text-foreground/40">Loading logs...</td>
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-4 py-8 text-center text-white/40">No audit logs found.</td>
+                                <td colSpan={5} className="px-4 py-8 text-center text-foreground/40">No audit logs found.</td>
                             </tr>
                         ) : (
                             logs.map((log) => (
-                                <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                                <tr key={log.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition">
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         {new Date(log.createdAt).toLocaleString()}
                                     </td>
@@ -101,7 +101,7 @@ export function AuditLogTable({ apiUrl = getBrowserApiBase() + "/settings/audit"
                                     <td className="px-4 py-3">
                                         {log.resource}
                                     </td>
-                                    <td className="px-4 py-3 font-mono text-xs text-white/60 truncate max-w-xs">
+                                    <td className="px-4 py-3 font-mono text-xs text-foreground/60 truncate max-w-xs">
                                         {JSON.stringify(log.details)}
                                     </td>
                                 </tr>

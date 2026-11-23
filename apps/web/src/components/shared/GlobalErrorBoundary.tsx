@@ -36,7 +36,7 @@ export class GlobalErrorBoundary extends React.Component<Props, State> {
             }
 
             return (
-                <div className="p-4 border border-red-200 bg-red-50 rounded-md flex items-center gap-3 text-red-800">
+                <div className="p-4 border border-destructive/30 bg-destructive/10 rounded-md flex items-center gap-3 text-destructive">
                     <AlertTriangle className="h-5 w-5" />
                     <div>
                         <h3 className="font-semibold">Component Error</h3>

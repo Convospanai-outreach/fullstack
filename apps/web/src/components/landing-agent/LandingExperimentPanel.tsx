@@ -86,7 +86,7 @@ export default function LandingExperimentPanel() {
                 </p>
             </div>
 
-            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
             <div className="space-y-3">
                 <label className="block text-sm">

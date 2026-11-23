@@ -53,7 +53,7 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
                         <div className="p-2 bg-primary/10 rounded-lg text-primary">
                             <BookOpen className="w-6 h-6" />
                         </div>
-                        {playbook.isLocked && <span className="text-xs bg-red-500/10 text-red-700 dark:text-red-400 font-semibold px-2 py-1 rounded">Locked</span>}
+                        {playbook.isLocked && <span className="text-xs bg-destructive/10 text-destructive dark:text-destructive font-semibold px-2 py-1 rounded">Locked</span>}
                     </div>
 
                     <div>

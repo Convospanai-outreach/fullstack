@@ -93,7 +93,7 @@ export default function KnowledgePage() {
                 <div className="md:col-span-2 space-y-6">
                     <GlassCard>
                         <div className="flex items-center gap-3 mb-4">
-                            <Database className="w-5 h-5 text-accent-violet" />
+                            <Database className="w-5 h-5 text-primary" />
                             <h2 className="text-lg font-semibold">Semantic Search Test</h2>
                         </div>
                         <div className="flex gap-2">
@@ -139,7 +139,7 @@ export default function KnowledgePage() {
 
                 {/* Sidebar / Stats */}
                 <div className="space-y-6">
-                    <GlassCard className="bg-gradient-to-br from-accent-violet/10 to-transparent">
+                    <GlassCard className="bg-gradient-to-br from-primary/10 to-transparent">
                         <h3 className="text-lg font-semibold mb-2">Vault Status</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">

@@ -24,31 +24,31 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
 
 const STATUS_COLORS = {
     online: {
-        dot: "bg-emerald-400",
-        text: "text-emerald-400",
-        ring: "ring-emerald-500/30",
-        bg: "bg-emerald-500/10",
+        dot: "bg-success/80",
+        text: "text-success",
+        ring: "ring-success/30",
+        bg: "bg-success/10",
         label: "Online",
     },
     degraded: {
-        dot: "bg-amber-400",
-        text: "text-amber-400",
-        ring: "ring-amber-500/30",
-        bg: "bg-amber-500/10",
+        dot: "bg-warning/80",
+        text: "text-warning",
+        ring: "ring-warning/30",
+        bg: "bg-warning/10",
         label: "Degraded",
     },
     offline: {
-        dot: "bg-red-400",
-        text: "text-red-400",
-        ring: "ring-red-500/30",
-        bg: "bg-red-500/10",
+        dot: "bg-destructive/80",
+        text: "text-destructive",
+        ring: "ring-destructive/30",
+        bg: "bg-destructive/10",
         label: "Offline",
     },
     disabled: {
-        dot: "bg-slate-400",
-        text: "text-slate-400",
-        ring: "ring-slate-500/30",
-        bg: "bg-slate-500/10",
+        dot: "bg-muted",
+        text: "text-muted-foreground",
+        ring: "ring-border/30",
+        bg: "bg-muted/10",
         label: "Optional / Not Deployed",
     },
 };
@@ -75,9 +75,9 @@ interface ConnectionStatusBarProps {
 function StatusPillSkeleton({ inline }: { inline?: boolean }) {
     return (
         <div className={inline ? "relative z-40" : "fixed top-4 right-6 z-50"}>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-sm animate-pulse">
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
-                <div className="h-3 w-24 rounded bg-slate-600" />
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-card/60 backdrop-blur border border-foreground/10 shadow-sm animate-pulse">
+                <div className="w-2.5 h-2.5 rounded-full bg-secondary" />
+                <div className="h-3 w-24 rounded bg-secondary" />
             </div>
         </div>
     );
@@ -178,7 +178,7 @@ export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false 
                 onClick={() => setExpanded(!expanded)}
                 aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium backdrop-blur transition-all duration-200
-                    ${overallColors.bg} ring-1 ${overallColors.ring} border border-white/10 hover:ring-2`}
+                    ${overallColors.bg} ring-1 ${overallColors.ring} border border-foreground/10 hover:ring-2`}
             >
                 <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
                 <span className="text-foreground hidden sm:inline">
@@ -193,15 +193,15 @@ export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false 
 
             {/* Expanded Card */}
             {expanded && (
-                <div className="mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                <div className="mt-2 bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between mb-3 border-b border-foreground/5 pb-2">
                         <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-white">System Connections</h3>
-                            <span className="text-[10px] text-slate-500">{checkedAt}</span>
+                            <h3 className="text-sm font-semibold text-foreground">System Connections</h3>
+                            <span className="text-[10px] text-muted-foreground">{checkedAt}</span>
                         </div>
                         <button
                             onClick={() => setExpanded(false)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
                             aria-label="Close status panel"
                         >
                             ✕
@@ -220,16 +220,16 @@ export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false 
                                     <Icon className={`w-4 h-4 shrink-0 ${colors.text}`} />
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-white truncate">{svc.name}</span>
+                                            <span className="text-xs font-medium text-foreground truncate">{svc.name}</span>
                                             <span className={`text-[10px] font-semibold uppercase tracking-wider ${colors.text} ml-2 shrink-0`}>
                                                 {colors.label}
                                             </span>
                                         </div>
                                         {svc.detail && (
-                                            <p className="text-[10px] text-slate-400 truncate mt-0.5">{svc.detail}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate mt-0.5">{svc.detail}</p>
                                         )}
                                         {svc.latencyMs != null && (
-                                            <p className="text-[10px] text-slate-500 mt-0.5">{svc.latencyMs}ms</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{svc.latencyMs}ms</p>
                                         )}
                                     </div>
                                     <PulseDot status={svc.status} />
@@ -241,7 +241,7 @@ export function ConnectionStatusBar({ inline = false, onlyWhenUnhealthy = false 
                     <button
                         onClick={() => fetchStatus(true)}
                         disabled={isLoading}
-                        className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] text-slate-400 hover:text-white transition-colors py-1"
+                        className="mt-3 w-full flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors py-1"
                         aria-label="Refresh connection status"
                     >
                         <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />

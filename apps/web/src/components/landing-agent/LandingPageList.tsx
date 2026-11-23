@@ -119,7 +119,7 @@ export default function LandingPageList() {
                         <h1 className="text-2xl font-bold text-foreground">Landing pages</h1>
                         <p className="mt-2 text-sm text-muted-foreground">Open a page to edit it, or start a new one.</p>
                     </div>
-                    <Button asChild className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                    <Button asChild className="bg-primary hover:bg-primary text-primary-foreground">
                         <Link href="/landing-agent/new">New landing page</Link>
                     </Button>
                 </div>

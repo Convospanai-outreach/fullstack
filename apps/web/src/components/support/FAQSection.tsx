@@ -43,18 +43,18 @@ export function FAQSection() {
             <h3 className="text-xl font-bold gradient-text mb-6">Frequently Asked Questions</h3>
             <div className="space-y-4">
                 {FAQS.map((faq, index) => (
-                    <div key={index} className="border-b border-white/10 last:border-0 pb-4 last:pb-0">
+                    <div key={index} className="border-b border-foreground/10 last:border-0 pb-4 last:pb-0">
                         <button
                             className="w-full flex justify-between items-center text-left focus:outline-none"
                             onClick={() => toggle(index)}
                         >
-                            <span className="text-white font-medium">{faq.question}</span>
-                            <span className="text-blue-400 text-xl">
+                            <span className="text-foreground font-medium">{faq.question}</span>
+                            <span className="text-primary text-xl">
                                 {openIndex === index ? "−" : "+"}
                             </span>
                         </button>
                         {openIndex === index && (
-                            <div className="mt-2 text-gray-400 text-sm leading-relaxed animate-in fade-in slide-in-from-top-1">
+                            <div className="mt-2 text-muted-foreground text-sm leading-relaxed animate-in fade-in slide-in-from-top-1">
                                 {faq.answer}
                             </div>
                         )}

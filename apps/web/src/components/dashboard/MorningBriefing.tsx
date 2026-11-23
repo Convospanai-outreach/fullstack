@@ -60,7 +60,7 @@ export function MorningBriefing() {
                         y: [-20, 20, -20]
                     }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] bg-indigo-500 rounded-full blur-[120px]"
+                    className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] bg-primary rounded-full blur-[120px]"
                 />
                 <motion.div
                     animate={{
@@ -70,18 +70,18 @@ export function MorningBriefing() {
                         y: [20, -20, 20]
                     }}
                     transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                    className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-purple-500 rounded-full blur-[120px]"
+                    className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-primary rounded-full blur-[120px]"
                 />
             </div>
 
             <div className="relative z-10">
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-3 w-3 rounded-full bg-emerald-500 animate-[pulse_2s_infinite]" />
-                        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-600">AI Sync Active</span>
+                        <div className="flex h-3 w-3 rounded-full bg-success animate-[pulse_2s_infinite]" />
+                        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-success">AI Sync Active</span>
                     </div>
                     <div className="p-3 rounded-2xl bg-background border border-border opacity-60 group-hover:opacity-100 transition-opacity">
-                        <Sun className="w-6 h-6 text-indigo-600" />
+                        <Sun className="w-6 h-6 text-primary" />
                     </div>
                 </div>
 
@@ -95,13 +95,13 @@ export function MorningBriefing() {
                         <motion.span
                             animate={{ opacity: [1, 0, 1] }}
                             transition={{ repeat: Infinity, duration: 1 }}
-                            className="inline-block w-2 h-6 bg-indigo-500 ml-2 translate-y-1 rounded-sm"
+                            className="inline-block w-2 h-6 bg-primary ml-2 translate-y-1 rounded-sm"
                         />
                     </p>
                 </div>
 
                 <div className="mt-12 flex items-center gap-8">
-                    <Button className="bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 px-8 py-7 rounded-[1.5rem] font-bold transition-all active:scale-95 flex items-center gap-3 border-none">
+                    <Button className="bg-primary hover:bg-primary text-primary-foreground hover:scale-105 hover:shadow-lg hover:shadow-primary/20 px-8 py-7 rounded-[1.5rem] font-bold transition-all active:scale-95 flex items-center gap-3 border-none">
                         <CheckCircle2 className="w-5 h-5" />
                         Execute Recommendations
                     </Button>

@@ -86,7 +86,7 @@ export default function TeamSettings() {
                             required
                             value={inviteEmail}
                             onChange={(e) => setInviteEmail(e.target.value)}
-                            className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-purple-500"
+                            className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                             placeholder="colleague@company.com"
                         />
                     </div>
@@ -95,7 +95,7 @@ export default function TeamSettings() {
                         <select
                             value={inviteRole}
                             onChange={(e) => setInviteRole(e.target.value)}
-                            className="bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-purple-500"
+                            className="bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary/30"
                         >
                             <option value="member">Member</option>
                             <option value="admin">Admin</option>
@@ -104,13 +104,13 @@ export default function TeamSettings() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition disabled:opacity-50"
+                        className="px-6 py-2 bg-primary hover:bg-primary text-primary-foreground rounded-lg font-medium transition disabled:opacity-50"
                     >
                         {loading ? "Inviting..." : "Send Invite"}
                     </button>
                 </form>
                 {inviteLink && (
-                    <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
+                    <div className="mt-4 p-3 bg-success/10 border border-success/20 rounded-lg text-success text-sm">
                         <p className="font-semibold mb-1">Invitation Link Generated:</p>
                         <code className="block bg-muted p-2 rounded select-all">{inviteLink}</code>
                     </div>
@@ -129,7 +129,7 @@ export default function TeamSettings() {
                                 <div>
                                     <div className="text-foreground font-medium">{m.email}</div>
                                     <div className="text-xs text-muted-foreground flex gap-2 items-center">
-                                        <span className={`uppercase font-bold text-[10px] ${m.status === 'invited' ? 'text-yellow-500' : 'text-green-500'}`}>
+                                        <span className={`uppercase font-bold text-[10px] ${m.status === 'invited' ? 'text-warning' : 'text-success'}`}>
                                             {m.status}
                                         </span>
                                         •
@@ -148,7 +148,7 @@ export default function TeamSettings() {
                                     </select>
                                     <button
                                         onClick={() => handleRemove(m.id)}
-                                        className="text-red-400 hover:text-red-300 p-2"
+                                        className="text-destructive hover:text-destructive p-2"
                                         title="Remove member"
                                     >
                                         ✕

@@ -100,7 +100,7 @@ export default function CustomPropertiesSettings() {
                 </p>
             </div>
 
-            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
             <ul className="divide-y rounded-md border">
                 {properties.length === 0 && <li className="p-3 text-sm text-muted-foreground">No custom properties yet.</li>}

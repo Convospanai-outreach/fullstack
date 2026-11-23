@@ -15,9 +15,9 @@ interface ROICardProps {
 
 export function ROICard({ title, value, trend, status = 'success', description, prefix = '', suffix = '' }: ROICardProps) {
     const statusColor = {
-        success: "text-emerald-500",
-        warning: "text-amber-500",
-        danger: "text-red-500",
+        success: "text-success",
+        warning: "text-warning",
+        danger: "text-destructive",
     }[status];
 
     const StatusIcon = {
@@ -28,7 +28,7 @@ export function ROICard({ title, value, trend, status = 'success', description, 
 
     return (
         <Card className="border-l-4" style={{
-            borderLeftColor: status === 'success' ? '#10b981' : status === 'warning' ? '#f59e0b' : '#ef4444'
+            borderLeftColor: status === 'success' ? 'hsl(var(--success))' : status === 'warning' ? 'hsl(var(--warning))' : 'hsl(var(--destructive))'
         }}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
@@ -52,7 +52,7 @@ export function ROICard({ title, value, trend, status = 'success', description, 
                 <div className="text-xs flex items-center mt-1">
                     <span className={cn(
                         "flex items-center font-medium",
-                        trend.isUp ? "text-emerald-500" : "text-red-500"
+                        trend.isUp ? "text-success" : "text-destructive"
                     )}>
                         {trend.isUp ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
                         {Math.abs(trend.value)}%

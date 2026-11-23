@@ -75,8 +75,8 @@ export default function TestErrorLoggingPage() {
                     )}
                 </Card>
 
-                <Card className="p-6 border-red-500">
-                    <h2 className="text-xl font-semibold mb-4 text-red-600">
+                <Card className="p-6 border-destructive/30">
+                    <h2 className="text-xl font-semibold mb-4 text-destructive">
                         Test 2: ErrorBoundary Test (Dangerous!)
                     </h2>
                     <p className="text-sm text-muted-foreground mb-4">

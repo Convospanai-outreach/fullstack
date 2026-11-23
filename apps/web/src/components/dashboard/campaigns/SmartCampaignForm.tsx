@@ -36,7 +36,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
                 <div>
                     <label className="block text-sm text-muted-foreground mb-1">Tone</label>
                     <select
-                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                         value={config.tone}
                         onChange={(e) => onChange({ ...config, tone: e.target.value })}
                     >
@@ -49,7 +49,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
                 <div>
                     <label className="block text-sm text-muted-foreground mb-1">Goal</label>
                     <select
-                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                         value={config.goal}
                         onChange={(e) => onChange({ ...config, goal: e.target.value })}
                     >
@@ -64,7 +64,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
             <div>
                 <label className="block text-sm text-muted-foreground mb-1">Context / Details</label>
                 <textarea
-                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
+                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 h-24"
                     placeholder="E.g., We are launching a new AI tool for sales teams..."
                     value={config.context}
                     onChange={(e) => onChange({ ...config, context: e.target.value })}
@@ -74,7 +74,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
             <div>
                 <label className="block text-sm text-muted-foreground mb-1">Custom Prompt Instructions (Optional)</label>
                 <textarea
-                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
+                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 h-24"
                     placeholder="Additional instructions for the AI..."
                     value={config.prompt}
                     onChange={(e) => onChange({ ...config, prompt: e.target.value })}
@@ -86,7 +86,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
                     type="button"
                     onClick={handleGenerate}
                     disabled={loading}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:opacity-90 transition disabled:opacity-50"
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-chart-4/60 rounded-lg text-primary-foreground font-medium hover:opacity-90 transition disabled:opacity-50"
                 >
                     {loading ? "Generating..." : "Generate Preview"}
                 </button>
@@ -94,7 +94,7 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
 
             {preview && (
                 <div className="bg-muted border border-border rounded-xl p-4">
-                    <h4 className="text-sm font-semibold text-purple-600 mb-2">AI Preview</h4>
+                    <h4 className="text-sm font-semibold text-primary mb-2">AI Preview</h4>
                     <p className="text-muted-foreground whitespace-pre-wrap">{preview}</p>
                 </div>
             )}

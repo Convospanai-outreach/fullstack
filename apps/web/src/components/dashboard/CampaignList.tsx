@@ -53,11 +53,11 @@ export default function CampaignList({ campaigns }: any) {
                 <div key={c.id} className="flex flex-col gap-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="flex items-center justify-between p-4 rounded-xl bg-muted/60 border border-border hover:bg-muted transition-all group">
                         <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
                                 {c.name[0]}
                             </div>
                             <div>
-                                <div className="font-bold text-foreground group-hover:text-blue-400 transition-colors uppercase tracking-tight">{c.name}</div>
+                                <div className="font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-tight">{c.name}</div>
                                 <div className="text-xs text-muted-foreground font-medium">
                                     {c.audience} • {c.leads} Leads • {c.status}
                                 </div>
@@ -68,7 +68,7 @@ export default function CampaignList({ campaigns }: any) {
                             <button
                                 onClick={() => setExpandedInsights(expandedInsights === c.id ? null : c.id)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${expandedInsights === c.id
-                                        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                                        ? 'bg-primary/20 text-primary border border-primary/30'
                                         : 'bg-muted text-muted-foreground hover:bg-accent'
                                     }`}
                             >
@@ -88,7 +88,7 @@ export default function CampaignList({ campaigns }: any) {
                                 <button
                                     onClick={() => handleRun(c.id)}
                                     disabled={running === c.id}
-                                    className="px-4 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-xs transition-all active:scale-95"
+                                    className="px-4 py-2 rounded-lg bg-success/20 hover:bg-success/30 text-success font-bold text-xs transition-all active:scale-95"
                                 >
                                     {running === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Deploy Now"}
                                 </button>
@@ -98,30 +98,30 @@ export default function CampaignList({ campaigns }: any) {
 
                     {/* AI Insights Grounding Panel */}
                     {expandedInsights === c.id && (
-                        <div className="mx-4 p-5 rounded-b-2xl bg-blue-600/[0.03] border-x border-b border-blue-500/20 animate-in slide-in-from-top-2 duration-300">
+                        <div className="mx-4 p-5 rounded-b-2xl bg-primary/[0.03] border-x border-b border-primary/20 animate-in slide-in-from-top-2 duration-300">
                             <div className="flex items-start gap-4">
-                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
                                     <ShieldCheck className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 space-y-3">
                                     <div>
                                         <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">Grounding Analysis</h4>
                                         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                            This campaign's copy was generated using verified data from your <span className="text-blue-400 font-bold">"Q4 Sales Playbook"</span> and <span className="text-blue-400 font-bold">"Pricing FAQ"</span> knowledge bases.
+                                            This campaign's copy was generated using verified data from your <span className="text-primary font-bold">"Q4 Sales Playbook"</span> and <span className="text-primary font-bold">"Pricing FAQ"</span> knowledge bases.
                                         </p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="p-3 rounded-lg bg-muted border border-border">
                                             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Confidence Score</div>
-                                            <div className="text-lg font-bold text-emerald-400">98.4%</div>
+                                            <div className="text-lg font-bold text-success">98.4%</div>
                                         </div>
                                         <div className="p-3 rounded-lg bg-muted border border-border">
                                             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Hallucination Risk</div>
-                                            <div className="text-lg font-bold text-blue-400">Low</div>
+                                            <div className="text-lg font-bold text-primary">Low</div>
                                         </div>
                                     </div>
                                     <div className="pt-2">
-                                        <button className="text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-widest flex items-center gap-1.5">
+                                        <button className="text-[11px] font-bold text-primary hover:text-primary transition-colors uppercase tracking-widest flex items-center gap-1.5">
                                             View Source Documents <ChevronRight className="w-3 h-3" />
                                         </button>
                                     </div>

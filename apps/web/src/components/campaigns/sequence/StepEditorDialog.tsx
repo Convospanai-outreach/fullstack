@@ -64,12 +64,12 @@ function TagInput({
 
     return (
         <div className="space-y-1.5">
-            <label className="text-sm text-gray-400">{label}</label>
-            <div className="flex flex-wrap gap-1.5 rounded-md border border-white/10 bg-black/40 p-2">
+            <label className="text-sm text-muted-foreground">{label}</label>
+            <div className="flex flex-wrap gap-1.5 rounded-md border border-foreground/10 bg-foreground/40 p-2">
                 {values.map((v) => (
                     <span
                         key={v}
-                        className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-0.5 text-xs text-foreground"
+                        className="inline-flex items-center gap-1 rounded bg-foreground/10 px-2 py-0.5 text-xs text-foreground"
                     >
                         {v}
                         <button
@@ -110,7 +110,7 @@ function StageChips({
 }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-sm text-gray-400">{label}</label>
+            <label className="text-sm text-muted-foreground">{label}</label>
             <div className="flex flex-wrap gap-1.5">
                 {PIPELINE_STAGES.map((stage) => {
                     const active = selected.includes(stage);
@@ -122,8 +122,8 @@ function StageChips({
                                 onChange(active ? selected.filter((s) => s !== stage) : [...selected, stage])
                             }
                             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active
-                                    ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                    ? "border-primary/30 bg-primary/20 text-primary"
+                                    : "border-foreground/10 text-muted-foreground hover:bg-foreground/5"
                                 }`}
                         >
                             {PIPELINE_LABELS[stage] || stage}
@@ -213,7 +213,7 @@ export default function StepEditorDialog({
                     {!def.isCondition && (
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-sm text-gray-400">Wait (days)</label>
+                                <label className="text-sm text-muted-foreground">Wait (days)</label>
                                 <Input
                                     type="number"
                                     min={0}
@@ -222,7 +222,7 @@ export default function StepEditorDialog({
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-sm text-gray-400">Wait (hours)</label>
+                                <label className="text-sm text-muted-foreground">Wait (hours)</label>
                                 <Input
                                     type="number"
                                     min={0}
@@ -236,7 +236,7 @@ export default function StepEditorDialog({
 
                     {def.hasSubject && (
                         <div className="space-y-1.5">
-                            <label className="text-sm text-gray-400">Subject</label>
+                            <label className="text-sm text-muted-foreground">Subject</label>
                             <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject" />
                         </div>
                     )}
@@ -245,11 +245,11 @@ export default function StepEditorDialog({
                         <div className="space-y-1.5">
                             <div className="grid grid-cols-[1fr_7rem] gap-2">
                                 <div className="space-y-1.5">
-                                    <label htmlFor="wa-template" className="text-sm text-gray-400">Approved template (optional)</label>
+                                    <label htmlFor="wa-template" className="text-sm text-muted-foreground">Approved template (optional)</label>
                                     <Input id="wa-template" value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="guide_ready" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label htmlFor="wa-template-language" className="text-sm text-gray-400">Language</label>
+                                    <label htmlFor="wa-template-language" className="text-sm text-muted-foreground">Language</label>
                                     <Input id="wa-template-language" value={templateLanguage} onChange={(e) => setTemplateLanguage(e.target.value)} placeholder="en_US" />
                                 </div>
                             </div>
@@ -264,7 +264,7 @@ export default function StepEditorDialog({
 
                     {def.hasMessageBody && (
                         <div className="space-y-1.5">
-                            <label className="text-sm text-gray-400">{isWhatsApp && template ? "Template values (one per line)" : def.hasSubject ? "Body" : "Message"}</label>
+                            <label className="text-sm text-muted-foreground">{isWhatsApp && template ? "Template values (one per line)" : def.hasSubject ? "Body" : "Message"}</label>
                             <Textarea
                                 value={body}
                                 onChange={(e) => setBody(e.target.value)}
@@ -281,7 +281,7 @@ export default function StepEditorDialog({
                                 const lint = lintEmail(body);
                                 return (
                                     <div className="rounded-md border border-border p-2.5 text-xs" aria-label="Editorial linter">
-                                        <p className={`font-semibold ${lint.passed ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                        <p className={`font-semibold ${lint.passed ? "text-success dark:text-success" : "text-warning dark:text-warning"}`}>
                                             Editorial score {lint.score}/100{lint.passed ? "" : " - worth a second look"}
                                         </p>
                                         {lint.findings.map((finding) => <p key={finding} className="mt-1 text-muted-foreground">{finding}</p>)}
@@ -320,7 +320,7 @@ export default function StepEditorDialog({
                                 onChange={(v) => setCondition((c) => ({ ...c, pipelineStateNotIn: v }))}
                             />
                             <div className="space-y-1.5">
-                                <label className="text-sm text-gray-400">Cohort is one of</label>
+                                <label className="text-sm text-muted-foreground">Cohort is one of</label>
                                 <div className="flex flex-wrap gap-1.5">
                                     {CLUSTER_LABELS.map((cluster) => {
                                         const selected = condition.clusterLabelIn || [];
@@ -338,8 +338,8 @@ export default function StepEditorDialog({
                                                     }))
                                                 }
                                                 className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active
-                                                        ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                                                        : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                                        ? "border-primary/30 bg-primary/20 text-primary"
+                                                        : "border-foreground/10 text-muted-foreground hover:bg-foreground/5"
                                                     }`}
                                             >
                                                 {cluster.replace(/_/g, " ")}
@@ -350,7 +350,7 @@ export default function StepEditorDialog({
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-sm text-gray-400">Min. intent score (%)</label>
+                                    <label className="text-sm text-muted-foreground">Min. intent score (%)</label>
                                     <Input
                                         type="number"
                                         min={0}
@@ -367,7 +367,7 @@ export default function StepEditorDialog({
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm text-gray-400">Min. churn risk (%)</label>
+                                    <label className="text-sm text-muted-foreground">Min. churn risk (%)</label>
                                     <Input
                                         type="number"
                                         min={0}
@@ -385,7 +385,7 @@ export default function StepEditorDialog({
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-sm text-gray-400">Requires an email address</label>
+                                <label className="text-sm text-muted-foreground">Requires an email address</label>
                                 <select
                                     value={condition.hasEmail === undefined ? "any" : condition.hasEmail ? "yes" : "no"}
                                     onChange={(e) => {
@@ -395,7 +395,7 @@ export default function StepEditorDialog({
                                             return v === "any" ? rest : { ...rest, hasEmail: v === "yes" };
                                         });
                                     }}
-                                    className="w-full rounded-md border border-white/10 bg-black/40 px-3 py-2 text-sm text-foreground"
+                                    className="w-full rounded-md border border-foreground/10 bg-foreground/40 px-3 py-2 text-sm text-foreground"
                                 >
                                     <option value="any">Doesn&apos;t matter</option>
                                     <option value="yes">Must have an email</option>

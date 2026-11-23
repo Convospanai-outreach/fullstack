@@ -9,7 +9,7 @@ interface Props {
     onApply: (href: string) => void;
 }
 
-const inputClass = "w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-sm text-slate-100";
+const inputClass = "w-full rounded-md border border-foreground/10 bg-background px-2 py-1 text-sm text-foreground";
 
 export default function InstagramSettingsPanel({ onApply }: Props) {
     const [handle, setHandle] = useState("");
@@ -22,13 +22,13 @@ export default function InstagramSettingsPanel({ onApply }: Props) {
     }
 
     return (
-        <div className="space-y-2 text-sm text-slate-200">
+        <div className="space-y-2 text-sm text-foreground">
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Instagram handle (without the @)</span>
+                <span className="text-xs text-muted-foreground">Instagram handle (without the @)</span>
                 <input className={inputClass} placeholder="yourhandle" value={handle} onChange={(e) => change(e.target.value)} />
             </label>
             {result && "problem" in result ? (
-                <p className="text-xs text-rose-300">{result.problem} (the link is not changed until fixed)</p>
+                <p className="text-xs text-chart-4">{result.problem} (the link is not changed until fixed)</p>
             ) : null}
         </div>
     );

@@ -114,7 +114,7 @@ function CMSEditorContent() {
         return (
             <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
-                    <RefreshCw className="animate-spin text-purple-400" size={36} />
+                    <RefreshCw className="animate-spin text-primary" size={36} />
                     <p className="text-muted-foreground text-sm">Loading content file...</p>
                 </div>
             </div>
@@ -141,7 +141,7 @@ function CMSEditorContent() {
                             value={file}
                             onChange={(e) => setFile(e.target.value)}
                             disabled={!!fileParam}
-                            className="bg-background border border-border focus:border-purple-500/50 outline-none text-foreground font-mono text-sm px-3.5 py-2 rounded-xl flex-1 max-w-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-background border border-border focus:border-primary/50 outline-none text-foreground font-mono text-sm px-3.5 py-2 rounded-xl flex-1 max-w-md disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                     </div>
                 </div>
@@ -151,21 +151,21 @@ function CMSEditorContent() {
                     <div className="hidden lg:flex items-center bg-background p-1 rounded-xl border border-border mr-2">
                         <button
                             onClick={() => setViewMode("edit")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "edit" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "edit" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                             title="Editor Only"
                         >
                             <Edit size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode("split")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "split" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "split" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                             title="Split Screen"
                         >
                             <Columns size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode("preview")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "preview" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "preview" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                             title="Preview Only"
                         >
                             <Eye size={16} />
@@ -184,7 +184,7 @@ function CMSEditorContent() {
                     <button
                         onClick={handleGitSync}
                         disabled={syncing}
-                        className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-medium transition duration-200 neo-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-xl font-medium transition duration-200 neo-shadow disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {syncing ? <RefreshCw className="animate-spin" size={16} /> : <RefreshCw size={16} />}
                         <span>Push to Git</span>
@@ -204,7 +204,7 @@ function CMSEditorContent() {
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            className="flex-1 w-full bg-muted border border-border focus:border-purple-500/30 outline-none p-4 rounded-xl text-foreground font-mono text-sm resize-none focus:ring-0 leading-relaxed overflow-y-auto"
+                            className="flex-1 w-full bg-muted border border-border focus:border-primary/30 outline-none p-4 rounded-xl text-foreground font-mono text-sm resize-none focus:ring-0 leading-relaxed overflow-y-auto"
                             placeholder="Write your markdown here... Use --- for frontmatter"
                         />
                     </div>
@@ -235,7 +235,7 @@ export default function CMSEditorPage() {
             fallback={
                 <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
-                        <RefreshCw className="animate-spin text-purple-400" size={36} />
+                        <RefreshCw className="animate-spin text-primary" size={36} />
                         <p className="text-muted-foreground text-sm">Preparing CMS Editor...</p>
                     </div>
                 </div>

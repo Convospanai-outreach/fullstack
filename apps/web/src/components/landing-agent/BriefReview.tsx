@@ -35,38 +35,38 @@ export default function BriefReview({ campaign, onAdvance, onRefresh }: Props) {
         <GlassCard className="p-8 space-y-6">
             <div className="flex items-center justify-between gap-4">
                 <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Step 1</p>
-                    <h2 className="mt-2 text-2xl font-bold text-white">Structured Brief</h2>
-                    <p className="mt-2 text-sm text-slate-300">Review challenge, solution, and benefit before wireframe generation.</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-primary">Step 1</p>
+                    <h2 className="mt-2 text-2xl font-bold text-foreground">Structured Brief</h2>
+                    <p className="mt-2 text-sm text-foreground/80">Review challenge, solution, and benefit before wireframe generation.</p>
                 </div>
-                <Button onClick={generate} disabled={running} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                <Button onClick={generate} disabled={running} className="bg-primary hover:bg-primary text-primary-foreground">
                     {running ? "Generating..." : hasBrief ? "Regenerate Brief" : "Generate Brief"}
                 </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-white/10 bg-slate-900/50 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Challenge</p>
-                    <p className="mt-2 text-sm text-slate-100">{campaign.challenge || "Not generated yet"}</p>
+                <div className="rounded-lg border border-foreground/10 bg-background/50 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Challenge</p>
+                    <p className="mt-2 text-sm text-foreground">{campaign.challenge || "Not generated yet"}</p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-slate-900/50 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Solution</p>
-                    <p className="mt-2 text-sm text-slate-100">{campaign.solution || "Not generated yet"}</p>
+                <div className="rounded-lg border border-foreground/10 bg-background/50 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Solution</p>
+                    <p className="mt-2 text-sm text-foreground">{campaign.solution || "Not generated yet"}</p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-slate-900/50 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Benefit</p>
-                    <p className="mt-2 text-sm text-slate-100">{campaign.benefit || "Not generated yet"}</p>
+                <div className="rounded-lg border border-foreground/10 bg-background/50 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Benefit</p>
+                    <p className="mt-2 text-sm text-foreground">{campaign.benefit || "Not generated yet"}</p>
                 </div>
             </div>
 
             <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-400">Framework: <span className="text-slate-100">{campaign.framework || "Auto"}</span></p>
-                <Button onClick={onAdvance} disabled={!hasBrief} className="bg-white text-slate-900 hover:bg-slate-200">
+                <p className="text-sm text-muted-foreground">Framework: <span className="text-foreground">{campaign.framework || "Auto"}</span></p>
+                <Button onClick={onAdvance} disabled={!hasBrief} className="bg-card text-foreground hover:bg-secondary">
                     Continue to Wireframes
                 </Button>
             </div>
 
-            {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+            {error ? <p className="text-sm text-chart-4">{error}</p> : null}
         </GlassCard>
     );
 }

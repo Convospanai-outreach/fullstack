@@ -105,14 +105,14 @@ export default function SsoSettingsPage() {
                         <div className="flex gap-4">
                             <button
                                 onClick={() => handleUpdate("providerType", "SAML")}
-                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'SAML' ? 'bg-blue-600/20 border-blue-500 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
+                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'SAML' ? 'bg-primary/20 border-primary/30 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
                             >
                                 <span className="font-bold">SAML 2.0</span>
                                 <span className="text-[10px] opacity-60">Okta, JumpCloud, OneLogin</span>
                             </button>
                             <button
                                 onClick={() => handleUpdate("providerType", "OIDC")}
-                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'OIDC' ? 'bg-purple-600/20 border-purple-500 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
+                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'OIDC' ? 'bg-primary/20 border-primary/30 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
                             >
                                 <span className="font-bold">OIDC</span>
                                 <span className="text-[10px] opacity-60">Azure AD, Google, Auth0</span>
@@ -168,7 +168,7 @@ export default function SsoSettingsPage() {
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between p-3 bg-red-500/10 rounded-xl border border-red-500/20">
+                        <div className="flex items-center justify-between p-3 bg-destructive/10 rounded-xl border border-destructive/20">
                             <div className="flex items-center gap-3">
                                 <Lock className="w-4 h-4 text-destructive" />
                                 <div>
@@ -195,7 +195,7 @@ export default function SsoSettingsPage() {
                                 placeholder="acme.com"
                                 className="flex-1 bg-background border border-input rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                             />
-                            <button onClick={addDomain} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-500 transition-all">Add</button>
+                            <button onClick={addDomain} className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary transition-all">Add</button>
                         </div>
 
                         <div className="space-y-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
@@ -216,7 +216,7 @@ export default function SsoSettingsPage() {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-primary hover:bg-primary disabled:bg-primary/30 text-primary-foreground font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
                     >
                         <Save className="w-4 h-4" />
                         {saving ? "Saving..." : "Save SSO Config"}
@@ -246,7 +246,7 @@ function Toggle({ checked, onChange }: { checked: boolean, onChange: (val: boole
     return (
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-            <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-9 h-5 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
         </label>
     );
 }

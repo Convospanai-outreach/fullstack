@@ -65,7 +65,7 @@ export default function LandingAgentEditorPage() {
                 <p className="text-sm text-muted-foreground">
                     Edit sections, save draft state, and publish to a public slug under `/p/[slug]`.
                 </p>
-                {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
+                {status ? <p className="text-sm text-success">{status}</p> : null}
             </GlassCard>
 
             {page.hasUnpublishedChanges ? (

@@ -76,6 +76,7 @@
     --chart-6: 39.7 51.4% 71.8%;
     --chart-7: 344.1 51.6% 30%;
     --chart-8: 38.4 36% 48.4%;
+    --header-bg: rgba(243,237,228,.72);
     --glass-fill: rgba(255,255,255,.60); --glass-edge-strong: rgba(194,163,107,.90); --glass-edge-soft: rgba(194,163,107,.30);
     --glass-ring: rgba(26,20,20,.06); --glass-tight: rgba(26,20,20,.08); --glass-drop: rgba(26,20,20,.12); --glass-hi: rgba(255,255,255,.95);
     --page-glow: radial-gradient(40% 50% at 85% 10%, rgba(194,163,107,.18), transparent 70%), radial-gradient(35% 45% at 10% 90%, rgba(92,26,43,.08), transparent 70%);
@@ -123,6 +124,7 @@
     --chart-6: 344.1 51.6% 30%;
     --chart-7: 35.5 32.4% 86.7%;
     --chart-8: 38.4 36% 48.4%;
+    --header-bg: rgba(26,20,20,.72);
     --glass-fill: rgba(243,237,228,.06); --glass-edge-strong: rgba(194,163,107,.75); --glass-edge-soft: rgba(243,237,228,.14);
     --glass-ring: rgba(0,0,0,.35); --glass-tight: rgba(0,0,0,.35); --glass-drop: rgba(0,0,0,.55); --glass-hi: rgba(255,255,255,.10);
     --page-glow: radial-gradient(40% 50% at 85% 10%, rgba(194,163,107,.10), transparent 70%), radial-gradient(35% 45% at 10% 90%, rgba(116,37,58,.35), transparent 70%);
@@ -140,16 +142,18 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: var(--font-public-sans), 'Inter', system-ui, sans-serif;
+    font-family: var(--font-home), system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3 {
-    font-family: var(--font-bricolage), 'Inter', system-ui, sans-serif;
-    letter-spacing: -0.02em;
+  h1 {
+    font-family: var(--font-display), serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
+  h2, h3 { font-family: inherit; }
 }
 
 @layer components {
@@ -189,6 +193,13 @@
     .glass, .glass-panel, .glass-card, .glass-premium, .glass-strong { background: hsl(var(--card)); }
   }
   @media (prefers-reduced-motion: reduce) { .glass-card:hover { transform: none; } }
+  /* Sidebar glass: the same recipe on the burgundy gradient, identical in light and dark. */
+  .glass-dark { position: relative; background: rgba(243,237,228,.08); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 8px 20px -8px rgba(20,4,10,.5), inset 0 1px 0 rgba(255,255,255,.12); }
+  .glass-dark::after { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(135deg, rgba(194,163,107,.85) 0%, rgba(243,237,228,.18) 40%, transparent 70%, rgba(243,237,228,.18) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass-dark { background: rgba(58,14,26,.85); } }
 
   .gradient-text {
     @apply text-transparent bg-clip-text;

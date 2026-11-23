@@ -27,9 +27,9 @@ function ago(iso: string | null) {
 
 function Tile({ label, ok, status, detail }: { label: string; ok: boolean; status: string; detail: string }) {
   return (
-    <GlassCard className={`p-4 ${ok ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/10"}`}>
+    <GlassCard className={`p-4 ${ok ? "border-success/20 bg-success/5" : "border-chart-4/30 bg-chart-4/10"}`}>
       <p className="text-xs uppercase text-muted-foreground">{label}</p>
-      <p className={`mt-1 flex items-center gap-1.5 text-lg font-bold ${ok ? "text-emerald-400" : "text-destructive"}`}>
+      <p className={`mt-1 flex items-center gap-1.5 text-lg font-bold ${ok ? "text-success" : "text-destructive"}`}>
         {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />} {status}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>

@@ -42,14 +42,14 @@ export default function RedisCard({
   const canTurnOn = !!status && status.urlConfigured && !status.disabledByServer;
 
   return (
-    <GlassCard className={`p-5 ${ok ? "border-emerald-500/20 bg-emerald-500/5" : "border-amber-500/20 bg-amber-500/5"}`}>
+    <GlassCard className={`p-5 ${ok ? "border-success/20 bg-success/5" : "border-warning/20 bg-warning/5"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <Database className="h-4 w-4 text-cyan-400" />
+            <Database className="h-4 w-4 text-primary" />
             Redis (cache and rate limits)
           </h3>
-          <p className={`mt-1 flex items-center gap-1.5 text-lg font-bold ${ok ? "text-emerald-400" : "text-warning"}`}>
+          <p className={`mt-1 flex items-center gap-1.5 text-lg font-bold ${ok ? "text-success" : "text-warning"}`}>
             {ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
             {status ? LABELS[status.state] : error ? "Status unavailable" : "Loading..."}
           </p>

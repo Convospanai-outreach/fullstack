@@ -35,7 +35,7 @@ export default function ThreeAnalytics({ data }: ThreeAnalyticsProps) {
     const scale = 5 / maxVal;
 
     return (
-        <div className="h-[400px] w-full bg-gray-50 rounded-lg cursor-grab active:cursor-grabbing">
+        <div className="h-[400px] w-full bg-card rounded-lg cursor-grab active:cursor-grabbing">
             <Canvas camera={{ position: [5, 5, 10], fov: 50 }}>
                 <ambientLight intensity={0.5} />
                 <pointLight position={[10, 10, 10]} />
@@ -48,14 +48,14 @@ export default function ThreeAnalytics({ data }: ThreeAnalyticsProps) {
                             <Bar
                                 position={[0, 0, 0.5]}
                                 height={item.sent * scale}
-                                color="#8884d8"
+                                color="#5C1A2B" /* palette-ok */
                                 label={item.sent}
                             />
                             {/* Opened Bar */}
                             <Bar
                                 position={[0.6, 0, -0.5]}
                                 height={item.opened * scale}
-                                color="#82ca9d"
+                                color="#C2A36B" /* palette-ok */
                                 label={item.opened}
                             />
 
@@ -64,7 +64,7 @@ export default function ThreeAnalytics({ data }: ThreeAnalyticsProps) {
                                 position={[0.3, -0.5, 0]}
                                 rotation={[-Math.PI / 2, 0, 0]}
                                 fontSize={0.25}
-                                color="#666"
+                                color="#8C7B6B" /* palette-ok */
                             >
                                 {item.date}
                             </Text>

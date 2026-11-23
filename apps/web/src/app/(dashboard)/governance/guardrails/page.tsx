@@ -88,7 +88,7 @@ export default function GuardrailsPage() {
         <GovernanceLayout>
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="bg-accent-violet/10 p-2.5 rounded-xl text-accent-violet">
+                    <div className="bg-primary/10 p-2.5 rounded-xl text-primary">
                         <Settings className="w-5 h-5" />
                     </div>
                     <h2 className="text-xl font-bold text-foreground">Safety Engine Configuration</h2>
@@ -174,7 +174,7 @@ export default function GuardrailsPage() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-4 rounded-xl glass border border-border">
                                     <div className="flex gap-3">
-                                        <ShieldCheck className="w-5 h-5 text-accent-mint" />
+                                        <ShieldCheck className="w-5 h-5 text-success" />
                                         <div>
                                             <label className="text-sm font-bold text-foreground block">PII Redaction</label>
                                             <span className="text-[10px] text-muted-foreground">Automatically mask emails, phones, and addresses</span>
@@ -190,7 +190,7 @@ export default function GuardrailsPage() {
 
                                 <div className="flex items-center justify-between p-4 rounded-xl glass border border-border">
                                     <div className="flex gap-3">
-                                        <ShieldAlert className="w-5 h-5 text-orange-400" />
+                                        <ShieldAlert className="w-5 h-5 text-warning" />
                                         <div>
                                             <label className="text-sm font-bold text-foreground block">Strict Output Mode</label>
                                             <span className="text-[10px] text-muted-foreground">Discard AI output if any guardrail is triggered</span>

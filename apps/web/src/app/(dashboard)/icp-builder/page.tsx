@@ -82,8 +82,8 @@ export default function ICPBuilderPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-purple-500/20 rounded-xl border border-purple-500/30">
-                    <Target className="w-8 h-8 text-purple-400" />
+                <div className="p-3 bg-primary/20 rounded-xl border border-primary/30">
+                    <Target className="w-8 h-8 text-primary" />
                 </div>
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">ICP Builder</h1>
@@ -97,7 +97,7 @@ export default function ICPBuilderPage() {
                     <GlassCard className="p-8 space-y-6">
                         <div className="flex items-center justify-between pb-4 border-b border-border">
                             <h2 className="text-xl font-semibold text-foreground">Target Criteria</h2>
-                            <div className="flex items-center gap-2 text-xs text-purple-300 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20">
+                            <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-2 py-1 rounded-full border border-primary/20">
                                 <Sparkles className="w-3 h-3" />
                                 AI-Powered
                             </div>
@@ -109,7 +109,7 @@ export default function ICPBuilderPage() {
                                 <input
                                     type="text"
                                     placeholder="e.g. B2B SaaS, FinTech, Healthcare"
-                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors"
+                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                                     value={formData.industry}
                                     onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
                                 />
@@ -121,7 +121,7 @@ export default function ICPBuilderPage() {
                                     <input
                                         type="text"
                                         placeholder="e.g. CTO, VP of Sales"
-                                        className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors"
+                                        className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                                         value={formData.role}
                                         onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                     />
@@ -129,7 +129,7 @@ export default function ICPBuilderPage() {
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Company Size</label>
                                     <select
-                                        className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors appearance-none"
+                                        className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors appearance-none"
                                         value={formData.size}
                                         onChange={(e) => setFormData({ ...formData, size: e.target.value })}
                                     >
@@ -148,7 +148,7 @@ export default function ICPBuilderPage() {
                                 <input
                                     type="text"
                                     placeholder="e.g. India, UAE, United Kingdom"
-                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors"
+                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                                     value={formData.geographies}
                                     onChange={(e) => setFormData({ ...formData, geographies: e.target.value })}
                                 />
@@ -159,7 +159,7 @@ export default function ICPBuilderPage() {
                                 <label className="block text-sm font-medium text-foreground mb-1">What problem do you solve for them?</label>
                                 <textarea
                                     placeholder="e.g. They spend too much time manually updating spreadsheets..."
-                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-purple-500/50 transition-colors h-24 resize-none"
+                                    className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors h-24 resize-none"
                                     value={formData.painPoints}
                                     onChange={(e) => setFormData({ ...formData, painPoints: e.target.value })}
                                 />
@@ -168,7 +168,7 @@ export default function ICPBuilderPage() {
 
                         <Button
                             variant="default"
-                            className="w-full py-4 text-lg font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25"
+                            className="w-full py-4 text-lg font-medium bg-gradient-to-r from-primary to-primary/60 hover:from-primary hover:to-primary/60 transition-all shadow-lg shadow-primary/25"
                             onClick={handleGenerate}
                             disabled={loading}
                         >
@@ -194,7 +194,7 @@ export default function ICPBuilderPage() {
 
                         {generated && result ? (
                             <div className="space-y-4">
-                                <GlassCard className="p-4 border-l-4 border-l-green-500">
+                                <GlassCard className="p-4 border-l-4 border-l-success/30">
                                     <div className="text-sm text-muted-foreground mb-1">Recommended Keywords</div>
                                     <div className="flex flex-wrap gap-2">
                                         {result.keywords.map(k => (
@@ -203,14 +203,14 @@ export default function ICPBuilderPage() {
                                     </div>
                                 </GlassCard>
 
-                                <GlassCard className="p-4 border-l-4 border-l-blue-500">
+                                <GlassCard className="p-4 border-l-4 border-l-primary/30">
                                     <div className="text-sm text-muted-foreground mb-1">Boolean Search String</div>
                                     <code className="block text-xs text-primary p-2 bg-background rounded border border-border mt-2 font-mono break-all">
                                         {result.booleanString}
                                     </code>
                                 </GlassCard>
 
-                                <GlassCard className="p-4 border-l-4 border-l-purple-500">
+                                <GlassCard className="p-4 border-l-4 border-l-primary/30">
                                     <div className="text-sm text-muted-foreground mb-1">Generated Persona Hook</div>
                                     <p className="text-sm text-foreground italic mt-2">
                                         "{result.personaHook}"

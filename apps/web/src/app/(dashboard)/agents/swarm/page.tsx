@@ -89,7 +89,7 @@ type SwarmStatusResponse = {
 function statusPillClass(status: string) {
     const normalized = status.toUpperCase();
     if (normalized === "COMPLETED") return "bg-success/15 text-success border-success/30";
-    if (normalized === "RUNNING") return "bg-cyan-500/15 text-cyan-300 border-cyan-400/30";
+    if (normalized === "RUNNING") return "bg-primary/15 text-primary border-primary/30";
     if (normalized === "FAILED") return "bg-destructive/15 text-destructive border-destructive/30";
     if (normalized === "PAUSED") return "bg-warning/15 text-warning border-warning/30";
     return "bg-muted text-foreground border-border";
@@ -205,10 +205,10 @@ export default function AgentSwarmPage() {
 
     return (
         <div className="space-y-8">
-            <section className="rounded-3xl border border-border bg-gradient-to-br from-cyan-500/15 via-slate-900/80 to-emerald-500/10 p-6 lg:p-8">
+            <section className="rounded-3xl border border-border bg-gradient-to-br from-primary/15 via-background/80 to-success/10 p-6 lg:p-8">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <p className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                        <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
                             <Sparkles className="h-3.5 w-3.5" />
                             Parallel Subagent System
                         </p>
@@ -239,7 +239,7 @@ export default function AgentSwarmPage() {
             <section className="grid gap-6 xl:grid-cols-[1.1fr,0.9fr]">
                 <div className="rounded-3xl border border-border bg-muted p-6">
                     <div className="flex items-center gap-3">
-                        <Users className="h-5 w-5 text-cyan-300" />
+                        <Users className="h-5 w-5 text-primary" />
                         <h2 className="text-xl font-semibold text-foreground">Execution Goal</h2>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -260,7 +260,7 @@ export default function AgentSwarmPage() {
                                     type="button"
                                     onClick={() => setMode(option.value)}
                                     className={`rounded-2xl border p-4 text-left transition ${active
-                                        ? "border-cyan-400/50 bg-cyan-500/10 text-cyan-100"
+                                        ? "border-primary/50 bg-primary/10 text-primary"
                                         : "border-border bg-muted text-foreground hover:border-primary/30"
                                         }`}
                                 >
@@ -274,7 +274,7 @@ export default function AgentSwarmPage() {
                         value={goal}
                         onChange={(event) => setGoal(event.target.value)}
                         rows={5}
-                        className="mt-4 w-full rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none transition focus:border-cyan-400/50"
+                        className="mt-4 w-full rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary/50"
                         placeholder="Describe exactly what the subagent swarm should inspect and improve."
                     />
 
@@ -298,7 +298,7 @@ export default function AgentSwarmPage() {
                     </div>
 
                     {error && (
-                        <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-destructive">
+                        <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                             {error}
                         </p>
                     )}
@@ -314,7 +314,7 @@ export default function AgentSwarmPage() {
                                 <label
                                     key={role}
                                     className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${checked
-                                        ? "border-cyan-400/50 bg-cyan-500/10 text-cyan-100"
+                                        ? "border-primary/50 bg-primary/10 text-primary"
                                         : "border-border bg-muted text-foreground hover:border-primary/30"
                                         }`}
                                 >
@@ -328,7 +328,7 @@ export default function AgentSwarmPage() {
                                                     : [...current, role]
                                             );
                                         }}
-                                        className="h-4 w-4 rounded border-border bg-transparent accent-cyan-500"
+                                        className="h-4 w-4 rounded border-border bg-transparent accent-primary"
                                     />
                                     <span>{role}</span>
                                 </label>
@@ -366,7 +366,7 @@ export default function AgentSwarmPage() {
                             </div>
                             <div className="h-2 rounded-full bg-accent">
                                 <div
-                                    className="h-2 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all"
+                                    className="h-2 rounded-full bg-gradient-to-r from-primary to-success/60 transition-all"
                                     style={{ width: `${completionPercent}%` }}
                                 />
                             </div>
@@ -400,17 +400,17 @@ export default function AgentSwarmPage() {
                                         <p className="mt-3 text-sm leading-6 text-foreground">{task.summary}</p>
                                     )}
                                     {task.behaviorReport && (
-                                        <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-4">
+                                        <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4">
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                                 <div>
-                                                    <p className="text-sm font-semibold text-cyan-100">
+                                                    <p className="text-sm font-semibold text-primary">
                                                         {task.behaviorReport.persona || "User behavior persona"}
                                                     </p>
                                                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                                                         {task.behaviorReport.scenario}
                                                     </p>
                                                 </div>
-                                                <span className="w-fit rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+                                                <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                                                     Friction {task.behaviorReport.frictionScore ?? 0}/100
                                                 </span>
                                             </div>
@@ -426,7 +426,7 @@ export default function AgentSwarmPage() {
                                                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-warning">
                                                                 {finding.priority || "P1"} · {finding.severity || "medium"} friction
                                                             </p>
-                                                            <p className="mt-1 text-xs text-cyan-200">
+                                                            <p className="mt-1 text-xs text-primary">
                                                                 {finding.affectedSurface || "Surface unknown"} · Owner: {finding.ownerArea || "web"}
                                                             </p>
                                                             <p className="mt-1 text-sm text-foreground">{finding.friction}</p>
@@ -443,7 +443,7 @@ export default function AgentSwarmPage() {
                                         </div>
                                     )}
                                     {task.failureReason && (
-                                        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-destructive">
+                                        <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                                             {task.failureReason}
                                         </p>
                                     )}

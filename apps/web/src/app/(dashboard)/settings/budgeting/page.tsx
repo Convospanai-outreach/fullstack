@@ -146,19 +146,19 @@ export default function BudgetingPage() {
                 <MetricCard
                     title="Avg Spend / User"
                     value="12.4"
-                    icon={<TrendingUp className="w-5 h-5 text-emerald-400" />}
+                    icon={<TrendingUp className="w-5 h-5 text-success" />}
                     subtitle="Last 30 days"
                 />
                 <MetricCard
                     title="Active Overrides"
                     value={data.userQuotas.length}
-                    icon={<Settings2 className="w-5 h-5 text-blue-400" />}
+                    icon={<Settings2 className="w-5 h-5 text-primary" />}
                     subtitle="Custom user limits"
                 />
                 <MetricCard
                     title="Blocked Overages"
                     value="3"
-                    icon={<ShieldAlert className="w-5 h-5 text-red-400" />}
+                    icon={<ShieldAlert className="w-5 h-5 text-destructive" />}
                     subtitle="Prevented this month"
                 />
             </div>
@@ -167,7 +167,7 @@ export default function BudgetingPage() {
                 {/* Organization Defaults */}
                 <GlassCard className="p-6 space-y-6 lg:col-span-1">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <Wallet className="w-5 h-5 text-blue-400" />
+                        <Wallet className="w-5 h-5 text-primary" />
                         <h3 className="text-lg font-bold text-foreground">Global Defaults</h3>
                     </div>
 
@@ -178,7 +178,7 @@ export default function BudgetingPage() {
                                 type="number"
                                 value={data.policy.maxCreditsPerUser}
                                 onChange={(e) => setData({ ...data, policy: { ...data.policy, maxCreditsPerUser: parseInt(e.target.value) } })}
-                                className="w-full bg-muted border border-border rounded-xl px-4 py-2 text-foreground focus:outline-none focus:border-blue-500 transition-all font-mono"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-2 text-foreground focus:outline-none focus:border-primary/30 transition-all font-mono"
                             />
                             <p className="text-[10px] text-muted-foreground italic">Default limit applied to all members without an override.</p>
                         </div>
@@ -209,7 +209,7 @@ export default function BudgetingPage() {
                 <GlassCard className="p-6 space-y-6 lg:col-span-2">
                     <div className="flex items-center justify-between border-b border-border pb-4">
                         <div className="flex items-center gap-3">
-                            <Users className="w-5 h-5 text-purple-400" />
+                            <Users className="w-5 h-5 text-primary" />
                             <h3 className="text-lg font-bold text-foreground">Individual Allocations</h3>
                         </div>
                     </div>
@@ -225,7 +225,7 @@ export default function BudgetingPage() {
                                 <div key={member.id} className="p-4 bg-muted rounded-xl border border-border hover:border-border transition-all space-y-3">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-400">
+                                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                                                 <UserIcon className="w-5 h-5" />
                                             </div>
                                             <div>
@@ -239,7 +239,7 @@ export default function BudgetingPage() {
                                                 type="number"
                                                 value={currentLimit}
                                                 onChange={(e) => setOverrides({ ...overrides, [member.id]: parseInt(e.target.value) })}
-                                                className="w-20 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-blue-500 font-mono"
+                                                className="w-20 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/30 font-mono"
                                             />
                                         </div>
                                     </div>
@@ -283,7 +283,7 @@ function Toggle({ checked, onChange }: { checked: boolean, onChange: (val: boole
     return (
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
         </label>
     );
 }

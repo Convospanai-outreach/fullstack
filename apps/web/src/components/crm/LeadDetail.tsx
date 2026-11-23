@@ -389,7 +389,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     return (
         <div className="space-y-6">
             {isOffline && (
-                <div className="bg-orange-500/10 border border-orange-500/20 text-orange-200 p-3 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2">
+                <div className="bg-warning/10 border border-warning/20 text-warning p-3 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2">
                     <WifiOff className="w-5 h-5 shrink-0" />
                     <p className="text-sm font-medium">
                         You are currently offline. Enrichment data may not load and actions will be queued.
@@ -409,7 +409,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     )}
                     <Button
                         variant={lead.consentObtained ? "outline" : "destructive"}
-                        className={`gap-1.5 font-bold ${lead.consentObtained ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20'}`}
+                        className={`gap-1.5 font-bold ${lead.consentObtained ? 'bg-success/10 hover:bg-success/20 text-success border border-success/20' : 'bg-chart-4/10 hover:bg-chart-4/20 text-chart-4 border border-chart-4/20'}`}
                         onClick={handleToggleConsent}
                         disabled={loading}
                     >
@@ -428,7 +428,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     ))}
                     <Button
                         variant="outline"
-                        className="gap-1.5 hover:bg-white/5"
+                        className="gap-1.5 hover:bg-foreground/5"
                         onClick={handleReScore}
                         disabled={loading || isOffline}
                     >
@@ -437,7 +437,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </Button>
                     <Button
                         variant="outline"
-                        className="gap-1.5 hover:bg-white/5"
+                        className="gap-1.5 hover:bg-foreground/5"
                         onClick={loadSuggestions}
                         disabled={suggestionsLoading || loading || isOffline}
                     >
@@ -446,7 +446,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </Button>
                     <Button
                         variant="outline"
-                        className="gap-1.5 hover:bg-white/5"
+                        className="gap-1.5 hover:bg-foreground/5"
                         onClick={loadWorkflows}
                         disabled={workflowsLoading || loading || isOffline}
                     >
@@ -454,7 +454,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         Run Workflow
                     </Button>
                     {lead.company && (
-                        <Button variant="outline" className="gap-1.5 hover:bg-white/5" asChild>
+                        <Button variant="outline" className="gap-1.5 hover:bg-foreground/5" asChild>
                             <Link href={`/leads/org-chart?${lead.domain ? `domain=${encodeURIComponent(lead.domain)}` : `company=${encodeURIComponent(lead.company)}`}`}>
                                 <Network className="w-4 h-4" />
                                 View Org Chart
@@ -462,7 +462,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         </Button>
                     )}
                     {lead.pipelineState && ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"].includes(lead.pipelineState) && (
-                        <Button variant="outline" className="gap-1.5 hover:bg-white/5" asChild>
+                        <Button variant="outline" className="gap-1.5 hover:bg-foreground/5" asChild>
                             <Link href={`/campaigns/new?stage=${lead.pipelineState}${lead.domain ? `&domain=${encodeURIComponent(lead.domain)}` : ""}`}>
                                 <Megaphone className="w-4 h-4" />
                                 Start Recovery Campaign
@@ -494,28 +494,28 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                 <div className="lg:col-span-2 space-y-6">
                     {/* Profile details */}
                     <GlassCard className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-brand-400" />
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-primary" />
                             Profile Details
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
-                                <p className="text-white/60">Location</p>
-                                <p className="text-white font-medium">{lead.location || "Unknown"}</p>
+                                <p className="text-foreground/60">Location</p>
+                                <p className="text-foreground font-medium">{lead.location || "Unknown"}</p>
                             </div>
                             <div>
-                                <p className="text-white/60">Email Address</p>
-                                <p className="text-white font-medium">{lead.email || "—"}</p>
+                                <p className="text-foreground/60">Email Address</p>
+                                <p className="text-foreground font-medium">{lead.email || "—"}</p>
                             </div>
                             <div>
-                                <p className="text-white/60">Outreach Status</p>
+                                <p className="text-foreground/60">Outreach Status</p>
                                 <Badge variant={lead.status === "enriched" ? "success" : "default"} className="mt-0.5">
                                     {lead.status}
                                 </Badge>
                                 {lead.channelStatuses?.length ? (
                                     <div className="mt-2 flex flex-wrap gap-1.5">
                                         {lead.channelStatuses.map((item) => (
-                                            <span key={`${item.channel}-${item.status}`} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                                            <span key={`${item.channel}-${item.status}`} className="rounded-full border border-foreground/10 bg-foreground/5 px-2 py-0.5 text-[10px] font-bold text-foreground/70">
                                                 {channelBadgeLabel(item.channel, item.status)}
                                             </span>
                                         ))}
@@ -523,32 +523,32 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 ) : null}
                             </div>
                             <div>
-                                <p className="text-white/60">Active Campaign</p>
-                                <p className="text-white font-medium">{lead.campaign?.name || "None"}</p>
+                                <p className="text-foreground/60">Active Campaign</p>
+                                <p className="text-foreground font-medium">{lead.campaign?.name || "None"}</p>
                             </div>
                         </div>
                     </GlassCard>
 
                     <GlassCard className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-cyan-400" />
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-primary" />
                             Activity Timeline
                         </h3>
                         {firstResponseSeconds !== null ? (
-                            <p className="text-sm text-white/60">First response: {firstResponseSeconds < 3600 ? `${Math.round(firstResponseSeconds / 60)} min` : `${(firstResponseSeconds / 3600).toFixed(1)} h`} after the lead came in</p>
+                            <p className="text-sm text-foreground/60">First response: {firstResponseSeconds < 3600 ? `${Math.round(firstResponseSeconds / 60)} min` : `${(firstResponseSeconds / 3600).toFixed(1)} h`} after the lead came in</p>
                         ) : null}
                         {timeline.length === 0 ? (
-                            <p className="text-sm text-white/50">No email, LinkedIn, or campaign activity has been recorded for this lead yet.</p>
+                            <p className="text-sm text-foreground/50">No email, LinkedIn, or campaign activity has been recorded for this lead yet.</p>
                         ) : (
                             <div className="space-y-3">
                                 {timeline.slice(0, 12).map((item) => (
-                                    <div key={item.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+                                    <div key={item.id} className="rounded-xl border border-foreground/5 bg-foreground/[0.03] p-3">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <p className="text-sm font-semibold text-white">{item.title}</p>
-                                            <span className="text-xs text-white/40">{new Date(item.createdAt).toLocaleString()}</span>
+                                            <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                                            <span className="text-xs text-foreground/40">{new Date(item.createdAt).toLocaleString()}</span>
                                         </div>
-                                        {item.subject && <p className="mt-1 text-sm text-white/70">{item.subject}</p>}
-                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50">
+                                        {item.subject && <p className="mt-1 text-sm text-foreground/70">{item.subject}</p>}
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-foreground/50">
                                             {item.campaignName && <span>Campaign: {item.campaignName}</span>}
                                             {item.status && <span>Status: {item.status}</span>}
                                         </div>
@@ -560,18 +560,18 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                     <GlassCard className="space-y-4">
                         <div>
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <PhoneCall className="w-5 h-5 text-emerald-400" />
+                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <PhoneCall className="w-5 h-5 text-success" />
                                 Update Lead Journey
                             </h3>
-                            <p className="mt-1 text-sm text-white/50">
+                            <p className="mt-1 text-sm text-foreground/50">
                                 Log approved outreach progress across email, LinkedIn, WhatsApp, or a human caller.
                             </p>
                         </div>
 
                         <div className="grid gap-3 md:grid-cols-2">
                             <div>
-                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Channel</label>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground/45">Channel</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {CHANNEL_OPTIONS.map((option) => {
                                         const Icon = option.icon;
@@ -583,8 +583,8 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                                 onClick={() => setJourneyUpdate((prev) => ({ ...prev, channel: option.value }))}
                                                 className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                                                     active
-                                                        ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100"
-                                                        : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06]"
+                                                        ? "border-primary/50 bg-primary/10 text-primary"
+                                                        : "border-foreground/10 bg-foreground/[0.03] text-foreground/65 hover:bg-foreground/[0.06]"
                                                 }`}
                                             >
                                                 <Icon className="h-4 w-4" />
@@ -596,11 +596,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             </div>
 
                             <div>
-                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Progress</label>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground/45">Progress</label>
                                 <select
                                     value={journeyUpdate.status}
                                     onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, status: event.target.value }))}
-                                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                                    className="h-10 w-full rounded-lg border border-foreground/10 bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary/50"
                                 >
                                     {CHANNEL_STATUS_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -611,11 +611,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                         {journeyUpdate.status === "CLOSED" && (
                             <div>
-                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Outcome</label>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground/45">Outcome</label>
                                 <select
                                     value={journeyUpdate.outcome}
                                     onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, outcome: event.target.value }))}
-                                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                                    className="h-10 w-full rounded-lg border border-foreground/10 bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary/50"
                                 >
                                     <option value="">No outcome yet</option>
                                     <option value="WON">Converted / won</option>
@@ -626,18 +626,18 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         )}
 
                         <div>
-                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Notes</label>
+                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground/45">Notes</label>
                             <textarea
                                 value={journeyUpdate.notes}
                                 onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, notes: event.target.value }))}
                                 rows={3}
-                                className="w-full resize-none rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-cyan-400/50"
+                                className="w-full resize-none rounded-lg border border-foreground/10 bg-background px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-foreground/25 focus:border-primary/50"
                                 placeholder="Add caller notes, reply context, follow-up timing, or manual send confirmation."
                             />
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
-                            <p className="text-xs text-white/45">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-foreground/10 pt-3">
+                            <p className="text-xs text-foreground/45">
                                 Updates appear in the timeline and refresh the lead funnel state.
                             </p>
                             <Button
@@ -655,17 +655,17 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     {/* Premium Intent Scoring Breakdown */}
                     <GlassCard className="space-y-6">
                         <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Flame className="w-5 h-5 text-orange-500" />
+                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                                <Flame className="w-5 h-5 text-warning" />
                                 Lead Intent Scoring Breakdown
                             </h3>
                             {typeof lead.scoredOnEdge === "boolean" && (
-                                <Badge className={lead.scoredOnEdge ? "bg-cyan-600/30 text-cyan-300 border border-cyan-600/20 text-[10px]" : "bg-white/10 text-white/60 border border-white/10 text-[10px]"}>
+                                <Badge className={lead.scoredOnEdge ? "bg-primary/30 text-primary border border-primary/20 text-[10px]" : "bg-foreground/10 text-foreground/60 border border-foreground/10 text-[10px]"}>
                                     {lead.scoredOnEdge ? "Scored on-device" : "Cloud estimate"}
                                 </Badge>
                             )}
                             {lead.lastScoredAt && (
-                                <span className="text-xs text-white/40">
+                                <span className="text-xs text-foreground/40">
                                     Last scored: {new Date(lead.lastScoredAt).toLocaleDateString()} at {new Date(lead.lastScoredAt).toLocaleTimeString()}
                                 </span>
                             )}
@@ -673,18 +673,18 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                             {/* Intent Score Indicator Gauge */}
-                            <div className="flex flex-col items-center justify-center p-4 bg-white/5 rounded-2xl border border-white/5 relative">
-                                <span className="text-[10px] uppercase font-bold text-white/50 tracking-wider mb-2">Intent Index</span>
+                            <div className="flex flex-col items-center justify-center p-4 bg-foreground/5 rounded-2xl border border-foreground/5 relative">
+                                <span className="text-[10px] uppercase font-bold text-foreground/50 tracking-wider mb-2">Intent Index</span>
                                 <div className="relative w-28 h-28 flex items-center justify-center">
                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                        <circle cx="50" cy="50" r="40" className="stroke-white/10" strokeWidth="8" fill="transparent" />
+                                        <circle cx="50" cy="50" r="40" className="stroke-foreground/10" strokeWidth="8" fill="transparent" />
                                         <circle
                                             cx="50"
                                             cy="50"
                                             r="40"
                                             className={`transition-all duration-1000 ${
-                                                (lead.intentScore || 0) >= 0.7 ? 'stroke-red-500' :
-                                                (lead.intentScore || 0) >= 0.4 ? 'stroke-amber-500' : 'stroke-blue-500'
+                                                (lead.intentScore || 0) >= 0.7 ? 'stroke-destructive' :
+                                                (lead.intentScore || 0) >= 0.4 ? 'stroke-warning' : 'stroke-primary'
                                             }`}
                                             strokeWidth="8"
                                             fill="transparent"
@@ -694,8 +694,8 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                         />
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-2xl font-bold text-white font-mono">{Math.round((lead.intentScore || 0) * 100)}%</span>
-                                        <span className="text-[9px] uppercase font-bold text-white/40 mt-0.5">
+                                        <span className="text-2xl font-bold text-foreground font-mono">{Math.round((lead.intentScore || 0) * 100)}%</span>
+                                        <span className="text-[9px] uppercase font-bold text-foreground/40 mt-0.5">
                                             {(lead.intentScore || 0) >= 0.7 ? 'HOT 🔥' :
                                              (lead.intentScore || 0) >= 0.4 ? 'WARM ⚡' : 'COLD ❄️'}
                                         </span>
@@ -706,37 +706,37 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             {/* Granular Progress Breakdown */}
                             <div className="md:col-span-2 space-y-4">
                                 <div>
-                                    <div className="flex justify-between text-xs text-white/60 mb-1">
+                                    <div className="flex justify-between text-xs text-foreground/60 mb-1">
                                         <span>Website Dwell Time</span>
-                                        <span className="font-semibold text-white">{lead.dwellTimeMinutes || 0} minutes</span>
+                                        <span className="font-semibold text-foreground">{lead.dwellTimeMinutes || 0} minutes</span>
                                     </div>
-                                    <div className="w-full bg-white/10 rounded-full h-1.5">
+                                    <div className="w-full bg-foreground/10 rounded-full h-1.5">
                                         <div
-                                            className="bg-blue-400 h-1.5 rounded-full"
+                                            className="bg-primary/80 h-1.5 rounded-full"
                                             style={{ width: `${Math.min(100, Math.round(((lead.dwellTimeMinutes || 0) / 10) * 100))}%` }}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex justify-between text-xs text-white/60 mb-1">
+                                    <div className="flex justify-between text-xs text-foreground/60 mb-1">
                                         <span>Outbound Email Clicks</span>
-                                        <span className="font-semibold text-white">{lead.emailClicks || 0} clicks</span>
+                                        <span className="font-semibold text-foreground">{lead.emailClicks || 0} clicks</span>
                                     </div>
-                                    <div className="w-full bg-white/10 rounded-full h-1.5">
+                                    <div className="w-full bg-foreground/10 rounded-full h-1.5">
                                         <div
-                                            className="bg-amber-400 h-1.5 rounded-full"
+                                            className="bg-warning/80 h-1.5 rounded-full"
                                             style={{ width: `${Math.min(100, Math.round(((lead.emailClicks || 0) / 5) * 100))}%` }}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex justify-between text-xs text-white/60 mb-1">
+                                    <div className="flex justify-between text-xs text-foreground/60 mb-1">
                                         <span>Social Mentions / Interactions</span>
-                                        <span className="font-semibold text-white">{lead.socialMentions || 0} mentions</span>
+                                        <span className="font-semibold text-foreground">{lead.socialMentions || 0} mentions</span>
                                     </div>
-                                    <div className="w-full bg-white/10 rounded-full h-1.5">
+                                    <div className="w-full bg-foreground/10 rounded-full h-1.5">
                                         <div
-                                            className="bg-purple-400 h-1.5 rounded-full"
+                                            className="bg-primary/80 h-1.5 rounded-full"
                                             style={{ width: `${Math.min(100, Math.round(((lead.socialMentions || 0) / 3) * 100))}%` }}
                                         />
                                     </div>
@@ -744,7 +744,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             </div>
                         </div>
 
-                        <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs text-white/70">
+                        <div className="p-3 bg-foreground/5 rounded-xl border border-foreground/5 text-xs text-foreground/70">
                             <strong>Formula Confidence Explanation:</strong> A weighted matrix of Engagement (dwell time × 40%), Outreach CTR (clicks × 35%), and Social proof (mentions × 25%). Promo thresholds: 40% WARM, 70% HOT with automated caller handover.
                         </div>
                     </GlassCard>
@@ -756,23 +756,23 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         const personality = crystal?.prompt || crystal?.discType;
                         if (!li && !hunter && !nj && !ext && !personality) return null;
                         return (
-                            <GlassCard className="space-y-6 border-purple-500/30">
+                            <GlassCard className="space-y-6 border-primary/30">
                                 <h3 className="text-lg font-semibold gradient-text">Enrichment</h3>
 
                                 {nj && (
                                     <div className="space-y-3 text-sm">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <p className="font-semibold text-white">Buying signal (Netjana)</p>
+                                            <p className="font-semibold text-foreground">Buying signal (Netjana)</p>
                                             {nj.buyingStage && <Badge variant="info">{String(nj.buyingStage).replace(/_/g, " ")}</Badge>}
                                             {typeof nj.signalStrength === "number" && <Badge variant="warning">Signal {nj.signalStrength}/100</Badge>}
                                             {nj.verityTier && <Badge variant="outline">{String(nj.verityTier).replace(/_/g, " ")}</Badge>}
                                             {nj.matchConfidence && <Badge variant="outline">Match {String(nj.matchConfidence).toLowerCase()}</Badge>}
                                         </div>
-                                        {nj.whyNow && <p><span className="text-white/60">Why now: </span><span className="text-white/80">{nj.whyNow}</span></p>}
-                                        {nj.whatTheyNeed && <p><span className="text-white/60">What they need: </span><span className="text-white/80">{nj.whatTheyNeed}</span></p>}
-                                        {nj.recommendedAction && <p><span className="text-white/60">Recommended action: </span><span className="text-white/80">{nj.recommendedAction}</span></p>}
+                                        {nj.whyNow && <p><span className="text-foreground/60">Why now: </span><span className="text-foreground/80">{nj.whyNow}</span></p>}
+                                        {nj.whatTheyNeed && <p><span className="text-foreground/60">What they need: </span><span className="text-foreground/80">{nj.whatTheyNeed}</span></p>}
+                                        {nj.recommendedAction && <p><span className="text-foreground/60">Recommended action: </span><span className="text-foreground/80">{nj.recommendedAction}</span></p>}
                                         {nj.automation?.status && (
-                                            <p className="text-white/70">
+                                            <p className="text-foreground/70">
                                                 {nj.automation.status === "queued"
                                                     ? "Follow-up queued automatically"
                                                     : "Needs your review before any automated follow-up"}
@@ -785,14 +785,14 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 {personality && (
                                     <div className="space-y-3 text-sm">
                                         <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-white">Personality (DISC)</p>
+                                            <p className="font-semibold text-foreground">Personality (DISC)</p>
                                             {crystal.discType && <Badge variant="success">{crystal.discType}</Badge>}
                                         </div>
-                                        {crystal.archetype && <p><span className="text-white/60">Archetype: </span><span className="text-white font-medium">{crystal.archetype}</span></p>}
+                                        {crystal.archetype && <p><span className="text-foreground/60">Archetype: </span><span className="text-foreground font-medium">{crystal.archetype}</span></p>}
                                         {crystal.prompt && (
                                             <div>
-                                                <p className="text-white/60 mb-1">How to communicate</p>
-                                                <p className="text-white/80 whitespace-pre-line">{crystal.prompt}</p>
+                                                <p className="text-foreground/60 mb-1">How to communicate</p>
+                                                <p className="text-foreground/80 whitespace-pre-line">{crystal.prompt}</p>
                                             </div>
                                         )}
                                     </div>
@@ -800,7 +800,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                                 {ext && (
                                     <div className="space-y-3 text-sm">
-                                        <p className="font-semibold text-white">LinkedIn capture</p>
+                                        <p className="font-semibold text-foreground">LinkedIn capture</p>
                                         <div className="flex flex-wrap gap-2">
                                             {ext.leadType && <Badge variant="outline">{ext.leadType}</Badge>}
                                             {ext.qualification?.status && <Badge variant="info">{ext.qualification.status}</Badge>}
@@ -808,11 +808,11 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                             {ext.qualification?.need && ext.qualification.need !== "Unknown" && <Badge variant="outline">Need: {ext.qualification.need}</Badge>}
                                             {ext.qualification?.timing && ext.qualification.timing !== "Unknown" && <Badge variant="outline">Timing: {ext.qualification.timing}</Badge>}
                                         </div>
-                                        {ext.outreachAngle && <p><span className="text-white/60">Outreach angle: </span><span className="text-white/80">{ext.outreachAngle}</span></p>}
+                                        {ext.outreachAngle && <p><span className="text-foreground/60">Outreach angle: </span><span className="text-foreground/80">{ext.outreachAngle}</span></p>}
                                         {ext.messageDraft && (
                                             <div>
-                                                <p className="text-white/60 mb-1">Drafted message</p>
-                                                <p className="text-white/80 whitespace-pre-line">{ext.messageDraft}</p>
+                                                <p className="text-foreground/60 mb-1">Drafted message</p>
+                                                <p className="text-foreground/80 whitespace-pre-line">{ext.messageDraft}</p>
                                             </div>
                                         )}
                                     </div>
@@ -821,18 +821,18 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 {hunter && (
                                     <div className="space-y-3 text-sm">
                                         <div className="flex items-center gap-2">
-                                            <p className="font-semibold text-white">Email finder (Hunter)</p>
+                                            <p className="font-semibold text-foreground">Email finder (Hunter)</p>
                                             {typeof hunter.score === "number" && <Badge variant={hunter.score >= 80 ? "success" : "warning"}>Email confidence {hunter.score}%</Badge>}
                                         </div>
                                         {(hunter.position || hunter.company) && (
-                                            <p className="text-white/80">{[hunter.position, hunter.company].filter(Boolean).join(" at ")}</p>
+                                            <p className="text-foreground/80">{[hunter.position, hunter.company].filter(Boolean).join(" at ")}</p>
                                         )}
                                         {Array.isArray(hunter.sources) && hunter.sources.length > 0 && (
                                             <div>
-                                                <p className="text-white/60 mb-1">Found on</p>
+                                                <p className="text-foreground/60 mb-1">Found on</p>
                                                 <ul className="space-y-1">
                                                     {hunter.sources.slice(0, 5).map((src: string) => (
-                                                        <li key={src} className="text-xs text-white/70 break-all">{src}</li>
+                                                        <li key={src} className="text-xs text-foreground/70 break-all">{src}</li>
                                                     ))}
                                                 </ul>
                                             </div>
@@ -842,20 +842,20 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                                 {li && (
                                     <div className="space-y-3 text-sm">
-                                        <p className="font-semibold text-white">LinkedIn profile</p>
-                                        {li.headline && <p className="text-white/80">{li.headline}</p>}
-                                        {li.about && <p className="text-white/70 whitespace-pre-line line-clamp-6">{li.about}</p>}
+                                        <p className="font-semibold text-foreground">LinkedIn profile</p>
+                                        {li.headline && <p className="text-foreground/80">{li.headline}</p>}
+                                        {li.about && <p className="text-foreground/70 whitespace-pre-line line-clamp-6">{li.about}</p>}
                                         {Array.isArray(li.experience) && li.experience.length > 0 && (
                                             <ul className="space-y-1">
                                                 {li.experience.slice(0, 3).map((x: any, i: number) => (
-                                                    <li key={i} className="text-white/80">{[x.title, x.company].filter(Boolean).join(" at ")}</li>
+                                                    <li key={i} className="text-foreground/80">{[x.title, x.company].filter(Boolean).join(" at ")}</li>
                                                 ))}
                                             </ul>
                                         )}
                                         {Array.isArray(li.skills) && li.skills.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
                                                 {li.skills.slice(0, 12).map((skill: string) => (
-                                                    <span key={skill} className="px-2 py-0.5 bg-white/10 rounded text-xs text-white/80">{skill}</span>
+                                                    <span key={skill} className="px-2 py-0.5 bg-foreground/10 rounded text-xs text-foreground/80">{skill}</span>
                                                 ))}
                                             </div>
                                         )}
@@ -872,9 +872,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     {dataSources.length > 0 && (
                         <GlassCard className="space-y-4">
                             <h3 className="text-lg font-semibold gradient-text">Data Sources</h3>
-                            <div className="overflow-x-auto rounded-xl border border-white/5">
+                            <div className="overflow-x-auto rounded-xl border border-foreground/5">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="text-xs uppercase bg-white/5 text-white/50">
+                                    <thead className="text-xs uppercase bg-foreground/5 text-foreground/50">
                                         <tr>
                                             <th className="px-4 py-3">Field</th>
                                             <th className="px-4 py-3">Source</th>
@@ -885,14 +885,14 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                     </thead>
                                     <tbody>
                                         {dataSources.map((row) => (
-                                            <tr key={row.id} className="border-t border-white/5">
-                                                <td className="px-4 py-2 text-white/80">{row.field}</td>
+                                            <tr key={row.id} className="border-t border-foreground/5">
+                                                <td className="px-4 py-2 text-foreground/80">{row.field}</td>
                                                 <td className="px-4 py-2">
                                                     <Badge variant="outline">{row.source}</Badge>
                                                 </td>
-                                                <td className="px-4 py-2 text-white/80 max-w-xs truncate" title={row.value}>{row.value}</td>
-                                                <td className="px-4 py-2 text-white/60">{row.confidence || "-"}</td>
-                                                <td className="px-4 py-2 text-white/50 text-xs">{new Date(row.capturedAt).toLocaleString()}</td>
+                                                <td className="px-4 py-2 text-foreground/80 max-w-xs truncate" title={row.value}>{row.value}</td>
+                                                <td className="px-4 py-2 text-foreground/60">{row.confidence || "-"}</td>
+                                                <td className="px-4 py-2 text-foreground/50 text-xs">{new Date(row.capturedAt).toLocaleString()}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -906,30 +906,30 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                 <div className="space-y-6">
                     {/* Predictive AI Analytics */}
                     <GlassCard className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Compass className="w-5 h-5 text-purple-400" />
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Compass className="w-5 h-5 text-primary" />
                             Predictive AI Insights
                         </h3>
                         <div className="space-y-3.5 text-sm">
-                            <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
+                            <div className="flex justify-between items-center p-2.5 bg-foreground/5 rounded-xl border border-foreground/5">
                                 <div className="flex items-center gap-2">
-                                    <Activity className="w-4 h-4 text-purple-400" />
-                                    <span className="text-white/80">Cluster Group</span>
+                                    <Activity className="w-4 h-4 text-primary" />
+                                    <span className="text-foreground/80">Cluster Group</span>
                                 </div>
-                                <Badge className="bg-purple-600/30 text-purple-300 border border-purple-600/20 font-bold uppercase text-[10px]">
+                                <Badge className="bg-primary/30 text-primary border border-primary/20 font-bold uppercase text-[10px]">
                                     {lead.clusterLabel || "HIGH_VALUE"}
                                 </Badge>
                             </div>
-                            <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
+                            <div className="flex justify-between items-center p-2.5 bg-foreground/5 rounded-xl border border-foreground/5">
                                 <div className="flex items-center gap-2">
-                                    <TrendingUp className="w-4 h-4 text-rose-400" />
-                                    <span className="text-white/80">Churn Risk Probability</span>
+                                    <TrendingUp className="w-4 h-4 text-chart-4" />
+                                    <span className="text-foreground/80">Churn Risk Probability</span>
                                 </div>
                                 {(() => {
                                     const enough = timeline.length >= 3 && typeof lead.churnRisk === "number";
                                     return (
                                         <span
-                                            className={`font-mono font-bold ${!enough ? 'text-white/50' : (lead.churnRisk as number) > 0.5 ? 'text-red-400' : 'text-emerald-400'}`}
+                                            className={`font-mono font-bold ${!enough ? 'text-foreground/50' : (lead.churnRisk as number) > 0.5 ? 'text-destructive' : 'text-success'}`}
                                             title={enough ? undefined : "Insufficient data"}
                                         >
                                             {enough ? formatProbability(lead.churnRisk) : "—"}
@@ -937,12 +937,12 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                     );
                                 })()}
                             </div>
-                            <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/5">
+                            <div className="flex justify-between items-center p-2.5 bg-foreground/5 rounded-xl border border-foreground/5">
                                 <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-amber-400" />
-                                    <span className="text-white/80">Optimal Reach Hour</span>
+                                    <Clock className="w-4 h-4 text-warning" />
+                                    <span className="text-foreground/80">Optimal Reach Hour</span>
                                 </div>
-                                <span className="font-semibold text-white font-mono">
+                                <span className="font-semibold text-foreground font-mono">
                                     {lead.optimalSendHour !== undefined && lead.optimalSendHour !== null
                                         ? `${lead.optimalSendHour > 12 ? lead.optimalSendHour - 12 : lead.optimalSendHour}:00 ${lead.optimalSendHour >= 12 ? 'PM' : 'AM'}`
                                         : 'Not enough data yet'
@@ -954,18 +954,18 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                     {/* Pipeline Stage Journey Timeline */}
                     <GlassCard className="space-y-6">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-brand-400" />
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-primary" />
                             Pipeline State Journey
                         </h3>
 
-                        <div className="relative pl-6 border-l border-white/10 space-y-6 text-sm">
+                        <div className="relative pl-6 border-l border-foreground/10 space-y-6 text-sm">
                             {/* Stage: COLD */}
                             <div className="relative">
-                                <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-brand-500 bg-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/20" />
+                                <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-primary bg-primary flex items-center justify-center shadow-lg shadow-primary/20" />
                                 <div className="space-y-0.5">
-                                    <p className="font-bold text-white">Cold Lead Initialized</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className="font-bold text-foreground">Cold Lead Initialized</p>
+                                    <p className="text-xs text-foreground/40">
                                         Imported {new Date(lead.pipelineStateChangedAt || lead.lastScoredAt || Date.now()).toLocaleDateString()}
                                     </p>
                                 </div>
@@ -975,15 +975,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <div className="relative">
                                 <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 transition-all ${
                                     lead.pipelineState === "WARM" || lead.pipelineState === "HOT" || lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                        ? 'border-amber-500 bg-amber-500 shadow-lg shadow-amber-500/20'
-                                        : 'border-white/20 bg-background'
+                                        ? 'border-warning/30 bg-warning shadow-lg shadow-warning/20'
+                                        : 'border-foreground/20 bg-background'
                                 }`} />
                                 <div className="space-y-0.5">
                                     <p className={`font-bold ${
                                         lead.pipelineState === "WARM" || lead.pipelineState === "HOT" || lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                            ? 'text-white' : 'text-white/40'
+                                            ? 'text-foreground' : 'text-foreground/40'
                                     }`}>Warm Nurture Promoted</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className="text-xs text-foreground/40">
                                         {lead.pipelineState === "WARM" || lead.pipelineState === "HOT" || lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
                                             ? `Scored intent >= 40%`
                                             : 'Requires intent score >= 40%'
@@ -996,15 +996,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <div className="relative">
                                 <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 transition-all ${
                                     lead.pipelineState === "HOT" || lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                        ? 'border-red-500 bg-red-500 shadow-lg shadow-red-500/20 animate-pulse'
-                                        : 'border-white/20 bg-background'
+                                        ? 'border-destructive/30 bg-destructive shadow-lg shadow-destructive/20 animate-pulse'
+                                        : 'border-foreground/20 bg-background'
                                 }`} />
                                 <div className="space-y-0.5">
                                     <p className={`font-bold ${
                                         lead.pipelineState === "HOT" || lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                            ? 'text-white' : 'text-white/40'
+                                            ? 'text-foreground' : 'text-foreground/40'
                                     }`}>Hot Handover Triggered</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className="text-xs text-foreground/40">
                                         {lead.hotAt
                                             ? `Intent reached 70% at ${new Date(lead.hotAt).toLocaleTimeString()}`
                                             : 'Requires intent score >= 70%'
@@ -1017,15 +1017,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <div className="relative">
                                 <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 transition-all ${
                                     lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                        ? 'border-purple-500 bg-purple-500 shadow-lg shadow-purple-500/20'
-                                        : 'border-white/20 bg-background'
+                                        ? 'border-primary/30 bg-primary shadow-lg shadow-primary/20'
+                                        : 'border-foreground/20 bg-background'
                                 }`} />
                                 <div className="space-y-0.5">
                                     <p className={`font-bold ${
                                         lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                            ? 'text-white' : 'text-white/40'
+                                            ? 'text-foreground' : 'text-foreground/40'
                                     }`}>Human Call claimed</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className="text-xs text-foreground/40">
                                         {lead.pipelineState === "COORDINATING" || lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
                                             ? 'Active in coordination queue'
                                             : 'Awaiting human caller claim'
@@ -1038,15 +1038,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <div className="relative">
                                 <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 transition-all ${
                                     lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                        ? 'border-emerald-500 bg-emerald-500 shadow-lg shadow-emerald-500/20'
-                                        : 'border-white/20 bg-background'
+                                        ? 'border-success/30 bg-success shadow-lg shadow-success/20'
+                                        : 'border-foreground/20 bg-background'
                                 }`} />
                                 <div className="space-y-0.5">
                                     <p className={`font-bold ${
                                         lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
-                                            ? 'text-white' : 'text-white/40'
+                                            ? 'text-foreground' : 'text-foreground/40'
                                     }`}>Meeting Scheduled</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className="text-xs text-foreground/40">
                                         {lead.pipelineState === "MEETING_CONFIRMED" || lead.pipelineState === "COMPLETED"
                                             ? 'Calendar confirmed'
                                             : 'Requires caller call success'
@@ -1059,12 +1059,12 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             <div className="relative">
                                 <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 transition-all ${
                                     lead.pipelineState === "COMPLETED"
-                                        ? 'border-green-500 bg-green-500 shadow-lg shadow-green-500/20'
-                                        : 'border-white/20 bg-background'
+                                        ? 'border-success/30 bg-success shadow-lg shadow-success/20'
+                                        : 'border-foreground/20 bg-background'
                                 }`} />
                                 <div className="space-y-0.5">
-                                    <p className={`font-bold ${lead.pipelineState === "COMPLETED" ? 'text-white' : 'text-white/40'}`}>Closed / Completed</p>
-                                    <p className="text-xs text-white/40">
+                                    <p className={`font-bold ${lead.pipelineState === "COMPLETED" ? 'text-foreground' : 'text-foreground/40'}`}>Closed / Completed</p>
+                                    <p className="text-xs text-foreground/40">
                                         {lead.wonAt
                                             ? `Won on ${new Date(lead.wonAt).toLocaleDateString()}`
                                             : lead.lostAt
@@ -1080,22 +1080,22 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             </div>
 
             {workflowsOpen && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
-                    <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/40">
-                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-lg rounded-2xl border border-foreground/10 bg-background shadow-2xl shadow-foreground/40">
+                        <div className="flex items-start justify-between gap-4 border-b border-foreground/10 p-5">
                             <div>
-                                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-                                    <Activity className="h-5 w-5 text-brand-300" />
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                                    <Activity className="h-5 w-5 text-primary" />
                                     Run Workflow on This Lead
                                 </h3>
-                                <p className="mt-1 text-sm text-white/50">
+                                <p className="mt-1 text-sm text-foreground/50">
                                     Pick an active workflow to start for {lead.fullName || "this lead"}.
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setWorkflowsOpen(false)}
-                                className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                                className="rounded-lg border border-foreground/10 p-2 text-foreground/60 transition hover:bg-foreground/5 hover:text-foreground"
                                 aria-label="Close workflow picker"
                             >
                                 <X className="h-4 w-4" />
@@ -1104,17 +1104,17 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                         <div className="max-h-[60vh] space-y-2 overflow-y-auto p-5">
                             {workflowsLoading ? (
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 text-sm text-foreground/60">
                                     Loading workflows...
                                 </div>
                             ) : workflows.length === 0 ? (
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 text-sm text-foreground/60">
                                     No active workflows found. Activate one from the Workflows page first.
                                 </div>
                             ) : (
                                 workflows.map((workflow) => (
-                                    <div key={workflow.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                                        <span className="text-sm font-medium text-white">{workflow.name}</span>
+                                    <div key={workflow.id} className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                        <span className="text-sm font-medium text-foreground">{workflow.name}</span>
                                         <Button
                                             type="button"
                                             variant="default"
@@ -1133,22 +1133,22 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             )}
 
             {suggestionsOpen && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
-                    <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/40">
-                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-2xl rounded-2xl border border-foreground/10 bg-background shadow-2xl shadow-foreground/40">
+                        <div className="flex items-start justify-between gap-4 border-b border-foreground/10 p-5">
                             <div>
-                                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-                                    <Sparkles className="h-5 w-5 text-cyan-300" />
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                                    <Sparkles className="h-5 w-5 text-primary" />
                                     Lead Journey Suggestions
                                 </h3>
-                                <p className="mt-1 text-sm text-white/50">
+                                <p className="mt-1 text-sm text-foreground/50">
                                     Advisory analysis only. Nothing changes unless you update the journey.
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setSuggestionsOpen(false)}
-                                className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                                className="rounded-lg border border-foreground/10 p-2 text-foreground/60 transition hover:bg-foreground/5 hover:text-foreground"
                                 aria-label="Close suggestions"
                             >
                                 <X className="h-4 w-4" />
@@ -1157,33 +1157,33 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
                         <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5">
                             {suggestionsLoading ? (
-                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4 text-sm text-foreground/60">
                                     Analyzing stalled channels and stage-change gaps...
                                 </div>
                             ) : suggestions.length === 0 ? (
-                                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                                <div className="rounded-xl border border-success/20 bg-success/10 p-4 text-sm text-success">
                                     No common journey issues detected right now.
                                 </div>
                             ) : (
                                 suggestions.map((suggestion) => (
-                                    <div key={suggestion.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                                    <div key={suggestion.id} className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <h4 className="font-semibold text-white">{suggestion.title}</h4>
+                                            <h4 className="font-semibold text-foreground">{suggestion.title}</h4>
                                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                                                 suggestion.severity === "high"
-                                                    ? "bg-rose-400/15 text-rose-200"
+                                                    ? "bg-chart-4/15 text-chart-4"
                                                     : suggestion.severity === "medium"
-                                                        ? "bg-amber-400/15 text-amber-200"
-                                                        : "bg-cyan-400/15 text-cyan-200"
+                                                        ? "bg-warning/15 text-warning"
+                                                        : "bg-primary/15 text-primary"
                                             }`}>
                                                 {suggestion.severity}
                                             </span>
                                         </div>
-                                        <p className="mt-2 text-sm text-white/65">{suggestion.reason}</p>
-                                        <p className="mt-2 text-sm text-white/85">{suggestion.recommendation}</p>
+                                        <p className="mt-2 text-sm text-foreground/65">{suggestion.reason}</p>
+                                        <p className="mt-2 text-sm text-foreground/85">{suggestion.recommendation}</p>
                                         {suggestion.suggestedAction && (
-                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
-                                                <span className="text-xs text-white/45">
+                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-foreground/10 pt-3">
+                                                <span className="text-xs text-foreground/45">
                                                     Suggested form fill: {suggestion.suggestedAction.channel} / {suggestion.suggestedAction.status}
                                                 </span>
                                                 <Button

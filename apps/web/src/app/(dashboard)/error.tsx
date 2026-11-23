@@ -17,8 +17,8 @@ export default function DashboardError({
 
     return (
         <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-muted backdrop-blur-sm rounded-xl border border-border">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20">
-                <AlertCircle className="w-8 h-8 text-red-500" />
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-6 border border-destructive/20">
+                <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
 
             <h2 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h2>

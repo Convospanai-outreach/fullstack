@@ -19,7 +19,7 @@ interface FunnelData {
     replied: number
 }
 
-const COLORS = ['#4F8BFF', '#2DD4BF', '#F472B6', '#8B5CF6'];
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-4))', 'hsl(var(--chart-1))'];
 
 export default function FunnelChart({ data }: { data: FunnelData }) {
     const chartData = [
@@ -31,24 +31,24 @@ export default function FunnelChart({ data }: { data: FunnelData }) {
 
     return (
         <GlassCard className="h-[350px] w-full">
-            <h3 className="text-lg font-semibold mb-4 text-text-primary">Conversion Funnel</h3>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Conversion Funnel</h3>
             <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart
                     data={chartData}
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.1)" />
-                    <XAxis type="number" stroke="#9CA3AF" />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
                     <YAxis
                         dataKey="name"
                         type="category"
-                        stroke="#E6EAF2"
+                        stroke="hsl(var(--foreground))"
                         width={80}
                     />
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#0B0F1A', borderColor: 'rgba(255,255,255,0.1)' }}
-                        itemStyle={{ color: '#E6EAF2' }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))' }}
+                        itemStyle={{ color: 'hsl(var(--foreground))' }}
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                         {chartData.map((entry, index) => (

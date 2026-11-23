@@ -9,19 +9,19 @@ interface MetricCardProps {
     color?: string
 }
 
-export default function MetricCard({ label, value, trend, icon: Icon, color = "text-accent-blue" }: MetricCardProps) {
+export default function MetricCard({ label, value, trend, icon: Icon, color = "text-primary" }: MetricCardProps) {
     return (
         <GlassCard className="flex flex-col justify-between h-[120px]">
             <div className="flex justify-between items-start">
-                <span className="text-text-secondary text-sm font-medium">{label}</span>
-                <div className={`p-2 rounded-lg bg-white/5 ${color}`}>
+                <span className="text-muted-foreground text-sm font-medium">{label}</span>
+                <div className={`p-2 rounded-lg bg-foreground/5 ${color}`}>
                     <Icon className="w-5 h-5" />
                 </div>
             </div>
             <div>
-                <div className="text-3xl font-bold text-text-primary">{value}</div>
+                <div className="text-3xl font-bold text-foreground">{value}</div>
                 {trend !== undefined && (
-                    <div className={`text-xs mt-1 font-medium ${trend >= 0 ? 'text-accent-mint' : 'text-red-400'}`}>
+                    <div className={`text-xs mt-1 font-medium ${trend >= 0 ? 'text-success' : 'text-destructive'}`}>
                         {trend > 0 ? '+' : ''}{trend}% from last week
                     </div>
                 )}

@@ -265,23 +265,23 @@ function ProductModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
                 <div className="space-y-1">
                     <label htmlFor="product-name" className="text-sm text-muted-foreground">Name</label>
                     <input id="product-name" value={name} onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="space-y-1">
                     <label htmlFor="product-description" className="text-sm text-muted-foreground">Description (optional)</label>
                     <textarea id="product-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
-                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label htmlFor="product-price" className="text-sm text-muted-foreground">Price</label>
                         <input id="product-price" type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                     <div className="space-y-1">
                         <label htmlFor="product-currency" className="text-sm text-muted-foreground">Currency</label>
                         <select id="product-currency" value={currency} onChange={(e) => setCurrency(e.target.value)}
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="USD">USD</option>
                             <option value="INR">INR</option>
                             <option value="EUR">EUR</option>
@@ -361,24 +361,24 @@ function RazorpayConnectModal({ open, onClose, onConnected }: { open: boolean; o
                     <div className="space-y-1">
                         <label htmlFor="rzp-email" className="text-sm text-muted-foreground">Email</label>
                         <input id="rzp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                     <div className="space-y-1">
                         <label htmlFor="rzp-phone" className="text-sm text-muted-foreground">Phone</label>
                         <input id="rzp-phone" value={phone} onChange={(e) => setPhone(e.target.value)}
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                 </div>
                 <div className="space-y-1">
                     <label htmlFor="rzp-business-name" className="text-sm text-muted-foreground">Legal Business Name</label>
                     <input id="rzp-business-name" value={legalBusinessName} onChange={(e) => setLegalBusinessName(e.target.value)}
-                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label htmlFor="rzp-business-type" className="text-sm text-muted-foreground">Business Type</label>
                         <select id="rzp-business-type" value={businessType} onChange={(e) => setBusinessType(e.target.value)}
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="individual">Individual</option>
                             <option value="proprietorship">Proprietorship</option>
                             <option value="partnership">Partnership</option>
@@ -389,7 +389,7 @@ function RazorpayConnectModal({ open, onClose, onConnected }: { open: boolean; o
                     <div className="space-y-1">
                         <label htmlFor="rzp-category" className="text-sm text-muted-foreground">Category (optional)</label>
                         <input id="rzp-category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="ecommerce"
-                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                 </div>
             </div>

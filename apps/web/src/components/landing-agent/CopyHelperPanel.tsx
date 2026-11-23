@@ -26,14 +26,14 @@ export default function CopyHelperPanel({ onUse }: { onUse: (text: string) => bo
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
-      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Pick a stronger headline/CTA</p>
+    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-3">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pick a stronger headline/CTA</p>
       <div className="flex flex-wrap gap-1">
         {COPY_GOALS.map((option) => (
           <Button
             key={option.id}
             onClick={() => setGoal(option.id)}
-            className={`h-7 px-2 text-xs ${goal === option.id ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+            className={`h-7 px-2 text-xs ${goal === option.id ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground/80"}`}
           >
             {option.label}
           </Button>
@@ -42,32 +42,32 @@ export default function CopyHelperPanel({ onUse }: { onUse: (text: string) => bo
       <ul className="space-y-2">
         {patterns.map((pattern) => (
           <li key={pattern.text} className="space-y-1">
-            <p className="text-[11px] text-slate-400">{KIND_LABELS[pattern.kind]}</p>
-            <Button data-pattern={pattern.text} onClick={() => use(pattern.text)} className="h-auto w-full justify-start whitespace-normal bg-white/10 px-2 py-1 text-left text-xs text-slate-100">
+            <p className="text-[11px] text-muted-foreground">{KIND_LABELS[pattern.kind]}</p>
+            <Button data-pattern={pattern.text} onClick={() => use(pattern.text)} className="h-auto w-full justify-start whitespace-normal bg-foreground/10 px-2 py-1 text-left text-xs text-foreground">
               {pattern.text}
             </Button>
-            {pattern.kind === "urgency_true" ? <p className="text-[11px] text-amber-300">Only use this if it is true.</p> : null}
+            {pattern.kind === "urgency_true" ? <p className="text-[11px] text-warning">Only use this if it is true.</p> : null}
           </li>
         ))}
       </ul>
-      {notice ? <p className="text-xs text-slate-300">{notice}</p> : null}
-      <label className="block text-xs text-slate-300">
+      {notice ? <p className="text-xs text-foreground/80">{notice}</p> : null}
+      <label className="block text-xs text-foreground/80">
         Check your own wording
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={2}
-          className="mt-1 w-full rounded-md border border-white/10 bg-slate-900 p-2 text-xs text-slate-100"
+          className="mt-1 w-full rounded-md border border-foreground/10 bg-background p-2 text-xs text-foreground"
         />
       </label>
       <ul data-warnings className="space-y-1">
         {warnings.map((warning) => (
-          <li key={warning.id} className="text-xs text-amber-300">
+          <li key={warning.id} className="text-xs text-warning">
             {warning.message}
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-slate-500">Type real numbers and dates yourself. Only use urgency if it is true.</p>
+      <p className="text-[11px] text-muted-foreground">Type real numbers and dates yourself. Only use urgency if it is true.</p>
     </div>
   );
 }

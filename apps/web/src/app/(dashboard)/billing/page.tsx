@@ -144,7 +144,7 @@ export default function BillingPage() {
                     email: subscription?.email || ''
                 },
                 theme: {
-                    color: '#3b82f6'
+                    color: '#5C1A2B'
                 }
             };
 
@@ -183,7 +183,7 @@ export default function BillingPage() {
                             {isLoading ? (
                                 <Skeleton className="h-48 w-full" />
                             ) : error ? (
-                                <div className="text-red-400 p-4">Failed to load subscription</div>
+                                <div className="text-destructive p-4">Failed to load subscription</div>
                             ) : (
                                 <div className="mt-4 p-6 rounded-2xl bg-muted border border-border relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 p-3">
@@ -272,7 +272,7 @@ export default function BillingPage() {
                         <CardContent>
                             <div className="space-y-2 mt-2">
                                 {invoiceError && (
-                                    <div className="text-xs text-red-400 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                    <div className="text-xs text-destructive p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                                         {invoiceError}
                                     </div>
                                 )}
@@ -318,7 +318,7 @@ export default function BillingPage() {
                                     <div className="space-y-1">
                                         <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
                                             <span>Current Balance</span>
-                                            <span className="text-accent-mint">{usage?.balance ?? 0} remaining</span>
+                                            <span className="text-success">{usage?.balance ?? 0} remaining</span>
                                         </div>
                                         <p className="text-xs text-muted-foreground leading-relaxed">
                                             Credits refresh automatically on your billing anniversary. Unused base credits do not roll over.
@@ -328,10 +328,10 @@ export default function BillingPage() {
 
                                 <div className="bg-muted p-6 rounded-2xl border border-border flex flex-col justify-between">
                                     <div className="flex justify-between items-start">
-                                        <div className="p-3 bg-accent-gold/10 rounded-xl text-accent-gold">
+                                        <div className="p-3 bg-warning/10 rounded-xl text-warning">
                                             <Coins className="w-6 h-6" />
                                         </div>
-                                        <Badge className="bg-accent-gold/10 text-accent-gold border-none">Reserve Pool</Badge>
+                                        <Badge className="bg-warning/10 text-warning border-none">Reserve Pool</Badge>
                                     </div>
                                     <div className="mt-6">
                                         <h5 className="text-3xl font-black text-foreground">{usage?.balance ?? 0}</h5>
@@ -339,7 +339,7 @@ export default function BillingPage() {
                                     </div>
                                     <Button
                                         variant="default"
-                                        className="mt-6 bg-accent-gold hover:bg-accent-gold/90 text-slate-950 shadow-glow-gold"
+                                        className="mt-6 bg-warning hover:bg-warning/90 text-background shadow-glow-gold"
                                         onClick={() => openTopUpModal("starter")}
                                         disabled={topUpLoading}
                                     >
@@ -358,7 +358,7 @@ export default function BillingPage() {
                                     {(usage?.history || []).map((row: any, i: number) => (
                                         <div key={i} className="flex items-center justify-between p-4 rounded-xl glass-strong border border-border">
                                             <div className="flex items-center gap-4">
-                                                <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                                <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
                                                     <ArrowUpCircle className={`w-4 h-4 ${row.amount < 0 ? 'rotate-180' : ''}`} />
                                                 </div>
                                                 <div>
@@ -367,7 +367,7 @@ export default function BillingPage() {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-emerald-400' : 'text-foreground'}`}>
+                                                <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-success' : 'text-foreground'}`}>
                                                     {row.amount > 0 ? '+' : ''}{row.amount.toLocaleString()}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground font-medium">
@@ -384,20 +384,20 @@ export default function BillingPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="bg-gradient-to-r from-accent-violet/20 to-primary/20 border border-border p-8 rounded-3xl relative overflow-hidden animate-slide-up">
+                    <div className="bg-gradient-to-r from-primary/20 to-primary/20 border border-border p-8 rounded-3xl relative overflow-hidden animate-slide-up">
                         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-accent-crystal">
+                                <div className="flex items-center gap-2 text-primary">
                                     <Crown className="w-5 h-5" />
                                     <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Enterprise Growth</span>
                                 </div>
                                 <h4 className="text-2xl font-bold text-foreground">Need custom quotas?</h4>
                                 <p className="text-sm text-muted-foreground max-w-md">Scale to millions of monthly leads with custom RAG persistence and dedicated infrastructure.</p>
                             </div>
-                            <Button className="bg-white text-slate-950 hover:bg-white/90 font-bold px-8">Talk to Sales</Button>
+                            <Button className="bg-card text-foreground hover:bg-foreground/90 font-bold px-8">Talk to Sales</Button>
                         </div>
                         {/* Decorative Gradient Blob */}
-                        <div className="absolute top-[-50%] right-[-10%] w-64 h-64 bg-accent-violet/30 rounded-full blur-[80px] pointer-events-none" />
+                        <div className="absolute top-[-50%] right-[-10%] w-64 h-64 bg-primary/30 rounded-full blur-[80px] pointer-events-none" />
                     </div>
                 </div>
             </div>

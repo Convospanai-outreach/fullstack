@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 
 export default function FAQSection() {
     return (
-        <section className="py-24 bg-gradient-to-b from-transparent to-black/20">
+        <section className="py-24 bg-gradient-to-b from-transparent to-foreground/20">
             <SectionTitle title="Frequently Asked Questions" />
 
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,14 +54,14 @@ function FAQItem({ question, answer }: { question: string, answer: string }) {
     // Simple state interaction could be added here, 
     // relying on <details/summary> for native accordion behavior for simplicity & SEO
     return (
-        <details className="group bg-white/5 border border-white/10 rounded-lg overflow-hidden transition-all duration-300 open:bg-white/10">
+        <details className="group bg-foreground/5 border border-foreground/10 rounded-lg overflow-hidden transition-all duration-300 open:bg-foreground/10">
             <summary className="flex items-center justify-between p-6 cursor-pointer list-none">
-                <h3 className="text-lg font-medium text-white">{question}</h3>
-                <span className="text-blue-400 transition-transform duration-300 group-open:rotate-45">
+                <h3 className="text-lg font-medium text-foreground">{question}</h3>
+                <span className="text-primary transition-transform duration-300 group-open:rotate-45">
                     <Plus className="w-5 h-5" />
                 </span>
             </summary>
-            <div className="px-6 pb-6 text-gray-400 leading-relaxed animate-in slide-in-from-top-2 opacity-100">
+            <div className="px-6 pb-6 text-muted-foreground leading-relaxed animate-in slide-in-from-top-2 opacity-100">
                 {answer}
             </div>
         </details>

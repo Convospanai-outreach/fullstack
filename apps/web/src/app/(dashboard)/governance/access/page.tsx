@@ -79,7 +79,7 @@ export default function AccessControlPage() {
                                         <tr key={member.id} className="hover:bg-accent transition-colors group">
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary/20 to-accent-violet/20 flex items-center justify-center text-foreground font-bold border border-border shadow-sm">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary/20 to-primary/20 flex items-center justify-center text-foreground font-bold border border-border shadow-sm">
                                                         {member.user?.image ? (
                                                             <img src={member.user.image} alt="" className="w-full h-full rounded-xl object-cover" />
                                                         ) : (
@@ -108,7 +108,7 @@ export default function AccessControlPage() {
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-success" />
                                                     <span className="text-xs text-muted-foreground">Enforced</span>
                                                 </div>
                                             </td>

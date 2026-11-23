@@ -9,7 +9,7 @@ export function PrimaryButton({ children, className, ...props }: PrimaryButtonPr
     return (
         <button
             className={cn(
-                "px-5 py-2 rounded-xl bg-accent-blue text-white font-medium shadow-glow hover:scale-[1.02] transition ease-smooth duration-200",
+                "px-5 py-2 rounded-[2px] bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition ease-smooth duration-200",
                 className
             )}
             {...props}

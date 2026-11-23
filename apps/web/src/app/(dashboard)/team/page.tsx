@@ -75,13 +75,13 @@ export default function TeamPage() {
                 <div className="flex gap-2 bg-muted p-1 rounded-lg">
                     <button
                         onClick={() => setActiveTab('members')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'members' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'members' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Members
                     </button>
                     <button
                         onClick={() => setActiveTab('policy')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'policy' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'policy' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Policies
                     </button>
@@ -100,7 +100,7 @@ export default function TeamPage() {
                                     {members.map(m => (
                                         <div key={m.id} className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-accent-violet/20 flex items-center justify-center text-accent-violet font-bold">
+                                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                                                     {m.email[0].toUpperCase()}
                                                 </div>
                                                 <div>
@@ -108,7 +108,7 @@ export default function TeamPage() {
                                                     <div className="text-xs text-muted-foreground capitalize">{m.role} • {m.status}</div>
                                                 </div>
                                             </div>
-                                            <button className="text-xs text-muted-foreground hover:text-red-400">Remove</button>
+                                            <button className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
                                         </div>
                                     ))}
                                 </div>

@@ -31,15 +31,15 @@ const FIELD_TYPES: { value: LeadFormField["type"]; label: string }[] = [
     { value: "checkbox", label: "Tick box" },
 ];
 
-const inputClass = "w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1 text-sm text-slate-100";
-const buttonClass = "rounded-md border border-white/10 px-2 py-1 text-xs text-slate-200 hover:bg-white/10 disabled:opacity-40";
+const inputClass = "w-full rounded-md border border-foreground/10 bg-background px-2 py-1 text-sm text-foreground";
+const buttonClass = "rounded-md border border-foreground/10 px-2 py-1 text-xs text-foreground hover:bg-foreground/10 disabled:opacity-40";
 
 export default function LeadFormSettingsPanel({ config, onApply }: Props) {
     const [draft, setDraft] = useState<LeadFormConfig | null>(config);
 
     if (!draft) {
         return (
-            <div className="space-y-2 text-sm text-slate-300">
+            <div className="space-y-2 text-sm text-foreground/80">
                 <p>This form block is damaged and will not show. Reset it to the default form.</p>
                 <button type="button" className={buttonClass} onClick={() => onApply(LEAD_FORM_DEFAULT_CONFIG)}>
                     Reset to default form
@@ -56,11 +56,11 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
     }
 
     return (
-        <div className="space-y-3 text-sm text-slate-200">
+        <div className="space-y-3 text-sm text-foreground">
             {draft.fields.map((field, index) => (
-                <div key={index} className="space-y-2 rounded-lg border border-white/10 p-2">
+                <div key={index} className="space-y-2 rounded-lg border border-foreground/10 p-2">
                     <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-400">Field {index + 1}</span>
+                        <span className="text-xs text-muted-foreground">Field {index + 1}</span>
                         <div className="flex gap-1">
                             <button type="button" className={buttonClass} disabled={index === 0} onClick={() => change(moveLeadFormField(draft, index, -1))}>
                                 Up
@@ -79,16 +79,16 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                         </div>
                     </div>
                     <label className="block space-y-1">
-                        <span className="text-xs text-slate-400">Label</span>
+                        <span className="text-xs text-muted-foreground">Label</span>
                         <input className={inputClass} value={field.label} onChange={(e) => change(updateLeadFormField(draft, index, { label: e.target.value }))} />
                     </label>
                     <label className="block space-y-1">
-                        <span className="text-xs text-slate-400">Data key: name, email, phone, company or title fill the lead&apos;s own fields; other names are stored as answers</span>
+                        <span className="text-xs text-muted-foreground">Data key: name, email, phone, company or title fill the lead&apos;s own fields; other names are stored as answers</span>
                         <input className={inputClass} value={field.key} onChange={(e) => change(updateLeadFormField(draft, index, { key: e.target.value }))} />
                     </label>
                     <div className="flex items-center gap-3">
                         <label className="flex-1 space-y-1">
-                            <span className="text-xs text-slate-400">Type</span>
+                            <span className="text-xs text-muted-foreground">Type</span>
                             <select
                                 className={inputClass}
                                 value={field.type}
@@ -101,7 +101,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                                 ))}
                             </select>
                         </label>
-                        <label className="flex items-center gap-2 pt-4 text-xs text-slate-300">
+                        <label className="flex items-center gap-2 pt-4 text-xs text-foreground/80">
                             <input
                                 type="checkbox"
                                 checked={field.required}
@@ -112,7 +112,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                     </div>
                     {field.type === "select" ? (
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Choices, one per line (up to 10)</span>
+                            <span className="text-xs text-muted-foreground">Choices, one per line (up to 10)</span>
                             <textarea
                                 className={inputClass}
                                 rows={3}
@@ -129,11 +129,11 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
             </button>
 
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Button text</span>
+                <span className="text-xs text-muted-foreground">Button text</span>
                 <input className={inputClass} value={draft.buttonLabel} onChange={(e) => change(setLeadFormSetting(draft, { buttonLabel: e.target.value }))} />
             </label>
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Message after submitting</span>
+                <span className="text-xs text-muted-foreground">Message after submitting</span>
                 <textarea
                     className={inputClass}
                     rows={2}
@@ -142,7 +142,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                 />
             </label>
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Go to this https link after submitting (optional)</span>
+                <span className="text-xs text-muted-foreground">Go to this https link after submitting (optional)</span>
                 <input
                     className={inputClass}
                     placeholder="https://"
@@ -152,7 +152,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
             </label>
 
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Book a call button on the thank-you page, https link (optional)</span>
+                <span className="text-xs text-muted-foreground">Book a call button on the thank-you page, https link (optional)</span>
                 <input
                     className={inputClass}
                     placeholder="https://"
@@ -162,7 +162,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
             </label>
 
             <label className="block space-y-1">
-                <span className="text-xs text-slate-400">Instagram handle for a follow button on the thank-you page (optional, without the @)</span>
+                <span className="text-xs text-muted-foreground">Instagram handle for a follow button on the thank-you page (optional, without the @)</span>
                 <input
                     className={inputClass}
                     placeholder="yourhandle"
@@ -171,16 +171,16 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                 />
             </label>
 
-            <div className="space-y-3 rounded-lg border border-white/10 p-2">
-                <p className="text-xs font-medium text-slate-200">Consent</p>
-                <label className="flex items-center gap-2 text-xs text-slate-300">
+            <div className="space-y-3 rounded-lg border border-foreground/10 p-2">
+                <p className="text-xs font-medium text-foreground">Consent</p>
+                <label className="flex items-center gap-2 text-xs text-foreground/80">
                     <input type="checkbox" checked={Boolean(draft.consent?.enabled)} onChange={(e) => change(setLeadFormConsent(draft, { enabled: e.target.checked }))} />
                     Consent checkbox on the form
                 </label>
                 {draft.consent?.enabled ? (
                     <>
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Consent checkbox wording (plain text, up to 300 characters)</span>
+                            <span className="text-xs text-muted-foreground">Consent checkbox wording (plain text, up to 300 characters)</span>
                             <textarea
                                 name="consentText"
                                 className={inputClass}
@@ -189,7 +189,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                                 onChange={(e) => change(setLeadFormConsent(draft, { text: e.target.value }))}
                             />
                         </label>
-                        <label className="flex items-center gap-2 text-xs text-slate-300">
+                        <label className="flex items-center gap-2 text-xs text-foreground/80">
                             <input
                                 type="checkbox"
                                 checked={draft.consent.required !== false}
@@ -198,7 +198,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                             Required: visitors must tick it before they send the form
                         </label>
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Privacy policy link, https (optional)</span>
+                            <span className="text-xs text-muted-foreground">Privacy policy link, https (optional)</span>
                             <input
                                 className={inputClass}
                                 placeholder="https://"
@@ -207,7 +207,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                             />
                         </label>
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Data deletion link, https (optional; empty uses the page built into the product)</span>
+                            <span className="text-xs text-muted-foreground">Data deletion link, https (optional; empty uses the page built into the product)</span>
                             <input
                                 className={inputClass}
                                 placeholder="https://"
@@ -216,7 +216,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                             />
                         </label>
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Data deletion steps, plain text (optional, up to 2000 characters)</span>
+                            <span className="text-xs text-muted-foreground">Data deletion steps, plain text (optional, up to 2000 characters)</span>
                             <textarea
                                 name="deletionSteps"
                                 className={inputClass}
@@ -226,7 +226,7 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                             />
                         </label>
                         <label className="block space-y-1">
-                            <span className="text-xs text-slate-400">Contact email for deletion requests (optional)</span>
+                            <span className="text-xs text-muted-foreground">Contact email for deletion requests (optional)</span>
                             <input
                                 className={inputClass}
                                 placeholder="privacy@yourdomain.com"
@@ -236,18 +236,18 @@ export default function LeadFormSettingsPanel({ config, onApply }: Props) {
                         </label>
                     </>
                 ) : null}
-                <p className="text-xs text-amber-200">You are responsible for the consent wording, your privacy policy and handling deletion requests.</p>
+                <p className="text-xs text-warning">You are responsible for the consent wording, your privacy policy and handling deletion requests.</p>
                 {!draft.consent?.enabled ? (
-                    <p className="text-xs text-amber-200">
+                    <p className="text-xs text-warning">
                         Without a consent checkbox, automatic follow-up emails and ad tracking run for every sign-up on this page. Turn the checkbox on if you need visitors to agree first.
                     </p>
                 ) : null}
                 {draft.consent?.enabled && !draft.consent.privacyUrl ? (
-                    <p className="text-xs text-amber-200">Add a privacy policy link: the consent wording refers to your privacy policy.</p>
+                    <p className="text-xs text-warning">Add a privacy policy link: the consent wording refers to your privacy policy.</p>
                 ) : null}
             </div>
 
-            {problem ? <p className="text-xs text-rose-300">{problem} (not saved to the page until fixed)</p> : null}
+            {problem ? <p className="text-xs text-chart-4">{problem} (not saved to the page until fixed)</p> : null}
         </div>
     );
 }

@@ -35,21 +35,21 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
         >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
                 onClick={onClose}
             />
 
             {/* Menu Panel */}
             <div
-                className={`relative w-full max-w-xs h-full bg-slate-900/95 border-l border-white/10 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? "translate-x-0" : "translate-x-full"
+                className={`relative w-full max-w-xs h-full bg-background/95 border-l border-foreground/10 shadow-2xl transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? "translate-x-0" : "translate-x-full"
                     }`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-6 flex items-center justify-between border-b border-white/10">
-                    <span className="text-xl font-bold text-white">Menu</span>
+                <div className="p-6 flex items-center justify-between border-b border-foreground/10">
+                    <span className="text-xl font-bold text-foreground">Menu</span>
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                        className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-foreground/5"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -77,8 +77,8 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
                                 href={link.href}
                                 onClick={onClose}
                                 className={`block px-4 py-3 rounded-xl text-base font-medium transition-all ${isActive
-                                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
-                                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                                    ? "bg-primary/20 text-primary border border-primary/30"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                                     }`}
                             >
                                 {link.label}
@@ -86,34 +86,34 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
                         );
                     })}
 
-                    <div className="my-6 border-t border-white/10" />
+                    <div className="my-6 border-t border-foreground/10" />
 
                     <Link
                         href="/settings"
                         onClick={onClose}
-                        className="block px-4 py-3 rounded-xl text-base font-medium text-gray-400 hover:text-white hover:bg-white/5"
+                        className="block px-4 py-3 rounded-xl text-base font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     >
                         Settings
                     </Link>
                     <Link
                         href="/help"
                         onClick={onClose}
-                        className="block px-4 py-3 rounded-xl text-base font-medium text-gray-400 hover:text-white hover:bg-white/5"
+                        className="block px-4 py-3 rounded-xl text-base font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     >
                         Help & Support
                     </Link>
                 </div>
 
-                <div className="p-6 border-t border-white/10 bg-black/20">
+                <div className="p-6 border-t border-foreground/10 bg-foreground/20">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 p-[2px]">
-                            <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
-                                <span className="text-sm font-bold text-white">JD</span>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-primary/60 p-[2px]">
+                            <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
+                                <span className="text-sm font-bold text-foreground">JD</span>
                             </div>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-white">John Doe</p>
-                            <p className="text-xs text-gray-400">john@example.com</p>
+                            <p className="text-sm font-medium text-foreground">John Doe</p>
+                            <p className="text-xs text-muted-foreground">john@example.com</p>
                         </div>
                     </div>
                 </div>

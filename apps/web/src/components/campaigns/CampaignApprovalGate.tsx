@@ -84,12 +84,12 @@ export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
     if (!data || data.requests.length === 0) return null;
 
     return (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3" aria-label="Actions waiting for review">
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-3" aria-label="Actions waiting for review">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                <ShieldAlert className="w-4 h-4 text-warning" />
                 {data.requests.length === 1 ? "1 action requires review" : `${data.requests.length} actions require review`}
             </h2>
-            {data.capped && <p className="text-xs text-amber-600">This campaign is large, so only the newest requests are shown. Older ones may be missing.</p>}
+            {data.capped && <p className="text-xs text-warning">This campaign is large, so only the newest requests are shown. Older ones may be missing.</p>}
             <ul className="space-y-3">
                 {data.requests.map((request) => (
                     <li key={request.requestId} className="rounded-md border border-border bg-card p-3 text-xs space-y-2">

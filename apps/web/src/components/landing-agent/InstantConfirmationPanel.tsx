@@ -148,10 +148,10 @@ export default function InstantConfirmationPanel({
                     >
                         {saving ? "Saving..." : "Save instant confirmation"}
                     </button>
-                    {message ? <p className={`text-sm ${message.ok ? "text-emerald-600" : "text-destructive"}`}>{message.text}</p> : null}
+                    {message ? <p className={`text-sm ${message.ok ? "text-success" : "text-destructive"}`}>{message.text}</p> : null}
                 </div>
                 {warnings.length > 0 ? (
-                    <ul className="space-y-1 text-sm text-amber-700">
+                    <ul className="space-y-1 text-sm text-warning">
                         {warnings.map((warning) => (
                             <li key={warning}>{warning}</li>
                         ))}

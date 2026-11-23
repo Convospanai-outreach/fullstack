@@ -102,7 +102,7 @@ export default function GuardrailsPage() {
                 {/* PII & Sensitivity */}
                 <GlassCard className="p-6 space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <Shield className="w-5 h-5 text-emerald-400" />
+                        <Shield className="w-5 h-5 text-success" />
                         <h3 className="font-bold text-foreground">Core Safety</h3>
                     </div>
 
@@ -119,7 +119,7 @@ export default function GuardrailsPage() {
                                     checked={config.detectPII}
                                     onChange={(e) => setConfig({ ...config, detectPII: e.target.checked })}
                                 />
-                                <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-success"></div>
                             </label>
                         </div>
 
@@ -141,7 +141,7 @@ export default function GuardrailsPage() {
                 {/* Keyword Blocklist */}
                 <GlassCard className="p-6 space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <Lock className="w-5 h-5 text-red-400" />
+                        <Lock className="w-5 h-5 text-destructive" />
                         <h3 className="font-bold text-foreground">Blocked Keywords</h3>
                     </div>
 
@@ -152,7 +152,7 @@ export default function GuardrailsPage() {
                                 onChange={(e) => setNewKeyword(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addItem('blocklist', newKeyword, setNewKeyword)}
                                 placeholder="Add word to block..."
-                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-red-500"
+                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-destructive/30"
                             />
                             <button
                                 onClick={() => addItem('blocklist', newKeyword, setNewKeyword)}
@@ -164,7 +164,7 @@ export default function GuardrailsPage() {
 
                         <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
                             {config.blocklist.map((word: string, idx: number) => (
-                                <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded text-xs">
+                                <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive border border-destructive/20 rounded text-xs">
                                     {word}
                                     <button onClick={() => removeItem('blocklist', idx)}><X className="w-3 h-3 hover:text-foreground" /></button>
                                 </span>
@@ -177,7 +177,7 @@ export default function GuardrailsPage() {
                 {/* Competitor Watch */}
                 <GlassCard className="p-6 space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        <AlertTriangle className="w-5 h-5 text-warning" />
                         <h3 className="font-bold text-foreground">Competitor Watch</h3>
                     </div>
 
@@ -188,7 +188,7 @@ export default function GuardrailsPage() {
                                 onChange={(e) => setNewCompetitor(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && addItem('competitorMentions', newCompetitor, setNewCompetitor)}
                                 placeholder="Add competitor name..."
-                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-amber-500"
+                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-warning/30"
                             />
                             <button
                                 onClick={() => addItem('competitorMentions', newCompetitor, setNewCompetitor)}
@@ -200,7 +200,7 @@ export default function GuardrailsPage() {
 
                         <div className="flex flex-wrap gap-2">
                             {config.competitorMentions.map((word: string, idx: number) => (
-                                <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded text-xs">
+                                <span key={idx} className="flex items-center gap-1 px-2 py-1 bg-warning/10 text-warning border border-warning/20 rounded text-xs">
                                     {word}
                                     <button onClick={() => removeItem('competitorMentions', idx)}><X className="w-3 h-3 hover:text-foreground" /></button>
                                 </span>
@@ -212,7 +212,7 @@ export default function GuardrailsPage() {
                 {/* Advanced Regex */}
                 <GlassCard className="p-6 space-y-6">
                     <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <Regex className="w-5 h-5 text-purple-400" />
+                        <Regex className="w-5 h-5 text-primary" />
                         <h3 className="font-bold text-foreground">Custom Patterns (Regex)</h3>
                     </div>
 
@@ -222,7 +222,7 @@ export default function GuardrailsPage() {
                                 value={newRegex}
                                 onChange={(e) => setNewRegex(e.target.value)}
                                 placeholder="e.g. ^CONFIDENTIAL.*"
-                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-purple-500"
+                                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:border-primary/30"
                             />
                             <button
                                 onClick={() => addItem('regexRules', newRegex, setNewRegex)}
@@ -234,7 +234,7 @@ export default function GuardrailsPage() {
 
                         <div className="space-y-2">
                             {config.regexRules.map((rule: string, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between px-3 py-2 bg-purple-500/5 border border-purple-500/10 rounded text-xs font-mono text-foreground">
+                                <div key={idx} className="flex items-center justify-between px-3 py-2 bg-primary/5 border border-primary/10 rounded text-xs font-mono text-foreground">
                                     {rule}
                                     <button onClick={() => removeItem('regexRules', idx)}><X className="w-3 h-3 hover:text-foreground" /></button>
                                 </div>
@@ -248,7 +248,7 @@ export default function GuardrailsPage() {
                 <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
+                    className="bg-success hover:bg-success disabled:bg-success/30 text-primary-foreground font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-success/20 flex items-center gap-2"
                 >
                     <Save className="w-4 h-4" />
                     {saving ? "Saving Policies..." : "Enforce Policies"}

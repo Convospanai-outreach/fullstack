@@ -8,7 +8,7 @@ interface SkeletonProps {
 
 export function Skeleton({ className = '' }: SkeletonProps) {
     return (
-        <div className={`relative overflow-hidden bg-white/5 rounded-lg ${className}`}>
+        <div className={`relative overflow-hidden bg-foreground/5 rounded-lg ${className}`}>
             <div className="absolute inset-0 shimmer" />
         </div>
     );

@@ -75,7 +75,7 @@ export default function AgentSettingsPage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
     }
@@ -90,7 +90,7 @@ export default function AgentSettingsPage() {
             <div className="grid gap-6">
                 {/* Tone Preference */}
                 <GlassCard className="p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-purple-400 font-semibold">
+                    <div className="flex items-center gap-2 text-primary font-semibold">
                         <MessageSquare className="w-5 h-5" />
                         <h3>Tone of Voice</h3>
                     </div>
@@ -99,22 +99,22 @@ export default function AgentSettingsPage() {
                         <textarea
                             value={settings.tone_preference}
                             onChange={(e) => setSettings({ ...settings, tone_preference: e.target.value })}
-                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-purple-500 h-24"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-primary/30 h-24"
                             placeholder="Example: Keep it professional but witty. Use clear, concise language."
                         />
                         <button
                             onClick={() => handleSave("tone_preference", settings.tone_preference)}
                             disabled={saving}
-                            className="self-end p-3 bg-purple-600 rounded-xl hover:bg-purple-700 transition disabled:opacity-50"
+                            className="self-end p-3 bg-primary rounded-xl hover:bg-primary/90 transition disabled:opacity-50"
                         >
-                            <Save className="w-5 h-5 text-white" />
+                            <Save className="w-5 h-5 text-foreground" />
                         </button>
                     </div>
                 </GlassCard>
 
                 {/* Value Propositions */}
                 <GlassCard className="p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-blue-400 font-semibold">
+                    <div className="flex items-center gap-2 text-primary font-semibold">
                         <Sparkles className="w-5 h-5" />
                         <h3>Core Value Propositions</h3>
                     </div>
@@ -123,22 +123,22 @@ export default function AgentSettingsPage() {
                         <textarea
                             value={settings.value_propositions}
                             onChange={(e) => setSettings({ ...settings, value_propositions: e.target.value })}
-                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-blue-500 h-32"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-primary/30 h-32"
                             placeholder="Example: We reduce outreach time by 70%. We provide 99% accurate lead data."
                         />
                         <button
                             onClick={() => handleSave("value_propositions", settings.value_propositions)}
                             disabled={saving}
-                            className="self-end p-3 bg-blue-600 rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
+                            className="self-end p-3 bg-primary rounded-xl hover:bg-primary/90 transition disabled:opacity-50"
                         >
-                            <Save className="w-5 h-5 text-white" />
+                            <Save className="w-5 h-5 text-foreground" />
                         </button>
                     </div>
                 </GlassCard>
 
                 {/* Forbidden Words */}
                 <GlassCard className="p-6 space-y-4">
-                    <div className="flex items-center gap-2 text-red-400 font-semibold">
+                    <div className="flex items-center gap-2 text-destructive font-semibold">
                         <AlertCircle className="w-5 h-5" />
                         <h3>Guardrails (Negative Constraints)</h3>
                     </div>
@@ -147,15 +147,15 @@ export default function AgentSettingsPage() {
                         <textarea
                             value={settings.forbidden_words}
                             onChange={(e) => setSettings({ ...settings, forbidden_words: e.target.value })}
-                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-red-500 h-24"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-destructive/30 h-24"
                             placeholder="Example: Never mention pricing in the first email. Avoid using the word 'partnership'."
                         />
                         <button
                             onClick={() => handleSave("forbidden_words", settings.forbidden_words)}
                             disabled={saving}
-                            className="self-end p-3 bg-red-600 rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+                            className="self-end p-3 bg-destructive rounded-xl hover:bg-destructive/90 transition disabled:opacity-50"
                         >
-                            <Save className="w-5 h-5 text-white" />
+                            <Save className="w-5 h-5 text-foreground" />
                         </button>
                     </div>
                 </GlassCard>

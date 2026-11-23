@@ -42,21 +42,21 @@ export function QuickActions() {
             href: "/campaigns/new",
             icon: Zap,
             desc: "Create a new outreach campaign workflow.",
-            color: "text-blue-400"
+            color: "text-primary"
         },
         {
             label: "Import Leads",
             href: "/leads",
             icon: Upload,
             desc: "Upload a CSV or confirm audience data before launch.",
-            color: "text-emerald-400"
+            color: "text-success"
         },
         {
             label: "Build ICP",
             href: "/icp-builder",
             icon: Target,
             desc: "Define the audience profile before you create outreach.",
-            color: "text-fuchsia-400",
+            color: "text-primary",
             ai: true
         }
     ];
@@ -68,7 +68,7 @@ export function QuickActions() {
                 type="button"
                 onClick={() => setIsOpen((current) => !current)}
                 aria-haspopup="true"
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500"
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary"
             >
                 <Plus className="h-4 w-4" />
                 <span>Create</span>
@@ -99,7 +99,7 @@ export function QuickActions() {
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium text-foreground">{action.label}</span>
                                             {action.ai && (
-                                                <span className="flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] text-fuchsia-300">
+                                                <span className="flex items-center gap-1 rounded border border-primary/30 bg-primary/20 px-1.5 py-0.5 text-[10px] text-primary">
                                                     <Sparkles className="h-3 w-3" /> AI
                                                 </span>
                                             )}

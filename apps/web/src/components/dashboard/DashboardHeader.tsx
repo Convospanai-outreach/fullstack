@@ -29,7 +29,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
   return (
-    <header className="fixed top-0 left-0 lg:left-48 right-0 h-12 border-b border-border z-40 flex items-center gap-3 px-5 bg-background/90 backdrop-blur-md">
+    <header className="fixed top-0 left-0 lg:left-[232px] right-0 h-14 border-b border-border z-40 flex items-center gap-3.5 px-7 bg-[var(--header-bg)] backdrop-blur-[16px]">
       {/* Left: mobile hamburger */}
       <button
         onClick={onToggleSidebar}
@@ -41,8 +41,8 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
 
       {/* Center: single search trigger */}
       <button
-        className="flex items-center gap-2 px-3 h-8 rounded-md text-xs text-muted-foreground
-                   bg-muted border border-border hover:bg-accent transition-colors flex-1 max-w-64"
+        className="glass flex items-center gap-2 px-3 h-9 rounded-[3px] text-[13px] text-muted-foreground
+                   focus-visible:ring-2 focus-visible:ring-ring transition-colors flex-1 max-w-[300px]"
         onClick={() => {
           // Open the Omnibox — uses the same ⌘K shortcut mechanism
           window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
@@ -51,7 +51,7 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
       >
         <Search className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="flex-1 text-left truncate">Search leads, campaigns…</span>
-        <kbd className="ml-auto text-[10px] bg-muted rounded px-1.5 hidden sm:inline">⌘K</kbd>
+        <kbd className="ml-auto text-[11px] border border-border rounded-[3px] px-1.5 hidden sm:inline">⌘K</kbd>
       </button>
 
       {/* Right zone: status dropdown + theme toggle + bell + help */}

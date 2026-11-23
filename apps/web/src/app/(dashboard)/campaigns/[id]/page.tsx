@@ -28,7 +28,7 @@ import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // const ThreeAnalytics = dynamic(() => import("@/components/campaigns/ThreeAnalytics"), {
 //     ssr: false,
-//     loading: () => <div className="h-[400px] w-full bg-gray-50 animate-pulse rounded-lg" />
+//     loading: () => <div className="h-[400px] w-full bg-card animate-pulse rounded-lg" />
 // });
 
 export default function CampaignDetailPage({
@@ -270,7 +270,7 @@ export default function CampaignDetailPage({
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
                     <p className="mt-2 text-muted-foreground">Loading campaign...</p>
                 </div>
             </div>
@@ -281,10 +281,10 @@ export default function CampaignDetailPage({
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-red-500 mb-4">{error || "Campaign not found"}</p>
+                    <p className="text-destructive mb-4">{error || "Campaign not found"}</p>
                     <button
                         onClick={() => router.push("/campaigns")}
-                        className="text-purple-400 hover:text-purple-300"
+                        className="text-primary hover:text-primary"
                     >
                         Back to campaigns
                     </button>
@@ -299,7 +299,7 @@ export default function CampaignDetailPage({
                 <div className="mb-6">
                     <button
                         onClick={() => router.push("/campaigns")}
-                        className="text-purple-400 hover:text-purple-300 mb-4 flex items-center gap-1 text-sm font-semibold transition-colors"
+                        className="text-primary hover:text-primary mb-4 flex items-center gap-1 text-sm font-semibold transition-colors"
                     >
                         ← Back to campaigns
                     </button>
@@ -316,7 +316,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, name: e.target.value })
                                         }
-                                        className="text-3xl font-bold w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="text-3xl font-bold w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     />
                                     <textarea
                                         title="Campaign description"
@@ -325,7 +325,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, description: e.target.value })
                                         }
-                                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                         rows={2}
                                     />
                                     <input
@@ -339,7 +339,7 @@ export default function CampaignDetailPage({
                                                 targetCount: parseInt(e.target.value) || 0,
                                             })
                                         }
-                                        className="w-32 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-32 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     />
                                     <select
                                         title="Draft generation"
@@ -348,7 +348,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, draftGenerationMode: e.target.value as "REALTIME" | "BATCH" })
                                         }
-                                        className="block w-64 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-60"
+                                        className="block w-64 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
                                     >
                                         <option value="REALTIME">Draft generation: Instant</option>
                                         <option value="BATCH">Draft generation: Batch (cheaper, slower)</option>
@@ -356,7 +356,7 @@ export default function CampaignDetailPage({
                                     <div className="space-x-2">
                                         <button
                                             onClick={handleSaveEdit}
-                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                                            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition"
                                         >
                                             Save
                                         </button>
@@ -389,7 +389,7 @@ export default function CampaignDetailPage({
                         </div>
                         <div className="ml-4 flex items-center gap-2">
                             {campaign.sourcePipelineStage && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-amber-500/10 text-amber-400">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-warning/10 text-warning">
                                     Recovery: {campaign.sourcePipelineStage}
                                 </span>
                             )}
@@ -408,7 +408,7 @@ export default function CampaignDetailPage({
                                 className={`
                                     whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors
                                     ${activeTab === tab
-                                        ? "border-purple-500 text-purple-400"
+                                        ? "border-primary/30 text-primary"
                                         : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                                     }
                                 `}
@@ -446,9 +446,9 @@ export default function CampaignDetailPage({
                                                 <button
                                                     onClick={handleStart}
                                                     disabled={starting || !!checkCampaignPolicy(campaign)}
-                                                    className={`px-4 py-2 rounded-lg text-white transition ${checkCampaignPolicy(campaign) || starting
-                                                        ? "bg-zinc-600 cursor-not-allowed opacity-50"
-                                                        : "bg-emerald-600 hover:bg-emerald-700"
+                                                    className={`px-4 py-2 rounded-lg text-primary-foreground transition ${checkCampaignPolicy(campaign) || starting
+                                                        ? "bg-secondary cursor-not-allowed opacity-50"
+                                                        : "bg-success hover:bg-success/90"
                                                         }`}
                                                 >
                                                     {starting ? "Starting…" : "Activate"}
@@ -458,7 +458,7 @@ export default function CampaignDetailPage({
                                         {campaign.status === "active" && (
                                             <button
                                                 onClick={() => handleStatusChange("paused")}
-                                                className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition"
+                                                className="bg-warning text-primary-foreground px-4 py-2 rounded-lg hover:bg-warning/90 transition"
                                             >
                                                 Pause
                                             </button>
@@ -467,7 +467,7 @@ export default function CampaignDetailPage({
                                             <PolicyGuard restriction="none">
                                                 <button
                                                     onClick={() => handleStatusChange("active")}
-                                                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
+                                                    className="bg-success text-primary-foreground px-4 py-2 rounded-lg hover:bg-success/90 transition"
                                                 >
                                                     Resume
                                                 </button>
@@ -476,20 +476,20 @@ export default function CampaignDetailPage({
                                         {campaign.status !== "completed" && (
                                             <button
                                                 onClick={() => handleStatusChange("completed")}
-                                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+                                                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition"
                                             >
                                                 Mark Complete
                                             </button>
                                         )}
                                         <button
                                             onClick={handleDelete}
-                                            className="bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 transition"
+                                            className="bg-chart-4 text-primary-foreground px-4 py-2 rounded-lg hover:bg-chart-4/90 transition"
                                         >
                                             Delete Campaign
                                         </button>
                                         <button
                                             onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                                            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition"
                                         >
                                             Import Leads
                                         </button>
@@ -518,7 +518,7 @@ export default function CampaignDetailPage({
                                                     </div>
                                                     <button
                                                         onClick={() => handleAttachmentDelete(a.id)}
-                                                        className="text-rose-500 hover:text-rose-400 text-sm font-medium ml-3 shrink-0"
+                                                        className="text-chart-4 hover:text-chart-4 text-sm font-medium ml-3 shrink-0"
                                                     >
                                                         Remove
                                                     </button>
@@ -621,7 +621,7 @@ export default function CampaignDetailPage({
                                                         {lead.email || "—"}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-sm">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-500/10 text-purple-400">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-primary/10 text-primary">
                                                             {lead.status}
                                                         </span>
                                                     </td>
@@ -635,7 +635,7 @@ export default function CampaignDetailPage({
                                     <p className="text-muted-foreground mb-4">No leads assigned yet.</p>
                                     <button
                                         onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold transition"
+                                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 text-sm font-semibold transition"
                                     >
                                         Import Leads via CSV
                                     </button>
@@ -681,15 +681,15 @@ export default function CampaignDetailPage({
                     {activeTab === "analytics" && (
                         <div className="lg:col-span-3">
                             <div className="flex items-center justify-end mb-4 gap-3 bg-muted p-3 rounded-lg border border-border">
-                                <span className={`text-sm font-medium ${!is3DMode ? "text-purple-400" : "text-muted-foreground"}`}>2D Charts</span>
+                                <span className={`text-sm font-medium ${!is3DMode ? "text-primary" : "text-muted-foreground"}`}>2D Charts</span>
                                 <button
                                     onClick={() => setIs3DMode(!is3DMode)}
                                     aria-label={is3DMode ? "Switch to 2D charts" : "Switch to 3D immersive view"}
-                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-muted"}`}
+                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40 ${is3DMode ? "bg-primary" : "bg-muted"}`}
                                 >
-                                    <span className={`block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${is3DMode ? "translate-x-7" : "translate-x-0"}`} />
+                                    <span className={`block w-5 h-5 rounded-full bg-card shadow-md transform transition-transform duration-300 ${is3DMode ? "translate-x-7" : "translate-x-0"}`} />
                                 </button>
-                                <span className={`text-sm font-medium ${is3DMode ? "text-purple-400 shimmer-text" : "text-muted-foreground"}`}>3D Immersive</span>
+                                <span className={`text-sm font-medium ${is3DMode ? "text-primary shimmer-text" : "text-muted-foreground"}`}>3D Immersive</span>
                             </div>
 
                             {analytics ? (
@@ -698,7 +698,7 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <div className="flex h-[400px] items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary/30"></div>
                                 </div>
                             )}
                         </div>

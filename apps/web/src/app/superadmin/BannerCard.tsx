@@ -55,7 +55,7 @@ export default function BannerCard({ onLoggedOut }: { onLoggedOut: () => void })
   return (
     <GlassCard className="p-5">
       <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
-        <Megaphone className="h-4 w-4 text-cyan-400" /> Notice to all users
+        <Megaphone className="h-4 w-4 text-primary" /> Notice to all users
       </h3>
       <p className="mb-3 text-xs text-muted-foreground">
         {current?.active ? "Showing now at the top of every dashboard page." : "No notice is showing."} Maintenance notices can&apos;t be

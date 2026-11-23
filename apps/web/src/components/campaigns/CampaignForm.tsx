@@ -55,7 +55,7 @@ export default function CampaignForm({
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded">
                     {error}
                 </div>
             )}
@@ -63,7 +63,7 @@ export default function CampaignForm({
             <div>
                 <label
                     htmlFor="name"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-foreground mb-1"
                 >
                     Campaign Name *
                 </label>
@@ -72,7 +72,7 @@ export default function CampaignForm({
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/40"
                     placeholder="Q1 2025 Enterprise Outreach"
                     required
                 />
@@ -81,7 +81,7 @@ export default function CampaignForm({
             <div>
                 <label
                     htmlFor="description"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-foreground mb-1"
                 >
                     Description
                 </label>
@@ -90,7 +90,7 @@ export default function CampaignForm({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/40"
                     placeholder="Target enterprise companies in tech sector..."
                 />
             </div>
@@ -98,7 +98,7 @@ export default function CampaignForm({
             <div>
                 <label
                     htmlFor="targetCount"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-foreground mb-1"
                 >
                     Target Lead Count
                 </label>
@@ -108,7 +108,7 @@ export default function CampaignForm({
                     value={targetCount}
                     onChange={(e) => setTargetCount(parseInt(e.target.value) || 0)}
                     min="0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/40"
                     placeholder="100"
                 />
             </div>
@@ -116,7 +116,7 @@ export default function CampaignForm({
             <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed transition-colors"
             >
                 {loading ? "Saving..." : submitLabel}
             </button>

@@ -57,7 +57,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                     toast.success("Payment successful! Credits will be added shortly.");
                     onClose();
                 },
-                theme: { color: "#7c3aed" }
+                theme: { color: "#5C1A2B" }
             };
 
             const rzp = new (window as any).Razorpay(options);
@@ -69,21 +69,21 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-            <div className="glass w-full max-w-2xl p-6 rounded-2xl relative border border-purple-500/20 shadow-2xl shadow-purple-900/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/60 backdrop-blur-sm animate-in fade-in">
+            <div className="glass w-full max-w-2xl p-6 rounded-2xl relative border border-primary/20 shadow-2xl shadow-primary/40">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                    className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
                 >
                     ✕
                 </button>
 
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-500/20 mb-4">
-                        <Coins className="w-6 h-6 text-purple-400" />
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/20 mb-4">
+                        <Coins className="w-6 h-6 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-bold text-white">Top Up Credits</h2>
-                    <p className="text-gray-400">Enrich more leads and run more agents.</p>
+                    <h2 className="text-2xl font-bold text-foreground">Top Up Credits</h2>
+                    <p className="text-muted-foreground">Enrich more leads and run more agents.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -93,20 +93,20 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                             className={`
                                 relative p-4 rounded-xl border transition-all cursor-pointer hover:scale-[1.02]
                                 ${pack.popular
-                                    ? 'bg-purple-600/10 border-purple-500/50 shadow-lg shadow-purple-900/20'
-                                    : 'bg-white/5 border-white/10 hover:border-white/20'
+                                    ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/20'
+                                    : 'bg-foreground/5 border-foreground/10 hover:border-foreground/20'
                                 }
                             `}
                         >
                             {pack.popular && (
-                                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                                     Best Value
                                 </span>
                             )}
                             <div className="text-center space-y-2">
-                                <h3 className="text-xl font-bold text-white">{pack.credits}</h3>
-                                <p className="text-xs text-gray-400 uppercase tracking-wide">Credits</p>
-                                <div className="text-2xl font-bold text-purple-300">â‚¹{pack.price}</div>
+                                <h3 className="text-xl font-bold text-foreground">{pack.credits}</h3>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Credits</p>
+                                <div className="text-2xl font-bold text-primary">â‚¹{pack.price}</div>
                                 <ActionButton
                                     variant={pack.popular ? "primary" : "outline"}
                                     fullWidth
@@ -121,7 +121,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                     ))}
                 </div>
 
-                <p className="text-center text-xs text-gray-500 mt-6">
+                <p className="text-center text-xs text-muted-foreground mt-6">
                     Secured by Razorpay. Credits never expire.
                 </p>
             </div>

@@ -78,9 +78,9 @@ type RuntimeOverview = {
 };
 
 const statusClass: Record<ServiceStatus, string> = {
-  UP: "bg-emerald-400",
-  DOWN: "bg-red-400",
-  DEGRADED: "bg-amber-400",
+  UP: "bg-success/80",
+  DOWN: "bg-destructive/80",
+  DEGRADED: "bg-warning/80",
   NOT_CONFIGURED: "bg-muted-foreground",
 };
 
@@ -123,8 +123,8 @@ export default function AdminHealthPage() {
   return (
     <div className="p-8 min-h-screen bg-background relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-12%] left-[-8%] w-[48%] h-[48%] bg-cyan-900/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-12%] w-[50%] h-[50%] bg-emerald-900/20 rounded-full blur-[120px]" />
+        <div className="absolute top-[-12%] left-[-8%] w-[48%] h-[48%] bg-primary/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-12%] w-[50%] h-[50%] bg-success/20 rounded-full blur-[120px]" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto space-y-6">
@@ -152,7 +152,7 @@ export default function AdminHealthPage() {
 
         {loading && <GlassCard className="p-6 text-foreground">Loading runtime overview...</GlassCard>}
         {!loading && error && (
-          <GlassCard className="p-6 border border-red-400/20 text-red-200">
+          <GlassCard className="p-6 border border-destructive/20 text-destructive">
             Failed to load runtime overview: {error}
           </GlassCard>
         )}
@@ -167,7 +167,7 @@ export default function AdminHealthPage() {
                       <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{serviceName}</div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${
-                          service.optional && service.status !== "UP" ? "bg-amber-400" : statusClass[service.status]
+                          service.optional && service.status !== "UP" ? "bg-warning/80" : statusClass[service.status]
                         }`} />
                         <span className="text-sm font-semibold text-foreground">{service.status}</span>
                         {service.optional && (
@@ -193,7 +193,7 @@ export default function AdminHealthPage() {
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <GlassCard className="p-6 xl:col-span-2">
                 <div className="flex items-center gap-2 text-foreground">
-                  <Activity className="h-5 w-5 text-cyan-300" />
+                  <Activity className="h-5 w-5 text-primary" />
                   <h3 className="text-lg font-semibold">Data Flow</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">Lead to campaign to email to reply pipeline</p>
@@ -280,7 +280,7 @@ export default function AdminHealthPage() {
 
               <GlassCard className="p-6">
                 <div className="flex items-center gap-2 text-foreground">
-                  <Shield className="h-5 w-5 text-indigo-300" />
+                  <Shield className="h-5 w-5 text-primary" />
                   <h3 className="text-lg font-semibold">Operational Matrix</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">Queue health and event pressure points</p>
@@ -319,7 +319,7 @@ export default function AdminHealthPage() {
             </div>
 
             <GlassCard className="p-4 flex items-center gap-3 text-xs text-muted-foreground">
-              <Database className="h-4 w-4 text-cyan-300" />
+              <Database className="h-4 w-4 text-primary" />
               <span>
                 Updated {new Date(overview.timestamp).toLocaleString()} | Window start{" "}
                 {new Date(overview.windowStart).toLocaleString()}

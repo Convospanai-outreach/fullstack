@@ -63,10 +63,10 @@ export default function MarketplacePage() {
 
     const getTypeIcon = (type: string) => {
         switch (type) {
-            case 'AGENT': return <Bot className="w-4 h-4 text-purple-400" />;
-            case 'WORKFLOW': return <Zap className="w-4 h-4 text-blue-400" />;
+            case 'AGENT': return <Bot className="w-4 h-4 text-primary" />;
+            case 'WORKFLOW': return <Zap className="w-4 h-4 text-primary" />;
             case 'PLAYBOOK': return <BookOpen className="w-4 h-4 text-success" />;
-            default: return <Star className="w-4 h-4 text-yellow-400" />;
+            default: return <Star className="w-4 h-4 text-warning" />;
         }
     };
 
@@ -100,7 +100,7 @@ export default function MarketplacePage() {
                     <GlassCard key={tpl.id} className="flex flex-col h-full hover:border-primary/50 transition-colors">
                         <div className="p-6 flex-1 space-y-4">
                             <div className="flex justify-between items-start">
-                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-border">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center border border-border">
                                     {getTypeIcon(tpl.type)}
                                 </div>
                                 <span className="px-2 py-1 rounded-full text-xs font-medium bg-muted border border-border flex items-center gap-1">

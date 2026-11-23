@@ -69,10 +69,10 @@ export function ContactSupportForm() {
         <GlassCard>
             <h3 className="text-xl font-bold gradient-text mb-6">Contact Support</h3>
             {success ? (
-                <div className="p-4 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-center">
+                <div className="p-4 bg-success/20 border border-success/50 rounded-lg text-success text-center">
                     <p>{statusMessage}</p>
                     {ticketId ? (
-                        <p className="mt-2 text-xs text-green-100/90">
+                        <p className="mt-2 text-xs text-success/90">
                             Ticket ID: <span className="font-semibold">{ticketId}</span> | Status:{" "}
                             <span className="font-semibold uppercase">{ticketStatus || "submitted"}</span>
                         </p>
@@ -81,48 +81,48 @@ export function ContactSupportForm() {
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {errorMessage ? (
-                        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+                        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                             {errorMessage}
                         </div>
                     ) : null}
                     <div>
-                        <label htmlFor="support-name" className="block text-sm text-gray-400 mb-1">Name</label>
+                        <label htmlFor="support-name" className="block text-sm text-muted-foreground mb-1">Name</label>
                         <input
                             id="support-name"
                             type="text"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
                         />
                     </div>
                     <div>
-                        <label htmlFor="support-email" className="block text-sm text-gray-400 mb-1">Email</label>
+                        <label htmlFor="support-email" className="block text-sm text-muted-foreground mb-1">Email</label>
                         <input
                             id="support-email"
                             type="email"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                         />
                     </div>
                     <div>
-                        <label htmlFor="support-subject" className="block text-sm text-gray-400 mb-1">Subject</label>
+                        <label htmlFor="support-subject" className="block text-sm text-muted-foreground mb-1">Subject</label>
                         <input
                             id="support-subject"
                             type="text"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                             value={formData.subject}
                             onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                             required
                         />
                     </div>
                     <div>
-                        <label htmlFor="support-message" className="block text-sm text-gray-400 mb-1">Message</label>
+                        <label htmlFor="support-message" className="block text-sm text-muted-foreground mb-1">Message</label>
                         <textarea
                             id="support-message"
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 min-h-[120px]"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30 min-h-[120px]"
                             value={formData.message}
                             onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                             required

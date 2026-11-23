@@ -113,7 +113,7 @@ export default function LeadJourneyAnalyticsPage() {
                     <Card className="bg-card border-border backdrop-blur-xl">
                         <CardHeader>
                             <CardTitle className="text-foreground flex items-center gap-2">
-                                <Compass className="w-5 h-5 text-violet-400" />
+                                <Compass className="w-5 h-5 text-primary" />
                                 Pipeline Stage Volume & Conversion Rates
                             </CardTitle>
                             <CardDescription className="text-muted-foreground">
@@ -122,7 +122,7 @@ export default function LeadJourneyAnalyticsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-6 mt-2 relative">
-                                <div className="absolute left-[13px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-violet-500 via-amber-500 to-emerald-500 opacity-20" />
+                                <div className="absolute left-[13px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-primary via-warning/80 to-success/60 opacity-20" />
 
                                 {loading ? (
                                     <div className="space-y-6">
@@ -135,35 +135,35 @@ export default function LeadJourneyAnalyticsPage() {
                                         <FunnelHorizontalStep
                                             label="COLD Leads (All Captured)"
                                             count={data?.stages?.total || 0}
-                                            color="from-blue-500 to-sky-400"
+                                            color="from-primary to-primary/60"
                                             percent={100}
                                             badgeText="Ingestion Layer"
                                         />
                                         <FunnelHorizontalStep
                                             label="WARM Leads (Engaged)"
                                             count={data?.funnelProgress?.reachedWarm || 0}
-                                            color="from-violet-500 to-indigo-400"
+                                            color="from-primary to-primary/60"
                                             percent={data?.conversionRates?.coldToWarm || 0}
                                             badgeText={`${data?.conversionRates?.coldToWarm?.toFixed(1)}% Conversion`}
                                         />
                                         <FunnelHorizontalStep
                                             label="HOT Leads (Handoff Qualified)"
                                             count={data?.funnelProgress?.reachedHot || 0}
-                                            color="from-amber-500 to-orange-400"
+                                            color="from-warning to-warning/60"
                                             percent={data?.conversionRates?.warmToHot || 0}
                                             badgeText={`${data?.conversionRates?.warmToHot?.toFixed(1)}% Conversion`}
                                         />
                                         <FunnelHorizontalStep
                                             label="COORDINATING (Assigned Callers)"
                                             count={data?.funnelProgress?.reachedCoordinating || 0}
-                                            color="from-pink-500 to-rose-400"
+                                            color="from-chart-4 to-chart-4/60"
                                             percent={data?.conversionRates?.hotToCoordinating || 0}
                                             badgeText={`${data?.conversionRates?.hotToCoordinating?.toFixed(1)}% In-Progress`}
                                         />
                                         <FunnelHorizontalStep
                                             label="MEETING CONFIRMED (Closed)"
                                             count={data?.funnelProgress?.reachedConfirmed || 0}
-                                            color="from-emerald-500 to-teal-400"
+                                            color="from-success to-success/60"
                                             percent={data?.conversionRates?.coordinatingToConfirmed || 0}
                                             badgeText={`${data?.conversionRates?.coordinatingToConfirmed?.toFixed(1)}% Booked`}
                                         />
@@ -197,19 +197,19 @@ export default function LeadJourneyAnalyticsPage() {
                                     <VelocityCard
                                         stage="COLD"
                                         duration={`${data?.durations?.avgDaysCold || 0} days`}
-                                        color="border-blue-500/20 bg-blue-500/5 text-blue-400"
+                                        color="border-primary/20 bg-primary/5 text-primary"
                                         description="Ingestion to warm engagement trigger"
                                     />
                                     <VelocityCard
                                         stage="WARM"
                                         duration={`${data?.durations?.avgDaysWarm || 0} days`}
-                                        color="border-violet-500/20 bg-violet-500/5 text-violet-400"
+                                        color="border-primary/20 bg-primary/5 text-primary"
                                         description="Nurturing to high intent qualification"
                                     />
                                     <VelocityCard
                                         stage="HOT"
                                         duration={`${data?.durations?.avgDaysHot || 0} days`}
-                                        color="border-amber-500/20 bg-amber-500/5 text-warning"
+                                        color="border-warning/20 bg-warning/5 text-warning"
                                         description="AI Handoff to human caller claim"
                                     />
                                 </div>
@@ -290,7 +290,7 @@ function FunnelHorizontalStep({ label, count, color, percent, badgeText }: any) 
 
             <div className="flex justify-between items-end mb-2">
                 <div>
-                    <span className="text-sm font-bold text-foreground group-hover:text-violet-400 transition-colors mr-2">
+                    <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors mr-2">
                         {label}
                     </span>
                     <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground px-2 py-0.5 bg-muted rounded border border-border">

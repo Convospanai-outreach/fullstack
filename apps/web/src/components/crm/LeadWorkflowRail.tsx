@@ -25,10 +25,10 @@ interface Approval {
 }
 
 const DOT: Record<StepState, string> = {
-    done: "bg-emerald-500 text-white border-emerald-500",
+    done: "bg-success text-primary-foreground border-success/30",
     active: "bg-primary/20 text-primary border-primary",
-    waiting: "bg-amber-500/20 text-amber-500 border-amber-500",
-    blocked: "bg-red-500/20 text-red-500 border-red-500",
+    waiting: "bg-warning/20 text-warning border-warning/30",
+    blocked: "bg-destructive/20 text-destructive border-destructive/30",
     todo: "bg-muted text-muted-foreground border-border",
 };
 
@@ -93,8 +93,8 @@ export function LeadWorkflowRail({ leadId }: { leadId: string }) {
             </details>
 
             {approval?.status === "PENDING" && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
-                    <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs">
+                    <ShieldAlert className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
                         <p className="font-medium text-foreground">Action requires review</p>
                         <p className="text-muted-foreground">

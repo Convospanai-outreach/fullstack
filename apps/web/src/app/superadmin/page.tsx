@@ -55,7 +55,7 @@ export default function SuperAdminPage() {
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
             <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg">
                 <div className="mb-6 flex flex-col items-center gap-2 text-center">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-warning">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
                         <Lock className="h-5 w-5" />
                     </span>
                     <h1 className="text-lg font-bold text-foreground">Superadmin Access</h1>
@@ -73,7 +73,7 @@ export default function SuperAdminPage() {
                             autoFocus
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-cyan-500 focus:outline-none"
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary/30 focus:outline-none"
                         />
                     </div>
                     <div>
@@ -83,12 +83,12 @@ export default function SuperAdminPage() {
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-cyan-500 focus:outline-none"
+                            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-primary/30 focus:outline-none"
                         />
                     </div>
 
                     {error && (
-                        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2.5 text-xs text-red-200">
+                        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
                             <ShieldAlert className="h-4 w-4 shrink-0" />
                             {error}
                         </div>

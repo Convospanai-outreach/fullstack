@@ -138,7 +138,7 @@ export default function TeamSettingsPage() {
                 {canManage && (
                     <button
                         onClick={() => setIsInviteModalOpen(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-500 shadow-lg shadow-blue-900/40 transition-all active:scale-95"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary shadow-lg shadow-primary/40 transition-all active:scale-95"
                     >
                         <UserPlus className="w-5 h-5" /> Invite Member
                     </button>
@@ -156,7 +156,7 @@ export default function TeamSettingsPage() {
                             <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-foreground/5">
                         {members.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
@@ -171,7 +171,7 @@ export default function TeamSettingsPage() {
                                         {canManage && (
                                             <button
                                                 onClick={() => setIsInviteModalOpen(true)}
-                                                className="mt-2 text-xs font-semibold text-primary hover:text-blue-300 transition-colors"
+                                                className="mt-2 text-xs font-semibold text-primary hover:text-primary transition-colors"
                                             >
                                                 + Invite your first collaborator
                                             </button>
@@ -185,11 +185,11 @@ export default function TeamSettingsPage() {
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-4">
                                         <div className="relative">
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-foreground font-bold shadow-lg">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-foreground font-bold shadow-lg">
                                                 {(member.user?.name || member.email || "?")[0]?.toUpperCase()}
                                             </div>
                                             {member.status === 'active' && (
-                                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0f172a] flex items-center justify-center">
+                                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-success border-2 border-background flex items-center justify-center">
                                                     <CheckCircle2 className="w-2.5 h-2.5 text-foreground" />
                                                 </div>
                                             )}
@@ -198,7 +198,7 @@ export default function TeamSettingsPage() {
                                             <div className="text-sm font-bold text-foreground flex items-center gap-2">
                                                 {member.user?.name || "Pending Account"}
                                                 {member.email === members.find(m => m.status === 'active')?.email && (
-                                                    <span className="text-[10px] bg-blue-600/20 text-primary px-1.5 py-0.5 rounded uppercase tracking-tighter">You</span>
+                                                    <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded uppercase tracking-tighter">You</span>
                                                 )}
                                             </div>
                                             <div className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -230,7 +230,7 @@ export default function TeamSettingsPage() {
                                     )}
                                 </td>
                                 <td className="px-6 py-5">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${member.status === 'active' ? 'bg-emerald-500/10 text-success' : 'bg-amber-500/10 text-warning'
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${member.status === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
                                         }`}>
                                         {member.status}
                                     </span>
@@ -239,7 +239,7 @@ export default function TeamSettingsPage() {
                                     {canManage && member.role !== TeamRole.OWNER && (
                                         <button
                                             onClick={() => handleRemove(member.id)}
-                                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-red-400/10 rounded-lg transition-all"
+                                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -253,9 +253,9 @@ export default function TeamSettingsPage() {
 
             {/* Invite Modal */}
             {isInviteModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-foreground/80 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="glass-panel w-full max-w-md p-8 rounded-3xl border border-border shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="w-12 h-12 rounded-xl bg-blue-600/10 flex items-center justify-center mb-6">
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
                             <UserPlus className="w-6 h-6 text-primary" />
                         </div>
                         <h2 className="text-2xl font-bold text-foreground mb-2">Invite Collaborator</h2>
@@ -282,7 +282,7 @@ export default function TeamSettingsPage() {
                                             type="button"
                                             onClick={() => setInviteRole(r)}
                                             className={`px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${inviteRole === r
-                                                ? "bg-blue-600 border-blue-500 text-white"
+                                                ? "bg-primary border-primary/30 text-primary-foreground"
                                                 : "bg-muted border-border text-muted-foreground hover:bg-muted"
                                                 }`}
                                         >
@@ -296,7 +296,7 @@ export default function TeamSettingsPage() {
                                 <button
                                     type="submit"
                                     disabled={inviting}
-                                    className="flex-1 bg-blue-600 text-white rounded-xl py-3 font-bold hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-900/40 disabled:opacity-50"
+                                    className="flex-1 bg-primary text-primary-foreground rounded-xl py-3 font-bold hover:bg-primary transition-all active:scale-95 shadow-lg shadow-primary/40 disabled:opacity-50"
                                 >
                                     {inviting ? "Sending..." : "Send Invitation"}
                                 </button>

@@ -22,7 +22,7 @@ export default function UnpublishedChangesBanner({ onDiscard }: { onDiscard: () 
     }
 
     return (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
             <p>
                 You have unpublished changes. The live page keeps showing the last published version until you publish.
             </p>
@@ -32,7 +32,7 @@ export default function UnpublishedChangesBanner({ onDiscard }: { onDiscard: () 
                     type="button"
                     onClick={discard}
                     disabled={busy}
-                    className="rounded-md border border-amber-400 px-3 py-1.5 font-medium hover:bg-amber-100 disabled:opacity-50"
+                    className="rounded-md border border-warning/30 px-3 py-1.5 font-medium hover:bg-warning/10 disabled:opacity-50"
                 >
                     {busy ? "Discarding..." : "Discard changes"}
                 </button>

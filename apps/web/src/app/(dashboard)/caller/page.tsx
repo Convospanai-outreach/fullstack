@@ -198,24 +198,24 @@ export default function CallerPage() {
                         <div className="flex justify-between items-start pb-4 border-b border-border">
                             <div>
                                 <h1 className="text-3xl font-bold flex items-center gap-2">
-                                    <User className="w-6 h-6 text-brand-500" />
+                                    <User className="w-6 h-6 text-primary" />
                                     {activeLead.lead.fullName || "Unnamed Lead"}
                                 </h1>
                                 <p className="text-xl text-muted-foreground mt-0.5">{activeLead.lead.company || "Independent"}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                     <Badge variant="outline" className="flex items-center gap-1">
-                                        <Smartphone className="w-3 h-3 text-brand-500" />
+                                        <Smartphone className="w-3 h-3 text-primary" />
                                         {activeLead.lead.phone || "No Phone"}
                                     </Badge>
                                     <Badge variant="outline" className="flex items-center gap-1">
-                                        <Mail className="w-3 h-3 text-brand-500" />
+                                        <Mail className="w-3 h-3 text-primary" />
                                         {activeLead.lead.email}
                                     </Badge>
                                 </div>
                             </div>
                             <div className="text-right">
                                 <div className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Deal Stage</div>
-                                <div className="text-lg font-bold text-brand-600 dark:text-brand-400">
+                                <div className="text-lg font-bold text-primary dark:text-primary">
                                     {activeLead.lead.pipelineState || "COORDINATING"}
                                 </div>
                             </div>
@@ -224,21 +224,21 @@ export default function CallerPage() {
                         {/* Intent Breakdown & Predictive Intelligence */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Intent Score Progress Card */}
-                            <div className="p-4 rounded-xl bg-brand-500/5 border border-brand-500/10 space-y-3">
+                            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                        <Flame className="w-4 h-4 text-orange-500" />
+                                        <Flame className="w-4 h-4 text-warning" />
                                         Intent Strength
                                     </span>
-                                    <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-sm">
+                                    <span className="font-mono font-bold text-primary dark:text-primary text-sm">
                                         {Math.round((activeLead.lead.intentScore || 0) * 100)}%
                                     </span>
                                 </div>
                                 <div className="w-full bg-muted rounded-full h-2">
                                     <div
                                         className={`h-2 rounded-full transition-all ${
-                                            (activeLead.lead.intentScore || 0) >= 0.7 ? 'bg-red-500' :
-                                            (activeLead.lead.intentScore || 0) >= 0.4 ? 'bg-amber-500' : 'bg-blue-500'
+                                            (activeLead.lead.intentScore || 0) >= 0.7 ? 'bg-destructive' :
+                                            (activeLead.lead.intentScore || 0) >= 0.4 ? 'bg-warning' : 'bg-primary'
                                         }`}
                                         style={{ width: `${Math.round((activeLead.lead.intentScore || 0) * 100)}%` }}
                                     />
@@ -255,12 +255,12 @@ export default function CallerPage() {
                             {/* Predictive AI Analytics */}
                             <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
                                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                    <BrainCircuit className="w-4 h-4 text-purple-400" />
+                                    <BrainCircuit className="w-4 h-4 text-primary" />
                                     Predictive AI Context
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                     <div className="bg-muted p-2 rounded-lg flex items-center gap-1">
-                                        <Clock className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                                        <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
                                         <div>
                                             <p className="text-[10px] text-muted-foreground uppercase font-bold">Best Hour</p>
                                             <p className="font-semibold text-foreground">
@@ -272,11 +272,11 @@ export default function CallerPage() {
                                         </div>
                                     </div>
                                     <div className="bg-muted p-2 rounded-lg flex items-center gap-1">
-                                        <TrendingUp className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                                        <TrendingUp className="w-3.5 h-3.5 text-primary shrink-0" />
                                         <div>
                                             <p className="text-[10px] text-muted-foreground uppercase font-bold">Churn Risk</p>
                                             <p className={`font-semibold ${
-                                                (activeLead.lead.churnRisk || 0) > 0.5 ? 'text-red-400' : 'text-emerald-400'
+                                                (activeLead.lead.churnRisk || 0) > 0.5 ? 'text-destructive' : 'text-success'
                                             }`}>
                                                 {activeLead.lead.churnRisk !== undefined && activeLead.lead.churnRisk !== null
                                                     ? `${Math.round(activeLead.lead.churnRisk * 100)}%`
@@ -294,7 +294,7 @@ export default function CallerPage() {
                         {/* Dialogue Thread */}
                         <div className="flex-1 flex flex-col bg-muted/20 p-4 rounded-xl border border-border min-h-[260px] max-h-[360px]">
                             <h4 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-                                <Activity className="w-4 h-4 text-brand-500" />
+                                <Activity className="w-4 h-4 text-primary" />
                                 Live Dialogue Context
                             </h4>
                             <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-sm">
@@ -304,10 +304,10 @@ export default function CallerPage() {
                                             key={entry.id || entryIdx}
                                             className={`p-3 rounded-2xl max-w-[85%] ${
                                                 entry.role === 'assistant'
-                                                    ? 'bg-brand-500/10 border border-brand-500/20 mr-auto text-left rounded-bl-none'
+                                                    ? 'bg-primary/10 border border-primary/20 mr-auto text-left rounded-bl-none'
                                                     : entry.role === 'user'
                                                     ? 'bg-muted ml-auto text-right rounded-br-none'
-                                                    : 'bg-yellow-500/10 border border-yellow-500/20 mx-auto text-center text-xs text-yellow-500 rounded-lg'
+                                                    : 'bg-warning/10 border border-warning/20 mx-auto text-center text-xs text-warning rounded-lg'
                                             }`}
                                         >
                                             <p className="font-bold text-[10px] uppercase tracking-wider opacity-60 mb-1">
@@ -337,11 +337,11 @@ export default function CallerPage() {
                                 placeholder="Add call notes, summary of agreement, or details on voicemail left..."
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                className="min-h-[90px] rounded-xl border-border bg-background focus-visible:ring-brand-500"
+                                className="min-h-[90px] rounded-xl border-border bg-background focus-visible:ring-primary"
                             />
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                                <Button onClick={() => handleOutcome("booked")} className="bg-green-600 hover:bg-green-700 text-white rounded-xl py-5 font-bold shadow-lg shadow-green-950/20 transition-all hover:scale-[1.01]">
+                                <Button onClick={() => handleOutcome("booked")} className="bg-success hover:bg-success/90 text-primary-foreground rounded-xl py-5 font-bold shadow-lg shadow-success/20 transition-all hover:scale-[1.01]">
                                     Meeting Booked
                                 </Button>
                                 <Button onClick={() => handleOutcome("callback")} variant="outline" className="rounded-xl py-5 font-bold hover:bg-muted/80">
@@ -350,7 +350,7 @@ export default function CallerPage() {
                                 <Button onClick={() => handleOutcome("vm")} variant="outline" className="rounded-xl py-5 font-bold hover:bg-muted/80">
                                     Left Voicemail
                                 </Button>
-                                <Button onClick={() => handleOutcome("closed")} variant="destructive" className="rounded-xl py-5 font-bold shadow-lg shadow-red-950/20 transition-all hover:scale-[1.01]">
+                                <Button onClick={() => handleOutcome("closed")} variant="destructive" className="rounded-xl py-5 font-bold shadow-lg shadow-destructive/20 transition-all hover:scale-[1.01]">
                                     Not Interested
                                 </Button>
                             </div>

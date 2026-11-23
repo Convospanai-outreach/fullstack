@@ -221,7 +221,7 @@ export default function ContentCalendarPage() {
                                 onClick={() => openNew(day)}
                                 className={`${view === "week" ? "min-h-[320px]" : "min-h-[110px]"} cursor-pointer space-y-1 border-b border-r border-border p-1.5 hover:bg-muted/40 ${inMonth ? "" : "bg-muted/20"}`}
                             >
-                                <div className={`text-xs ${key === todayKey ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : inMonth ? "text-foreground" : "text-muted-foreground"}`}>
+                                <div className={`text-xs ${key === todayKey ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" : inMonth ? "text-primary-foreground" : "text-muted-foreground"}`}>
                                     {day.getDate()}
                                 </div>
                                 {posts.map(chip)}

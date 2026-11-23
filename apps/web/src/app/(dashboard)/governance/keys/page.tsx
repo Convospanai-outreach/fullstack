@@ -206,7 +206,7 @@ export default function SecurityKeysPage() {
                                         <Activity className="w-3.5 h-3.5" />
                                         {key.lastUsedAt ? `Last active ${new Date(key.lastUsedAt).toLocaleDateString()}` : "Never used"}
                                     </div>
-                                    <button className="text-xs text-red-400 font-bold hover:text-red-300 transition flex items-center gap-1 justify-end mt-2">
+                                    <button className="text-xs text-destructive font-bold hover:text-destructive transition flex items-center gap-1 justify-end mt-2">
                                         <Trash2 className="w-3.5 h-3.5" />
                                         Revoke Access
                                     </button>

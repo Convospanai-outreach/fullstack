@@ -66,7 +66,7 @@ export function TeamSettings() {
             <form onSubmit={handleInvite} className="flex gap-4 mb-6">
                 <input
                     type="email"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                     placeholder="colleague@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -79,15 +79,15 @@ export function TeamSettings() {
 
             <div className="space-y-4">
                 {members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
+                    <div key={member.id} className="flex items-center justify-between p-4 bg-foreground/5 rounded-lg border border-foreground/10">
                         <div>
-                            <div className="font-medium text-white">{member.email}</div>
-                            <div className="text-sm text-gray-400 capitalize">{member.role} • {member.status}</div>
+                            <div className="font-medium text-foreground">{member.email}</div>
+                            <div className="text-sm text-muted-foreground capitalize">{member.role} • {member.status}</div>
                         </div>
                         {member.role !== "owner" && (
                             <button
                                 onClick={() => handleRemove(member.id)}
-                                className="text-red-400 hover:text-red-300 text-sm"
+                                className="text-destructive hover:text-destructive text-sm"
                             >
                                 Remove
                             </button>
@@ -95,7 +95,7 @@ export function TeamSettings() {
                     </div>
                 ))}
                 {members.length === 0 && (
-                    <div className="text-center text-gray-400 py-4">No team members yet.</div>
+                    <div className="text-center text-muted-foreground py-4">No team members yet.</div>
                 )}
             </div>
         </GlassCard>

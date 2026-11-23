@@ -90,7 +90,7 @@ export function ConsentBanner({ measurementId }: { measurementId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-2 left-1/2 z-[90] flex min-h-8 -translate-x-1/2 items-center rounded-md bg-slate-900/80 px-3 py-1.5 text-xs text-slate-300 underline hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+        className="fixed bottom-2 left-3 lg:left-[248px] z-[90] flex min-h-8 items-center rounded-md bg-background/80 px-3 py-1.5 text-xs text-foreground/80 underline hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/30"
       >
         Cookie settings
       </button>
@@ -101,7 +101,7 @@ export function ConsentBanner({ measurementId }: { measurementId: string }) {
     <div
       role="dialog"
       aria-label="Analytics cookie preferences"
-      className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-xl rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-200 shadow-2xl"
+      className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-xl rounded-xl border border-border bg-background p-4 text-sm text-foreground shadow-2xl"
     >
       <p>
         We use analytics cookies to understand how the site is used. They stay off unless you accept.
@@ -112,14 +112,14 @@ export function ConsentBanner({ measurementId }: { measurementId: string }) {
         <button
           type="button"
           onClick={() => decide("denied")}
-          className="rounded-lg border border-slate-600 px-3 py-1.5 font-medium hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+          className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/30"
         >
           Reject
         </button>
         <button
           type="button"
           onClick={() => decide("granted")}
-          className="rounded-lg bg-indigo-500 px-3 py-1.5 font-medium text-white hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-300"
+          className="rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground hover:bg-primary/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary/30"
         >
           Accept
         </button>

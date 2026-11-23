@@ -54,7 +54,7 @@ export default function GovernanceLogTab({ campaignId }: { campaignId: string })
                 <p className="text-sm text-destructive">Couldn&apos;t load the governance log. This is a temporary problem, not an empty log.</p>
             )}
             {state.status === "ready" && state.capped && (
-                <p className="text-xs text-amber-600">This campaign is large, so the log shows the newest entries only. Older approvals may be missing.</p>
+                <p className="text-xs text-warning">This campaign is large, so the log shows the newest entries only. Older approvals may be missing.</p>
             )}
             {state.status === "ready" && state.rows.length === 0 && (
                 <p className="text-sm text-muted-foreground">No approvals or campaign changes have been recorded for this campaign yet.</p>

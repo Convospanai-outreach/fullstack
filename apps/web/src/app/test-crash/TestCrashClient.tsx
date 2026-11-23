@@ -11,9 +11,9 @@ export function TestCrashClient() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-card">
             <h1 className="text-2xl font-bold mb-6">Error Boundary Test</h1>
-            <p className="mb-6 text-gray-600 max-w-md text-center">
+            <p className="mb-6 text-muted-foreground max-w-md text-center">
                 Clicking the button below will throw a JavaScript error during rendering,
                 triggering the nearest Error Boundary (src/app/error.tsx).
             </p>

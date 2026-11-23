@@ -52,7 +52,7 @@ export function StatCard({ label, value, icon: Icon, trend, description }: StatC
                     <Icon className="w-6 h-6" />
                 </div>
                 {trend && (
-                    <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend.isUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                    <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend.isUp ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                         {trend.isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                         {trend.value}%
                     </div>

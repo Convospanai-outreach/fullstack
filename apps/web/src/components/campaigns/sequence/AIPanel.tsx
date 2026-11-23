@@ -18,7 +18,7 @@ export default function AIPanel() {
     return (
         <div className="flex h-full w-[340px] shrink-0 flex-col rounded-lg border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border p-4">
-                <Sparkles className="h-4 w-4 text-blue-500" />
+                <Sparkles className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">Sequence assistant</h3>
             </div>
 
@@ -28,7 +28,7 @@ export default function AIPanel() {
                         key={suggestion}
                         type="button"
                         onClick={() => setPrompt(suggestion)}
-                        className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-muted-foreground transition hover:border-blue-500/50 hover:text-foreground"
+                        className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-muted-foreground transition hover:border-primary/50 hover:text-foreground"
                     >
                         {suggestion}
                     </button>
@@ -49,7 +49,7 @@ export default function AIPanel() {
                         disabled
                         title="Not available yet"
                         aria-label="Send"
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-500/50 text-white opacity-60"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/50 text-foreground opacity-60"
                     >
                         <Send className="h-4 w-4" />
                     </button>

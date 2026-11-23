@@ -33,9 +33,9 @@ type DeliverabilityStats = {
 
 function LabelBadge({ label }: { label: DomainHealthEntry["label"] }) {
     const styles = {
-        Healthy: "bg-green-500/15 text-green-600 dark:text-green-400",
-        "At Risk": "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-        Poor: "bg-red-500/15 text-red-600 dark:text-red-400",
+        Healthy: "bg-success/15 text-success dark:text-success",
+        "At Risk": "bg-warning/15 text-warning dark:text-warning",
+        Poor: "bg-destructive/15 text-destructive dark:text-destructive",
     } as const;
     const Icon = label === "Healthy" ? ShieldCheck : label === "At Risk" ? ShieldAlert : ShieldX;
     return (
@@ -48,7 +48,7 @@ function LabelBadge({ label }: { label: DomainHealthEntry["label"] }) {
 
 function RecordCell({ ok }: { ok: boolean }) {
     return (
-        <span className={ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+        <span className={ok ? "text-success dark:text-success" : "text-destructive dark:text-destructive"}>
             {ok ? "OK" : "Missing"}
         </span>
     );

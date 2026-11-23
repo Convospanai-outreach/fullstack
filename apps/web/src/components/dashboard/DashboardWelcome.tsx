@@ -39,11 +39,11 @@ export function DashboardWelcome() {
                 className="relative bg-card border border-border rounded-[2.5rem] p-12 mb-12 group transition-all duration-700 overflow-hidden shadow-sm"
             >
                 {/* Refined Background Blobs */}
-                <div className="absolute -top-32 -right-32 w-80 h-80 bg-indigo-500/[0.06] rounded-full blur-[100px] group-hover:bg-indigo-500/[0.1] transition-colors duration-1000" />
-                <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/[0.05] rounded-full blur-[100px] group-hover:bg-purple-500/[0.08] transition-colors duration-1000" />
+                <div className="absolute -top-32 -right-32 w-80 h-80 bg-primary/[0.06] rounded-full blur-[100px] group-hover:bg-primary/[0.1] transition-colors duration-1000" />
+                <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-primary/[0.05] rounded-full blur-[100px] group-hover:bg-primary/[0.08] transition-colors duration-1000" />
 
                 <div className="relative z-10 flex gap-8">
-                    <div className="w-1 self-stretch rounded-full bg-indigo-500 flex-shrink-0" />
+                    <div className="w-1 self-stretch rounded-full bg-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-10">
                             <motion.div
@@ -52,11 +52,11 @@ export function DashboardWelcome() {
                                 transition={{ delay: 0.2 }}
                                 className="flex items-center gap-4"
                             >
-                                <div className="bg-indigo-600 p-3 rounded-2xl shadow-[0_0_25px_rgba(79,70,229,0.15)]">
-                                    <Sparkles className="w-7 h-7 text-white" />
+                                <div className="bg-primary p-3 rounded-2xl shadow-[0_0_25px_hsl(var(--primary)/0.15)]">
+                                    <Sparkles className="w-7 h-7 text-foreground" />
                                 </div>
                                 <h1 className="text-4xl font-black text-foreground tracking-tight font-outfit">
-                                    Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500">CraftMyFunnel</span>
+                                    Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary/80 to-primary/60">CraftMyFunnel</span>
                                 </h1>
                             </motion.div>
                             <Button
@@ -83,9 +83,9 @@ export function DashboardWelcome() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
                             {[
-                                { icon: Cpu, color: "text-indigo-600", bg: "bg-indigo-500/10", title: "Sovereign Core", desc: "Local SLM execution with zero-leak PII masking protocols." },
-                                { icon: ShieldCheck, color: "text-purple-600", bg: "bg-purple-500/10", title: "Governance Gate", desc: "Human-in-the-loop validation for all high-risk agent behaviors." },
-                                { icon: Target, color: "text-emerald-600", bg: "bg-emerald-500/10", title: "Bulls-Eye RAG", desc: "Signal detection support for review-ready campaign decisions." }
+                                { icon: Cpu, color: "text-primary", bg: "bg-primary/10", title: "Sovereign Core", desc: "Local SLM execution with zero-leak PII masking protocols." },
+                                { icon: ShieldCheck, color: "text-primary", bg: "bg-primary/10", title: "Governance Gate", desc: "Human-in-the-loop validation for all high-risk agent behaviors." },
+                                { icon: Target, color: "text-success", bg: "bg-success/10", title: "Bulls-Eye RAG", desc: "Signal detection support for review-ready campaign decisions." }
                             ].map((feature, idx) => (
                                 <motion.div
                                     key={idx}
@@ -105,7 +105,7 @@ export function DashboardWelcome() {
 
                         <div className="flex flex-col sm:flex-row gap-6">
                             <Button
-                                className="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-8 rounded-[1.5rem] text-lg font-bold shadow-[0_0_30px_rgba(79,70,229,0.15)] transition-all hover:scale-[1.03] active:scale-95 border-none"
+                                className="bg-primary hover:bg-primary text-primary-foreground px-10 py-8 rounded-[1.5rem] text-lg font-bold shadow-[0_0_30px_hsl(var(--primary)/0.15)] transition-all hover:scale-[1.03] active:scale-95 border-none"
                                 onClick={dismissWelcome}
                             >
                                 Enter Command Center

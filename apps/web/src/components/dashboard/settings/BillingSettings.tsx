@@ -64,7 +64,7 @@ export default function BillingSettings() {
                     contact: "9999999999"
                 },
                 theme: {
-                    color: "#9333ea"
+                    color: "#5C1A2B"
                 }
             };
 
@@ -107,7 +107,7 @@ export default function BillingSettings() {
                 ) : (
                     <a
                         href="/pricing"
-                        className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-900/20"
+                        className="px-6 py-2 bg-gradient-to-r from-primary to-primary/60 text-primary-foreground rounded-lg hover:opacity-90 transition shadow-lg shadow-primary/20"
                     >
                         Upgrade Now
                     </a>
@@ -118,11 +118,11 @@ export default function BillingSettings() {
                 <h4 className="text-lg font-semibold text-foreground mb-4">Usage & Credits</h4>
                 <div className="flex gap-4">
                     <div className="p-4 bg-muted rounded-lg flex-1">
-                        <div className="text-2xl font-mono text-purple-400">{team.credits || 0}</div>
+                        <div className="text-2xl font-mono text-primary">{team.credits || 0}</div>
                         <div className="text-xs text-muted-foreground">Available Credits</div>
                     </div>
                     <div className="p-4 bg-muted rounded-lg flex-1">
-                        <div className="text-2xl font-mono text-blue-400">{team.members?.length || 1}</div>
+                        <div className="text-2xl font-mono text-primary">{team.members?.length || 1}</div>
                         <div className="text-xs text-muted-foreground">Team Members</div>
                     </div>
                 </div>
@@ -136,14 +136,14 @@ export default function BillingSettings() {
                         onClick={() => handleTopUp("starter", 500)}
                         className="p-4 bg-muted hover:bg-accent border border-border rounded-lg text-left transition"
                     >
-                        <div className="text-purple-400 font-bold text-xl">500 Credits</div>
+                        <div className="text-primary font-bold text-xl">500 Credits</div>
                         <div className="text-foreground">INR 500</div>
                     </button>
                     <button
                         onClick={() => handleTopUp("pro", 2000)}
                         className="p-4 bg-muted hover:bg-accent border border-border rounded-lg text-left transition"
                     >
-                        <div className="text-purple-400 font-bold text-xl">2,000 Credits</div>
+                        <div className="text-primary font-bold text-xl">2,000 Credits</div>
                         <div className="text-foreground">INR 1800 (Save 10%)</div>
                     </button>
                 </div>
@@ -166,7 +166,7 @@ export default function BillingSettings() {
                                 <tr key={tx.id} className="border-b border-border hover:bg-muted">
                                     <td className="px-4 py-3">{new Date(tx.createdAt).toLocaleDateString()}</td>
                                     <td className="px-4 py-3">{tx.description}</td>
-                                    <td className={`px-4 py-3 text-right font-mono ${tx.amount > 0 ? "text-green-400" : "text-muted-foreground"}`}>
+                                    <td className={`px-4 py-3 text-right font-mono ${tx.amount > 0 ? "text-success" : "text-muted-foreground"}`}>
                                         {tx.amount > 0 ? "+" : ""}{tx.amount}
                                     </td>
                                 </tr>

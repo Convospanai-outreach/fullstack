@@ -25,8 +25,8 @@ export default function AgentControl({ agents }: any) {
                         <div className="text-xs text-muted-foreground">{a.status}</div>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={() => run(a.id)} className="px-3 py-1 rounded bg-green-500 text-white text-sm">Run</button>
-                        <button onClick={() => stop(a.id)} className="px-3 py-1 rounded bg-red-500 text-white text-sm">Stop</button>
+                        <button onClick={() => run(a.id)} className="px-3 py-1 rounded bg-success text-primary-foreground text-sm">Run</button>
+                        <button onClick={() => stop(a.id)} className="px-3 py-1 rounded bg-destructive text-primary-foreground text-sm">Stop</button>
                     </div>
                 </div>
             ))}

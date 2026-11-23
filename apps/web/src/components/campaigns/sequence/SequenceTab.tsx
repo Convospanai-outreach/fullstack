@@ -248,7 +248,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         type="button"
                         onClick={handleEnroll}
                         disabled={saving || enrolling || steps.length === 0}
-                        className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-md bg-success px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-success disabled:opacity-60"
                     >
                         {enrolling && <Loader2 className="h-4 w-4 animate-spin" />}
                         {enrolling ? "Enrolling..." : "Enroll leads"}
@@ -257,7 +257,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         type="button"
                         onClick={handleSave}
                         disabled={saving || enrolling}
-                        className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary disabled:opacity-60"
                     >
                         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                         {saving ? "Saving..." : "Save sequence"}
@@ -282,7 +282,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                             type="button"
                             onClick={saveStrategy}
                             disabled={savingStrategy}
-                            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+                            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary disabled:opacity-60"
                         >
                             {savingStrategy && <Loader2 className="h-4 w-4 animate-spin" />}
                             {savingStrategy ? "Saving..." : "Save strategy"}

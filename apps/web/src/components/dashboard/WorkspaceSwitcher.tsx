@@ -77,17 +77,17 @@ export function WorkspaceSwitcher() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-accent transition-colors border border-border">
+                <button className="glass-dark w-full flex items-center justify-between p-2.5 hover:bg-sidebar-foreground/10 transition-colors">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shadow-inner">
+                        <div className="w-8 h-8 rounded-[3px] bg-[#C2A36B] flex items-center justify-center text-[#1A1414] font-semibold text-sm">
                             {activeTeam?.name?.charAt(0) || "T"}
                         </div>
                         <div className="text-left">
-                            <p className="text-sm font-medium text-foreground line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
-                            <p className="text-xs text-muted-foreground">Workspace</p>
+                            <p className="text-sm font-semibold text-sidebar-foreground line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
+                            <p className="text-xs text-sidebar-muted">Workspace</p>
                         </div>
                     </div>
-                    <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
+                    <ChevronsUpDown className="w-4 h-4 text-sidebar-muted" />
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-card border-border text-foreground" align="start">

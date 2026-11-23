@@ -26,7 +26,7 @@ export function LeadGrowthChart({ data }: LeadGrowthChartProps) {
 
     return (
         <GlassCard className="h-full">
-            <h3 className="text-lg font-semibold text-white mb-6">Lead Growth</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-6">Lead Growth</h3>
             <div className="w-full overflow-x-auto">
                 <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
                     {/* Grid lines */}
@@ -34,8 +34,8 @@ export function LeadGrowthChart({ data }: LeadGrowthChartProps) {
                         const y = height - padding - tick * (height - 2 * padding);
                         return (
                             <g key={tick}>
-                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(255,255,255,0.1)" strokeDasharray="4 4" />
-                                <text x={padding - 10} y={y + 4} fill="rgba(255,255,255,0.4)" fontSize="10" textAnchor="end">
+                                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="hsl(var(--border))" strokeDasharray="4 4" />
+                                <text x={padding - 10} y={y + 4} fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end">
                                     {Math.round(tick * maxLeads)}
                                 </text>
                             </g>
@@ -45,7 +45,7 @@ export function LeadGrowthChart({ data }: LeadGrowthChartProps) {
                     {/* The Line */}
                     <polyline
                         fill="none"
-                        stroke="#8b5cf6"
+                        stroke="hsl(var(--chart-1))"
                         strokeWidth="3"
                         points={points}
                     />
@@ -55,7 +55,7 @@ export function LeadGrowthChart({ data }: LeadGrowthChartProps) {
                         const x = padding + (i * (width - 2 * padding)) / (data.length - 1);
                         const y = height - padding - (d.leads / maxLeads) * (height - 2 * padding);
                         return (
-                            <circle key={i} cx={x} cy={y} r="4" fill="#8b5cf6" stroke="#fff" strokeWidth="2" />
+                            <circle key={i} cx={x} cy={y} r="4" fill="hsl(var(--chart-1))" stroke="hsl(var(--card))" strokeWidth="2" />
                         );
                     })}
 
@@ -63,7 +63,7 @@ export function LeadGrowthChart({ data }: LeadGrowthChartProps) {
                     {data.map((d, i) => {
                         const x = padding + (i * (width - 2 * padding)) / (data.length - 1);
                         return (
-                            <text key={i} x={x} y={height - 10} fill="rgba(255,255,255,0.6)" fontSize="12" textAnchor="middle">
+                            <text key={i} x={x} y={height - 10} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
                                 {d.month}
                             </text>
                         );

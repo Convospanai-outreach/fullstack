@@ -13,12 +13,12 @@ interface AgentStateVisualizerProps {
 
 const STAGES: { id: AgentState; label: string; icon: any; color: string }[] = [
     { id: 'PENDING', label: 'Idle', icon: Circle, color: 'text-muted-foreground' },
-    { id: 'PLANNING', label: 'Strategy', icon: Terminal, color: 'text-indigo-400' },
-    { id: 'SANITIZING', label: 'Sovereign Mask', icon: ShieldCheck, color: 'text-emerald-400' },
-    { id: 'GENERATING', label: 'Cortex Logic', icon: Brain, color: 'text-purple-400' },
-    { id: 'CRITIQUING', label: 'Adversary', icon: Activity, color: 'text-amber-400' },
-    { id: 'EXECUTING', label: 'Hardware Strike', icon: Zap, color: 'text-orange-400' },
-    { id: 'COMPLETED', label: 'Success', icon: CheckCircle2, color: 'text-sky-400' },
+    { id: 'PLANNING', label: 'Strategy', icon: Terminal, color: 'text-primary' },
+    { id: 'SANITIZING', label: 'Sovereign Mask', icon: ShieldCheck, color: 'text-success' },
+    { id: 'GENERATING', label: 'Cortex Logic', icon: Brain, color: 'text-primary' },
+    { id: 'CRITIQUING', label: 'Adversary', icon: Activity, color: 'text-warning' },
+    { id: 'EXECUTING', label: 'Hardware Strike', icon: Zap, color: 'text-warning' },
+    { id: 'COMPLETED', label: 'Success', icon: CheckCircle2, color: 'text-primary' },
 ];
 
 export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ currentState, taskId }) => {
@@ -30,11 +30,11 @@ export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ curr
                 <div>
                     <h3 className="text-foreground font-semibold text-lg flex items-center gap-2">
                         Live Agent DFA
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                     </h3>
                     <p className="text-muted-foreground text-xs mt-1 font-mono">TASK_ID: {taskId || '0x000000'}</p>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] uppercase font-bold tracking-widest">
+                <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] uppercase font-bold tracking-widest">
                     Operational
                 </div>
             </div>
@@ -43,7 +43,7 @@ export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ curr
                 {/* Connector Lines */}
                 <div className="absolute top-6 left-6 right-6 h-0.5 bg-muted -z-10" />
                 <div
-                    className="absolute top-6 left-6 h-0.5 bg-gradient-to-r from-indigo-500 to-sky-400 transition-all duration-700 -z-10"
+                    className="absolute top-6 left-6 h-0.5 bg-gradient-to-r from-primary to-primary/60 transition-all duration-700 -z-10"
                     style={{ width: `${(currentIndex / (STAGES.length - 1)) * 100}%` }}
                 />
 
@@ -57,14 +57,14 @@ export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ curr
                             {/* Node */}
                             <div className={`
                                 w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300
-                                ${isCompleted ? 'bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]' :
-                                    isActive ? 'bg-muted border-2 border-indigo-500 scale-110 shadow-[0_0_20px_rgba(99,102,241,0.3)]' :
+                                ${isCompleted ? 'bg-primary shadow-[0_0_15px_hsl(var(--primary)/0.5)]' :
+                                    isActive ? 'bg-muted border-2 border-primary/30 scale-110 shadow-[0_0_20px_hsl(var(--primary)/0.3)]' :
                                         'bg-muted border border-border opacity-60'}
                             `}>
                                 {isActive && !isCompleted ? (
                                     <Loader2 className={`w-6 h-6 animate-spin ${stage.color}`} />
                                 ) : (
-                                    <Icon className={`w-6 h-6 ${isCompleted ? 'text-white' : stage.color}`} />
+                                    <Icon className={`w-6 h-6 ${isCompleted ? 'text-foreground' : stage.color}`} />
                                 )}
 
                                 {/* Hover Tooltip */}
@@ -79,7 +79,7 @@ export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ curr
                                     {stage.id}
                                 </span>
                                 {isActive && (
-                                    <span className="text-[9px] text-indigo-400 animate-pulse mt-0.5 uppercase font-mono tracking-widest">
+                                    <span className="text-[9px] text-primary animate-pulse mt-0.5 uppercase font-mono tracking-widest">
                                         Processing...
                                     </span>
                                 )}
@@ -90,8 +90,8 @@ export const AgentStateVisualizer: React.FC<AgentStateVisualizerProps> = ({ curr
             </div>
 
             {/* Ambient Background Glow */}
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -z-20" />
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-sky-500/5 rounded-full blur-[100px] -z-20" />
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -z-20" />
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -z-20" />
         </div>
     );
 };

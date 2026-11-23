@@ -140,11 +140,11 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
       <button
         type="button"
         onClick={() => setMin(false)}
-        className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white"
+        className="mt-4 inline-flex items-center gap-2 rounded-full border border-foreground/10 px-3 py-1.5 text-xs font-semibold text-foreground/80 transition hover:bg-foreground/5 hover:text-foreground"
         aria-label={`Show ${BUDDY_NAME}, your setup helper`}
       >
         <svg viewBox="0 0 120 160" className="h-5 w-4" aria-hidden="true">
-          <path d={GLASS} fill="#22d3ee" fillOpacity={0.35} stroke="#94a3b8" strokeWidth={6} />
+          <path d={GLASS} fill="#22d3ee" fillOpacity={0.35} stroke="hsl(var(--muted-foreground))" strokeWidth={6} />
         </svg>
         Show {BUDDY_NAME}
       </button>
@@ -156,7 +156,7 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
       <button
         type="button"
         onClick={poke}
-        className="shrink-0 rounded-lg p-1 outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-cyan-400"
+        className="shrink-0 rounded-lg p-1 outline-none transition hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label={`${BUDDY_NAME}, your setup helper. Press for another tip.`}
       >
         <svg
@@ -205,8 +205,8 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
             )}
           </g>
           <path d={GLASS} fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinejoin="round" />
-          <rect x="22" y="12" width="76" height="8" rx="4" fill="#94a3b8" />
-          <rect x="22" y="140" width="76" height="8" rx="4" fill="#94a3b8" />
+          <rect x="22" y="12" width="76" height="8" rx="4" fill="hsl(var(--muted-foreground))" />
+          <rect x="22" y="140" width="76" height="8" rx="4" fill="hsl(var(--muted-foreground))" />
           {/* Face on the upper bulb: white eyes read on both sand and empty glass. */}
           <g>
             <ellipse cx="50" cy="42" rx="6" ry={blink || mood === "happy" ? 1.2 : 6.5} fill="#f8fafc" />
@@ -230,17 +230,17 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">{BUDDY_NAME}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">{BUDDY_NAME}</p>
           <button
             type="button"
             onClick={() => setMin(true)}
-            className="rounded px-1 text-xs text-slate-400 transition hover:text-white focus-visible:ring-2 focus-visible:ring-cyan-400"
+            className="rounded px-1 text-xs text-muted-foreground transition hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"
             aria-label={`Hide ${BUDDY_NAME}`}
           >
             Hide
           </button>
         </div>
-        <p className="mt-1 rounded-lg rounded-tl-none bg-slate-800/80 px-3 py-2 text-sm leading-snug text-slate-200">{line}</p>
+        <p className="mt-1 rounded-lg rounded-tl-none bg-card/80 px-3 py-2 text-sm leading-snug text-foreground">{line}</p>
       </div>
 
       <span className="sr-only" role="status" aria-live="polite">{announce}</span>

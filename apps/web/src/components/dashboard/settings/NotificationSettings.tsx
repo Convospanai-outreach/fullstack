@@ -34,7 +34,7 @@ export default function NotificationSettings() {
         }
     };
 
-    if (error) return <div className="text-red-400">Failed to load settings</div>;
+    if (error) return <div className="text-destructive">Failed to load settings</div>;
     if (!prefs) return <div className="text-muted-foreground">Loading...</div>;
 
     return (
@@ -83,11 +83,11 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     return (
         <button
             onClick={() => onChange(!checked)}
-            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-purple-600" : "bg-muted"
+            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-primary" : "bg-muted"
                 }`}
         >
             <div
-                className={`w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-5" : "translate-x-0"
+                className={`w-4 h-4 rounded-full bg-card transition-transform ${checked ? "translate-x-5" : "translate-x-0"
                     }`}
             />
         </button>

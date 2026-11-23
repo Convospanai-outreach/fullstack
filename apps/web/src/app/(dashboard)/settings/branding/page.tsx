@@ -351,7 +351,7 @@ export default function BrandingSettingsPage() {
                 <GlassCard className="p-6 space-y-6">
                     <div className="space-y-4">
                         <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-purple-600 dark:text-purple-400" aria-hidden="true" /> Custom Domain
+                            <Globe className="w-5 h-5 text-primary dark:text-primary" aria-hidden="true" /> Custom Domain
                         </h3>
                         <p className="text-sm text-muted-foreground">
                             Connect a domain you already own to host your landing pages under your own brand
@@ -395,10 +395,10 @@ export default function BrandingSettingsPage() {
                                             className={
                                                 "text-xs font-bold px-2 py-1 rounded-full " +
                                                 (d.status === "active"
-                                                    ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                                                    ? "bg-success/15 text-success dark:text-success"
                                                     : d.status === "invalid"
-                                                    ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400")
+                                                    ? "bg-destructive/15 text-destructive dark:text-destructive"
+                                                    : "bg-warning/15 text-warning dark:text-warning")
                                             }
                                         >
                                             {d.status === "active" ? "Active" : d.status === "invalid" ? "Verification failed" : "Pending verification"}
@@ -468,7 +468,7 @@ export default function BrandingSettingsPage() {
                                     )}
                                     <button
                                         onClick={() => handleRemoveDomain(d)}
-                                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline"
+                                        className="text-xs font-semibold text-destructive dark:text-destructive hover:underline"
                                     >
                                         Disconnect
                                     </button>

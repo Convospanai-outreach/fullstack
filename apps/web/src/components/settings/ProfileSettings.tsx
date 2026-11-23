@@ -31,19 +31,19 @@ export function ProfileSettings({ settings, onUpdate }: ProfileSettingsProps) {
             <h3 className="text-xl font-bold gradient-text mb-4">Profile Information</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">Full Name</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Full Name</label>
                     <input
                         type="text"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                     />
                 </div>
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">Email Address</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Email Address</label>
                     <input
                         type="email"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />

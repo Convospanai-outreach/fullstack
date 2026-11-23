@@ -33,30 +33,30 @@ export function APISettings({ settings, onUpdate }: APISettingsProps) {
             <h3 className="text-xl font-bold gradient-text mb-4">API Configuration</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">OpenAI API Key</label>
+                    <label className="block text-sm text-muted-foreground mb-1">OpenAI API Key</label>
                     <input
                         type="password"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                         placeholder="sk-..."
                         value={apiKeyOpenAI}
                         onChange={(e) => setApiKeyOpenAI(e.target.value)}
                     />
                 </div>
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">Gemini API Key</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Gemini API Key</label>
                     <input
                         type="password"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                         placeholder="AIza..."
                         value={apiKeyGemini}
                         onChange={(e) => setApiKeyGemini(e.target.value)}
                     />
                 </div>
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">LinkedIn Cookie (li_at)</label>
+                    <label className="block text-sm text-muted-foreground mb-1">LinkedIn Cookie (li_at)</label>
                     <input
                         type="password"
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-3 text-foreground focus:outline-none focus:border-primary/30"
                         placeholder="AQED..."
                         value={liCookie}
                         onChange={(e) => setLiCookie(e.target.value)}

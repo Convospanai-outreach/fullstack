@@ -24,10 +24,10 @@ export function AnalyticsTabs() {
                         <Button
                             variant={isActive ? "default" : "outline"}
                             className={isActive
-                                ? "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25"
+                                ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
                                 : "border-border hover:bg-accent"}
                         >
-                            <Icon className={`w-4 h-4 mr-2 ${isActive ? "" : "text-violet-400"}`} />
+                            <Icon className={`w-4 h-4 mr-2 ${isActive ? "" : "text-primary"}`} />
                             {tab.label}
                         </Button>
                     </Link>

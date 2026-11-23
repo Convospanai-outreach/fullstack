@@ -9,8 +9,8 @@
  * - Removed: showSetupBanner / setupPercent state (setup fetch moved to page.tsx)
  * - Removed: OnboardingChecklist (replaced by WorkflowSection in dashboard page)
  * - Removed: bannerOffset prop on DashboardHeader
- * - Updated: main content margin-top now fixed mt-12 (48px header, no banner offset)
- * - Updated: sidebar offset updated to lg:pl-48 (192px, matching new sidebar width)
+ * - Updated: main content margin-top now fixed mt-14 (56px header, no banner offset)
+ * - Updated: sidebar offset updated to lg:pl-[232px] (matching the sidebar width)
  * - Kept: Omnibox, ConnectionStatusBar
  * - Added: SectionTabs above every page (the current sidebar section's pages as tabs)
  * - Removed: clerk-sync auth gate - proxy.ts's own session check (token-based,
@@ -45,13 +45,13 @@ export default function DashboardShell({
             />
 
             {/* Main content area — offset by sidebar width on desktop */}
-            <div className="flex-1 flex flex-col min-h-screen relative lg:pl-48">
+            <div className="flex-1 flex flex-col min-h-screen relative lg:pl-[232px]">
                 <DashboardHeader
                     onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 />
 
                 {/* mt-12 = fixed header height (48px) */}
-                <main id="main-content" className="flex-1 mt-12 p-4 lg:p-6 overflow-y-auto z-10" tabIndex={-1}>
+                <main id="main-content" className="flex-1 mt-14 p-4 lg:px-12 lg:pt-8 lg:pb-20 overflow-y-auto z-10" tabIndex={-1}>
                     <div className="relative z-10">
                         <SiteBanner />
                         <SectionTabs />

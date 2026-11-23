@@ -60,7 +60,7 @@ export default function DraftWithAiPanel({
                 </Button>
             </div>
             {note && <p className="text-muted-foreground">{note}</p>}
-            {error && <p className="text-amber-600 dark:text-amber-400">{error}</p>}
+            {error && <p className="text-warning dark:text-warning">{error}</p>}
         </div>
     );
 }

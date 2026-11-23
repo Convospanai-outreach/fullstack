@@ -35,7 +35,7 @@ export default function LandingAgentBriefPage() {
     }
 
     if (!campaign || error) {
-        return <div className="p-8 text-rose-300">{error || "Campaign not found"}</div>;
+        return <div className="p-8 text-chart-4">{error || "Campaign not found"}</div>;
     }
 
     return (

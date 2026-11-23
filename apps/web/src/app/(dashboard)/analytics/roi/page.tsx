@@ -237,23 +237,23 @@ export default function ROIDashboardPage() {
                                         <AreaChart data={data?.history}>
                                             <defs>
                                                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                                                 </linearGradient>
                                                 <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                            <XAxis dataKey="date" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                                            <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
                                             <Tooltip
-                                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
-                                                itemStyle={{ color: '#fff' }}
+                                                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                                                itemStyle={{ color: 'hsl(var(--foreground))' }}
                                             />
-                                            <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
-                                            <Area type="monotone" dataKey="spend" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" name="Spend" />
+                                            <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
+                                            <Area type="monotone" dataKey="spend" stroke="hsl(var(--chart-2))" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" name="Spend" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 )}
@@ -319,24 +319,24 @@ export default function ROIDashboardPage() {
                             <div className="space-y-6 mt-2">
                                 {/* Funnel Steps */}
                                 <div className="relative">
-                                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 to-transparent opacity-30" />
+                                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary to-transparent opacity-30" />
 
                                     <FunnelStep
                                         label="Leads Contacted"
                                         count={data?.funnel?.totalSent || 0}
-                                        color="bg-blue-500"
+                                        color="bg-primary"
                                         percent={100}
                                     />
                                     <FunnelStep
                                         label="Opportunities"
                                         count={data?.funnel?.opportunities || 0}
-                                        color="bg-purple-500"
+                                        color="bg-primary"
                                         percent={data?.funnel?.totalSent ? (data.funnel.opportunities / data.funnel.totalSent * 100) : 0}
                                     />
                                     <FunnelStep
                                         label="Closed Won"
                                         count={data?.funnel?.wins || 0}
-                                        color="bg-emerald-500"
+                                        color="bg-success"
                                         percent={data?.funnel?.totalSent ? (data.funnel.wins / data.funnel.totalSent * 100) : 0}
                                     />
                                 </div>

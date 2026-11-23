@@ -503,44 +503,44 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         pageTitleRef.current = e.target.value;
                         setPageTitle(e.target.value);
                     }}
-                    className="min-w-72 rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                    className="min-w-72 rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                     placeholder="Landing page title"
                 />
-                <Button onClick={handleSave} disabled={saving || publishing} className="bg-white text-slate-900 hover:bg-slate-200">
+                <Button onClick={handleSave} disabled={saving || publishing} className="bg-card text-foreground hover:bg-secondary">
                     {saving ? "Saving..." : "Save Draft"}
                 </Button>
-                <Button onClick={handleUndo} disabled={!canUndo} className="bg-white/10 text-slate-200 hover:bg-white/20">
+                <Button onClick={handleUndo} disabled={!canUndo} className="bg-foreground/10 text-foreground hover:bg-foreground/20">
                     Undo
                 </Button>
-                <Button onClick={handleRedo} disabled={!canRedo} className="bg-white/10 text-slate-200 hover:bg-white/20">
+                <Button onClick={handleRedo} disabled={!canRedo} className="bg-foreground/10 text-foreground hover:bg-foreground/20">
                     Redo
                 </Button>
                 {onGenerateImages ? (
                     <Button
                         onClick={handleGenerateImages}
                         disabled={generatingImages || saving || publishing}
-                        className="bg-violet-600 hover:bg-violet-500 text-white"
+                        className="bg-primary hover:bg-primary text-primary-foreground"
                     >
                         {generatingImages ? "Generating images..." : "Generate images"}
                     </Button>
                 ) : null}
-                <Button onClick={handlePublish} disabled={publishing} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                <Button onClick={handlePublish} disabled={publishing} className="bg-primary hover:bg-primary text-primary-foreground">
                     {publishing ? "Publishing..." : "Publish"}
                 </Button>
                 <Button
                     onClick={handlePreviewInNewTab}
                     disabled={!isPublished || !pageSlug}
                     title={isPublished ? "Open the live page in a new tab" : "Publish the page to preview it"}
-                    className="bg-white/10 text-slate-200 hover:bg-white/20"
+                    className="bg-foreground/10 text-foreground hover:bg-foreground/20"
                 >
                     Preview in new tab
                 </Button>
-                <p className="text-xs text-slate-400">{saveLabel}</p>
+                <p className="text-xs text-muted-foreground">{saveLabel}</p>
             </div>
 
-            {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+            {error ? <p className="text-sm text-chart-4">{error}</p> : null}
             {altWarnings.length > 0 ? (
-                <div className="space-y-1 rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 text-sm text-amber-200">
+                <div className="space-y-1 rounded-lg border border-warning/40 bg-warning/30 p-3 text-sm text-warning">
                     <p>
                         {altWarnings.length} image{altWarnings.length === 1 ? "" : "s"} without alt text. Screen readers cannot describe
                         {altWarnings.length === 1 ? " it" : " them"}.
@@ -557,14 +557,14 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
             <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_280px]">
                 <div className="space-y-4">
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Blocks</p>
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Blocks</p>
                         <div ref={blocksRef} />
                     </div>
                     <CopyHelperPanel onUse={handleUseCopy} />
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Images</p>
-                        <label className="block text-xs text-slate-300">
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Images</p>
+                        <label className="block text-xs text-foreground/80">
                             Upload (PNG, JPG or WebP, 2 MB max)
                             <input
                                 type="file"
@@ -574,17 +574,17 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                                     void handleImageUpload(e.target.files?.[0]);
                                     e.target.value = "";
                                 }}
-                                className="mt-1 block w-full text-xs text-slate-300"
+                                className="mt-1 block w-full text-xs text-foreground/80"
                             />
                         </label>
-                        <label className="block text-xs text-slate-300">
+                        <label className="block text-xs text-foreground/80">
                             Or paste an https image address
                             <input
                                 type="url"
                                 value={imageSrc}
                                 onChange={(e) => handlePastedImage(e.target.value)}
                                 placeholder="https://"
-                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                className="mt-1 w-full rounded border border-foreground/10 bg-background/60 px-2 py-1 text-foreground"
                             />
                         </label>
                         <div className="grid grid-cols-4 gap-1">
@@ -594,27 +594,27 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                                     type="button"
                                     title={asset.label}
                                     onClick={() => handleLibraryImage(asset)}
-                                    className="h-10 overflow-hidden rounded border border-white/10"
+                                    className="h-10 overflow-hidden rounded border border-foreground/10"
                                 >
                                     <img src={asset.path} alt={asset.alt} className="h-full w-full object-cover" />
                                 </button>
                             ))}
                         </div>
-                        <label className="block text-xs text-slate-300">
+                        <label className="block text-xs text-foreground/80">
                             Alt text (required)
                             <input
                                 type="text"
                                 value={imageAlt}
                                 onChange={(e) => setImageAlt(e.target.value)}
-                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                className="mt-1 w-full rounded border border-foreground/10 bg-background/60 px-2 py-1 text-foreground"
                             />
                         </label>
-                        <label className="block text-xs text-slate-300">
+                        <label className="block text-xs text-foreground/80">
                             Layout
                             <select
                                 value={imageLayout}
                                 onChange={(e) => setImageLayout(e.target.value as HeroImageLayout)}
-                                className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                className="mt-1 w-full rounded border border-foreground/10 bg-background/60 px-2 py-1 text-foreground"
                             >
                                 {HERO_IMAGE_LAYOUTS.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -622,24 +622,24 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                             </select>
                         </label>
                         <div className="grid grid-cols-2 gap-2">
-                            <label className="block text-xs text-slate-300">
+                            <label className="block text-xs text-foreground/80">
                                 Focus
                                 <select
                                     value={imageFocal}
                                     onChange={(e) => setImageFocal(e.target.value as FocalPoint)}
-                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                    className="mt-1 w-full rounded border border-foreground/10 bg-background/60 px-2 py-1 text-foreground"
                                 >
                                     {FOCAL_POINTS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
                                     ))}
                                 </select>
                             </label>
-                            <label className="block text-xs text-slate-300">
+                            <label className="block text-xs text-foreground/80">
                                 Darken
                                 <select
                                     value={imageDarken}
                                     onChange={(e) => setImageDarken(Number(e.target.value) as OverlayStrength)}
-                                    className="mt-1 w-full rounded border border-white/10 bg-slate-900/60 px-2 py-1 text-slate-100"
+                                    className="mt-1 w-full rounded border border-foreground/10 bg-background/60 px-2 py-1 text-foreground"
                                 >
                                     {OVERLAY_STRENGTHS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -647,25 +647,25 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                                 </select>
                             </label>
                         </div>
-                        {imageNote ? <p className="text-xs text-slate-400">{imageNote}</p> : null}
-                        {imageError ? <p className="text-xs text-rose-300">{imageError}</p> : null}
+                        {imageNote ? <p className="text-xs text-muted-foreground">{imageNote}</p> : null}
+                        {imageError ? <p className="text-xs text-chart-4">{imageError}</p> : null}
                         <Button
                             onClick={handleAddImage}
                             disabled={!imageAlt.trim() || !imageSrc.trim() || uploadingImage}
-                            className="w-full bg-white/10 text-slate-200 hover:bg-white/20"
+                            className="w-full bg-foreground/10 text-foreground hover:bg-foreground/20"
                         >
                             Add image block
                         </Button>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Layers</p>
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Layers</p>
                         <div ref={layersRef} />
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2 space-y-2">
+                <div className="rounded-xl border border-foreground/10 bg-background/60 p-2 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                             Double-click text to edit. Ctrl+Z undo, Ctrl+Shift+Z redo, Ctrl+S save.
                         </p>
                         <div className="flex gap-1">
@@ -673,42 +673,42 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                                 <Button
                                     key={option.name}
                                     onClick={() => handleDevice(option.name)}
-                                    className={`h-7 px-2 text-xs ${device === option.name ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                                    className={`h-7 px-2 text-xs ${device === option.name ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground/80"}`}
                                 >
                                     {option.name}
                                 </Button>
                             ))}
                         </div>
                     </div>
-                    {loadingEditor ? <p className="p-6 text-sm text-slate-400">Loading editor...</p> : null}
+                    {loadingEditor ? <p className="p-6 text-sm text-muted-foreground">Loading editor...</p> : null}
                     {!loadingEditor && isEmpty ? (
-                        <p className="p-6 text-sm text-slate-400">This page is empty. Click a block on the left to add it.</p>
+                        <p className="p-6 text-sm text-muted-foreground">This page is empty. Click a block on the left to add it.</p>
                     ) : null}
                     <div ref={containerRef} />
                 </div>
 
                 <div className="space-y-4">
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Page theme</p>
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Page theme</p>
                         <PageThemePanel theme={theme} onChange={applyTheme} />
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Style</p>
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Style</p>
                         <div ref={stylesRef} />
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Link settings</p>
+                    <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Link settings</p>
                         <div ref={traitsRef} />
                     </div>
                     {leadForm ? (
-                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Lead form</p>
+                        <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Lead form</p>
                             <LeadFormSettingsPanel key={leadForm.key} config={leadForm.config} onApply={applyLeadForm} />
                         </div>
                     ) : null}
                     {instagram ? (
-                        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-3 space-y-2">
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Instagram follow</p>
+                        <div className="rounded-xl border border-foreground/10 bg-background/60 p-3 space-y-2">
+                            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Instagram follow</p>
                             <InstagramSettingsPanel key={instagram.key} onApply={applyInstagramHref} />
                         </div>
                     ) : null}
@@ -718,25 +718,25 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
 
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Live Preview</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Live Preview</p>
                     <div className="flex gap-1">
                         <Button
                             onClick={() => setPreviewWidth("desktop")}
-                            className={`h-7 px-2 text-xs ${previewWidth === "desktop" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                            className={`h-7 px-2 text-xs ${previewWidth === "desktop" ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground/80"}`}
                         >
                             Desktop
                         </Button>
                         <Button
                             onClick={() => setPreviewWidth("mobile")}
-                            className={`h-7 px-2 text-xs ${previewWidth === "mobile" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                            className={`h-7 px-2 text-xs ${previewWidth === "mobile" ? "bg-primary text-primary-foreground" : "bg-foreground/10 text-foreground/80"}`}
                         >
                             Mobile
                         </Button>
                     </div>
                 </div>
                 {previewWidth === "mobile" ? (
-                    <div className="rounded-lg border border-amber-400/40 bg-amber-950/30 p-3 space-y-1 text-sm text-amber-200">
-                        <p className="text-xs uppercase tracking-[0.2em] text-amber-300">Phone checks (suggestions, not blocking)</p>
+                    <div className="rounded-lg border border-warning/40 bg-warning/30 p-3 space-y-1 text-sm text-warning">
+                        <p className="text-xs uppercase tracking-[0.2em] text-warning">Phone checks (suggestions, not blocking)</p>
                         {mobileWarnings.length === 0 ? (
                             <p className="text-xs">No phone warnings for this page.</p>
                         ) : (
@@ -748,12 +748,12 @@ export default function GrapesEditor({ initialRenderedJson, title, pageStatus, p
                         )}
                     </div>
                 ) : null}
-                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
+                <div className="rounded-xl border border-foreground/10 bg-background/60 p-2" style={{ height: "70vh" }}>
                     <iframe
                         title="Landing page preview"
                         srcDoc={previewDoc}
                         sandbox=""
-                        className="h-full rounded-lg bg-white"
+                        className="h-full rounded-lg bg-card"
                         style={{ width: previewWidth === "desktop" ? "100%" : "390px", margin: previewWidth === "mobile" ? "0 auto" : undefined, display: "block" }}
                     />
                 </div>

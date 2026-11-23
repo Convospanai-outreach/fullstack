@@ -31,8 +31,8 @@ export function NavDropdown({ label, icon: Icon, items }: NavDropdownProps) {
             <DropdownMenuTrigger asChild>
                 <button
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 outline-none ${isActive
-                        ? "bg-white/10 text-white shadow-inner"
-                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                        ? "bg-foreground/10 text-foreground shadow-inner"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                         }`}
                 >
                     {Icon && <Icon className="w-4 h-4" />}
@@ -43,7 +43,7 @@ export function NavDropdown({ label, icon: Icon, items }: NavDropdownProps) {
             <DropdownMenuContent
                 align="start"
                 sideOffset={8}
-                className="min-w-[180px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5"
+                className="min-w-[180px] bg-background/95 backdrop-blur-xl border border-foreground/10 rounded-xl shadow-2xl p-1.5"
             >
                 {items.map((item) => {
                     const ItemIcon = item.icon;
@@ -53,8 +53,8 @@ export function NavDropdown({ label, icon: Icon, items }: NavDropdownProps) {
                             <Link
                                 href={item.href}
                                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${isItemActive
-                                    ? "bg-blue-600/20 text-blue-400"
-                                    : "text-gray-300 hover:text-white hover:bg-white/5"
+                                    ? "bg-primary/20 text-primary"
+                                    : "text-foreground/80 hover:text-foreground hover:bg-foreground/5"
                                     }`}
                             >
                                 {ItemIcon && <ItemIcon className="w-4 h-4" />}

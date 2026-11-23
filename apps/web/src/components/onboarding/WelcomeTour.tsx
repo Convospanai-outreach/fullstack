@@ -111,21 +111,21 @@ export default function WelcomeTour() {
 
             {/* Tooltip */}
             <div
-                className="absolute bg-white text-gray-900 p-4 rounded-xl shadow-2xl w-64 pointer-events-auto border-2 border-indigo-500 animate-in fade-in zoom-in duration-300"
+                className="absolute bg-card text-foreground p-4 rounded-xl shadow-2xl w-64 pointer-events-auto border-2 border-primary/30 animate-in fade-in zoom-in duration-300"
                 style={{ top: top + window.scrollY, left: left + window.scrollX }}
             >
-                <div className="text-[11px] font-medium text-indigo-500 mb-1">
+                <div className="text-[11px] font-medium text-primary mb-1">
                     Step {stepIndex + 1} of {TOUR_STEPS.length}
                 </div>
                 <div className="text-sm font-medium mb-2">{step?.content}</div>
                 <div className="flex justify-between items-center mt-3">
-                    <button onClick={handleClose} className="text-xs text-gray-500 hover:text-gray-800">Skip</button>
-                    <button onClick={handleNext} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700">
+                    <button onClick={handleClose} className="text-xs text-muted-foreground hover:text-foreground">Skip</button>
+                    <button onClick={handleNext} className="px-3 py-1 bg-primary text-primary-foreground text-xs rounded-lg hover:bg-primary/90">
                         {stepIndex === TOUR_STEPS.length - 1 ? "Finish" : "Next"}
                     </button>
                 </div>
                 {/* Arrow */}
-                <div className="absolute w-3 h-3 bg-white border-t border-l border-indigo-500 transform -rotate-45 -top-1.5 left-4" />
+                <div className="absolute w-3 h-3 bg-card border-t border-l border-primary/30 transform -rotate-45 -top-1.5 left-4" />
             </div>
         </div>,
         document.body

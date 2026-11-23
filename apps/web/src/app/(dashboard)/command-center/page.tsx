@@ -96,7 +96,7 @@ export default function CommandCenterPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-primary text-xs font-semibold uppercase tracking-wider mb-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-2">
                         <Activity className="w-3.5 h-3.5" />
                         Live Operations
                     </div>
@@ -119,7 +119,7 @@ export default function CommandCenterPage() {
                         Refresh Pulse
                     </Button>
                     <Link href="/inbox?tab=approvals">
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white text-xs shadow-lg shadow-blue-600/20">
+                        <Button size="sm" className="bg-primary hover:bg-primary text-primary-foreground text-xs shadow-lg shadow-primary/20">
                             Review Queue ({metrics.pendingApprovals})
                         </Button>
                     </Link>
@@ -134,7 +134,7 @@ export default function CommandCenterPage() {
                         <Play className="w-4 h-4 text-primary" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{metrics.activeCampaigns}</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                    <div className="flex items-center gap-1.5 text-[11px] text-success">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>All cadences executing normally</span>
                     </div>
@@ -143,9 +143,9 @@ export default function CommandCenterPage() {
                 <div className="p-5 rounded-2xl bg-muted border border-border space-y-2">
                     <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                         <span>Pending Approvals</span>
-                        <Clock className="w-4 h-4 text-amber-400" />
+                        <Clock className="w-4 h-4 text-warning" />
                     </div>
-                    <div className="text-2xl font-bold text-amber-300">{metrics.pendingApprovals}</div>
+                    <div className="text-2xl font-bold text-warning">{metrics.pendingApprovals}</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <span>Manager sign-off required</span>
                     </div>
@@ -154,10 +154,10 @@ export default function CommandCenterPage() {
                 <div className="p-5 rounded-2xl bg-muted border border-border space-y-2">
                     <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                         <span>Mailbox Sender Health</span>
-                        <Mail className="w-4 h-4 text-emerald-400" />
+                        <Mail className="w-4 h-4 text-success" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{metrics.mailboxesActive} Inboxes</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                    <div className="flex items-center gap-1.5 text-[11px] text-success">
                         <span>Bounce Rate: {deliverability ? (deliverability.bounceRate * 100).toFixed(1) : metrics.bounceRate}% (Safe &lt; 5%)</span>
                     </div>
                 </div>
@@ -165,10 +165,10 @@ export default function CommandCenterPage() {
                 <div className="p-5 rounded-2xl bg-muted border border-border space-y-2">
                     <div className="flex items-center justify-between text-muted-foreground text-xs font-medium">
                         <span>Transactional Outbox</span>
-                        <Zap className="w-4 h-4 text-purple-400" />
+                        <Zap className="w-4 h-4 text-primary" />
                     </div>
                     <div className="text-2xl font-bold text-foreground">{metrics.outboxQueueDepth} Pending</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-purple-400">
+                    <div className="flex items-center gap-1.5 text-[11px] text-primary">
                         <span>Jobs waiting to be picked up by a worker</span>
                     </div>
                 </div>
@@ -183,7 +183,7 @@ export default function CommandCenterPage() {
                             <Zap className="w-5 h-5 text-primary" />
                             Live Outbound Orchestration
                         </h2>
-                        <Link href="/campaigns" className="text-xs text-primary hover:text-blue-300 flex items-center gap-1">
+                        <Link href="/campaigns" className="text-xs text-primary hover:text-primary flex items-center gap-1">
                             View all campaigns <ArrowUpRight className="w-3.5 h-3.5" />
                         </Link>
                     </div>
@@ -203,7 +203,7 @@ export default function CommandCenterPage() {
                                             Active Leads: {campaign._count?.leadList ?? 0}
                                         </p>
                                     </div>
-                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
                                         {campaign.status}
                                     </span>
                                 </div>
@@ -216,17 +216,17 @@ export default function CommandCenterPage() {
                 <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-emerald-400" />
+                            <Shield className="w-5 h-5 text-success" />
                             Deliverability Health
                         </h2>
                         {deliverability && (
                             <span
                                 className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                                     deliverability.score >= 80
-                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                        ? "bg-success/10 text-success border-success/20"
                                         : deliverability.score >= 50
-                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                        ? "bg-warning/10 text-warning border-warning/20"
+                                        : "bg-chart-4/10 text-chart-4 border-chart-4/20"
                                 }`}
                             >
                                 {deliverability.score}/100
@@ -241,7 +241,7 @@ export default function CommandCenterPage() {
                             <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
                                 <div className="flex justify-between font-semibold text-foreground">
                                     <span>Bounce Rate ({deliverability.windowDays}d)</span>
-                                    <span className={deliverability.bounceRate > 0.02 ? "text-amber-400" : "text-emerald-400"}>
+                                    <span className={deliverability.bounceRate > 0.02 ? "text-warning" : "text-success"}>
                                         {(deliverability.bounceRate * 100).toFixed(1)}%
                                     </span>
                                 </div>
@@ -251,7 +251,7 @@ export default function CommandCenterPage() {
                             <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
                                 <div className="flex justify-between font-semibold text-foreground">
                                     <span>Complaint Rate</span>
-                                    <span className={deliverability.complaintRate > 0.0005 ? "text-rose-400" : "text-emerald-400"}>
+                                    <span className={deliverability.complaintRate > 0.0005 ? "text-chart-4" : "text-success"}>
                                         {(deliverability.complaintRate * 100).toFixed(2)}%
                                     </span>
                                 </div>
@@ -261,7 +261,7 @@ export default function CommandCenterPage() {
                             <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
                                 <div className="flex justify-between font-semibold text-foreground">
                                     <span>RFC 8058 One-Click Unsubscribe</span>
-                                    <span className="text-emerald-400">Active</span>
+                                    <span className="text-success">Active</span>
                                 </div>
                                 <p className="text-muted-foreground">List-Unsubscribe headers are attached to every send.</p>
                             </div>
@@ -278,8 +278,8 @@ export default function CommandCenterPage() {
                                                         key={k}
                                                         className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                                                             d[k]
-                                                                ? "bg-emerald-500/10 text-emerald-400"
-                                                                : "bg-rose-500/10 text-rose-400"
+                                                                ? "bg-success/10 text-success"
+                                                                : "bg-chart-4/10 text-chart-4"
                                                         }`}
                                                     >
                                                         {k}
@@ -292,8 +292,8 @@ export default function CommandCenterPage() {
                             )}
 
                             {!deliverability.mailingAddressConfigured && (
-                                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-                                    <p className="font-semibold text-amber-400">No mailing address set</p>
+                                <div className="p-3.5 rounded-xl bg-warning/10 border border-warning/20 space-y-1">
+                                    <p className="font-semibold text-warning">No mailing address set</p>
                                     <p className="text-muted-foreground">CAN-SPAM requires a physical address in every marketing email — add one in Settings.</p>
                                 </div>
                             )}

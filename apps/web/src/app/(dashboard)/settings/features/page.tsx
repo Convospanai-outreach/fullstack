@@ -150,9 +150,9 @@ export default function HiddenFeaturesPage() {
             />
 
             {highlightedFeature && (
-                <GlassCard className="p-5 border-amber-500/20 bg-amber-500/5">
+                <GlassCard className="p-5 border-warning/20 bg-warning/5">
                     <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5" />
+                        <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
                         <div className="space-y-1">
                             <div className="text-sm font-semibold text-foreground">
                                 {highlightedFeature.label} is still hidden
@@ -174,7 +174,7 @@ export default function HiddenFeaturesPage() {
                             key={feature.key}
                             className={`p-5 transition-all ${
                                 requestedFeature === feature.key
-                                    ? "border-blue-500/40 bg-blue-500/5"
+                                    ? "border-primary/40 bg-primary/5"
                                     : "border-border"
                             }`}
                         >
@@ -184,15 +184,15 @@ export default function HiddenFeaturesPage() {
                                         <h2 className="text-lg font-semibold text-foreground">{feature.label}</h2>
                                         <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                                             feature.enabled
-                                                ? "bg-emerald-500/15 text-emerald-300"
+                                                ? "bg-success/15 text-success"
                                                 : "bg-muted text-foreground"
                                         }`}>
                                             {feature.enabled ? "Visible" : "Hidden"}
                                         </span>
                                         <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                                             feature.ready
-                                                ? "bg-blue-500/15 text-blue-300"
-                                                : "bg-amber-500/15 text-amber-300"
+                                                ? "bg-primary/15 text-primary"
+                                                : "bg-warning/15 text-warning"
                                         }`}>
                                             {feature.ready ? "Ready" : "Needs Setup"}
                                         </span>
@@ -204,9 +204,9 @@ export default function HiddenFeaturesPage() {
                                         <div className="rounded-xl border border-border bg-muted p-3">
                                             <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                                 {feature.ready ? (
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+                                                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
                                                 ) : (
-                                                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                                                    <Lock className="w-3.5 h-3.5 text-warning" />
                                                 )}
                                                 Readiness
                                             </div>
@@ -215,7 +215,7 @@ export default function HiddenFeaturesPage() {
 
                                         <div className="rounded-xl border border-border bg-muted p-3">
                                             <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                                                <Sparkles className="w-3.5 h-3.5 text-primary" />
                                                 Suggested Action
                                             </div>
                                             <p className="text-sm text-foreground">{feature.recommendedAction}</p>
@@ -234,7 +234,7 @@ export default function HiddenFeaturesPage() {
                                         onClick={() => toggleFeature(feature.key)}
                                         className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
                                             feature.enabled
-                                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
+                                                ? "border-success/30 bg-success/10 text-success hover:bg-success/20"
                                                 : "border-border bg-muted text-foreground hover:bg-muted"
                                         } ${isSaving || data.canEdit === false || feature.disabledByPlatform ? "opacity-60 cursor-not-allowed" : ""}`}
                                     >
@@ -256,7 +256,7 @@ export default function HiddenFeaturesPage() {
                                             <ExternalLink className="w-4 h-4" />
                                         </Link>
                                     ) : feature.enabled && !feature.built ? (
-                                        <div className="inline-flex items-center gap-2 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-amber-200">
+                                        <div className="inline-flex items-center gap-2 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-warning">
                                             Not built yet
                                             <AlertTriangle className="w-4 h-4" />
                                         </div>

@@ -37,8 +37,8 @@ const CAPABILITY_ROWS: { key: keyof NonNullable<EdgeHeartbeat["capabilities"]>; 
 ];
 
 const STATUS_STYLES: Record<EdgeRuntimeStatus["status"], { icon: typeof CheckCircle2; className: string }> = {
-    UP: { icon: CheckCircle2, className: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-    DOWN: { icon: XCircle, className: "bg-red-500/10 text-red-400 border-red-500/20" },
+    UP: { icon: CheckCircle2, className: "bg-success/10 text-success border-success/20" },
+    DOWN: { icon: XCircle, className: "bg-destructive/10 text-destructive border-destructive/20" },
     NOT_CONFIGURED: { icon: HelpCircle, className: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -109,7 +109,7 @@ export default function EdgeRuntimePage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-2">
                         <Radio className="w-3.5 h-3.5" />
                         On-Prem Edge Runtime
                     </div>
@@ -136,7 +136,7 @@ export default function EdgeRuntimePage() {
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                        <Cpu className="w-5 h-5 text-cyan-400" />
+                        <Cpu className="w-5 h-5 text-primary" />
                         <div>
                             <h2 className="text-base font-bold text-foreground">Configured Edge Endpoint</h2>
                             <p className="text-xs text-muted-foreground font-mono">
@@ -151,14 +151,14 @@ export default function EdgeRuntimePage() {
                 </div>
                 <p className="text-xs text-muted-foreground">{status?.message ?? "Checking edge runtime availability..."}</p>
                 {typeof status?.latencyMs === "number" && (
-                    <p className="text-xs text-cyan-400 font-mono">Latency: {status.latencyMs}ms</p>
+                    <p className="text-xs text-primary font-mono">Latency: {status.latencyMs}ms</p>
                 )}
             </div>
 
             {/* Hardware fingerprint */}
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-2">
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Fingerprint className="w-4 h-4 text-cyan-400" />
+                    <Fingerprint className="w-4 h-4 text-primary" />
                     Hardware fingerprint
                 </h3>
                 <p className="text-xs text-muted-foreground font-mono">
@@ -175,7 +175,7 @@ export default function EdgeRuntimePage() {
             {/* Capability matrix */}
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <ListChecks className="w-4 h-4 text-cyan-400" />
+                    <ListChecks className="w-4 h-4 text-primary" />
                     Capabilities
                 </h3>
                 <ul className="space-y-1.5">
@@ -183,7 +183,7 @@ export default function EdgeRuntimePage() {
                         const on = details?.capabilities?.[key] === true;
                         return (
                             <li key={key} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {on ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground" />}
+                                {on ? <CheckCircle2 className="w-3.5 h-3.5 text-success" /> : <XCircle className="w-3.5 h-3.5 text-muted-foreground" />}
                                 <span className={on ? "text-foreground" : undefined}>{label}</span>
                             </li>
                         );
@@ -194,27 +194,27 @@ export default function EdgeRuntimePage() {
             {/* Score test */}
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <Play className="w-4 h-4 text-cyan-400" />
+                    <Play className="w-4 h-4 text-primary" />
                     Test intent scoring
                 </h3>
                 <p className="text-xs text-muted-foreground">Sends one fixed sample sentence to the node. No lead data is sent.</p>
                 <Button variant="outline" size="sm" onClick={runScoreTest} disabled={testing} className="bg-muted border-border text-foreground text-xs">
                     {testing ? "Testing..." : "Run test"}
                 </Button>
-                {testResult && <p className="text-xs text-cyan-400 font-mono">{testResult}</p>}
+                {testResult && <p className="text-xs text-primary font-mono">{testResult}</p>}
             </div>
 
             {/* Quick Install Terminal Box */}
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <Terminal className="w-4 h-4 text-cyan-400" />
+                        <Terminal className="w-4 h-4 text-primary" />
                         Configure your edge endpoint
                     </h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                    Set <code className="text-cyan-300">ON_PREM_AI_ENDPOINT</code> (or <code className="text-cyan-300">EDGE_NODE_URL</code>) on
-                    your deployment to point at a locally hosted inference server exposing a <code className="text-cyan-300">/health</code> endpoint.
+                    Set <code className="text-primary">ON_PREM_AI_ENDPOINT</code> (or <code className="text-primary">EDGE_NODE_URL</code>) on
+                    your deployment to point at a locally hosted inference server exposing a <code className="text-primary">/health</code> endpoint.
                 </p>
             </div>
         </div>

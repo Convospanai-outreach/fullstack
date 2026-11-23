@@ -24,7 +24,7 @@ export default function NotFound() {
                 {/* Primary Action Buttons */}
                 <div className="flex flex-wrap items-center justify-center gap-4">
                     <Link href="/">
-                        <Button className="bg-blue-600 hover:bg-blue-500 text-[#1A1414] font-semibold flex items-center gap-2 px-6 py-2.5">
+                        <Button className="bg-primary hover:bg-primary text-[#1A1414] font-semibold flex items-center gap-2 px-6 py-2.5">
                             <Home className="w-4 h-4" />
                             <span>Return Home</span>
                         </Button>
@@ -45,7 +45,7 @@ export default function NotFound() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                         <Link
                             href="/industries"
-                            className="p-4 rounded-xl bg-white border border-[#1A1414]/10 hover:border-[#5C1A2B] transition-all group"
+                            className="p-4 rounded-xl bg-card border border-[#1A1414]/10 hover:border-[#5C1A2B] transition-all group"
                         >
                             <Building2 className="w-4 h-4 text-[#5C1A2B] mb-2" />
                             <div className="text-sm font-bold text-[#1A1414] group-hover:text-[#5C1A2B] transition-colors">Vertical Playbooks</div>
@@ -53,15 +53,15 @@ export default function NotFound() {
                         </Link>
                         <Link
                             href="/locations"
-                            className="p-4 rounded-xl bg-white border border-[#1A1414]/10 hover:border-blue-500/40 transition-all group"
+                            className="p-4 rounded-xl bg-card border border-[#1A1414]/10 hover:border-primary/40 transition-all group"
                         >
-                            <MapPin className="w-4 h-4 text-blue-400 mb-2" />
-                            <div className="text-sm font-bold text-[#1A1414] group-hover:text-blue-400 transition-colors">Regional Hubs</div>
+                            <MapPin className="w-4 h-4 text-primary mb-2" />
+                            <div className="text-sm font-bold text-[#1A1414] group-hover:text-primary transition-colors">Regional Hubs</div>
                             <div className="text-xs text-[#1A1414]/65 mt-1">10 tech &amp; industrial commercial corridors.</div>
                         </Link>
                         <Link
                             href="/faq"
-                            className="p-4 rounded-xl bg-white border border-[#1A1414]/10 hover:border-emerald-500/40 transition-all group"
+                            className="p-4 rounded-xl bg-card border border-[#1A1414]/10 hover:border-success/40 transition-all group"
                         >
                             <HelpCircle className="w-4 h-4 text-[#5C1A2B] mb-2" />
                             <div className="text-sm font-bold text-[#1A1414] group-hover:text-[#5C1A2B] transition-colors">Help &amp; FAQ</div>
