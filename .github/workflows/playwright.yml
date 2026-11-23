@@ -9,6 +9,10 @@ on:
         default: "e2e/auth.spec.ts e2e/dashboard.spec.ts"
 
 # Node.js 24 native runtimes active via v6+ actions
+# Least privilege: nothing here writes to the repo, packages or pull requests.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Playwright (apps/web)
