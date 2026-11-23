@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Page, PageHero, Section, Cards, Steps, Checklist, Faq, CtaBand, JsonLd } from "./kit";
+import { Page, PageHero, Section, Cards, Steps, Checklist, Faq, CtaBand, JsonLd, SovereignBand } from "./kit";
 import { PRODUCTS, productBySlug } from "@/lib/marketing/products";
 import { INDUSTRIES } from "@/lib/marketing/industries";
 
@@ -30,6 +30,7 @@ export function ProductPage({ slug }: { slug: string }) {
       <Section tone="light" title="Questions">
         <Faq items={p.faq} />
       </Section>
+      {slug !== "covospan-edge" && <SovereignBand />}
       <Section tone="beige" eyebrow="Built for" title="Industries that get the most from it.">
         <Cards items={INDUSTRIES.slice(0, 6).map((i) => ({ title: i.name, href: `/industries/${i.slug}`, linkText: "Explore" }))} />
       </Section>

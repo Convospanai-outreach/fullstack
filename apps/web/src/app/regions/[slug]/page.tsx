@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Page, PageHero, Section, Cards, Steps, CtaBand } from "@/components/marketing/site/kit";
+import { Page, PageHero, Section, Cards, Steps, CtaBand, SovereignBand } from "@/components/marketing/site/kit";
 import { INDUSTRIES, MARKET_LABEL } from "@/lib/marketing/industries";
 import { REGIONS, regionBySlug } from "@/lib/marketing/regions";
 
@@ -32,7 +32,7 @@ export default async function RegionPage({ params }: Props) {
           { title: "Track replies, activity and the next commercial step." },
         ]} />
       </Section>
-      <Section tone="navy" eyebrow="Responsible outreach check" title="Know the rules before you hit send.">
+      <Section tone="teal" eyebrow="Responsible outreach check" title="Know the rules before you hit send.">
         <div className="ph-split">
           <p className="ph-lead">{r.guidance}</p>
           <p className="ph-lead" style={{ opacity: 0.8 }}>CraftMyFunnel supports preparation, approval and tracking. Your team remains responsible for lawful outreach, recipient eligibility, sender identification and unsubscribe handling. This is not legal advice. {r.pricing}</p>
@@ -41,6 +41,7 @@ export default async function RegionPage({ params }: Props) {
       <Section tone="beige" eyebrow={`Industries in ${r.name}`} title="Where it fits first.">
         <Cards items={industries.map((i) => ({ tag: MARKET_LABEL[i.market], title: i.name, href: `/industries/${i.slug}`, linkText: "Explore" }))} />
       </Section>
+      <SovereignBand law={r.law} />
       <CtaBand title={`Start a 30-day pilot in ${r.name}.`} lead="One service, one cohort, a small eligible account set. We review results with you in week four." primary={{ label: "Talk to an expert", href: "/contact" }} />
     </Page>
   );
