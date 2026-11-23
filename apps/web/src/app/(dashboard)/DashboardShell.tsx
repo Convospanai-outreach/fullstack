@@ -48,7 +48,7 @@ export default function DashboardShell({
             />
 
             {/* Main content area — offset by sidebar width on desktop */}
-            <div className="flex-1 flex flex-col min-h-screen relative lg:pl-[232px]">
+            <div className="flex-1 min-w-0 flex flex-col min-h-screen relative lg:pl-[232px]">
                 <DashboardHeader
                     onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 />
