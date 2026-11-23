@@ -27,7 +27,8 @@ function sanitize(value: string): string {
 
 function validatePayload(payload: SupportPayload): string | null {
     if (!payload.name?.trim()) return "Name is required";
-    if (!EMAIL_REGEX.test(payload.email ?? "")) return "A valid email is required";
+    // Length first: the pattern backtracks badly on a very long address (254 is the SMTP maximum).
+    if (!payload.email || payload.email.length > 254 || !EMAIL_REGEX.test(payload.email)) return "A valid email is required";
     if (!payload.subject?.trim()) return "Subject is required";
     if (!payload.message?.trim()) return "Message is required";
     if (payload.message.trim().length > 4000) return "Message is too long";

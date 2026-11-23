@@ -140,3 +140,15 @@ describe("SovereignFirewall.mask with an edge node set up", () => {
         expect(post).not.toHaveBeenCalled();
     });
 });
+
+describe("SovereignFirewall.unmask with regex characters in a token", () => {
+    it("restores the literal token and nothing that merely matches it", () => {
+        const tokenMap = new Map([["[A+B]", "Jane"]]);
+        expect(SovereignFirewall.unmask("Hi [A+B] and [AAB]", tokenMap)).toBe("Hi Jane and [AAB]");
+    });
+
+    it("does not treat a backslash in a token as an escape", () => {
+        const tokenMap = new Map([["[X\d]", "Jane"]]);
+        expect(SovereignFirewall.unmask("Hi [X\d] and [X5]", tokenMap)).toBe("Hi Jane and [X5]");
+    });
+});
