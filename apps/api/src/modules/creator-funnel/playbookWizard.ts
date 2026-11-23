@@ -1,4 +1,6 @@
 import { readIcpCriteria } from "@/modules/icp-builder/service/icpCriteria";
+import { HUMAN_VOICE_RULES, SOCIAL_POST_RULES } from "@/lib/ai/writingRules";
+import { stripEmDashes } from "@/lib/ai/aiTells/aiTells";
 import crypto from "node:crypto";
 import type { FunnelStage, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -259,6 +261,8 @@ export function buildPostPrompt(ctx: RunContext, index: number, total: number, s
         "- linkedin: at most 600 characters, professional, at most 3 hashtags.",
         "- visualBrief: one sentence describing a suggested image or short video.",
         "Don't include links or URLs; the creator adds them. Don't invent prices, numbers or testimonials that aren't given above.",
+        SOCIAL_POST_RULES,
+        HUMAN_VOICE_RULES,
         'Return JSON only: {"facebook":"...","instagram":"...","linkedin":"...","visualBrief":"..."}',
     ].join("\n");
 }
@@ -278,10 +282,10 @@ async function writePost(ai: Writer, ctx: RunContext, index: number, total: numb
     const raw = await ai.askAI(buildPostPrompt(ctx, index, total, slot), ctx.teamId, AI_OPTIONS);
     const p = draftSchema.parse(JSON.parse(ai.extractJson(raw)));
     return {
-        facebook: clamp(p.facebook.trim(), 3000),
-        instagram: clamp(p.instagram.trim(), INSTAGRAM_LIMITS.caption),
-        linkedin: clamp(p.linkedin.trim(), 3000),
-        visualBrief: clamp(p.visualBrief.trim(), 1000),
+        facebook: clamp(stripEmDashes(p.facebook.trim()), 3000),
+        instagram: clamp(stripEmDashes(p.instagram.trim()), INSTAGRAM_LIMITS.caption),
+        linkedin: clamp(stripEmDashes(p.linkedin.trim()), 3000),
+        visualBrief: clamp(stripEmDashes(p.visualBrief.trim()), 1000),
     };
 }
 

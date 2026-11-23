@@ -8,7 +8,7 @@ describe("buildProvenance", () => {
         expect(buildProvenance(base)).toEqual({
             v: 1,
             node: "A",
-            prompts: { draft: "email.nodeA@v5", system: "email.nodeA.system@v1", critique: "email.critique@v2" },
+            prompts: { draft: "email.nodeA@v5", system: "email.nodeA.system@v2", critique: "email.critique@v3" },
             flags: { retrieval: true, brief: false, rubricCritic: false },
             context: { playbook: 2, examples: 1, brief: false },
             critique: "passed",
@@ -16,7 +16,7 @@ describe("buildProvenance", () => {
     });
 
     it("names the rubric critique prompt when the rubric critic ran", () => {
-        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v3");
+        expect(buildProvenance({ ...base, rubricCritic: true }).prompts.critique).toBe("email.critique.rubric@v4");
     });
 });
 
@@ -36,12 +36,12 @@ describe("legacyProvenance", () => {
         expect(legacyProvenance(false)).toEqual({
             v: 1,
             node: "legacy",
-            prompts: { draft: "email.legacyDraft@v2", system: "none", critique: "none" },
+            prompts: { draft: "email.legacyDraft@v3", system: "none", critique: "none" },
             flags: { retrieval: false, brief: false, rubricCritic: false },
             context: { playbook: 0, examples: 0, brief: false },
             critique: "unreviewed",
         });
-        expect(legacyProvenance(true).prompts.draft).toBe("email.legacyBatch@v2");
+        expect(legacyProvenance(true).prompts.draft).toBe("email.legacyBatch@v3");
     });
 
     it("reads back like any other provenance", () => {
@@ -52,27 +52,27 @@ describe("legacyProvenance", () => {
 describe("legacyProvenance with a critic", () => {
     it("names the critic prompt and the outcome", () => {
         const p = legacyProvenance(false, { critique: "passed", rubricCritic: true });
-        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v2", critique: "email.critique.rubric@v3" }, flags: { rubricCritic: true } });
+        expect(p).toMatchObject({ critique: "passed", prompts: { draft: "email.legacyDraft@v3", critique: "email.critique.rubric@v4" }, flags: { rubricCritic: true } });
     });
 });
 
 describe("linkedinProvenance", () => {
     it("names the connection or follow-up prompt, with no critic or context", () => {
-        expect(linkedinProvenance("connect")).toMatchObject({ node: "linkedin", prompts: { draft: "linkedin.connect@v1", critique: "none" }, critique: "unreviewed" });
-        expect(linkedinProvenance("followUp").prompts.draft).toBe("linkedin.followUp@v1");
+        expect(linkedinProvenance("connect")).toMatchObject({ node: "linkedin", prompts: { draft: "linkedin.connect@v3", critique: "none" }, critique: "unreviewed" });
+        expect(linkedinProvenance("followUp").prompts.draft).toBe("linkedin.followUp@v3");
         expect(readProvenance(JSON.parse(JSON.stringify(linkedinProvenance("connect"))))).toEqual(linkedinProvenance("connect"));
     });
 });
 
 describe("linkedinProvenance with a critic", () => {
     it("names the LinkedIn critic prompt and the outcome", () => {
-        expect(linkedinProvenance("connect", { critique: "passed" })).toMatchObject({ critique: "passed", prompts: { draft: "linkedin.connect@v1", critique: "linkedin.critique@v1" } });
+        expect(linkedinProvenance("connect", { critique: "passed" })).toMatchObject({ critique: "passed", prompts: { draft: "linkedin.connect@v3", critique: "linkedin.critique@v2" } });
     });
 });
 
 describe("screened LinkedIn drafts", () => {
     it("name the Jev screen instead of the LinkedIn critic prompt", () => {
-        expect(linkedinProvenance("followUp", { critique: "screened" })).toMatchObject({ critique: "screened", prompts: { draft: "linkedin.followUp@v1", critique: JEV_SCREEN_REF } });
+        expect(linkedinProvenance("followUp", { critique: "screened" })).toMatchObject({ critique: "screened", prompts: { draft: "linkedin.followUp@v3", critique: JEV_SCREEN_REF } });
     });
 });
 

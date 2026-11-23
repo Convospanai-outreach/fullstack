@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "version": "2.0.0",
+    "updated": "2026-09-29",
+    "notes": "Before/after pairs verified with scripts/tells.py: before scores 60 or more, after 15 or less, and compare shows no lost or invented fact. Original text. formal = scored in formal mode (contractions and long sentences ignored)."
+  },
+  "registers": {
+    "email": "cold and customer emails",
+    "post": "LinkedIn and social posts",
+    "bio": "third-person bios",
+    "letter": "cover letters and formal letters",
+    "blurb": "product and listing blurbs",
+    "intro": "blog and article intros",
+    "announcement": "internal announcements",
+    "sensitive": "condolences and board memos: humanizing without casualizing"
+  },
+  "pairs": [
+    {
+      "id": "email-cold",
+      "register": "email",
+      "title": "Cold outreach email",
+      "before": "Subject: Unlocking Seamless Logistics for Northwind\n\nHi Marcus,\n\nI hope this email finds you well. I wanted to reach out because Northwind Freight is doing incredible work in cold-chain delivery, and I believe our cutting-edge platform could be a game-changer for your team.\n\nAt Routely, we don't just optimize routes \u2014 we empower logistics teams to unlock their full potential. Our clients have seen a 22% reduction in late deliveries, including Bramwell Foods, which cut delays from 9% to 7% in just six weeks.\n\nWould you be open to a quick 20-minute call on Thursday, October 9 at 2:00 pm? Please don't hesitate to reach out if you have any questions. I look forward to hearing from you!\n\nBest regards,\nElena Cruz",
+      "after": "Subject: Late deliveries at Northwind\n\nHi Marcus,\n\nYour cold-chain delivery work at Northwind Freight caught my eye. Routely optimizes routes for logistics teams, and our clients have seen a 22% reduction in late deliveries. At Bramwell Foods, delays fell from 9% to 7% in six weeks.\n\nCould we do a quick 20-minute call on Thursday, October 9 at 2:00 pm?\n\nElena Cruz",
+      "changed": "The throat-clearing opener, the 'game-changer' claim, the negation pivot and the 'don't hesitate' closer are gone. The subject line names the problem. Every number, name and the meeting time survived."
+    },
+    {
+      "id": "email-apology",
+      "register": "email",
+      "title": "Customer apology reply",
+      "before": "Hi Tom,\n\nThank you for reaching out, and I sincerely apologize for any inconvenience this may have caused. We truly value your feedback, and your satisfaction is our top priority. Rest assured, we take this matter very seriously and are committed to ensuring a seamless experience for all of our valued customers.\n\nI have reviewed your order #48213 and can confirm that the blue jacket in size L was shipped on September 12 instead of the size M you requested. Additionally, I am delighted to let you know that we have initiated a full refund of $89.95, which will be processed within 3-5 business days.\n\nPlease don't hesitate to reach out if you need further assistance. We appreciate your patience and understanding!\n\nWarm regards,\nPriya Nair\nCustomer Success Team",
+      "after": "Hi Tom,\n\nI'm sorry about the mix-up. I checked order #48213: you asked for the blue jacket in size M, and we shipped size L on September 12.\n\nWe've started a full refund of $89.95. It will be processed within 3-5 business days.\n\nPriya Nair\nCustomer Success Team",
+      "changed": "The apology now says what went wrong instead of apologizing for 'any inconvenience'. The brand-value sentences and the offer of 'further assistance' are cut. Order number, sizes, date, amount and timeline are unchanged."
+    },
+    {
+      "id": "post-milestone",
+      "register": "post",
+      "title": "LinkedIn milestone post",
+      "before": "\ud83d\ude80 Thrilled to announce that our team just hit a major milestone \u2014 10,000 customers!\n\nIn today's fast-paced world, building a startup is not just about the product, it's about the people. Over the past 3 years, we've navigated challenges, embraced innovation, and fostered a culture of collaboration that has empowered every team member to unlock their full potential.\n\nHere's what we learned:\n\n\u2705 Listen to your customers\n\u2705 Hire for attitude\n\u2705 Never stop iterating\n\nHuge thanks to our incredible team, our loyal customers, and everyone who believed in us from day one. The journey is just beginning!\n\nWhat milestones are you celebrating? Drop a comment below! \ud83d\udc47\n\n#Startup #Growth #Leadership",
+      "after": "We just passed 10,000 customers.\n\nIt took 3 years. The product matters, but the people matter more, and what worked for us was simple: listen to your customers, hire for attitude, never stop iterating.\n\nThank you to the team, to our customers, and to everyone who believed in us from day one.\n\n#Startup #Growth #Leadership",
+      "changed": "The number now opens the post. The emoji bullets became one sentence, the 'not just X, it's Y' pivot became a plain claim, and the engagement-bait question is gone. The three lessons and every figure are kept."
+    },
+    {
+      "id": "bio-marketing",
+      "register": "bio",
+      "title": "Third-person professional bio",
+      "before": "Maria Alvarez is a passionate, results-driven marketing professional with over 12 years of experience in the ever-evolving digital landscape. A seasoned leader with a proven track record of driving growth and fostering innovation, she has spearheaded comprehensive campaigns for global brands such as Unilever and Nestl\u00e9. Maria holds an MBA from INSEAD and is a frequent speaker at industry events. When she's not elevating brands, she enjoys hiking, photography, and exploring new cuisines.",
+      "after": "Maria Alvarez has spent more than 12 years in marketing. She has run campaigns for Unilever and Nestl\u00e9, holds an MBA from INSEAD, and speaks often at industry events. Outside work she hikes, takes photographs and tries new cuisines.",
+      "changed": "Resume adjectives ('passionate', 'results-driven', 'seasoned') and the 'proven track record' claim were cut, since the employers and the degree already carry the credibility. Nothing was added."
+    },
+    {
+      "id": "letter-analyst",
+      "register": "letter",
+      "title": "Cover letter",
+      "before": "Dear Hiring Manager,\n\nI am writing to express my keen interest in the Senior Data Analyst position at Helix Health. With over seven years of experience in healthcare analytics, I am confident that my proven track record of leveraging data to drive impactful decisions makes me an ideal candidate for this role.\n\nIn my current role at Meridian Clinics, I spearheaded a comprehensive initiative to streamline reporting workflows, which reduced report turnaround from 5 days to 2 days and increased patient retention by 18%. I am passionate about harnessing the power of data to foster better patient outcomes.\n\nThank you for your time and consideration. I look forward to the opportunity to discuss how my skills align with your needs. Please do not hesitate to contact me at jordan.ellis@example.com.\n\nSincerely,\nJordan Ellis",
+      "after": "Dear Hiring Manager,\n\nI would like to apply for the Senior Data Analyst position at Helix Health. I have spent over seven years in healthcare analytics. At Meridian Clinics, I simplified our reporting workflows, cutting report turnaround from 5 days to 2 days and raising patient retention by 18%. I care about using data to improve patient outcomes.\n\nI would welcome the chance to talk. You can reach me at jordan.ellis@example.com.\n\nSincerely,\nJordan Ellis",
+      "changed": "The first line now names the role instead of announcing 'keen interest'. The two results (5 days to 2, 18%) moved up next to the employer. 'Ideal candidate', 'harnessing the power' and the double thank-you closer are gone. The register stays that of a letter."
+    },
+    {
+      "id": "blurb-coffee",
+      "register": "blurb",
+      "title": "Product blurb",
+      "before": "Introducing the AeroBrew Pro \u2014 a game-changing coffee maker that seamlessly blends cutting-edge technology with timeless design. Whether you're a casual sipper or a dedicated connoisseur, AeroBrew Pro empowers you to unlock the full potential of every bean. With a 12-cup capacity, a built-in grinder, and smart Wi-Fi connectivity, it elevates your morning routine to a whole new level. Available now for just $129.",
+      "after": "The AeroBrew Pro is a coffee maker with a built-in grinder, Wi-Fi and a 12-cup capacity. It's available now for $129.",
+      "changed": "Every adjective claim was stripped and the specs and price were kept. When the source has no more facts than that, the honest rewrite is short. Ask the user for one real detail (a taste test, a size, a comparison) rather than inventing one."
+    },
+    {
+      "id": "intro-remote",
+      "register": "intro",
+      "title": "Blog post intro",
+      "before": "In today's fast-paced digital landscape, remote work has become more than just a trend\u2014it's a fundamental shift in how we operate. Whether you're a seasoned manager or a first-time team lead, navigating the complexities of distributed teams can feel overwhelming. In this comprehensive guide, we'll delve into 7 proven strategies that will help you foster collaboration, boost productivity, and unlock your team's full potential. Let's dive in!",
+      "after": "Running a remote team can feel overwhelming, especially your first time as a team lead. This guide gives you 7 strategies for better collaboration and productivity.",
+      "changed": "The scene-setter, the audience catch-all and the 'let's dive in' are cut, and the piece starts inside the problem. The strategy count survived. The source had no concrete example, so none was invented."
+    },
+    {
+      "id": "announcement-hybrid",
+      "register": "announcement",
+      "title": "Internal announcement",
+      "before": "Subject: Exciting Changes Ahead!\n\nDear Team,\n\nWe are thrilled to announce that, effective November 3, our organization will be transitioning to a hybrid work model, fostering greater collaboration and empowering every employee to thrive. This pivotal shift underscores our commitment to flexibility and innovation in today's ever-evolving workplace.\n\nStarting on that date, employees will be expected to work from the office on Tuesdays and Thursdays, while enjoying the flexibility to work remotely on the remaining days. Additionally, all team leads are required to submit their availability schedules to HR by October 20.\n\nPlease don't hesitate to reach out to hr@northfield.example with any questions. Together, we will navigate this exciting journey!",
+      "after": "Subject: New hybrid schedule from November 3\n\nHi Team,\n\nFrom November 3, we're moving to a hybrid model. You'll work from the office on Tuesdays and Thursdays and can work remotely the other days.\n\nTeam leads: please send your availability schedules to HR by October 20. Questions go to hr@northfield.example.",
+      "changed": "The subject line now carries the news and the date. The morale language is gone, and the two actions (office days, the team-lead deadline) are stated as instructions. All dates, days and the address are unchanged."
+    },
+    {
+      "id": "sensitive-condolence",
+      "register": "sensitive",
+      "title": "Condolence note (formal stays formal)",
+      "before": "Dear Margaret,\n\nPlease accept my heartfelt condolences on the passing of your husband, Robert. In these difficult times, it is important to remember that his legacy serves as a testament to a life well-lived. Robert's thirty years of dedicated service at Halloran & Sons touched countless lives and will continue to inspire all who knew him.\n\nAlthough words cannot fully capture the depth of your loss, please know that you are not alone on this journey. The memorial service will be held on Saturday at 2 pm at St. Anne's Church, and we hope you will find comfort in the support of your loved ones.\n\nPlease don't hesitate to reach out if there is anything I can do to support you during this challenging time.\n\nWith deepest sympathy,\nThomas Whitfield",
+      "after": "Dear Margaret,\n\nI was very sorry to hear that your husband, Robert, has died. In thirty years at Halloran & Sons he touched many lives, and he will be remembered by everyone who knew him.\n\nI cannot say anything that makes this easier, but I want you to know that you are not alone. The memorial service will be held on Saturday at 2 pm at St. Anne's Church, and I hope you will have your family around you.\n\nIf there is anything I can do, please tell me.\n\nWith deepest sympathy,\nThomas Whitfield",
+      "changed": "Humanizing is not casualizing: no contractions, no slang, still a formal note. The 'testament', 'legacy' and 'journey' language is replaced by plain sentences, and the offer of help is stated once. Names, the thirty years, the day and the time are unchanged."
+    },
+    {
+      "id": "sensitive-board-memo",
+      "register": "sensitive",
+      "title": "Board memo (formal stays formal)",
+      "before": "MEMORANDUM\n\nTo: Board of Directors\nFrom: Daniel Okafor, Chief Operating Officer\nDate: 6 November 2026\nRe: Q3 operational review\n\nIn light of the ever-evolving competitive landscape, it is crucial to note that the Q3 results underscore the need for a strategic realignment \u2014 a pivotal moment for our organization. Notably, revenue declined 8% to $4.2 million, highlighting the importance of streamlining our operations and fostering a culture of accountability.\n\nMoreover, the Leeds facility, which boasts a state-of-the-art production line, experienced a 12-day outage in August, significantly impacting output. To navigate these challenges effectively, we recommend leveraging a comprehensive cost-reduction plan that could potentially save $650,000 annually.\n\nIn conclusion, the Board is encouraged to approve the proposed plan at the meeting on 18 November, ensuring a robust path forward.",
+      "after": "MEMORANDUM\n\nTo: Board of Directors\nFrom: Daniel Okafor, Chief Operating Officer\nDate: 6 November 2026\nRe: Q3 operational review\n\nRevenue in Q3 fell 8% to $4.2 million, and the results call for a change in strategy. Operations need to be simpler, and accountability needs to improve. The Leeds facility also lost 12 days of production to an outage in August, which significantly reduced output.\n\nWe recommend a cost-reduction plan that could save $650,000 annually. The Board is asked to approve it at the meeting on 18 November.",
+      "changed": "Stays a board memo: formal, no contractions, no casual asides. The figure now leads the first sentence, the hedges and 'in conclusion' closer are gone, and the recommendation and the decision date are stated once each."
+    }
+  ]
+}

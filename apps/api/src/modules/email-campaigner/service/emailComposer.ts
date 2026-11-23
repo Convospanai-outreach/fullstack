@@ -9,6 +9,8 @@
  * Uses Claude Sonnet 4 via the /api/ai/proxy or falls back to Gemini via aiStatsService.
  */
 import { aiService } from "@/lib/aiService";
+import { aiTellsForCritic, stripEmDashes } from "@/lib/ai/aiTells/aiTells";
+import { COLD_EMAIL_RULES, FOLLOW_UP_RULES, HUMAN_VOICE_RULES, TONE_BY_READER } from "@/lib/ai/writingRules";
 import { TOON } from "@/lib/ai/TOON";
 import { LearningService } from "@/modules/learning/learningService";
 import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrchestrator";
@@ -157,13 +159,12 @@ export function buildNodeASystemPrompt(input: NodeAInput): string {
 The prospect must feel, within the first sentence, that you read something *specific* they did or said — not that you scraped their job title. If you cannot be specific, do not send the email.
 
 ## SUBJECT LINE
-- 5–7 words maximum
+- 2 to 5 words, lowercase, looks like an internal email
 - Must reference the specific signal, not the prospect's role or company name
-- No questions. No "quick question". No emojis.
-- Should create mild curiosity — not clickbait, not a claim
+- No questions. No "quick question". No emojis. No first name.
 - Test: would this subject line work for anyone else? If yes, rewrite it.
 
-## BODY STRUCTURE — 4 PARTS, 90–120 WORDS TOTAL
+## BODY STRUCTURE: 4 PARTS, 60 TO 110 WORDS TOTAL
 **Part 1 — The Mirror (1 sentence):** Name the exact signal. Not a paraphrase. Make them think "how did they see that?"
 **Part 2 — The Hypothesis (1–2 sentences):** Your specific diagnosis of WHY they have this problem. Not what your product does — what their situation looks like from outside.
 **Part 3 — The Proof Spike (1 sentence):** One single credible data point or customer result. Specific enough to be believable.
@@ -171,6 +172,12 @@ The prospect must feel, within the first sentence, that you read something *spec
 
 ## TONE
 Peer-to-peer. No: "I hope this finds you well", "I came across your profile", "I'd love to", "just wanted to". No feature lists. Plain language.
+
+${COLD_EMAIL_RULES}
+
+${HUMAN_VOICE_RULES}
+
+${TONE_BY_READER}
 
 ## STYLE SETTINGS
 ${buildStyleGuidance(input)}`;
@@ -227,6 +234,9 @@ export function buildCritiquePrompt(input: any, draft: any): string {
     6. Masking Violation: Does it contain raw emails/phones? (Tokens like [EMAIL_HASH] are OK).
 ${input?.audience_context ? `    7. Audience: Does it mention the prospect's country, region, nationality, religion or culture when the signal does not, stereotype them, or name or hint at a personality type or profiling? (Must not.)
     ` : ""}
+    8. Sounds like AI: em dashes, stock words (delve, leverage, seamless...), "not X, it's Y" reframes, filler transitions or assistant chatter. (Must not.)
+    ${aiTellsForCritic(`${draft?.subject ?? ""}\n\n${draft?.body ?? ""}`).replace(/\n/g, "\n    ")}
+
     ## STYLE REQUIREMENTS
     ${buildStyleGuidance(input)}
     
@@ -271,7 +281,11 @@ ${input.original_body}
 Hypothesis: ${input.hypothesis}
 Pain context: ${input.pain_context}
 
-${renderAudienceSection(input.audience_context)}## STYLE SETTINGS
+${renderAudienceSection(input.audience_context)}${FOLLOW_UP_RULES}
+
+${HUMAN_VOICE_RULES}
+
+## STYLE SETTINGS
 ${buildStyleGuidance(input)}
 
 ## OUTPUT FORMAT
@@ -311,7 +325,11 @@ Original subject: ${input.original_subject}
 Hypothesis: ${input.hypothesis}
 Signal type: ${input.signal_type}
 
-${renderAudienceSection(input.audience_context)}## STYLE SETTINGS
+${renderAudienceSection(input.audience_context)}${FOLLOW_UP_RULES}
+
+${HUMAN_VOICE_RULES}
+
+## STYLE SETTINGS
 ${buildStyleGuidance(input)}
 
 ## OUTPUT FORMAT
@@ -411,24 +429,24 @@ function enforceInputBudget(label: string, input: unknown, maxChars: number) {
 
 function normalizeNodeAOutput(output: NodeAOutput): NodeAOutput {
     return {
-        subject: clampGeneratedText(String(output.subject || ""), 160),
-        body: clampGeneratedText(String(output.body || ""), 2200),
+        subject: clampGeneratedText(stripEmDashes(String(output.subject || "")), 160),
+        body: clampGeneratedText(stripEmDashes(String(output.body || "")), 2200),
         internal_notes: clampGeneratedText(String(output.internal_notes || ""), 1200)
     };
 }
 
 function normalizeNodeBOutput(output: NodeBOutput): NodeBOutput {
     return {
-        subject: clampGeneratedText(String(output.subject || ""), 160),
-        body: clampGeneratedText(String(output.body || ""), 1700),
+        subject: clampGeneratedText(stripEmDashes(String(output.subject || "")), 160),
+        body: clampGeneratedText(stripEmDashes(String(output.body || "")), 1700),
         reasoning: clampGeneratedText(String(output.reasoning || ""), 1000)
     };
 }
 
 function normalizeNodeCOutput(output: NodeCOutput): NodeCOutput {
     return {
-        subject: clampGeneratedText(String(output.subject || ""), 160),
-        body: clampGeneratedText(String(output.body || ""), 1200),
+        subject: clampGeneratedText(stripEmDashes(String(output.subject || "")), 160),
+        body: clampGeneratedText(stripEmDashes(String(output.body || "")), 1200),
         reasoning: clampGeneratedText(String(output.reasoning || ""), 1000)
     };
 }

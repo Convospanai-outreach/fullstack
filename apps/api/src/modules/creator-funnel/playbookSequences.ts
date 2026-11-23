@@ -1,4 +1,5 @@
 import type { FunnelStage, Prisma } from "@prisma/client";
+import { HUMAN_VOICE_RULES, NURTURE_RULES } from "@/lib/ai/writingRules";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 
@@ -87,6 +88,8 @@ export function buildEmailPrompt(context: string[], spec: EmailSpec, index: numb
         "Plain text, at most 180 words, short paragraphs separated by a blank line. Write like a person, not a brand.",
         ...(spec.link ? ["End with one sentence leading to a link; the link is added below your text, so don't write it."] : []),
         "Don't include links or URLs, placeholders like [Name], prices, numbers or testimonials that aren't given above.",
+        NURTURE_RULES,
+        HUMAN_VOICE_RULES,
         'Return JSON only: {"subject":"...","body":"..."}',
     ].join("\n");
 }
