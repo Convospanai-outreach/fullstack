@@ -66,39 +66,39 @@ export default function VerifyEmailPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
             <GlassCard className="w-full max-w-md p-8">
                 <div className="text-center">
                     {status === "loading" && (
                         <>
-                            <Loader2 className="w-16 h-16 mx-auto mb-4 text-blue-400 animate-spin" />
-                            <h1 className="text-2xl font-bold text-white mb-2">
+                            <Loader2 className="w-16 h-16 mx-auto mb-4 text-primary animate-spin" />
+                            <h1 className="text-2xl font-bold text-foreground mb-2">
                                 Verifying your email...
                             </h1>
-                            <p className="text-gray-400">Please wait a moment</p>
+                            <p className="text-muted-foreground">Please wait a moment</p>
                         </>
                     )}
 
                     {status === "success" && (
                         <>
-                            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-green-400" />
-                            <h1 className="text-2xl font-bold text-white mb-2">
+                            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-success" />
+                            <h1 className="text-2xl font-bold text-foreground mb-2">
                                 {message}
                             </h1>
-                            <p className="text-gray-400 mb-6">
+                            <p className="text-muted-foreground mb-6">
                                 Redirecting you to the dashboard...
                             </p>
-                            <Loader2 className="w-6 h-6 mx-auto text-blue-400 animate-spin" />
+                            <Loader2 className="w-6 h-6 mx-auto text-primary animate-spin" />
                         </>
                     )}
 
                     {status === "error" && (
                         <>
-                            <XCircle className="w-16 h-16 mx-auto mb-4 text-red-400" />
-                            <h1 className="text-2xl font-bold text-white mb-2">
+                            <XCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+                            <h1 className="text-2xl font-bold text-foreground mb-2">
                                 Verification Failed
                             </h1>
-                            <p className="text-gray-400 mb-6">{message}</p>
+                            <p className="text-muted-foreground mb-6">{message}</p>
 
                             <div className="space-y-3">
                                 <Button

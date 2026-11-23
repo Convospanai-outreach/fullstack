@@ -28,7 +28,7 @@ export function SectionTabs() {
     if (tabs.length < 2) return null;
 
     return (
-        <nav aria-label={`${section.label} pages`} className="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
+        <nav aria-label={`${section.label} pages`} className="-mx-4 -mt-4 mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-[#C2A36B]/30 px-4 [background:var(--sidebar-bg)] lg:-mx-12 lg:-mt-8 lg:px-12">
             {tabs.map((tab) => {
                 const active = isLinkActive(tab, pathname);
                 return (
@@ -38,8 +38,8 @@ export function SectionTabs() {
                         aria-current={active ? "page" : undefined}
                         className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] leading-[1.3] transition-colors ${
                             active
-                                ? "border-primary text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground"
+                                ? "border-[#C2A36B] text-sidebar-foreground"
+                                : "border-transparent text-sidebar-muted hover:text-sidebar-foreground"
                         }`}
                     >
                         {tab.label}

@@ -45,24 +45,24 @@ export default function AcceptInvitePage() {
     }, [token]);
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground">
             <div className="w-full max-w-md">
-                <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-black text-white">
+                <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-black text-foreground">
                     <LogoMark priority className="h-9 w-9" />
                     CraftMyFunnel AI
                 </Link>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                <div className="rounded-2xl border border-input bg-card p-6 text-center">
                     {status === "loading" && (
-                        <p className="text-sm text-slate-300">Checking your invite...</p>
+                        <p className="text-sm text-muted-foreground">Checking your invite...</p>
                     )}
 
                     {status === "invalid" && (
                         <>
-                            <p className="text-sm text-rose-300">{error}</p>
+                            <p className="text-sm text-destructive">{error}</p>
                             <Link
                                 href="/login"
-                                className="mt-4 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200"
+                                className="mt-4 inline-block rounded-none bg-card border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent"
                             >
                                 Go to login
                             </Link>
@@ -71,16 +71,16 @@ export default function AcceptInvitePage() {
 
                     {status === "valid" && invitation && (
                         <>
-                            <p className="text-sm text-slate-300">
+                            <p className="text-sm text-muted-foreground">
                                 You&apos;ve been invited to join
                             </p>
-                            <p className="mt-1 text-lg font-bold text-white">{invitation.teamName}</p>
-                            <p className="mt-3 text-sm text-slate-400">
+                            <p className="mt-1 text-lg font-bold text-foreground">{invitation.teamName}</p>
+                            <p className="mt-3 text-sm text-muted-foreground">
                                 {invitation.email} &middot; {invitation.role}
                             </p>
                             <Link
                                 href={`/signup?token=${encodeURIComponent(token)}`}
-                                className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200"
+                                className="mt-6 inline-block rounded-none bg-card border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent"
                             >
                                 Accept invite &amp; sign up
                             </Link>
