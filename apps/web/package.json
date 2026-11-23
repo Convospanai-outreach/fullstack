@@ -19,6 +19,7 @@
         "build": "node scripts/clean-next-lock.mjs && npm run repair:vendor && node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS=--max-old-space-size=8192 -- node scripts/build-next-with-retry.mjs",
         "start": "npm run repair:vendor && node scripts/run-with-app-env.mjs scripts/start-production.mjs",
         "lint": "node scripts/lint.mjs",
+        "lint:colors": "node scripts/lint-colors.mjs",
         "typecheck": "node scripts/run-with-env.mjs NODE_OPTIONS=--max-old-space-size=8192 -- tsc --noEmit",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest",
         "test:ui": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest --ui",
