@@ -5,43 +5,49 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                // Clerk's Signature Brand Colors
+                // Bordeaux palette. Every colour resolves to the CSS variables in src/app/globals.css.
                 brand: {
-                    50: '#f5f7ff',
-                    100: '#ebf0fe',
-                    200: '#ced9fd',
-                    400: '#818cf8',
-                    500: '#6366f1', // Primary Indigo
-                    600: '#4f46e5',
-                    700: '#4338ca',
-                    900: '#312e81',
+                    50: 'hsl(var(--secondary))',
+                    100: 'hsl(var(--secondary))',
+                    200: 'hsl(var(--accent))',
+                    300: 'hsl(var(--primary) / 0.7)',
+                    400: 'hsl(var(--primary) / 0.85)',
+                    500: 'hsl(var(--primary))',
+                    600: 'hsl(var(--primary))',
+                    700: 'hsl(var(--link-hover))',
+                    900: 'hsl(var(--primary) / 0.6)',
                 },
-                // Antigravity dark-mode surfaces
                 surface: {
-                    app: '#020617',     // Deepest background
-                    panel: '#0f172a',   // Sidebar/Panel background
-                    accent: '#1e293b',  // Hover states
+                    app: 'hsl(var(--background))',
+                    panel: 'hsl(var(--card))',
+                    accent: 'hsl(var(--accent))',
                 },
-                // Token-based accent colors (from tokens.css)
                 accent: {
-                    blue: '#3b82f6',
-                    violet: '#8b5cf6',
-                    mint: '#10b981',
-                    gold: '#fbbf24',
-                    silver: '#94a3b8',
-                    crystal: '#60a5fa',
+                    DEFAULT: 'hsl(var(--accent))',
+                    foreground: 'hsl(var(--accent-foreground))',
+                    blue: 'hsl(var(--primary))',
+                    violet: 'hsl(var(--primary))',
+                    mint: 'hsl(var(--success))',
+                    gold: 'hsl(var(--warning))',
+                    silver: 'hsl(var(--muted-foreground))',
+                    crystal: 'hsl(var(--primary))',
                 },
-                // Text semantic colors
                 text: {
-                    primary: '#ffffff',
-                    secondary: '#94a3b8',
-                    muted: '#64748b',
+                    primary: 'hsl(var(--foreground))',
+                    secondary: 'hsl(var(--muted-foreground))',
+                    muted: 'hsl(var(--muted-foreground))',
                 },
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
                 ring: "hsl(var(--ring))",
                 background: "hsl(var(--background))",
                 foreground: "hsl(var(--foreground))",
+                success: "hsl(var(--success))",
+                warning: "hsl(var(--warning))",
+                info: "hsl(var(--info))",
+                link: { DEFAULT: "hsl(var(--link))", hover: "hsl(var(--link-hover))" },
+                chart: { 1: "hsl(var(--chart-1))", 2: "hsl(var(--chart-2))", 3: "hsl(var(--chart-3))", 4: "hsl(var(--chart-4))", 5: "hsl(var(--chart-5))", 6: "hsl(var(--chart-6))", 7: "hsl(var(--chart-7))", 8: "hsl(var(--chart-8))" },
+                sidebar: { DEFAULT: "hsl(var(--sidebar))", foreground: "hsl(var(--sidebar-foreground))", muted: "var(--sidebar-muted)", label: "hsl(var(--sidebar-label))", active: "var(--sidebar-active)", border: "var(--sidebar-border)" },
             },
             borderRadius: {
                 lg: "0.75rem",
@@ -69,7 +75,7 @@ module.exports = {
             },
             boxShadow: {
                 'clerk': '0 0 0 1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05)',
-                'glow': '0 0 20px rgba(99, 102, 241, 0.2)',
+                'glow': '0 0 20px rgba(194, 163, 107, 0.2)',
             },
             keyframes: {
                 'fade-in-up': {
