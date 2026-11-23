@@ -1,4 +1,5 @@
 import { aiService } from "@/lib/aiService";
+import { aiTellsForCritic } from "@/lib/ai/aiTells/aiTells";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import type { CopyProvenance } from "./copyProvenance";
 import { jevScreenEnabled, screenDraft } from "./draftScreen";
@@ -36,6 +37,8 @@ ${context.slice(0, CONTEXT_CHARS)}
 4. At most ${limit} characters.
 5. Low friction: no hard ask, no link, no attachment.
 6. No raw email addresses or phone numbers.
+7. Does not sound like AI: no em dashes, stock words (delve, leverage, seamless...), "not X, it's Y" reframes or canned openers.
+${aiTellsForCritic(text)}
 
 ## TASK
 If the message is fine, answer with status PASS. Otherwise answer FAIL and give a corrected message of at most ${limit} characters.

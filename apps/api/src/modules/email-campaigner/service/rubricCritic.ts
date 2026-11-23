@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { aiTellsForCritic } from "@/lib/ai/aiTells/aiTells";
 import { TOON } from "@/lib/ai/TOON";
 import path from "node:path";
 import { assertOutsideRepo, parseRubric, type Rubric } from "@/evals/copy/evalData";
@@ -68,6 +69,8 @@ ${TOON.serializeTabular(input)}
 
 ## STYLE REQUIREMENTS
 ${styleGuidance}
+A draft that sounds AI-written (em dashes, stock words, "not X, it's Y" reframes, filler transitions) scores low on voice.
+${aiTellsForCritic(`${draft.subject}\n\n${draft.body}`)}
 
 ## TASK
 If any blocker applies, or the weighted average of your scores is below ${rubric.passScore}, also write a corrected version that fixes the weakest points. Otherwise set "correction" to null.

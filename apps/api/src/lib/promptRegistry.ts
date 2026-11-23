@@ -7,17 +7,17 @@ import { createHash } from "node:crypto";
 // updated here and the version is bumped, so a prompt cannot change without a new version.
 
 export const PROMPT_REGISTRY = {
-    "email.nodeA.system": { version: 1, fingerprint: "1be63dc5222f" },
+    "email.nodeA.system": { version: 2, fingerprint: "f508e4a9eeb0" },
     "email.nodeA": { version: 5, fingerprint: "a491eb40ae8e" },
-    "email.nodeB": { version: 3, fingerprint: "b0e17de6117d" },
-    "email.nodeC": { version: 3, fingerprint: "894ce6fe6020" },
-    "email.legacyDraft": { version: 2, fingerprint: "e3d14fa3c602" },
-    "email.legacyBatch": { version: 2, fingerprint: "b6cfab77e4ab" },
-    "linkedin.connect": { version: 1, fingerprint: "8b9a221db6fb" },
-    "linkedin.followUp": { version: 1, fingerprint: "d61c09234756" },
-    "linkedin.critique": { version: 1, fingerprint: "ac320cc33049" },
-    "email.critique": { version: 2, fingerprint: "e846777588b6" },
-    "email.critique.rubric": { version: 3, fingerprint: "cda70ec67840" },
+    "email.nodeB": { version: 4, fingerprint: "e103f5e1ba77" },
+    "email.nodeC": { version: 4, fingerprint: "e6670d86b585" },
+    "email.legacyDraft": { version: 3, fingerprint: "702bf844c49e" },
+    "email.legacyBatch": { version: 3, fingerprint: "a9864ce234ad" },
+    "linkedin.connect": { version: 3, fingerprint: "b2402a936226" },
+    "linkedin.followUp": { version: 3, fingerprint: "d58f28229466" },
+    "linkedin.critique": { version: 2, fingerprint: "3748d88f7d9c" },
+    "email.critique": { version: 3, fingerprint: "fe89a801b0a2" },
+    "email.critique.rubric": { version: 4, fingerprint: "b3577f822fcc" },
 } as const satisfies Record<string, { version: number; fingerprint: string }>;
 
 export type PromptId = keyof typeof PROMPT_REGISTRY;
