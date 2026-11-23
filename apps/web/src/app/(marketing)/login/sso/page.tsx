@@ -79,24 +79,24 @@ export default function SsoLoginPage() {
                 <GlassCard className="p-8">
                     <form onSubmit={handleSsoCheck} className="space-y-6">
                         <div className="flex justify-center mb-6">
-                            <div className="bg-orange-500/10 p-4 rounded-full border border-orange-500/20">
-                                <Shield className="w-8 h-8 text-orange-400" />
+                            <div className="bg-primary/10 p-4 rounded-full border border-primary/20">
+                                <Shield className="w-8 h-8 text-primary" />
                             </div>
                         </div>
 
                         <div className="text-center space-y-2">
-                            <h3 className="text-white font-bold">Sign in with SSO</h3>
-                            <p className="text-xs text-gray-400 px-4">Enter your work email address and we'll redirect you to your identity provider.</p>
+                            <h3 className="text-foreground font-bold">Sign in with SSO</h3>
+                            <p className="text-xs text-muted-foreground px-4">Enter your work email address and we'll redirect you to your identity provider.</p>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300">Work Email</label>
+                            <label className="text-sm font-medium text-muted-foreground">Work Email</label>
                             <input
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition"
+                                className="w-full bg-card border border-input rounded-[2px] px-4 py-3 text-foreground focus:outline-none focus:border-primary transition"
                                 placeholder="name@company.com"
                             />
                         </div>
@@ -104,14 +104,14 @@ export default function SsoLoginPage() {
                         <Button
                             disabled={loading}
                             type="submit"
-                            className="w-full bg-orange-600 hover:bg-orange-500 border-0"
+                            className="w-full bg-primary hover:bg-primary border-0"
                         >
                             {loading ? "Checking SSO..." : "Continue with SSO"}
                         </Button>
 
                         <Link
                             href="/login"
-                            className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-white transition-all pt-2"
+                            className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all pt-2"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to regular login

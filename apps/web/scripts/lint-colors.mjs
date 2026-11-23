@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
-const SKIP_DIR = /(components\/marketing|app\/\(marketing\))/;
+const SKIP_DIR = /(components\/marketing|app\/\(marketing\)\/(?!(login|signup|forgot-password|magic-link|verify-email|accept-invite)\/))/;
 const MARKETING = new Set(['about', 'blog', 'careers', 'contact', 'data-deletion', 'docs', 'faq', 'google-api-disclosure', 'help', 'industries', 'locations', 'pricing', 'privacy', 'products', 'regions', 'security', 'support', 'terms', 'trust', 'vs', 'api', 'p']);
 // Third-party brand marks (sign-in buttons, payment provider tiles) keep their own colours.
 const BRAND_FILE = /(google|linkedin|whatsapp|stripe|razorpay)/i;
