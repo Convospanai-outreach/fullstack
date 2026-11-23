@@ -104,7 +104,7 @@ export function safeOuterShadow(
 
 export function svgToDataUri(svg: string) {
     const normalized = svg
-        .replace(/<\?xml[^>]*>/g, "")
+        .replace(/<\?xml[^>]{0,200}>/g, "")
         .replace(/currentColor/g, "#0f172a")
         .replace(/<svg /, '<svg xmlns="http://www.w3.org/2000/svg" ');
 

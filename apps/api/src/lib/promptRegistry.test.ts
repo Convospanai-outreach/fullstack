@@ -62,8 +62,8 @@ describe("prompt registry", () => {
 
     it("names a prompt id@vN", () => {
         expect(promptRef("email.nodeA")).toBe("email.nodeA@v5");
-        expect(allPromptRefs()["email.critique"]).toBe("email.critique@v2");
-        expect(allPromptRefs()["email.critique.rubric"]).toBe("email.critique.rubric@v3");
+        expect(allPromptRefs()["email.critique"]).toBe("email.critique@v3");
+        expect(allPromptRefs()["email.critique.rubric"]).toBe("email.critique.rubric@v4");
         expect(Object.keys(allPromptRefs())).toEqual(Object.keys(PROMPT_REGISTRY));
     });
 

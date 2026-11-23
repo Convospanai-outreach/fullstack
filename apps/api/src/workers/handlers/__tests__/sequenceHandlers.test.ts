@@ -327,7 +327,7 @@ describe("handleSequenceAction approval gate", () => {
 
         await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
 
-        const provenance = expect.objectContaining({ node: "linkedin", prompts: expect.objectContaining({ draft: "linkedin.connect@v1" }) });
+        const provenance = expect.objectContaining({ node: "linkedin", prompts: expect.objectContaining({ draft: "linkedin.connect@v3" }) });
         expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ copyProvenance: provenance }));
         expect(prisma.message.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ leadId: "lead-1", content: "Hi there", direction: "OUTBOUND", platform: "LINKEDIN", status: "sent", copyProvenance: provenance }),
@@ -342,7 +342,7 @@ describe("handleSequenceAction approval gate", () => {
         await handleSequenceAction({ ...linkedInPayload, action: "MESSAGE" });
 
         expect(prisma.message.create).toHaveBeenCalledWith({
-            data: expect.objectContaining({ content: "Following up", copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "linkedin.followUp@v1" }) }) }),
+            data: expect.objectContaining({ content: "Following up", copyProvenance: expect.objectContaining({ prompts: expect.objectContaining({ draft: "linkedin.followUp@v3" }) }) }),
         });
     });
 
@@ -381,7 +381,7 @@ describe("handleSequenceAction approval gate", () => {
             vi.mocked(reviewLinkedinDraft).mockResolvedValueOnce({ text: "Better note", critique: "corrected" });
             await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
             expect(reviewLinkedinDraft).toHaveBeenCalledWith("connect", expect.any(String), "Draft note", "team-1");
-            const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "linkedin.critique@v1" }) });
+            const provenance = expect.objectContaining({ critique: "corrected", prompts: expect.objectContaining({ critique: "linkedin.critique@v2" }) });
             expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ body: "Better note", copyProvenance: provenance }));
             expect(prisma.message.create).toHaveBeenCalledWith({ data: expect.objectContaining({ content: "Better note", copyProvenance: provenance }) });
         });

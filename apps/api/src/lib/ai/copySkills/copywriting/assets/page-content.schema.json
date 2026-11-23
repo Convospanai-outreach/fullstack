@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "page-content.schema.json",
+  "title": "Page copy",
+  "description": "A landing page as structured copy. Section types use the same vocabulary as the ship-it site builder: hero, proof_bar (proof-bar), benefits (features), how_it_works (steps), testimonials, pricing, faq, final_cta (cta). Aliases in parentheses are accepted and normalised. scripts/preview.py validates a copy file against this schema (a practical subset of JSON Schema) and renders it.",
+  "type": "object",
+  "required": ["sections"],
+  "properties": {
+    "_meta": {"type": "object"},
+    "meta": {
+      "type": "object",
+      "description": "Search and share fields, checked against the SEO and Open Graph limits in platform-specs.json.",
+      "properties": {
+        "brand": {"type": "string", "maxLength": 60},
+        "lang": {"type": "string", "maxLength": 12},
+        "title": {"type": "string", "maxLength": 200, "description": "SEO title, visible about 60 characters or 580 px."},
+        "description": {"type": "string", "maxLength": 500, "description": "Meta description, visible about 155 characters."},
+        "og_title": {"type": "string", "maxLength": 200},
+        "og_description": {"type": "string", "maxLength": 500},
+        "url": {"type": "string", "maxLength": 200, "description": "Shown in the search preview only."},
+        "draft_notice": {"type": "string", "maxLength": 200, "description": "Banner shown at the top of the preview, for example that the content is a fictional example."}
+      }
+    },
+    "theme": {
+      "type": "object",
+      "properties": {"accent": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"}}
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/hero"}, {"$ref": "#/$defs/proof_bar"}, {"$ref": "#/$defs/problem"}, {"$ref": "#/$defs/benefits"},
+          {"$ref": "#/$defs/how_it_works"}, {"$ref": "#/$defs/testimonials"}, {"$ref": "#/$defs/pricing"}, {"$ref": "#/$defs/faq"},
+          {"$ref": "#/$defs/final_cta"}
+        ]
+      }
+    },
+    "checks": {
+      "type": "array",
+      "description": "Extra text to test against a platform limit, for example ad headlines or an email subject.",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": ["platform", "field", "text"],
+        "properties": {
+          "label": {"type": "string", "maxLength": 80},
+          "platform": {"type": "string", "description": "A platform key from platform-specs.json, for example google-ads."},
+          "field": {"type": "string", "description": "A field key, for example rsa-headline."},
+          "text": {"type": "string", "minLength": 1, "maxLength": 5000}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cta": {
+      "type": "object",
+      "required": ["label"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1, "maxLength": 60},
+        "href": {"type": "string", "maxLength": 300}
+      }
+    },
+    "triggers": {"type": "array", "maxItems": 4, "items": {"type": "string", "maxLength": 80}},
+    "hero": {
+      "type": "object",
+      "required": ["type", "headline", "cta"],
+      "properties": {
+        "type": {"const": "hero"},
+        "eyebrow": {"type": "string", "maxLength": 80},
+        "headline": {"type": "string", "minLength": 1, "maxLength": 200},
+        "subheadline": {"type": "string", "maxLength": 400},
+        "cta": {"$ref": "#/$defs/cta"},
+        "secondary_cta": {"$ref": "#/$defs/cta"},
+        "triggers": {"$ref": "#/$defs/triggers"}
+      }
+    },
+    "proof_bar": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "proof_bar"},
+        "logos": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 40}},
+        "items": {
+          "type": "array", "maxItems": 6,
+          "items": {"type": "object", "required": ["value", "label"],
+                    "properties": {"value": {"type": "string", "maxLength": 30}, "label": {"type": "string", "maxLength": 80}}}
+        }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "required": ["type", "headline"],
+      "properties": {
+        "type": {"const": "problem"},
+        "headline": {"type": "string", "minLength": 1, "maxLength": 200},
+        "body": {"type": "array", "maxItems": 6, "items": {"type": "string", "maxLength": 800}}
+      }
+    },
+    "benefits": {
+      "type": "object",
+      "required": ["type", "headline", "items"],
+      "properties": {
+        "type": {"const": "benefits"},
+        "headline": {"type": "string", "minLength": 1, "maxLength": 200},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 6,
+          "items": {"type": "object", "required": ["title", "body"],
+                    "properties": {"title": {"type": "string", "maxLength": 120}, "body": {"type": "string", "maxLength": 500},
+                                   "proof": {"type": "string", "maxLength": 200}}}
+        }
+      }
+    },
+    "how_it_works": {
+      "type": "object",
+      "required": ["type", "headline", "steps"],
+      "properties": {
+        "type": {"const": "how_it_works"},
+        "headline": {"type": "string", "minLength": 1, "maxLength": 200},
+        "steps": {
+          "type": "array", "minItems": 1, "maxItems": 5,
+          "items": {"type": "object", "required": ["title"],
+                    "properties": {"title": {"type": "string", "maxLength": 120}, "body": {"type": "string", "maxLength": 400}}}
+        }
+      }
+    },
+    "testimonials": {
+      "type": "object",
+      "required": ["type", "items"],
+      "properties": {
+        "type": {"const": "testimonials"},
+        "headline": {"type": "string", "maxLength": 200},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 6,
+          "items": {"type": "object", "required": ["quote", "name"],
+                    "properties": {"quote": {"type": "string", "maxLength": 500}, "name": {"type": "string", "maxLength": 80},
+                                   "role": {"type": "string", "maxLength": 80}, "company": {"type": "string", "maxLength": 80}}}
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "required": ["type", "plans"],
+      "properties": {
+        "type": {"const": "pricing"},
+        "headline": {"type": "string", "maxLength": 200},
+        "plans": {
+          "type": "array", "minItems": 1, "maxItems": 3,
+          "items": {"type": "object", "required": ["name", "price"],
+                    "properties": {"name": {"type": "string", "maxLength": 40}, "price": {"type": "string", "maxLength": 30},
+                                   "period": {"type": "string", "maxLength": 30}, "for_whom": {"type": "string", "maxLength": 160},
+                                   "features": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 120}},
+                                   "recommended": {"type": "boolean"}, "cta": {"$ref": "#/$defs/cta"}}}
+        }
+      }
+    },
+    "faq": {
+      "type": "object",
+      "required": ["type", "items"],
+      "properties": {
+        "type": {"const": "faq"},
+        "headline": {"type": "string", "maxLength": 200},
+        "items": {
+          "type": "array", "minItems": 1, "maxItems": 12,
+          "items": {"type": "object", "required": ["q", "a"],
+                    "properties": {"q": {"type": "string", "maxLength": 200}, "a": {"type": "string", "maxLength": 800}}}
+        }
+      }
+    },
+    "final_cta": {
+      "type": "object",
+      "required": ["type", "headline", "cta"],
+      "properties": {
+        "type": {"const": "final_cta"},
+        "headline": {"type": "string", "minLength": 1, "maxLength": 200},
+        "body": {"type": "string", "maxLength": 400},
+        "cta": {"$ref": "#/$defs/cta"},
+        "triggers": {"$ref": "#/$defs/triggers"}
+      }
+    }
+  }
+}

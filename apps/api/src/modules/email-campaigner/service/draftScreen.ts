@@ -1,6 +1,7 @@
 import { judgeOutreachDraft, NOUL_NO } from "@/lib/ai/jev";
 import { enforceMultilineGuardrails } from "@/lib/ai/agentOutputGuardrails";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { scanAiTells } from "@/lib/ai/aiTells/aiTells";
 
 // An optional screen in front of the critic. Off unless JEV_SCREEN=on. Jev (a typed-question model)
 // judges the draft against what is known about the prospect; a draft it confidently calls clean skips
@@ -31,6 +32,8 @@ export type ScreenDraft = { subject?: string; body: string };
 function codeChecksPass(prospect: Record<string, string | undefined>, draft: ScreenDraft): boolean {
     const subject = draft.subject ?? "";
     if (RAW_CONTACT.test(subject) || RAW_CONTACT.test(draft.body)) return false;
+    // A draft that reads as AI-written is never "clean": the critic must see it.
+    if (scanAiTells(`${subject}\n\n${draft.body}`).score > 34) return false;
     const options = { sourceContext: Object.values(prospect).filter(Boolean).join("\n"), strictGrounding: true };
     return enforceMultilineGuardrails(draft.body, options).issues.length === 0 && enforceMultilineGuardrails(subject, options).issues.length === 0;
 }
