@@ -1,0 +1,111 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Dash-Home-Light.html</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=Jost:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0}
+.app{--sb:linear-gradient(180deg,#74253A 0%,#5C1A2B 45%,#3A0E1A 100%);display:grid;grid-template-columns:232px 1fr;min-height:100%;font-family:'Jost',system-ui,sans-serif;font-size:14px}
+.light{--bg:#F3EDE4;--fg:#1A1414;--card:#FBF8F3;--muted:#E8DFD2;--mfg:#6E5F52;--accent:#EADFC9;--border:#DCCFB8;--primary:#5C1A2B;--pfg:#F3EDE4;--link:#5C1A2B;--ring:#C2A36B;
+ --success:#5B6B3A;--warning:#B7862E;--danger:#A63D2F;--info:#4A4040;--c1:#5C1A2B;--c2:#C2A36B;--c4:#B5677A;
+ --gf:rgba(255,255,255,.60);--ges:rgba(194,163,107,.90);--gef:rgba(194,163,107,.30);--gring:rgba(26,20,20,.06);--gt:rgba(26,20,20,.08);--gd:rgba(26,20,20,.12);--ghi:rgba(255,255,255,.95);
+ --glow:radial-gradient(40% 50% at 85% 10%,rgba(194,163,107,.20),transparent 70%),radial-gradient(35% 45% at 10% 90%,rgba(92,26,43,.09),transparent 70%);--hdr:rgba(243,237,228,.72)}
+.dark{--bg:#1A1414;--fg:#F3EDE4;--card:#241C1C;--muted:#2A2120;--mfg:#BFB2A3;--accent:#3A2C2A;--border:#3D302C;--primary:#C2A36B;--pfg:#1A1414;--link:#C2A36B;--ring:#C2A36B;
+ --success:#9DB06E;--warning:#D9AE5C;--danger:#D06A5B;--info:#C9BBB0;--c1:#C2A36B;--c2:#B5677A;--c4:#DCC392;
+ --gf:rgba(243,237,228,.06);--ges:rgba(194,163,107,.75);--gef:rgba(243,237,228,.14);--gring:rgba(0,0,0,.35);--gt:rgba(0,0,0,.35);--gd:rgba(0,0,0,.55);--ghi:rgba(255,255,255,.10);
+ --glow:radial-gradient(40% 50% at 85% 10%,rgba(194,163,107,.10),transparent 70%),radial-gradient(35% 45% at 10% 90%,rgba(116,37,58,.38),transparent 70%);--hdr:rgba(26,20,20,.72)}
+.ic{flex-shrink:0}
+/* sidebar */
+.sb{position:relative;background:var(--sb);color:#F3EDE4;display:flex;flex-direction:column;padding:16px 12px;border-right:1px solid rgba(194,163,107,.35);box-shadow:4px 0 24px -8px rgba(26,4,10,.45);isolation:isolate}
+.sb::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 40% at 0% 0%,rgba(194,163,107,.20),transparent 70%);z-index:-1}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 6px 16px;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:20px}
+.logo i{width:26px;height:26px;background:linear-gradient(135deg,#DCC392,#A8884F);display:block;clip-path:polygon(0 0,100% 0,60% 55%,60% 100%,40% 100%,40% 55%)}
+.dg{position:relative;background:rgba(243,237,228,.08);backdrop-filter:blur(12px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.2),0 8px 20px -8px rgba(20,4,10,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+.dg::after,.g::after{content:"";position:absolute;inset:0;padding:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(135deg,var(--es,rgba(194,163,107,.85)) 0%,var(--ef,rgba(243,237,228,.18)) 40%,transparent 70%,var(--ef,rgba(243,237,228,.18)) 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.ws{display:flex;align-items:center;gap:10px;padding:10px;margin-bottom:18px}
+.ws b{width:32px;height:32px;background:#C2A36B;color:#1A1414;display:grid;place-items:center;font-weight:600;border-radius:3px}
+.ws div{flex:1;line-height:1.2}.ws small{color:rgba(243,237,228,.65);font-size:12px}
+.lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#C2A36B;margin:6px 8px 6px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;color:rgba(243,237,228,.74);text-decoration:none;border-radius:3px;position:relative;margin-bottom:2px}
+.nav a.on{background:rgba(243,237,228,.12);color:#F3EDE4;box-shadow:inset 2px 0 0 #C2A36B}
+.nav a.on .ic{color:#C2A36B}
+.sp{flex:1}
+.edge{padding:12px;margin-bottom:10px}.edge p{margin:2px 0 0;font-size:12px;color:rgba(243,237,228,.72)}.edge strong{display:flex;align-items:center;gap:6px;font-size:13px}.edge strong:before{content:"";width:7px;height:7px;border-radius:50%;background:#C2A36B}
+.me{display:flex;align-items:center;gap:10px;padding:12px 6px 0;border-top:1px solid rgba(194,163,107,.25);margin-top:8px}
+.me b{width:28px;height:28px;border-radius:50%;background:#3A0E1A;box-shadow:0 0 0 1.5px #C2A36B;display:grid;place-items:center;font-size:11px}
+.me small{display:block;color:rgba(243,237,228,.6);font-size:11px}
+/* main */
+.main{background:var(--bg);color:var(--fg);position:relative;isolation:isolate;min-width:0}
+.main::before{content:"";position:absolute;inset:0;background:var(--glow);z-index:-1}
+.hdr{display:flex;align-items:center;gap:14px;padding:10px 28px;background:var(--hdr);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0}
+.omni{display:flex;align-items:center;gap:8px;width:300px;padding:7px 12px;border-radius:3px;color:var(--mfg);font-size:13px}
+.omni kbd{margin-left:auto;font-family:inherit;font-size:11px;border:1px solid var(--border);padding:0 5px;border-radius:3px}
+.pill{margin-left:auto;display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:500;color:var(--success);background:color-mix(in srgb,var(--success) 12%,transparent);border:1px solid color-mix(in srgb,var(--success) 35%,transparent)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--success)}
+.hdr .ib{color:color-mix(in srgb,var(--fg) 70%,transparent)}
+.pg{padding:32px 48px 80px;max-width:1120px}
+h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:40px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--mfg);margin:0 0 24px}
+h2{font-size:15px;font-weight:600;margin:28px 0 12px}
+.ey{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mfg);font-weight:600;margin:0 0 12px}
+.g{position:relative;background:var(--gf);backdrop-filter:blur(16px) saturate(150%);border-radius:4px;--es:var(--ges);--ef:var(--gef);
+ box-shadow:0 0 0 1px var(--gring),0 1px 2px var(--gt),0 2px 6px var(--gt),0 12px 32px -8px var(--gd),0 24px 48px -16px var(--gd),inset 0 1px 0 var(--ghi)}
+.row{display:flex;align-items:center;gap:14px;padding:18px 22px;margin-bottom:14px}
+.row .t{flex:1}.row strong{display:block}.row small{color:var(--mfg)}
+a.lk{color:var(--link);font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.ok{color:var(--success)}.pc{color:var(--primary)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:8px}
+.kpi{padding:18px 20px}.kpi span{color:var(--mfg);font-size:13px}.kpi b{display:block;font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:600;color:var(--primary);line-height:1.1;margin-top:6px}.kpi p{margin:6px 0 0;font-size:13px}
+.stages{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.st{padding:14px 16px}.st span{font-size:12px;color:var(--mfg)}.st b{display:block;font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;margin-top:2px}
+.st.hot{box-shadow:0 0 0 1px var(--gring),0 12px 32px -8px var(--gd),inset 0 2px 0 var(--primary)}
+.two{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:24px}
+.pan{padding:20px 22px}
+svg.ch{width:100%;height:170px;display:block}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mfg);font-weight:600;padding:8px 6px;border-bottom:1px solid var(--border)}
+.tbl td{padding:10px 6px;border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:2px;font-weight:500}
+.t-info{color:var(--info);background:color-mix(in srgb,var(--info) 12%,transparent)}
+.t-ok{color:var(--success);background:color-mix(in srgb,var(--success) 14%,transparent)}
+.t-warn{color:var(--warning);background:color-mix(in srgb,var(--warning) 14%,transparent)}
+.t-bad{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.ready{padding:16px 22px;margin-top:24px;display:flex;align-items:center;gap:18px}
+.bar{flex:1;height:5px;background:var(--muted);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;width:36%;background:var(--primary)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;font-weight:500;font-size:13px;border:0;font-family:inherit;border-radius:0}
+.bp{background:var(--primary);color:var(--pfg)}
+.bo{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1px var(--border)}
+.steps{display:flex;justify-content:space-between;position:relative;margin:10px 30px 0}
+.steps:before{content:"";position:absolute;left:30px;right:30px;top:16px;height:1px;background:var(--border)}
+.sx{text-align:center;position:relative;width:150px;font-size:13px}.sx small{display:block;color:var(--mfg);font-size:12px}
+.sx b{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;margin:0 auto 6px;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--border);color:var(--mfg);font-weight:500}
+.sx.done b{box-shadow:inset 0 0 0 1.5px var(--success);color:var(--success)}.sx.done{color:var(--success)}
+.sx.cur b{background:var(--primary);color:var(--pfg);box-shadow:none}.sx.cur{color:var(--fg);font-weight:500}
+.gen{display:flex;gap:16px;padding:22px;margin-top:22px}.gen .tile{width:40px;height:40px;display:grid;place-items:center;border-radius:3px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary)}
+.gen p{margin:4px 0 14px;color:var(--mfg)}
+.act{padding:16px 22px;margin-top:22px}.act li{list-style:none;display:flex;gap:10px;align-items:center;font-size:13px}.act li:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--primary)}
+.help{position:absolute;right:28px;bottom:28px;display:flex;align-items:center;gap:8px;padding:10px 18px 10px 12px;background:var(--primary);color:var(--pfg);font-weight:500;border-radius:999px;box-shadow:0 12px 28px -8px rgba(26,4,10,.5)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px}.tabs span{padding:10px 12px;color:var(--mfg);font-size:13px}.tabs span.on{color:var(--fg);box-shadow:inset 0 -2px 0 var(--primary);font-weight:500}
+.seg{display:inline-flex;padding:3px;gap:3px;border-radius:3px}.seg span{padding:7px 14px;font-size:13px;color:var(--mfg)}.seg span.on{background:var(--primary);color:var(--pfg)}
+.inp{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--card);box-shadow:inset 0 0 0 1px var(--border);color:var(--mfg);font-size:13px;border-radius:2px}
+.empty{border:1px dashed var(--border);border-radius:4px;background:var(--gf);padding:60px;text-align:center;color:var(--mfg)}.empty strong{display:block;color:var(--fg);margin:12px 0 4px;font-size:15px}
+.ktile{width:40px;height:40px;display:grid;place-items:center;border-radius:3px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary)}
+.note{font-size:12px;color:var(--mfg);margin-top:4px}
+</style></head><body>
+<div class="app light" style="width:100%;min-height:1560px"><aside class="sb"><div class="logo"><i></i>CraftMyFunnel</div>
+<div class="ws dg"><b>S</b><div><div style="font-weight:600">SIS Limited</div><small>Workspace</small></div><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></div>
+<p class="lbl">Workspace</p><nav class="nav"><a class="on"><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Home</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>Leads</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>Campaigns</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v3a6 6 0 0 0 6 6h3"/></svg>Pipeline</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Content</a><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M8 17V9"/><path d="M13 17V5"/><path d="M18 17v-6"/></svg>Reports</a></nav><div class="sp"></div>
+<div class="edge dg"><strong>Not paired</strong><p>Pair a Covospan EDGE node to keep personal data on your own device</p></div>
+<nav class="nav"><a class=""><svg class="ic " width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15 1.65 1.65 0 0 0 3 14H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9 1.65 1.65 0 0 0 21 10h0a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z"/></svg>Settings</a></nav>
+<div class="me"><b>ST</b><div style="flex:1">Siddharth Tewari<small>Enterprise</small></div>⋯</div></aside><div class="main"><div class="hdr"><div class="omni g"><svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search leads, campaigns…<kbd>⌘K</kbd></div>
+<div class="pill"><i></i>All systems operational</div><span class="ib"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg></span><span class="ib"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="ib"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div><div class="pg"><h1>Nothing is waiting on you.</h1><p class="sub">Start a campaign and its drafts come here for your sign-off.</p>
+<div class="row g"><span class="ok"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span><div class="t"><strong>All clear</strong><small>Nothing is waiting on you right now.</small></div><a class="lk">Start a campaign <svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></div>
+<div class="row g"><span class="pc"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span><div class="t"><strong>0 meetings booked this month</strong></div><a class="lk">Set a monthly meeting goal</a></div>
+<div class="kpis"><div class="kpi g"><span>Meetings booked</span><b>—</b><p>Your first booked meeting shows up here.</p></div><div class="kpi g"><span>Leads in outreach</span><b>1</b><p class="note">+1 this week</p></div>
+<div class="kpi g"><span>Drafts waiting</span><b>0</b><p>Nothing to approve yet. <a class="lk">Start a campaign</a></p></div><div class="kpi g"><span>Engagement rate</span><b>—</b><p>Shows after your first emails go out.</p></div></div>
+<h2>Where your 1 lead stands</h2><div class="stages"><div class="st g hot"><span>Cold</span><b>1</b></div><div class="st g"><span>Warm</span><b>0</b></div><div class="st g"><span>Hot</span><b>0</b></div><div class="st g"><span>Coordinating</span><b>0</b></div><div class="st g"><span>Meeting confirmed</span><b>0</b></div><div class="st g"><span>Completed</span><b>0</b></div></div>
+<div class="two"><div class="pan g"><p class="ey">Pipeline trend · 30 days <span class="ok" style="float:right">+1</span></p><svg class="ch" viewBox="0 0 400 170" preserveAspectRatio="none"><g stroke="var(--border)" stroke-width="1"><line x1="0" y1="40" x2="400" y2="40"/><line x1="0" y1="85" x2="400" y2="85"/><line x1="0" y1="130" x2="400" y2="130"/></g>
+<path d="M0 150 L140 150 L160 40 L400 40 L400 170 L0 170Z" fill="var(--c2)" opacity=".18"/><path d="M0 150 L140 150 L160 40 L400 40" fill="none" stroke="var(--c1)" stroke-width="2.5"/></svg><p style="margin:8px 0 0"><b style="font-family:'Cormorant Garamond',serif;font-size:26px">1</b> <span class="note">active pipeline</span></p></div>
+<div class="pan g"><p class="ey">Recent leads</p><table class="tbl"><tr><th>Lead</th><th>Status</th><th style="text-align:right">Activity</th></tr><tr><td style="font-weight:500">Surbhi Dixit</td><td><span class="tag t-info">From LinkedIn</span></td><td style="text-align:right;color:var(--mfg)">18d ago</td></tr></table><p style="text-align:center;margin:40px 0 0"><a class="lk">View all 1 <svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a></p></div></div>
+<div class="ready g"><div style="min-width:220px"><strong class="pc">Launch readiness · 36%</strong><div class="note">Complete your setup to unlock the full workflow.</div></div><div class="bar"><i></i></div><span class="btn bo">Open setup <svg class="ic " width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div>
+<h2 class="ey" style="margin-top:30px">Workflow</h2><div class="steps"><div class="sx done"><b>✓</b>Import leads<small>1 imported</small></div><div class="sx cur"><b>2</b>Generate drafts<small>Up next</small></div><div class="sx"><b>3</b>Review follow-ups<small>Waiting</small></div><div class="sx"><b>4</b>Send drafts<small>Waiting</small></div></div>
+<div class="gen g"><div class="tile"><svg class="ic " width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div><div><strong>Generate outreach drafts</strong><p>AI writes personalised emails for each lead using your approved playbooks.</p><span class="btn bp">Generate drafts <svg class="ic " width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span></div></div>
+<div class="act g"><p class="ey">Recent activity</p><ul style="margin:0;padding:0"><li>LinkedIn profile captured — Surbhi Dixit</li></ul></div></div><div class="help"><svg class="ic " width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.9 4.9 4.3 4.3M14.8 14.8l4.3 4.3M14.8 9.2l4.3-4.3M4.9 19.1l4.3-4.3"/></svg>Need help?</div></div></div>
+</body></html>
