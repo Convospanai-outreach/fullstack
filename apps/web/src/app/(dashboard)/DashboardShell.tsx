@@ -55,9 +55,9 @@ export default function DashboardShell({
 
                 {/* mt-12 = fixed header height (48px) */}
                 <main id="main-content" className="flex-1 mt-[51px] p-4 lg:px-12 lg:pt-8 lg:pb-20 overflow-y-auto z-10" tabIndex={-1}>
+                    <SectionTabs />
                     <div className={`relative z-10 ${wide ? "lg:max-w-[1064px]" : "lg:max-w-[1024px]"}`}>
                         <SiteBanner />
-                        <SectionTabs />
                         {children}
                     </div>
                 </main>
