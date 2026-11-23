@@ -172,7 +172,7 @@ export default function NewCampaignPage() {
                                 Target ICP <span className="text-destructive">*</span>
                             </label>
                             {!loadingIcps && icps.length === 0 ? (
-                                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-600">
+                                <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm text-warning">
                                     You need a saved ICP before creating a campaign.{" "}
                                     <Link href="/icp-builder" className="underline font-semibold">Create one first</Link>.
                                 </p>
@@ -303,7 +303,7 @@ export default function NewCampaignPage() {
                                     Cancel
                                 </Button>
                             </Link>
-                            <Button type="submit" disabled={submitting || icps.length === 0} className="bg-primary hover:bg-primary/90 text-white font-semibold">
+                            <Button type="submit" disabled={submitting || icps.length === 0} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
                                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 Create Campaign
                             </Button>

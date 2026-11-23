@@ -91,17 +91,17 @@ export default async function AccountsPage({
                         name="search"
                         placeholder="Search by company or domain..."
                         defaultValue={search}
-                        className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="w-full bg-card border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                     />
                 </div>
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card">
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16 ">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : accounts.length === 0 ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card flex flex-col items-center justify-center">
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16  flex flex-col items-center justify-center">
                     <Building2 className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
                     <h3 className="text-sm font-semibold text-foreground tracking-wide">No Accounts Yet</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">

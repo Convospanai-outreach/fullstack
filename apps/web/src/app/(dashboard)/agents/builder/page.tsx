@@ -61,8 +61,8 @@ const defaultInitialNodes: Node[] = [
 ];
 
 const defaultInitialEdges: Edge[] = [
-    { id: 'e1-2', source: '1', target: '2', animated: true, style: { stroke: '#4f46e5' } },
-    { id: 'e2-3', source: '2', target: '3', animated: true, style: { stroke: '#4f46e5' } },
+    { id: 'e1-2', source: '1', target: '2', animated: true, style: { stroke: 'hsl(var(--chart-1))' } },
+    { id: 'e2-3', source: '2', target: '3', animated: true, style: { stroke: 'hsl(var(--chart-1))' } },
 ];
 
 export default function AgentBuilderPage() {
@@ -77,7 +77,7 @@ export default function AgentBuilderPage() {
     const [showAddMenu, setShowAddMenu] = useState(false);
 
     const onConnect = (params: Connection) =>
-        setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#4f46e5' } }, eds));
+        setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: 'hsl(var(--chart-1))' } }, eds));
 
     const loadWorkflows = useCallback(async () => {
         setIsLoading(true);
@@ -280,7 +280,7 @@ export default function AgentBuilderPage() {
                             size="sm"
                             onClick={handleRunSimulation}
                             disabled={isRunning}
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-xs h-9 shadow-lg shadow-blue-600/20"
+                            className="bg-primary hover:bg-primary text-primary-foreground text-xs h-9 shadow-lg shadow-primary/20"
                         >
                             {isRunning ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1.5 fill-current" />}
                             Test & Run
@@ -302,12 +302,12 @@ export default function AgentBuilderPage() {
                             </Button>
 
                             {showAddMenu && (
-                                <div className="absolute top-full left-0 mt-2 w-56 rounded-xl bg-card border border-border p-2 shadow-2xl backdrop-blur-xl z-20 space-y-1">
+                                <div className="glass absolute top-full left-0 mt-2 w-56 p-2 backdrop-blur-xl z-20 space-y-1">
                                     <button
                                         onClick={() => addNode('trigger', 'HubSpot Trigger', 'Trigger')}
                                         className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2"
                                     >
-                                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                                        <Zap className="w-3.5 h-3.5 text-warning" />
                                         Trigger: CRM Event
                                     </button>
                                     <button
@@ -321,21 +321,21 @@ export default function AgentBuilderPage() {
                                         onClick={() => addNode('agent', 'Personalization Drafter', 'Copywriter')}
                                         className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2"
                                     >
-                                        <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                                        <Bot className="w-3.5 h-3.5 text-primary" />
                                         Agent: Outbound Drafter
                                     </button>
                                     <button
                                         onClick={() => addNode('action', 'Human Approval Gate', 'Review')}
                                         className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2"
                                     >
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-success" />
                                         Action: Approval Gate
                                     </button>
                                     <button
                                         onClick={() => addNode('action', 'Dispatch Outbox', 'Send')}
                                         className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2"
                                     >
-                                        <Send className="w-3.5 h-3.5 text-purple-400" />
+                                        <Send className="w-3.5 h-3.5 text-primary" />
                                         Action: Mailbox Dispatch
                                     </button>
                                 </div>
@@ -357,12 +357,12 @@ export default function AgentBuilderPage() {
                             proOptions={{ hideAttribution: true }}
                             className="bg-dots-pattern"
                         >
-                            <Background color="#1e293b" gap={24} size={1} />
-                            <Controls className="bg-card border border-border text-foreground fill-white" />
+                            <Background color="hsl(var(--border))" gap={24} size={1} />
+                            <Controls className="bg-card border border-border text-foreground fill-foreground" />
                             <MiniMap
-                                style={{ background: '#090d16', border: '1px solid #1e293b' }}
-                                nodeColor={() => '#3b82f6'}
-                                maskColor="rgba(2, 6, 23, 0.8)"
+                                style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                                nodeColor={() => 'hsl(var(--chart-1))'}
+                                maskColor="hsl(var(--background) / 0.8)"
                             />
                         </ReactFlow>
                     </div>

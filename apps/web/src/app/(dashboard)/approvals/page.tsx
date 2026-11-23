@@ -279,7 +279,7 @@ export default function ApprovalsPage() {
                                     <button
                                         disabled={bulkBusy || !!processing}
                                         onClick={() => handleBulk("APPROVE")}
-                                        className="px-4 py-1.5 rounded-lg bg-success text-white hover:bg-success/90 disabled:opacity-50 font-medium"
+                                        className="px-4 py-1.5 rounded-lg bg-success text-primary-foreground hover:bg-success/90 disabled:opacity-50 font-medium"
                                     >
                                         {bulkBusy ? "Working..." : `Approve ${picked.length}`}
                                     </button>
@@ -414,7 +414,7 @@ export default function ApprovalsPage() {
                                 <button
                                     disabled={!!processing}
                                     onClick={() => handleAction(req.id, "APPROVE")}
-                                    className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-success text-white hover:bg-success/90 transition-all disabled:opacity-50 disabled:shadow-none text-sm font-medium flex items-center justify-center gap-2"
+                                    className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-success text-primary-foreground hover:bg-success/90 transition-all disabled:opacity-50 disabled:shadow-none text-sm font-medium flex items-center justify-center gap-2"
                                 >
                                     {processing === req.id ? "Processing..." : (
                                         <>
@@ -465,7 +465,7 @@ export default function ApprovalsPage() {
                                             <button
                                                 disabled={!!processing || !drafts[item.id]?.body?.trim()}
                                                 onClick={() => handleAttention(item, "WRITE")}
-                                                className="px-4 py-2 rounded-lg bg-success text-white hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+                                                className="px-4 py-2 rounded-lg bg-success text-primary-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
                                             >
                                                 Send this message
                                             </button>

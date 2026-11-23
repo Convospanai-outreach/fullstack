@@ -6,10 +6,10 @@ export interface LeadStepSummary {
 }
 
 const DOT: Record<LeadStepSummary["state"], string> = {
-    done: "bg-emerald-500",
+    done: "bg-success",
     active: "bg-primary",
-    waiting: "bg-amber-500",
-    blocked: "bg-red-500",
+    waiting: "bg-warning",
+    blocked: "bg-destructive",
     todo: "bg-muted-foreground/25",
 };
 

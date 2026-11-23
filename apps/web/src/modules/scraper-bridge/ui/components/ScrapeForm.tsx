@@ -17,7 +17,7 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-card text-card-foreground p-6 rounded-lg border border-border shadow-sm mb-6">
+        <form onSubmit={handleSubmit} className="glass text-card-foreground p-6 mb-6">
             <div className="mb-4">
                 <label htmlFor="scrape-target" className="block mb-2 text-sm font-semibold text-foreground">
                     Target
@@ -26,7 +26,7 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
                     id="scrape-target"
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm"
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm"
                 >
                     <option value="linkedin">LinkedIn Profile</option>
                     <option value="twitter">Twitter Profile</option>
@@ -44,7 +44,7 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     required
-                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm placeholder:text-muted-foreground"
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-border dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm placeholder:text-muted-foreground"
                     placeholder="https://linkedin.com/in/example"
                 />
             </div>
@@ -52,7 +52,7 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
             <button
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-sky-700 hover:bg-sky-800 disabled:bg-gray-500 disabled:cursor-not-allowed rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-700"
+                className="px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:bg-muted disabled:cursor-not-allowed rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40"
             >
                 {loading ? "Scraping..." : "Scrape"}
             </button>

@@ -84,7 +84,7 @@ export default function ApiKeysPage() {
             />
 
             {newKey && (
-                <div className="p-6 bg-green-900/20 border border-green-500/50 rounded-xl space-y-4">
+                <div className="p-6 bg-success/20 border border-success/50 rounded-xl space-y-4">
                     <h3 className="text-success font-bold flex items-center gap-2">
                         <Check className="w-5 h-5" /> Key Created Successfully
                     </h3>
@@ -110,7 +110,7 @@ export default function ApiKeysPage() {
                     <h3 className="text-lg font-bold text-foreground">Active Keys</h3>
                     <button
                         onClick={() => setShowCreate(!showCreate)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-medium"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary rounded-lg text-primary-foreground font-medium"
                     >
                         <Plus className="w-4 h-4" /> Create New Key
                     </button>
@@ -123,13 +123,13 @@ export default function ApiKeysPage() {
                             <input
                                 autoFocus
                                 type="text"
-                                className="w-full bg-background border border-input rounded px-3 py-2 text-foreground"
+                                className="w-full bg-card border border-input rounded px-3 py-2 text-foreground"
                                 placeholder="e.g. Zapier Integration"
                                 value={createName}
                                 onChange={e => setCreateName(e.target.value)}
                             />
                         </div>
-                        <button onClick={handleCreate} className="px-4 py-2 bg-green-600 text-foreground rounded font-medium">
+                        <button onClick={handleCreate} className="px-4 py-2 bg-success text-background rounded font-medium">
                             Generate
                         </button>
                     </div>
@@ -139,7 +139,7 @@ export default function ApiKeysPage() {
                     {keys.map(key => (
                         <div key={key.id} className="flex justify-between items-center p-4 bg-muted rounded-lg border border-border">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-purple-500/20 rounded text-purple-400">
+                                <div className="p-3 bg-primary/20 rounded text-primary">
                                     <Key className="w-5 h-5" />
                                 </div>
                                 <div>
@@ -162,7 +162,7 @@ export default function ApiKeysPage() {
                             </div>
                             <button
                                 onClick={() => handleDelete(key.id)}
-                                className="text-destructive hover:text-red-300 hover:bg-red-400/10 p-2 rounded"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 p-2 rounded"
                             >
                                 <Trash2 className="w-5 h-5" />
                             </button>

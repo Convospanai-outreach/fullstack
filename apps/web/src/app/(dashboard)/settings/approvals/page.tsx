@@ -67,7 +67,7 @@ export default function ApprovalsPage() {
 
             <div className="space-y-4">
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-yellow-500" />
+                    <Clock className="w-5 h-5 text-warning" />
                     Pending Requests ({pending.length})
                 </h3>
 
@@ -115,9 +115,9 @@ function ApprovalCard({ request, onResolve, isPending }: {
         <GlassCard className="p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex gap-4">
-                    <div className={`p-3 rounded-xl h-fit ${request.type === 'CAMPAIGN_RUN' ? 'bg-blue-500/20 text-blue-400' :
-                        request.type === 'PLAYBOOK_PUBLISH' ? 'bg-purple-500/20 text-purple-400' :
-                            'bg-yellow-500/20 text-yellow-400'
+                    <div className={`p-3 rounded-xl h-fit ${request.type === 'CAMPAIGN_RUN' ? 'bg-primary/20 text-primary' :
+                        request.type === 'PLAYBOOK_PUBLISH' ? 'bg-primary/20 text-primary' :
+                            'bg-warning/20 text-warning'
                         }`}>
                         <FileText className="w-6 h-6" />
                     </div>
@@ -128,8 +128,8 @@ function ApprovalCard({ request, onResolve, isPending }: {
                             </span>
                             {!isPending && (
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full border ${request.status === 'APPROVED'
-                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                    : 'bg-red-500/20 text-red-400 border-red-500/30'
+                                    ? 'bg-success/20 text-success border-success/30'
+                                    : 'bg-destructive/20 text-destructive border-destructive/30'
                                     }`}>
                                     {request.status}
                                 </span>
@@ -163,13 +163,13 @@ function ApprovalCard({ request, onResolve, isPending }: {
                     <div className="flex gap-3 shrink-0">
                         <button
                             onClick={() => onResolve(request.id, "REJECTED")}
-                            className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition-all border border-red-500/20"
+                            className="p-3 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-xl transition-all border border-destructive/20"
                         >
                             <XCircle className="w-6 h-6" />
                         </button>
                         <button
                             onClick={() => onResolve(request.id, "APPROVED")}
-                            className="bg-success hover:bg-success/90 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
+                            className="bg-success hover:bg-success/90 text-primary-foreground px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
                         >
                             <CheckCircle className="w-5 h-5" />
                             Approve

@@ -43,7 +43,7 @@ export default function DashboardPage() {
     }, []);
 
     if (loading) {
-        return <div className="p-8 text-white">Loading dashboard...</div>;
+        return <div className="p-8 text-foreground">Loading dashboard...</div>;
     }
 
     const leads = stats?.recentLeads || [];
@@ -64,16 +64,16 @@ export default function DashboardPage() {
                     <SectionHeader title="Dashboard" subtitle="Overview of your AI Agent Army" />
 
                     {/* Tab Switcher */}
-                    <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+                    <div className="flex bg-foreground/5 rounded-lg p-1 border border-foreground/10">
                         <button
                             onClick={() => setActiveTab("overview")}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === "overview" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === "overview" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary-foreground"}`}
                         >
                             Overview
                         </button>
                         <button
                             onClick={() => setActiveTab("analytics")}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === "analytics" ? "bg-blue-600 text-white shadow-lg" : "text-gray-400 hover:text-white"}`}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === "analytics" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-primary-foreground"}`}
                         >
                             Analytics
                         </button>

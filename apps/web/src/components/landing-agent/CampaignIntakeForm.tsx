@@ -83,18 +83,18 @@ export default function CampaignIntakeForm() {
     return (
         <GlassCard className="mx-auto max-w-4xl p-8 space-y-6">
             <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Landing Agent</p>
-                <h1 className="mt-2 text-3xl font-bold text-white">Create Landing Campaign</h1>
-                <p className="mt-2 text-sm text-slate-300">
+                <p className="text-xs uppercase tracking-[0.2em] text-primary">Landing Agent</p>
+                <h1 className="mt-2 text-3xl font-bold text-foreground">Create Landing Campaign</h1>
+                <p className="mt-2 text-sm text-foreground/80">
                     Describe your offer, add optional context assets, and generate wireframe directions.
                 </p>
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                    <label htmlFor="landing-icp" className="text-sm text-slate-200">Target ICP</label>
+                    <label htmlFor="landing-icp" className="text-sm text-foreground">Target ICP</label>
                     {!loadingIcps && icps.length === 0 ? (
-                        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                        <p className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
                             You need a saved ICP before creating a landing campaign.{" "}
                             <Link href="/icp-builder" className="underline">Create one first</Link>.
                         </p>
@@ -103,7 +103,7 @@ export default function CampaignIntakeForm() {
                             id="landing-icp"
                             value={icpId}
                             onChange={(e) => setIcpId(e.target.value)}
-                            className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                            className="w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                             required
                         >
                             <option value="">{loadingIcps ? "Loading ICPs..." : "Select a saved ICP"}</option>
@@ -115,37 +115,37 @@ export default function CampaignIntakeForm() {
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="landing-name" className="text-sm text-slate-200">Campaign name</label>
+                    <label htmlFor="landing-name" className="text-sm text-foreground">Campaign name</label>
                     <input
                         id="landing-name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                        className="w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                         placeholder="Q3 Demand Capture - Product Launch"
                         required
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="landing-prompt" className="text-sm text-slate-200">Prompt</label>
+                    <label htmlFor="landing-prompt" className="text-sm text-foreground">Prompt</label>
                     <textarea
                         id="landing-prompt"
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        className="min-h-32 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                        className="min-h-32 w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                         placeholder="We help B2B teams automate outbound safely with approvals and auditability."
                         required
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="landing-framework" className="text-sm text-slate-200">Framework</label>
+                    <label htmlFor="landing-framework" className="text-sm text-foreground">Framework</label>
                     <select
                         id="landing-framework"
                         value={framework}
                         onChange={(e) => setFramework(e.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                        className="w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                     >
                         {FRAMEWORKS.map((option) => (
                             <option key={option.value || "auto"} value={option.value}>
@@ -156,30 +156,30 @@ export default function CampaignIntakeForm() {
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="landing-asset-text" className="text-sm text-slate-200">Optional context text</label>
+                    <label htmlFor="landing-asset-text" className="text-sm text-foreground">Optional context text</label>
                     <textarea
                         id="landing-asset-text"
                         value={assetText}
                         onChange={(e) => setAssetText(e.target.value)}
-                        className="min-h-24 w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                        className="min-h-24 w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                         placeholder="Paste brochure copy, product notes, or positioning references."
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label htmlFor="landing-asset-file" className="text-sm text-slate-200">Optional PDF asset</label>
+                    <label htmlFor="landing-asset-file" className="text-sm text-foreground">Optional PDF asset</label>
                     <input
                         id="landing-asset-file"
                         type="file"
                         accept="application/pdf,.pdf"
                         onChange={(e) => setAssetFile(e.target.files?.[0] || null)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                        className="w-full rounded-lg border border-foreground/10 bg-background/60 px-3 py-2 text-foreground"
                     />
                 </div>
 
-                {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+                {error ? <p className="text-sm text-chart-4">{error}</p> : null}
 
-                <Button type="submit" disabled={submitting || icps.length === 0} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                <Button type="submit" disabled={submitting || icps.length === 0} className="bg-primary hover:bg-primary text-primary-foreground">
                     {submitting ? "Creating..." : "Generate Brief"}
                 </Button>
             </form>

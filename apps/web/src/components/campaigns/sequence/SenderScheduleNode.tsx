@@ -92,7 +92,7 @@ export default function SenderScheduleNode({ data }: NodeProps<SenderScheduleNod
                         <div className="mt-1 text-sm font-medium">{data.timezone}</div>
                     </button>
                 </div>
-                <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
+                <Handle type="source" position={Position.Bottom} className="!bg-primary" />
             </Card>
 
             <Dialog open={sendersOpen} onOpenChange={setSendersOpen}>

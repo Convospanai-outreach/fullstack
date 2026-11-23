@@ -41,7 +41,7 @@ export function AppRail({ collapsed = false, onToggle, children, className }: Ap
   return (
     <aside
       className={cn(
-        "h-screen sticky top-0 z-30 transition-all duration-300 flex flex-col justify-between border-r border-white/10 bg-[#0c0c0f]/60 backdrop-blur-[32px]",
+        "h-screen sticky top-0 z-30 transition-all duration-300 flex flex-col justify-between border-r border-foreground/10 bg-card/60 backdrop-blur-[32px]",
         collapsed ? "w-16" : "w-48",
         className
       )}
@@ -52,7 +52,7 @@ export function AppRail({ collapsed = false, onToggle, children, className }: Ap
       {onToggle && (
         <button
           onClick={onToggle}
-          className="h-10 w-full flex items-center justify-center text-muted-foreground hover:text-foreground border-t border-white/10 hover:bg-white/5 transition-colors"
+          className="h-10 w-full flex items-center justify-center text-muted-foreground hover:text-foreground border-t border-foreground/10 hover:bg-foreground/5 transition-colors"
           title={collapsed ? "Expand rail" : "Collapse rail"}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -76,16 +76,16 @@ export function FilterSidebar({ collapsed = false, onToggle, title = "Filters", 
   return (
     <aside
       className={cn(
-        "w-72 shrink-0 h-screen sticky top-0 z-20 border-r border-white/10 bg-[#0c0c0f]/50 backdrop-blur-[32px] flex flex-col overflow-hidden",
+        "w-72 shrink-0 h-screen sticky top-0 z-20 border-r border-foreground/10 bg-card/50 backdrop-blur-[32px] flex flex-col overflow-hidden",
         className
       )}
     >
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      <div className="p-4 border-b border-foreground/10 flex items-center justify-between">
         <h3 className="text-xs font-bold uppercase tracking-widest text-foreground">{title}</h3>
         {onToggle && (
           <button
             onClick={onToggle}
-            className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-white/5 transition"
+            className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-foreground/5 transition"
             title="Close filter panel"
           >
             <X className="w-4 h-4" />
@@ -128,18 +128,18 @@ export function DetailDrawer({ isOpen, onClose, title = "Details", width = "md",
   const widthClass = width === "sm" ? "w-[400px]" : width === "lg" ? "w-[640px]" : "w-[512px]";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-50 flex justify-end bg-foreground/50 backdrop-blur-sm transition-opacity">
       <div
         className={cn(
-          "h-full bg-[#0c0c0f]/80 backdrop-blur-[32px] border-l border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300",
+          "h-full bg-card/80 backdrop-blur-[32px] border-l border-foreground/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300",
           widthClass
         )}
       >
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 border-b border-foreground/10 flex items-center justify-between">
           <h2 className="text-sm font-bold text-foreground">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition"
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition"
             title="Close detail panel"
           >
             <X className="w-4 h-4" />

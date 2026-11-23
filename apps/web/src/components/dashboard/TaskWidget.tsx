@@ -85,7 +85,7 @@ export function TaskWidget() {
         <div className="glass-panel p-6 rounded-2xl border border-border space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    Pending Verification <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full">{tasks.filter(t => t.status === 'TODO').length}</span>
+                    Pending Verification <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">{tasks.filter(t => t.status === 'TODO').length}</span>
                 </h3>
                 <button
                     onClick={() => setIsCreating(true)}
@@ -101,7 +101,7 @@ export function TaskWidget() {
                         autoFocus
                         type="text"
                         placeholder="What needs to be done?"
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500"
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/30"
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
@@ -115,7 +115,7 @@ export function TaskWidget() {
                         <button
                             onClick={handleCreateTask}
                             disabled={!newTaskTitle.trim()}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50">
+                            className="px-3 py-1.5 bg-primary hover:bg-primary text-primary-foreground text-xs rounded-lg transition-colors disabled:opacity-50">
                             Add Task
                         </button>
                     </div>
@@ -141,9 +141,9 @@ export function TaskWidget() {
                                 className="mt-0.5"
                             >
                                 {task.status === 'DONE' ? (
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                    <CheckCircle2 className="w-5 h-5 text-success" />
                                 ) : (
-                                    <Circle className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+                                    <Circle className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                                 )}
                             </button>
                             <div className="flex-1">
@@ -158,14 +158,14 @@ export function TaskWidget() {
                                         <Calendar className="w-3 h-3" /> {task.dueDate ? formatDistanceToNow(new Date(task.dueDate)) + " ago" : "No date"}
                                     </div>
                                     {task.lead && (
-                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400/60 uppercase">
+                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary/60 uppercase">
                                             <User className="w-3 h-3" /> {task.lead.fullName}
                                         </div>
                                     )}
                                 </div>
                             </div>
-                            <div className={`w-1 h-8 rounded-full ${task.priority === 'HIGH' ? 'bg-red-500' :
-                                task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
+                            <div className={`w-1 h-8 rounded-full ${task.priority === 'HIGH' ? 'bg-destructive' :
+                                task.priority === 'MEDIUM' ? 'bg-warning' : 'bg-primary'
                                 }`} />
                         </div>
                     ))

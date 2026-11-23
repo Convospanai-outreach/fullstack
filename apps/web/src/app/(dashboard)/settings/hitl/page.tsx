@@ -79,44 +79,44 @@ export default function HITLPage() {
                 <MetricCard
                     title="Pending Review"
                     value={pending.length}
-                    icon={<Clock className="w-5 h-5 text-amber-400" />}
+                    icon={<Clock className="w-5 h-5 text-warning" />}
                     subtitle="Requires immediate action"
                 />
                 <MetricCard
                     title="Avg Response Time"
                     value="12m"
-                    icon={<AlertCircle className="w-5 h-5 text-blue-400" />}
+                    icon={<AlertCircle className="w-5 h-5 text-primary" />}
                     subtitle="Human response latency"
                 />
                 <MetricCard
                     title="Safe Deployments"
                     value="142"
-                    icon={<CheckCircle className="w-5 h-5 text-emerald-400" />}
+                    icon={<CheckCircle className="w-5 h-5 text-success" />}
                     subtitle="Reviewed this month"
                 />
             </div>
 
             <GlassCard className="p-8 space-y-6">
                 <div className="flex items-center gap-3 border-b border-border pb-6">
-                    <Terminal className="w-6 h-6 text-purple-400" />
+                    <Terminal className="w-6 h-6 text-primary" />
                     <h3 className="text-xl font-bold text-foreground">Interception Queue</h3>
                 </div>
 
                 {pending.length === 0 ? (
                     <div className="py-12 text-center space-y-4">
                         <div className="flex justify-center">
-                            <CheckCircle className="w-12 h-12 text-emerald-500/20" />
+                            <CheckCircle className="w-12 h-12 text-success/20" />
                         </div>
                         <p className="text-muted-foreground text-sm">All caught up! No actions require human review.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {pending.map((req) => (
-                            <div key={req.id} className="p-6 bg-card rounded-2xl border border-border hover:border-primary/30 transition-all group">
+                            <div key={req.id} className="glass p-6 hover:border-primary/30 transition-all group">
                                 <div className="flex flex-col md:flex-row justify-between gap-6">
                                     <div className="space-y-4 flex-1">
                                         <div className="flex items-center gap-3">
-                                            <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded text-[10px] font-bold uppercase tracking-wider">
+                                            <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-[10px] font-bold uppercase tracking-wider">
                                                 {req.type.replace('_', ' ')}
                                             </span>
                                             <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -126,7 +126,7 @@ export default function HITLPage() {
 
                                         <div className="space-y-2">
                                             <h4 className="text-foreground font-bold text-lg">
-                                                Review action for <span className="text-blue-400">Run ID: {req.payload.runId?.substring(0, 8)}</span>
+                                                Review action for <span className="text-primary">Run ID: {req.payload.runId?.substring(0, 8)}</span>
                                             </h4>
                                             <div className="p-4 bg-muted rounded-xl border border-border font-mono text-[11px] text-muted-foreground overflow-x-auto">
                                                 <pre className="whitespace-pre-wrap">
@@ -140,14 +140,14 @@ export default function HITLPage() {
                                         <button
                                             onClick={() => handleAction(req.id, 'REJECTED')}
                                             disabled={processingId === req.id}
-                                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded-lg border border-red-500/20 transition-all flex items-center gap-2"
+                                            className="px-4 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold rounded-lg border border-destructive/20 transition-all flex items-center gap-2"
                                         >
                                             <XCircle className="w-4 h-4" /> Reject
                                         </button>
                                         <button
                                             onClick={() => handleAction(req.id, 'APPROVED')}
                                             disabled={processingId === req.id}
-                                            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                                            className="px-6 py-2 bg-success hover:bg-success text-primary-foreground text-xs font-bold rounded-lg transition-all shadow-lg shadow-success/20 flex items-center gap-2"
                                         >
                                             <CheckCircle className="w-4 h-4" /> Approve Action
                                         </button>

@@ -46,13 +46,13 @@ export function StatCard({ label, value, icon: Icon, trend, description }: StatC
     }, [numericValue, isNumber]);
 
     return (
-        <div className="glass p-6 rounded-2xl hover:bg-accent transition-all group border border-border shadow-xl animate-slide-up">
+        <div className="glass px-5 py-[18px] animate-slide-up">
             <div className="flex items-start justify-between">
-                <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-                    <Icon className="w-6 h-6" />
+                <div className="h-10 w-10 grid place-items-center rounded-[3px] bg-primary/[.12] text-primary">
+                    <Icon className="w-5 h-5" />
                 </div>
                 {trend && (
-                    <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend.isUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                    <div className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-[2px] ${trend.isUp ? 'bg-success/[.14] text-success' : 'bg-destructive/[.12] text-destructive'}`}>
                         {trend.isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                         {trend.value}%
                     </div>
@@ -60,14 +60,14 @@ export function StatCard({ label, value, icon: Icon, trend, description }: StatC
             </div>
 
             <div className="mt-4">
-                <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{label}</h4>
+                <h4 className="text-[13px] text-muted-foreground">{label}</h4>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-bold text-foreground tracking-tight">
+                    <span className="font-display text-4xl font-semibold text-primary leading-[1.1]">
                         {isNumber ? displayValue.toLocaleString() : value}
                         {label.includes("ROI") && "%"}
                     </span>
                 </div>
-                {description && <p className="text-xs text-muted-foreground mt-2">{description}</p>}
+                {description && <p className="text-[13px] text-muted-foreground mt-1.5">{description}</p>}
             </div>
         </div>
     );

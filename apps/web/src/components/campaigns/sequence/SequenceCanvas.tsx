@@ -55,10 +55,10 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
     const Icon = def?.icon;
     const summary = stepSummary(data, Boolean(def?.isCondition));
     return (
-        <div className="relative w-80 rounded-lg border border-border bg-card p-4 shadow-sm">
-            <Handle type="target" position={Position.Top} className="!bg-blue-500" />
+        <div className="glass relative w-80 p-4">
+            <Handle type="target" position={Position.Top} className="!bg-primary" />
             <div className="flex items-center gap-2.5">
-                {Icon && <Icon className="h-4 w-4 shrink-0 text-blue-500" />}
+                {Icon && <Icon className="h-4 w-4 shrink-0 text-primary" />}
                 <span className="flex-1 text-sm font-medium">{def?.label || data.stepType}</span>
                 <button
                     type="button"
@@ -84,13 +84,13 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
                 <p
                     key={finding.ruleId}
                     title={finding.why}
-                    className={`mt-1.5 flex items-start gap-1.5 text-xs ${finding.severity === "warning" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}
+                    className={`mt-1.5 flex items-start gap-1.5 text-xs ${finding.severity === "warning" ? "text-warning dark:text-warning" : "text-muted-foreground"}`}
                 >
                     {finding.severity === "warning" ? <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> : <Info className="mt-0.5 h-3 w-3 shrink-0" />}
                     <span>{finding.message}</span>
                 </p>
             ))}
-            <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
+            <Handle type="source" position={Position.Bottom} className="!bg-primary" />
         </div>
     );
 }
@@ -104,7 +104,7 @@ interface AddStepNodeData {
 function AddStepFlowNode({ data }: NodeProps<AddStepNodeData>) {
     return (
         <div className="relative flex justify-center">
-            <Handle type="target" position={Position.Top} className="!bg-blue-500" />
+            <Handle type="target" position={Position.Top} className="!bg-primary" />
             <AddStepButton linkedinLocked={data.linkedinLocked} onSelect={data.onSelect} disabled={data.disabled} />
         </div>
     );
@@ -228,7 +228,7 @@ export default function SequenceCanvas({
             {strategyChips.length > 0 && (
                 <div className="absolute right-3 top-3 z-10 flex max-w-[50%] flex-wrap justify-end gap-1.5" aria-label="Strategies on this campaign">
                     {strategyChips.map((strategy) => (
-                        <span key={strategy.id} title={strategy.summary} className="rounded-full border border-indigo-500/50 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                        <span key={strategy.id} title={strategy.summary} className="rounded-full border border-primary/50 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-foreground">
                             {strategy.name}
                         </span>
                     ))}
@@ -237,7 +237,7 @@ export default function SequenceCanvas({
             {paceFindings.length > 0 && (
                 <div className="absolute left-3 top-3 z-10 max-w-xs rounded-lg border border-border bg-card/95 p-3 text-xs shadow-sm backdrop-blur" role="status">
                     <p className="flex items-center gap-1.5 font-medium">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <AlertTriangle className="h-3.5 w-3.5 text-warning dark:text-warning" />
                         Pace check: {paceFindings.length} {paceFindings.length === 1 ? "note" : "notes"}
                     </p>
                     <ul className="mt-2 space-y-2">

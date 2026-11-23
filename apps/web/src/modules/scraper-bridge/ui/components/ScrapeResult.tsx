@@ -4,12 +4,12 @@ type Props = {
 
 export default function ScrapeResult({ result }: Props) {
     return (
-        <section aria-labelledby="scrape-result-heading" className="bg-card text-card-foreground p-6 rounded-lg border border-border shadow-sm">
+        <section aria-labelledby="scrape-result-heading" className="glass text-card-foreground p-6">
             <h2 id="scrape-result-heading" className="text-xl font-bold mb-4 text-foreground">Scrape Result</h2>
 
             <div className="mb-3 flex items-center gap-2">
                 <span className="font-semibold text-foreground">Status:</span>
-                <span className={`font-medium ${result.success ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+                <span className={`font-medium ${result.success ? "text-success dark:text-success" : "text-destructive dark:text-destructive"}`}>
                     {result.success ? "Success" : "Failed"}
                 </span>
             </div>
@@ -20,7 +20,7 @@ export default function ScrapeResult({ result }: Props) {
                     href={result.metadata?.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sky-700 dark:text-sky-400 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-sky-600 rounded"
+                    className="text-primary dark:text-primary hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 rounded"
                 >
                     {result.metadata?.url}
                 </a>

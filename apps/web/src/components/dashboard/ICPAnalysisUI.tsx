@@ -21,7 +21,7 @@ export function ICPAnalysisUI({ leadsCount = 0, campaignsCount = 0 }: ICPAnalysi
                         <span>92%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-green-500 h-full rounded-full" style={{ width: "92%" }}></div>
+                        <div className="bg-success h-full rounded-full" style={{ width: "92%" }}></div>
                     </div>
                 </div>
                 <div>
@@ -30,7 +30,7 @@ export function ICPAnalysisUI({ leadsCount = 0, campaignsCount = 0 }: ICPAnalysi
                         <span>78%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                        <div className="bg-yellow-500 h-full rounded-full" style={{ width: "78%" }}></div>
+                        <div className="bg-warning h-full rounded-full" style={{ width: "78%" }}></div>
                     </div>
                 </div>
             </div>

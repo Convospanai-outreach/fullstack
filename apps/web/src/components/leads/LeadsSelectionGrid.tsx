@@ -189,7 +189,7 @@ export default function LeadsSelectionGrid({ leads }: { leads: SelectableLead[] 
                     <select
                         value={campaignId}
                         onChange={(e) => setCampaignId(e.target.value)}
-                        className="bg-background border border-input rounded-md px-2 py-1.5 text-xs text-foreground outline-none"
+                        className="bg-card border border-input rounded-md px-2 py-1.5 text-xs text-foreground outline-none"
                     >
                         <option value="">Select a campaign...</option>
                         {campaigns.map((c) => (

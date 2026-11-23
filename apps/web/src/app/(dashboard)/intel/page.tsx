@@ -118,9 +118,9 @@ function securityVariant(status: SecurityStatus["status"]) {
 }
 
 function temperatureClass(temperatureBand: RecentSignal["temperatureBand"]) {
-    if (temperatureBand === "HOT") return "bg-red-500/15 text-red-300";
-    if (temperatureBand === "WARM") return "bg-amber-500/15 text-amber-300";
-    return "bg-sky-500/15 text-sky-300";
+    if (temperatureBand === "HOT") return "bg-destructive/15 text-destructive";
+    if (temperatureBand === "WARM") return "bg-warning/15 text-warning";
+    return "bg-primary/15 text-primary";
 }
 
 export default function IntelPage() {
@@ -256,7 +256,7 @@ export default function IntelPage() {
         <div className="space-y-8">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-400 dark:text-cyan-300">Buyer Intent</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary dark:text-primary">Buyer Intent</p>
                     <h1 className="mt-2 text-3xl font-black tracking-tight text-foreground">Netjana Intel Dashboard</h1>
                     <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
                         Track incoming buyer signals, see which companies and industries are heating up, and understand what is matched, verified, and safe to use in campaign automation.
@@ -280,10 +280,10 @@ export default function IntelPage() {
             </header>
 
             <section aria-labelledby="integration-status-heading" className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-                <Card className="border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-slate-900">
+                <Card className="border-primary/20 bg-gradient-to-r from-primary/10 to-background">
                     <CardContent className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-cyan-400 dark:text-cyan-300">
+                            <div className="flex items-center gap-2 text-primary dark:text-primary">
                                 <Activity className="h-4 w-4" aria-hidden="true" />
                                 <h2 id="integration-status-heading" className="text-sm font-semibold">Integration status</h2>
                             </div>
@@ -309,10 +309,10 @@ export default function IntelPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-emerald-500/20 bg-emerald-500/10">
+                <Card className="border-success/20 bg-success/10">
                     <CardContent className="grid gap-4 p-6 md:grid-cols-2">
                         <div>
-                            <div className="flex items-center gap-2 text-emerald-300 dark:text-emerald-200">
+                            <div className="flex items-center gap-2 text-success dark:text-success">
                                 <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                                 <h3 className="text-sm font-semibold">Knowledge ready</h3>
                             </div>
@@ -320,7 +320,7 @@ export default function IntelPage() {
                             <p className="text-sm text-foreground/90">Verified signals suitable for the small Intel wiki and retrieval context.</p>
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 text-emerald-300 dark:text-emerald-200">
+                            <div className="flex items-center gap-2 text-success dark:text-success">
                                 <CircleGauge className="h-4 w-4" aria-hidden="true" />
                                 <h3 className="text-sm font-semibold">Needs review</h3>
                             </div>
@@ -342,7 +342,7 @@ export default function IntelPage() {
                                     <CardDescription>{card.label}</CardDescription>
                                     <CardTitle className="flex items-center justify-between text-3xl font-black text-foreground">
                                         {card.value}
-                                        <Icon className="h-5 w-5 text-cyan-400 dark:text-cyan-300" aria-hidden="true" />
+                                        <Icon className="h-5 w-5 text-primary dark:text-primary" aria-hidden="true" />
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
@@ -360,7 +360,7 @@ export default function IntelPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-foreground">
-                                <Building2 className="h-5 w-5 text-cyan-400 dark:text-cyan-300" aria-hidden="true" />
+                                <Building2 className="h-5 w-5 text-primary dark:text-primary" aria-hidden="true" />
                                 Top Companies
                             </CardTitle>
                             <CardDescription>Accounts with the strongest or most frequent buyer-intent activity.</CardDescription>

@@ -51,7 +51,7 @@ export default function AuditLogPage() {
         }
     };
 
-    if (loading) return <div className="p-8"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>;
+    if (loading) return <div className="p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
     return (
         <div className="space-y-8 max-w-6xl mr-auto">
@@ -78,7 +78,7 @@ export default function AuditLogPage() {
                                 <tr key={log.id} className="hover:bg-muted transition-colors cursor-pointer" onClick={() => log.entity === 'WorkflowRun' && toggleRow(log.id, log.entityId, log.entity)}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
                                                 <User className="w-4 h-4" />
                                             </div>
                                             <div className="text-sm font-medium text-foreground">
@@ -87,7 +87,7 @@ export default function AuditLogPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="px-2 py-1 rounded text-xs font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                        <span className="px-2 py-1 rounded text-xs font-mono bg-primary/20 text-primary border border-primary/30">
                                             {log.action}
                                         </span>
                                     </td>
@@ -108,7 +108,7 @@ export default function AuditLogPage() {
                                     <td className="px-6 py-4">
                                         {log.entity === 'WorkflowRun' && (
                                             <button className="p-1 hover:bg-muted rounded">
-                                                {expandedRows[log.id] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <Brain className="w-4 h-4 text-purple-400" />}
+                                                {expandedRows[log.id] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <Brain className="w-4 h-4 text-primary" />}
                                             </button>
                                         )}
                                     </td>

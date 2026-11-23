@@ -87,7 +87,7 @@ export default function PlaybooksPage() {
             ) : (
                 <>
                     {playbooks.length === 0 ? (
-                        <div className="text-center py-20 border border-dashed border-border rounded-xl bg-card">
+                        <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-20 ">
                             <h3 className="text-lg font-semibold text-foreground">No playbooks yet</h3>
                             <p className="text-muted-foreground mb-4 text-sm">Create your first template to get started.</p>
                             <PrimaryButton onClick={handleCreate} disabled={creating}>

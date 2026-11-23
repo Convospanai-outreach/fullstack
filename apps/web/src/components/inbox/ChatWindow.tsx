@@ -86,10 +86,10 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
         }
     };
 
-    if (loading) return <div className="flex-1 flex items-center justify-center text-white/60">Loading...</div>;
+    if (loading) return <div className="flex-1 flex items-center justify-center text-foreground/60">Loading...</div>;
 
     return (
-        <div className="flex flex-col h-full bg-surface-panel">
+        <div className="flex flex-col h-full bg-card">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.map((msg) => (
@@ -98,14 +98,14 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
                         className={cn(
                             "max-w-[70%] p-4 rounded-xl",
                             msg.sender === "me"
-                                ? "ml-auto bg-brand-600 text-white rounded-tr-none"
+                                ? "ml-auto bg-primary text-primary-foreground rounded-tr-none"
                                 : "bg-muted text-foreground rounded-tl-none"
                         )}
                     >
                         <p>{msg.content}</p>
                         <div className={cn(
                             "text-xs mt-1",
-                            msg.sender === "me" ? "text-brand-100" : "text-muted-foreground"
+                            msg.sender === "me" ? "text-primary" : "text-muted-foreground"
                         )}>
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
@@ -125,7 +125,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
                         <button
                             key={i}
                             onClick={() => setNewMessage(reply)}
-                            className="whitespace-nowrap px-3 py-1 rounded-full bg-purple-100 border border-purple-200 text-purple-700 text-xs hover:bg-purple-200 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300 transition-colors"
+                            className="whitespace-nowrap px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs hover:bg-primary/10 dark:bg-primary/20 dark:border-primary/30 dark:text-primary transition-colors"
                         >
                             ✨ {reply}
                         </button>
@@ -138,7 +138,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
                 <div className="flex gap-4">
                     <input
                         type="text"
-                        className="flex-1 bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        className="flex-1 bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                         placeholder="Type a message..."
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}

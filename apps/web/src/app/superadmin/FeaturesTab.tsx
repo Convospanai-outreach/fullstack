@@ -161,7 +161,7 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
 
       <GlassCard className="p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
-          <Flag className="h-4 w-4 text-cyan-400" /> Platform feature flags
+          <Flag className="h-4 w-4 text-primary" /> Platform feature flags
         </h3>
         <p className="mb-3 text-xs text-muted-foreground">
           These apply to every team. A team&apos;s product mode can still keep a flag off for that team.
@@ -175,7 +175,7 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
                   <p className="font-semibold text-foreground">{flag.description}</p>
                   <p className="text-muted-foreground">
                     {flag.key} · default {flag.defaultValue ? "on" : "off"} · now{" "}
-                    <span className={effective ? "text-emerald-400" : "text-warning"}>{effective ? "on" : "off"}</span>
+                    <span className={effective ? "text-success" : "text-warning"}>{effective ? "on" : "off"}</span>
                     {flag.override !== null ? " (overridden)" : ""}
                   </p>
                 </div>
@@ -198,7 +198,7 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
 
       <GlassCard className="p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
-          <Layers className="h-4 w-4 text-cyan-400" /> Optional features: platform switch
+          <Layers className="h-4 w-4 text-primary" /> Optional features: platform switch
         </h3>
         <p className="mb-3 text-xs text-muted-foreground">
           Switching a feature off hides it for every team, whatever the team chose. Teams keep their own choice for when it is switched back on.
@@ -222,7 +222,7 @@ export default function FeaturesTab({ teams, onLoggedOut }: { teams: Array<{ id:
 
       <GlassCard className="p-5">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-          <SlidersHorizontal className="h-4 w-4 text-cyan-400" /> Team settings
+          <SlidersHorizontal className="h-4 w-4 text-primary" /> Team settings
         </h3>
         <select
           aria-label="Team"

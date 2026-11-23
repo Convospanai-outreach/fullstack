@@ -41,7 +41,7 @@ export default function CrystalSearchForm({ onSubmit, loading }: Props) {
                             value={values[field.name] || ""}
                             onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
                             placeholder={field.placeholder}
-                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                            className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         />
                     </div>
                 ))}

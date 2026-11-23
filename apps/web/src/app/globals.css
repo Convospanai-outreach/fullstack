@@ -19,99 +19,117 @@
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-success: hsl(var(--success));
   --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+  --color-link: hsl(var(--link));
+  --color-link-hover: hsl(var(--link-hover));
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-label: hsl(var(--sidebar-label));
+  --color-sidebar-active: var(--sidebar-active);
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-chart-6: hsl(var(--chart-6));
+  --color-chart-7: hsl(var(--chart-7));
+  --color-chart-8: hsl(var(--chart-8));
   --font-display: var(--font-bricolage), "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-home), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   :root {
-    /* Surfaces */
-    --background: 0 0% 100%;
-    --sidebar: 222 100% 81%; /* #9cb9ff */
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-border: 222 60% 70%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    
-    /* Brand / Primary */
-    --primary: 221 83% 53%;     /* CMF Blue */
-    --primary-foreground: 210 40% 98%;
-    
-    /* Secondary & Accents */
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    
-    /* Semantic */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 72% 29%;
-    --warning: 38 92% 50%;
-    
-    /* Borders & Inputs */
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 221 83% 53%;
-    --radius: 0.375rem; /* 6px crisp feel */
+    --background: 36 38.5% 92.4%;
+    --foreground: 0 13% 9%;
+    --card: 37.5 50% 96.9%;
+    --card-foreground: 0 13% 9%;
+    --popover: 37.5 50% 96.9%;
+    --popover-foreground: 0 13% 9%;
+    --primary: 344.5 55.9% 23.1%;
+    --primary-foreground: 36 38.5% 92.4%;
+    --secondary: 35.5 32.4% 86.7%;
+    --secondary-foreground: 0 13% 9%;
+    --muted: 35.5 32.4% 86.7%;
+    --muted-foreground: 27.9 14.6% 37.6%;
+    --accent: 40 44% 85.3%;
+    --accent-foreground: 0 13% 9%;
+    --border: 38.3 34% 79.2%;
+    --input: 38.3 34% 79.2%;
+    --ring: 38.6 41.6% 59%;
+    --destructive: 7.1 55.9% 41.8%;
+    --destructive-foreground: 36 38.5% 92.4%;
+    --success: 79.6 29.7% 32.4%;
+    --warning: 38.5 59.8% 44.9%;
+    --info: 0 7.2% 27.1%;
+    --link: 344.5 55.9% 23.1%;
+    --link-hover: 344.1 51.6% 30%;
+    --chart-1: 344.5 55.9% 23.1%;
+    --chart-2: 38.6 41.6% 59%;
+    --chart-3: 0 13% 9%;
+    --chart-4: 345.4 34.5% 55.7%;
+    --chart-5: 29.1 13.4% 48.4%;
+    --chart-6: 39.7 51.4% 71.8%;
+    --chart-7: 344.1 51.6% 30%;
+    --chart-8: 38.4 36% 48.4%;
+    --header-bg: rgba(243,237,228,.72);
+    --glass-fill: rgba(255,255,255,.60); --glass-edge-strong: rgba(194,163,107,.90); --glass-edge-soft: rgba(194,163,107,.30);
+    --glass-ring: rgba(26,20,20,.06); --glass-tight: rgba(26,20,20,.08); --glass-drop: rgba(26,20,20,.12); --glass-hi: rgba(255,255,255,.95);
+    --page-glow: radial-gradient(40% 50% at 85% 10%, rgba(194,163,107,.18), transparent 70%), radial-gradient(35% 45% at 10% 90%, rgba(92,26,43,.08), transparent 70%);
+    /* Sidebar: identical in both themes so it never flips. */
+    --sidebar: 345 56% 23%;
+    --sidebar-foreground: 36 38% 92%;
+    --sidebar-bg: linear-gradient(180deg, #74253A 0%, #5C1A2B 45%, #3A0E1A 100%);
+    --sidebar-muted: rgba(243,237,228,.72);
+    --sidebar-label: 39 42% 59%;
+    --sidebar-active: rgba(243,237,228,.12);
+    --sidebar-border: rgba(194,163,107,.35);
+    --radius: 0.25rem;
   }
 
   .dark {
-    /* Midnight navy: four 2-point lightness steps above the previous base. */
-    --background: 222 36% 10%;
-    --sidebar: 222 40% 15%;
-    --sidebar-foreground: 222 100% 90%;
-    --sidebar-border: 222 30% 22%;
-    --foreground: 0 0% 98%;
-
-    /* Complex Backdrop Pattern */
-    --backdrop-wave-color: 217.2 91.2% 10%;
-
-    /* Glass Primitives (CMF Palette) */
-    --glass-bg: 240 10% 6.5% / 0.6;
-    --glass-border: 0 0% 100% / 0.1;
-    --glass-blur: 32px;
-    --glass-shimmer: 0 0% 100% / 0.05;
-
-    /* Standard Cards (Glass Panels) */
-    --card: var(--glass-bg);
-    --card-foreground: 0 0% 98%;
-    --popover: var(--glass-bg);
-    --popover-foreground: 0 0% 98%;
-
-    /* Brand / Primary */
-    --primary: 217.2 91.2% 59.8%;  /* Brightened for 4.5:1 contrast */
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    /* Secondary & Accents */
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-
-    /* Semantic */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 72% 29%;
-    --warning: 38 92% 50%;
-
-    /* Structural Borders */
-    --border: var(--glass-border);
-    --input: var(--glass-bg);
-    --ring: var(--primary);
-    --radius: 0.375rem; /* Crisp 6px radius */
+    --background: 0 13% 9%;
+    --foreground: 36 38.5% 92.4%;
+    --card: 0 12.5% 12.5%;
+    --card-foreground: 36 38.5% 92.4%;
+    --popover: 0 12.5% 12.5%;
+    --popover-foreground: 36 38.5% 92.4%;
+    --primary: 38.6 41.6% 59%;
+    --primary-foreground: 0 13% 9%;
+    --secondary: 0 12.2% 16.1%;
+    --secondary-foreground: 36 38.5% 92.4%;
+    --muted: 6 13.5% 14.5%;
+    --muted-foreground: 32.1 17.9% 69.4%;
+    --accent: 7.5 16% 19.6%;
+    --accent-foreground: 36 38.5% 92.4%;
+    --border: 14.1 16.2% 20.6%;
+    --input: 14.1 16.2% 20.6%;
+    --ring: 38.6 41.6% 59%;
+    --destructive: 7.7 55.5% 58.6%;
+    --destructive-foreground: 0 13% 9%;
+    --success: 77.3 29.5% 56.1%;
+    --warning: 39.4 62.2% 60.6%;
+    --info: 26.4 18.8% 73.9%;
+    --link: 38.6 41.6% 59%;
+    --link-hover: 39.7 51.4% 71.8%;
+    --chart-1: 38.6 41.6% 59%;
+    --chart-2: 345.4 34.5% 55.7%;
+    --chart-3: 36 38.5% 92.4%;
+    --chart-4: 39.7 51.4% 71.8%;
+    --chart-5: 29.1 13.4% 48.4%;
+    --chart-6: 344.1 51.6% 30%;
+    --chart-7: 35.5 32.4% 86.7%;
+    --chart-8: 38.4 36% 48.4%;
+    --header-bg: rgba(26,20,20,.72);
+    --glass-fill: rgba(243,237,228,.06); --glass-edge-strong: rgba(194,163,107,.75); --glass-edge-soft: rgba(243,237,228,.14);
+    --glass-ring: rgba(0,0,0,.35); --glass-tight: rgba(0,0,0,.35); --glass-drop: rgba(0,0,0,.55); --glass-hi: rgba(255,255,255,.10);
+    --page-glow: radial-gradient(40% 50% at 85% 10%, rgba(194,163,107,.10), transparent 70%), radial-gradient(35% 45% at 10% 90%, rgba(116,37,58,.35), transparent 70%);
+    --radius: 0.25rem;
   }
 
   * {
@@ -125,16 +143,18 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: var(--font-public-sans), 'Inter', system-ui, sans-serif;
+    font-family: var(--font-home), system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3 {
-    font-family: var(--font-bricolage), 'Inter', system-ui, sans-serif;
-    letter-spacing: -0.02em;
+  h1 {
+    font-family: var(--font-display), serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
+  h2, h3 { font-family: inherit; }
 }
 
 @layer components {
@@ -143,60 +163,69 @@
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    background-color: hsl(222 36% 10%);
-    background-image: 
-      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(37, 99, 235, 0.18), transparent 70%),
-      radial-gradient(ellipse 70% 50% at 100% 50%, rgba(99, 102, 241, 0.12), transparent 60%),
-      radial-gradient(ellipse 60% 40% at 0% 85%, rgba(139, 92, 246, 0.1), transparent 50%),
-      linear-gradient(180deg, rgba(16, 28, 48, 0.65) 0%, rgba(20, 35, 57, 0.85) 100%);
+    background-color: hsl(var(--background));
+    background-image: var(--page-glow);
   }
 
-  .glass {
-    @apply bg-muted/60 backdrop-blur-xl border border-border;
-  }
-
-  .glass-panel {
-    @apply bg-card backdrop-blur-[32px] border border-border shadow-2xl rounded-lg;
-  }
-
-  .glass-card {
-    background-color: hsl(var(--card));
+  /* Glass recipe: one set of tokens (--glass-*) for light and dark. */
+  .glass, .glass-panel, .glass-card, .glass-premium, .glass-strong {
+    position: relative;
+    border-radius: 4px;
+    background: var(--glass-fill);
     color: hsl(var(--card-foreground));
-    border-color: hsl(var(--border) / 0.5);
-    @apply border rounded-lg shadow-sm backdrop-blur-xl;
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 0 0 1px var(--glass-ring), 0 1px 2px var(--glass-tight), 0 2px 6px var(--glass-tight),
+      0 12px 32px -8px var(--glass-drop), 0 24px 48px -16px var(--glass-drop), inset 0 1px 0 var(--glass-hi);
+    transition: transform .2s ease, box-shadow .2s ease;
   }
-
-  .glass-premium {
-    @apply relative overflow-hidden bg-[#050d17]/80 backdrop-blur-2xl border border-white/6 shadow-2xl;
-    background-image:
-      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+  .glass::after, .glass-panel::after, .glass-card::after, .glass-premium::after, .glass-strong::after {
+    content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(135deg, var(--glass-edge-strong) 0%, var(--glass-edge-soft) 40%, transparent 70%, var(--glass-edge-soft) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
   }
+  .glass-strong, .glass-premium { background: color-mix(in srgb, hsl(var(--card)) 78%, transparent); }
+  .glass-card:hover, .glass-panel:hover { box-shadow: 0 0 0 1px var(--glass-ring), 0 1px 2px var(--glass-tight), 0 2px 6px var(--glass-tight),
+      0 20px 44px -10px var(--glass-drop), 0 28px 56px -16px var(--glass-drop), inset 0 1px 0 var(--glass-hi); }
+  @media (hover: hover) and (pointer: fine) { .glass-card:hover { transform: translateY(-2px); } }
+  @media (max-width: 767px) { .glass, .glass-panel, .glass-card, .glass-premium, .glass-strong { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); } }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass, .glass-panel, .glass-card, .glass-premium, .glass-strong { background: hsl(var(--card)); }
+  }
+  @media (prefers-reduced-motion: reduce) { .glass-card:hover { transform: none; } }
+  /* Sidebar glass: the same recipe on the burgundy gradient, identical in light and dark. */
+  .glass-dark { position: relative; background: rgba(243,237,228,.08); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 8px 20px -8px rgba(20,4,10,.5), inset 0 1px 0 rgba(255,255,255,.12); }
+  .glass-dark::after { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(135deg, rgba(194,163,107,.85) 0%, rgba(243,237,228,.18) 40%, transparent 70%, rgba(243,237,228,.18) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass-dark { background: rgba(58,14,26,.85); } }
 
   .gradient-text {
     @apply text-transparent bg-clip-text;
-    background-image: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #60a5fa 100%);
+    background-image: linear-gradient(135deg, #DCC392 0%, #C2A36B 50%, #A8884F 100%);
   }
 
   .gradient-text-brand {
     @apply text-transparent bg-clip-text;
-    background-image: linear-gradient(to right, #c084fc, #a855f7, #818cf8);
+    background-image: linear-gradient(to right, #DCC392, #C2A36B, #A8884F);
   }
 
   .text-glow {
-    text-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+    text-shadow: 0 0 30px rgba(194, 163, 107, 0.4);
   }
 
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30;
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/20;
   }
 
   .shadow-glow {
-    box-shadow: 0 0 25px rgba(139, 92, 246, 0.25);
+    box-shadow: 0 0 25px rgba(194, 163, 107, 0.25);
   }
 
   .shadow-glow-cyan {
-    box-shadow: 0 0 25px rgba(34, 211, 238, 0.2);
+    box-shadow: 0 0 25px rgba(194, 163, 107, 0.2);
   }
 
   .shimmer {
@@ -223,8 +252,8 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
-    50%       { box-shadow: 0 0 40px rgba(139, 92, 246, 0.4); }
+    0%, 100% { box-shadow: 0 0 20px rgba(194, 163, 107, 0.2); }
+    50%       { box-shadow: 0 0 40px rgba(194, 163, 107, 0.4); }
   }
 
   .animate-fade-in-up {
@@ -233,13 +262,6 @@
 
   .animate-pulse-glow {
     animation: pulse-glow 3s ease-in-out infinite;
-  }
-
-  .glass-strong {
-    @apply relative overflow-hidden bg-[#050d17]/85 backdrop-blur-3xl border border-white/8 shadow-2xl;
-    background-image:
-      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
   }
 
   .enterprise-section {
@@ -590,13 +612,20 @@
 
 /* Legible custom select & dropdown option colors globally */
 select {
-  color: #f1f5f9 !important; /* slate-100 */
+  color: hsl(var(--foreground));
 }
 
 select option {
-  background-color: #0f172a !important; /* slate-900 background */
-  color: #f1f5f9 !important; /* slate-100 */
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
 }
 
 
 
+
+/* Bordeaux theme: buttons are square (cards 4px, inputs 2px). Catches raw <button className="rounded-md"> in pages. */
+button[class*="rounded-md"],
+button[class*="rounded-lg"],
+button[class*="rounded-xl"] {
+  border-radius: 0;
+}

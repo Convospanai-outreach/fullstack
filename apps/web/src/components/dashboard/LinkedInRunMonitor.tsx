@@ -46,7 +46,7 @@ export function LinkedInRunMonitor({ job }: LinkedInRunMonitorProps) {
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                     <div
-                        className={`h-full rounded-full transition-all duration-500 ${job.status === 'failed' ? 'bg-red-500' : 'bg-blue-500'}`}
+                        className={`h-full rounded-full transition-all duration-500 ${job.status === 'failed' ? 'bg-destructive' : 'bg-primary'}`}
                         style={{ width: `${progress}%` }}
                     ></div>
                 </div>
@@ -54,11 +54,11 @@ export function LinkedInRunMonitor({ job }: LinkedInRunMonitorProps) {
             <div className="mt-4 grid grid-cols-2 gap-2 text-center">
                 <div className="bg-muted p-2 rounded-lg">
                     <p className="text-xs text-muted-foreground">Success</p>
-                    <p className="text-lg font-bold text-green-400">{successCount}</p>
+                    <p className="text-lg font-bold text-success">{successCount}</p>
                 </div>
                 <div className="bg-muted p-2 rounded-lg">
                     <p className="text-xs text-muted-foreground">Failed</p>
-                    <p className="text-lg font-bold text-red-400">{failCount}</p>
+                    <p className="text-lg font-bold text-destructive">{failCount}</p>
                 </div>
             </div>
         </GlassCard>

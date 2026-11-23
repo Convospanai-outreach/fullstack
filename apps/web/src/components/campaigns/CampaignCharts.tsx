@@ -15,7 +15,7 @@ import {
     Cell,
 } from "recharts";
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-6))', 'hsl(var(--chart-8))', 'hsl(var(--chart-7))'];
 
 interface CampaignChartsProps {
     timeline: Array<{ date: string; sent: number; opened: number }>;
@@ -26,7 +26,7 @@ export default function CampaignCharts({ timeline, leadsByStatus }: CampaignChar
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
 
-    if (!mounted) return <div className="h-64 flex items-center justify-center text-gray-400">Loading charts...</div>;
+    if (!mounted) return <div className="h-64 flex items-center justify-center text-muted-foreground">Loading charts...</div>;
 
     const pieData = Object.entries(leadsByStatus).map(([name, value]) => ({
         name,
@@ -36,7 +36,7 @@ export default function CampaignCharts({ timeline, leadsByStatus }: CampaignChar
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Activity Chart */}
-            <div className="bg-white p-6 rounded-lg shadow">
+            <div className="bg-card p-6 rounded-lg shadow">
                 <h3 className="text-lg font-semibold mb-4">Activity Timeline (7 Days)</h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
@@ -49,14 +49,14 @@ export default function CampaignCharts({ timeline, leadsByStatus }: CampaignChar
                             <Line
                                 type="monotone"
                                 dataKey="sent"
-                                stroke="#8884d8"
+                                stroke="hsl(var(--chart-7))"
                                 name="Emails Sent"
                                 activeDot={{ r: 8 }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="opened"
-                                stroke="#82ca9d"
+                                stroke="hsl(var(--chart-2))"
                                 name="Emails Opened"
                             />
                         </LineChart>
@@ -65,7 +65,7 @@ export default function CampaignCharts({ timeline, leadsByStatus }: CampaignChar
             </div>
 
             {/* Status Distribution */}
-            <div className="bg-white p-6 rounded-lg shadow">
+            <div className="bg-card p-6 rounded-lg shadow">
                 <h3 className="text-lg font-semibold mb-4">Lead Status Distribution</h3>
                 <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
@@ -79,7 +79,7 @@ export default function CampaignCharts({ timeline, leadsByStatus }: CampaignChar
                                     `${name || 'Unknown'} ${((percent || 0) * 100).toFixed(0)}%`
                                 }
                                 outerRadius={80}
-                                fill="#8884d8"
+                                fill="hsl(var(--chart-7))"
                                 dataKey="value"
                             >
                                 {pieData.map((_, index) => (

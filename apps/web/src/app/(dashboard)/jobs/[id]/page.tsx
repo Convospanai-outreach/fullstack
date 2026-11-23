@@ -50,13 +50,13 @@ export default function JobDetailPage({
     const getStatusColor = (status: string) => {
         switch (status) {
             case "completed":
-                return "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-400 dark:border-emerald-700";
+                return "bg-success/10 text-success dark:bg-success/20 dark:text-success border-success/30 dark:border-success/30";
             case "running":
-                return "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200 border-sky-400 dark:border-sky-700";
+                return "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary border-primary/30 dark:border-primary/30";
             case "failed":
-                return "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200 border-red-400 dark:border-red-700";
+                return "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive border-destructive/30 dark:border-destructive/30";
             default:
-                return "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-200 border-gray-400 dark:border-gray-600";
+                return "bg-secondary text-foreground dark:bg-card dark:text-foreground border-border dark:border-border";
         }
     };
 
@@ -74,11 +74,11 @@ export default function JobDetailPage({
     if (error || !job) {
         return (
             <div role="alert" className="min-h-[50vh] flex items-center justify-center">
-                <div className="text-center bg-card p-6 rounded-lg border border-border shadow-sm max-w-md">
+                <div className="glass text-center p-6 max-w-md">
                     <p className="text-destructive font-semibold mb-4">{error || "Job not found"}</p>
                     <Link
                         href="/jobs"
-                        className="inline-flex items-center text-sm font-semibold text-sky-700 dark:text-sky-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                        className="inline-flex items-center text-sm font-semibold text-primary dark:text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                     >
                         ← Back to jobs
                     </Link>
@@ -91,12 +91,12 @@ export default function JobDetailPage({
         <div className="max-w-4xl space-y-6">
             <Link
                 href="/jobs"
-                className="inline-flex items-center text-sm font-semibold text-sky-700 dark:text-sky-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded mb-2"
+                className="inline-flex items-center text-sm font-semibold text-primary dark:text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded mb-2"
             >
                 ← Back to jobs
             </Link>
 
-            <div className="bg-card rounded-lg border border-border shadow-sm p-6 space-y-6">
+            <div className="glass p-6 space-y-6">
                 <div className="flex flex-wrap justify-between items-start gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Job Details</h1>
@@ -154,7 +154,7 @@ export default function JobDetailPage({
                     <div>
                         <button
                             onClick={handleRetry}
-                            className="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40"
                         >
                             Retry Job
                         </button>
@@ -162,7 +162,7 @@ export default function JobDetailPage({
                 )}
             </div>
 
-            <section aria-labelledby="job-payload-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+            <section aria-labelledby="job-payload-heading" className="glass p-6">
                 <h2 id="job-payload-heading" className="text-lg font-bold text-foreground mb-3">Payload</h2>
                 <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
                     {JSON.stringify(job.payload, null, 2)}
@@ -170,7 +170,7 @@ export default function JobDetailPage({
             </section>
 
             {job.result && (
-                <section aria-labelledby="job-result-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+                <section aria-labelledby="job-result-heading" className="glass p-6">
                     <h2 id="job-result-heading" className="text-lg font-bold text-foreground mb-3">Result</h2>
                     <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
                         {JSON.stringify(job.result, null, 2)}
@@ -179,9 +179,9 @@ export default function JobDetailPage({
             )}
 
             {job.error && (
-                <section aria-labelledby="job-error-heading" className="bg-card rounded-lg border border-red-300 dark:border-red-800 shadow-sm p-6">
-                    <h2 id="job-error-heading" className="text-lg font-bold text-red-700 dark:text-red-400 mb-3">Error</h2>
-                    <pre className="bg-red-50 dark:bg-red-950/40 p-4 rounded-md overflow-x-auto text-xs text-red-900 dark:text-red-200 font-mono border border-red-200 dark:border-red-900/60">
+                <section aria-labelledby="job-error-heading" className="bg-card rounded-lg border border-destructive/30 dark:border-destructive/30 shadow-sm p-6">
+                    <h2 id="job-error-heading" className="text-lg font-bold text-destructive dark:text-destructive mb-3">Error</h2>
+                    <pre className="bg-destructive/10 dark:bg-destructive/40 p-4 rounded-md overflow-x-auto text-xs text-destructive dark:text-destructive font-mono border border-destructive/30 dark:border-destructive/60">
                         {job.error}
                     </pre>
                 </section>

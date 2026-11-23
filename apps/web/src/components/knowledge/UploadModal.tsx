@@ -57,7 +57,7 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
                     Add Source
                 </PrimaryButton>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] bg-bg-base/90 backdrop-blur border-border-subtle text-text-primary">
+            <DialogContent className="sm:max-w-[600px] bg-bg-base/90 backdrop-blur border-border text-foreground">
                 <DialogHeader>
                     <DialogTitle>Add Knowledge Source</DialogTitle>
                 </DialogHeader>
@@ -75,12 +75,12 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Content / Context</label>
                         <textarea
-                            className="w-full h-40 bg-bg-glass border border-border-subtle rounded-md p-3 text-sm focus:outline-none focus:border-accent-blue"
+                            className="glass w-full h-40 p-3 text-sm focus:outline-none focus:border-primary"
                             placeholder="Paste the text content here..."
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                         />
-                        <p className="text-xs text-text-muted">
+                        <p className="text-xs text-muted-foreground">
                             This text will be chunked and embedded for AI retrieval.
                         </p>
                     </div>
@@ -89,7 +89,7 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
                 <div className="flex justify-end gap-3">
                     <button
                         onClick={() => setIsOpen(false)}
-                        className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+                        className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
                     >
                         Cancel
                     </button>

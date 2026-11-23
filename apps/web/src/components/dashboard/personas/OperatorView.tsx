@@ -86,7 +86,7 @@ export default function OperatorView() {
                     className="space-y-6"
                 >
                     <div className="flex items-center gap-3 mb-4 px-2">
-                        <div className="h-6 w-1 bg-indigo-500 rounded-full" />
+                        <div className="h-6 w-1 bg-primary rounded-full" />
                         <span className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">Live Intel</span>
                     </div>
                     <NudgeBar />
@@ -104,7 +104,7 @@ export default function OperatorView() {
                 <motion.div variants={item} className="lg:col-span-4 space-y-12">
                     {/* Governance Gate / Live Action Queue */}
                     <div className="relative group">
-                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-500/10 to-purple-600/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition duration-1000"></div>
+                        <div className="absolute -inset-1 bg-gradient-to-r from-warning/10 to-primary/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition duration-1000"></div>
                         <div className="relative">
                             <ApprovalQueue />
                         </div>
@@ -114,8 +114,8 @@ export default function OperatorView() {
                     <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                         <CardHeader className="border-b border-border bg-muted/40 p-8">
                             <CardTitle className="flex items-center gap-3 text-xl font-bold font-outfit">
-                                <div className="p-2 rounded-xl bg-emerald-100">
-                                    <Terminal className="w-5 h-5 text-emerald-700" />
+                                <div className="p-2 rounded-xl bg-success/10">
+                                    <Terminal className="w-5 h-5 text-success" />
                                 </div>
                                 Mission Command
                             </CardTitle>
@@ -124,39 +124,39 @@ export default function OperatorView() {
                             <ActionButton
                                 endpoint={getBrowserApiBase() + "/admin/actions/start-scrapers"}
                                 label="Trigger Data Ingestion"
-                                icon={<Play className="w-5 h-5 text-emerald-600" />}
+                                icon={<Play className="w-5 h-5 text-success" />}
                             />
                             <ActionButton
                                 endpoint={getBrowserApiBase() + "/admin/actions/pause-outreach"}
                                 label="Halt Active Campaigns"
-                                icon={<Pause className="w-5 h-5 text-orange-600" />}
+                                icon={<Pause className="w-5 h-5 text-warning" />}
                             />
                             <ActionButton
                                 endpoint={getBrowserApiBase() + "/admin/actions/sync-crm"}
                                 label="Sync External Records"
-                                icon={<RefreshCw className="w-5 h-5 text-indigo-600" />}
+                                icon={<RefreshCw className="w-5 h-5 text-primary" />}
                             />
 
                             <div className="mt-10 p-6 rounded-2xl bg-muted border border-border relative overflow-hidden group/health">
-                                <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover/health:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/health:opacity-100 transition-opacity" />
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <Zap className="w-4 h-4 text-indigo-600" />
+                                            <Zap className="w-4 h-4 text-primary" />
                                             <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">System Integrity</span>
                                         </div>
-                                        <span className="text-xs font-bold text-indigo-600">94%</span>
+                                        <span className="text-xs font-bold text-primary">94%</span>
                                     </div>
                                     <div className="h-2 w-full bg-border rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: "94%" }}
                                             transition={{ delay: 1, duration: 1.5 }}
-                                            className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400"
+                                            className="h-full bg-gradient-to-r from-primary to-primary/60"
                                         />
                                     </div>
                                     <p className="text-[10px] font-medium text-muted-foreground mt-4 flex items-center gap-2">
-                                        <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                                        <div className="w-1 h-1 rounded-full bg-success" />
                                         12 Edge Nodes online and healthy.
                                     </p>
                                 </div>

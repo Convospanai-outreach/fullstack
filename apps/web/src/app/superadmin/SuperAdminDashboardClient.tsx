@@ -416,21 +416,21 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
         value: data.totals.users.toLocaleString(),
         sub: `${data.totals.activeUsersInWindow || 0} active in ${range}`,
         icon: Users,
-        color: "text-cyan-300",
+        color: "text-primary",
       },
       {
         label: "Platform Revenue",
         value: money(revenueDollars),
         sub: `${data.totals.activeSubscriptionsCount || 0} active subs`,
         icon: DollarSign,
-        color: "text-emerald-400",
+        color: "text-success",
       },
       {
         label: "LLM Requests",
         value: compactNumber(data.totals.llmRequests),
         sub: `${money(data.totals.tokenCost)} est. cost`,
         icon: Cpu,
-        color: "text-indigo-300",
+        color: "text-primary",
       },
       {
         label: "Tokens Consumed",
@@ -444,14 +444,14 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
         value: `${data.totals.activeApiKeys}/${data.totals.apiKeys}`,
         sub: "across all workspaces",
         icon: KeyRound,
-        color: "text-purple-300",
+        color: "text-primary",
       },
       {
         label: "Job Queue Health",
         value: `${data.totals.completedJobsCount || 0} ok`,
         sub: data.totals.failedJobsCount ? `${data.totals.failedJobsCount} failed` : "0 failures",
         icon: data.totals.failedJobsCount ? AlertTriangle : CheckCircle2,
-        color: data.totals.failedJobsCount ? "text-destructive" : "text-emerald-400",
+        color: data.totals.failedJobsCount ? "text-destructive" : "text-success",
       },
     ];
   }, [data, range]);
@@ -475,7 +475,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
                 <Lock className="h-3 w-3" />
                 INTERNAL ONLY · APP OWNER
               </span>
@@ -513,7 +513,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
           <GlassCard className="p-8 text-center text-muted-foreground">Loading platform telemetry...</GlassCard>
         )}
         {!loading && error && (
-          <GlassCard className="border-red-500/30 bg-red-500/10 p-6 text-red-200">
+          <GlassCard className="border-destructive/30 bg-destructive/10 p-6 text-destructive">
             Failed to load admin overview: {error}
           </GlassCard>
         )}
@@ -521,7 +521,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>More tools (need your regular sign-in as a system admin):</span>
           {ADMIN_TOOLS.map((tool) => (
-            <a key={tool.href} href={tool.href} className="text-cyan-400 hover:underline">
+            <a key={tool.href} href={tool.href} className="text-primary hover:underline">
               {tool.label}
             </a>
           ))}
@@ -531,7 +531,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
           <button
             type="button"
             onClick={() => setActiveTab("health")}
-            className="flex w-full items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-left text-xs text-warning"
+            className="flex w-full items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-left text-xs text-warning"
           >
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {redisNotice(redis)} Manage it under Outages &amp; Job Health.
@@ -592,7 +592,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 icon={Server}
                 label="Outages & Job Health"
                 badge={data.totals.failedJobsCount ? `${data.totals.failedJobsCount} err` : undefined}
-                badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-destructive" : undefined}
+                badgeColor={data.totals.failedJobsCount ? "bg-chart-4/20 text-destructive" : undefined}
               />
               <TabButton
                 active={activeTab === "serverErrors"}
@@ -636,7 +636,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                       placeholder="Search users by email, name, role..."
                       value={searchFilter}
                       onChange={(e) => setSearchFilter(e.target.value)}
-                      className="w-72 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+                      className="w-72 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:border-primary/30 focus:outline-none"
                     />
                     <span className="text-xs text-muted-foreground">
                       Showing {filteredUsers.length} of {data.users.length} users · click a row for full detail
@@ -676,11 +676,11 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                                 {user.enterpriseRole || user.role}
                               </span>
                               {user.suspendedAt && (
-                                <span className="ml-1 rounded bg-rose-500/10 px-2 py-0.5 font-medium text-destructive">Suspended</span>
+                                <span className="ml-1 rounded bg-chart-4/10 px-2 py-0.5 font-medium text-destructive">Suspended</span>
                               )}
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-cyan-300">
+                              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
                                 {user.teamCount}
                               </span>
                             </td>
@@ -691,14 +691,14 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                               {user.creditsSpent.toLocaleString()}
                             </td>
                             <td className="py-3 px-4 text-right font-mono">{user.llmRequests.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right font-mono font-medium text-emerald-400">
+                            <td className="py-3 px-4 text-right font-mono font-medium text-success">
                               {money(user.tokenCost)}
                             </td>
                             <td className="py-3 px-4 text-center">
                               <span
                                 className={`rounded px-1.5 py-0.5 text-[10px] ${
                                   user.usageAttribution === "user"
-                                    ? "bg-emerald-500/10 text-success"
+                                    ? "bg-success/10 text-success"
                                     : "bg-muted text-muted-foreground"
                                 }`}
                               >
@@ -720,7 +720,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 <GlassCard className="p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <Cpu className="h-4 w-4 text-cyan-300" />
+                      <Cpu className="h-4 w-4 text-primary" />
                       LLM Usage by Provider
                     </h3>
                   </div>
@@ -738,7 +738,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-emerald-400">{money(p.cost)}</p>
+                          <p className="font-bold text-success">{money(p.cost)}</p>
                           <p className="text-xs text-muted-foreground">{p.requests.toLocaleString()} requests</p>
                         </div>
                       </div>
@@ -749,7 +749,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 <GlassCard className="p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-indigo-400" />
+                      <Zap className="h-4 w-4 text-primary" />
                       Top Models Consumed
                     </h3>
                   </div>
@@ -780,7 +780,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 <div className="grid gap-4 sm:grid-cols-3">
                   <GlassCard className="p-4">
                     <p className="text-xs uppercase text-muted-foreground">Total Billed In Window</p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-400">
+                    <p className="mt-1 text-2xl font-bold text-success">
                       {money((data.billing?.totalRevenueCents || 0) / 100)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -808,7 +808,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 <div className="grid gap-6 lg:grid-cols-2">
                   <GlassCard className="p-5">
                     <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-cyan-300" />
+                      <CreditCard className="h-4 w-4 text-primary" />
                       Active Subscriptions
                     </h3>
                     <div className="space-y-2 text-xs">
@@ -823,15 +823,15 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                           <div>
                             <p className="font-semibold text-foreground">{sub.userEmail}</p>
                             <p className="text-muted-foreground">
-                              Plan: <span className="text-cyan-300">{sub.planName}</span> ({sub.gateway})
+                              Plan: <span className="text-primary">{sub.planName}</span> ({sub.gateway})
                             </p>
                           </div>
                           <div className="text-right">
                             <span
                               className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
                                 sub.status === "active"
-                                  ? "bg-emerald-500/10 text-success"
-                                  : "bg-amber-500/10 text-warning"
+                                  ? "bg-success/10 text-success"
+                                  : "bg-warning/10 text-warning"
                               }`}
                             >
                               {sub.status}
@@ -847,7 +847,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
 
                   <GlassCard className="p-5">
                     <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-emerald-400" />
+                      <Wallet className="h-4 w-4 text-success" />
                       Recent Invoices
                     </h3>
                     <div className="space-y-2 text-xs">
@@ -864,7 +864,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                             <p className="text-muted-foreground">{inv.description || inv.type}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-mono font-bold text-emerald-400">
+                            <p className="font-mono font-bold text-success">
                               {inv.currency.toUpperCase()} {(inv.amount / 100).toFixed(2)}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{dateLabel(inv.createdAt)}</p>
@@ -882,7 +882,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
               <div className="space-y-6">
                 <GlassCard className="p-5">
                   <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
-                    <Database className="h-4 w-4 text-cyan-300" />
+                    <Database className="h-4 w-4 text-primary" />
                     Workspaces & API Consumption
                   </h3>
                   <div className="overflow-x-auto">
@@ -913,7 +913,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                               <span className="font-mono">{t.activeApiKeyCount}/{t.apiKeyCount}</span>
                             </td>
                             <td className="py-2.5 px-3 text-right font-mono">{t.llmRequests.toLocaleString()}</td>
-                            <td className="py-2.5 px-3 text-right font-mono text-emerald-400">{money(t.tokenCost)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono text-success">{money(t.tokenCost)}</td>
                             <td className="py-2.5 px-3 text-right font-mono text-warning">{t.creditsSpent.toLocaleString()}</td>
                           </tr>
                         ))}
@@ -935,14 +935,14 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                   <GlassCard
                     className={`p-4 ${
                       !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0
-                        ? "border-amber-500/20 bg-amber-500/5"
-                        : "border-emerald-500/20 bg-emerald-500/5"
+                        ? "border-warning/20 bg-warning/5"
+                        : "border-success/20 bg-success/5"
                     }`}
                   >
                     <p className="text-xs uppercase text-muted-foreground">Netjana Intel Webhook</p>
                     <p
                       className={`mt-1 text-lg font-bold flex items-center gap-1.5 ${
-                        !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0 ? "text-warning" : "text-emerald-400"
+                        !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0 ? "text-warning" : "text-success"
                       }`}
                     >
                       {!data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0 ? (
@@ -960,7 +960,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                       Last received: {dateLabel(data.netjanaIntel?.lastReceivedAt)}
                     </p>
                   </GlassCard>
-                  <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-rose-500/30 bg-rose-500/10" : "border-border"}`}>
+                  <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-chart-4/30 bg-chart-4/10" : "border-border"}`}>
                     <p className="text-xs uppercase text-muted-foreground">Dead-lettered jobs</p>
                     <p className={`mt-1 text-lg font-bold ${data.totals.failedJobsCount ? "text-destructive" : "text-foreground"}`}>
                       {data.totals.failedJobsCount || 0} in {range}
@@ -984,15 +984,15 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                         : "Not available"}
                     </p>
                   </GlassCard>
-                  <GlassCard className={`p-4 ${data.infra?.resend.configured ? "border-emerald-500/20 bg-emerald-500/5" : "border-border"}`}>
+                  <GlassCard className={`p-4 ${data.infra?.resend.configured ? "border-success/20 bg-success/5" : "border-border"}`}>
                     <p className="text-xs uppercase text-muted-foreground">Resend (Email)</p>
-                    <p className={`mt-1 text-lg font-bold ${data.infra?.resend.configured ? "text-emerald-400" : "text-muted-foreground"}`}>
+                    <p className={`mt-1 text-lg font-bold ${data.infra?.resend.configured ? "text-success" : "text-muted-foreground"}`}>
                       {data.infra?.resend.configured ? "Configured" : "Not configured"}
                     </p>
                   </GlassCard>
-                  <GlassCard className={`p-4 ${data.infra?.render.configured ? "border-emerald-500/20 bg-emerald-500/5" : "border-border"}`}>
+                  <GlassCard className={`p-4 ${data.infra?.render.configured ? "border-success/20 bg-success/5" : "border-border"}`}>
                     <p className="text-xs uppercase text-muted-foreground">Render API</p>
-                    <p className={`mt-1 text-lg font-bold ${data.infra?.render.configured ? "text-emerald-400" : "text-muted-foreground"}`}>
+                    <p className={`mt-1 text-lg font-bold ${data.infra?.render.configured ? "text-success" : "text-muted-foreground"}`}>
                       {data.infra?.render.configured ? "Configured" : "Not configured"}
                     </p>
                   </GlassCard>
@@ -1011,7 +1011,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                       {data.jobHealth?.recentFailed.map((job) => (
                         <div
                           key={job.id}
-                          className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3"
+                          className="rounded-lg border border-chart-4/20 bg-chart-4/5 p-3"
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-destructive">{job.type}</span>
@@ -1023,7 +1023,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                               Attempts: {job.attempts} · Team: {job.teamId || "None"}
                             </p>
                             {replayed[job.id] ? (
-                              <span className="text-[10px] text-emerald-400">{replayed[job.id]}</span>
+                              <span className="text-[10px] text-success">{replayed[job.id]}</span>
                             ) : (
                               <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => void replayJob(job.id)}>
                                 Replay
@@ -1037,7 +1037,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
 
                   <GlassCard className="p-5">
                     <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-amber-400" />
+                      <Shield className="h-4 w-4 text-warning" />
                       Recent System Events & Outage Logs
                     </h3>
                     <div className="space-y-2 text-xs">
@@ -1075,7 +1075,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
               <GlassCard className="overflow-hidden p-0">
                 <div className="p-4 border-b border-border">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <History className="h-4 w-4 text-cyan-300" />
+                    <History className="h-4 w-4 text-primary" />
                     Superadmin Login &amp; Access History
                   </h3>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -1106,8 +1106,8 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                               <span
                                 className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                                   entry.action === "LOGIN_FAILED"
-                                    ? "bg-rose-500/10 text-destructive"
-                                    : "bg-emerald-500/10 text-success"
+                                    ? "bg-chart-4/10 text-destructive"
+                                    : "bg-success/10 text-success"
                                 }`}
                               >
                                 {entry.action}
@@ -1160,9 +1160,9 @@ function UserDetailModal({
   onLoggedOut: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-card p-6"
+        className="glass w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between">
@@ -1212,7 +1212,7 @@ function UserDetailModal({
                     </span>
                     <span
                       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                        detail.subscription.pastDue ? "bg-rose-500/10 text-destructive" : "bg-emerald-500/10 text-success"
+                        detail.subscription.pastDue ? "bg-chart-4/10 text-destructive" : "bg-success/10 text-success"
                       }`}
                     >
                       {detail.subscription.pastDue ? "past due" : detail.subscription.status}
@@ -1316,8 +1316,8 @@ function TabButton({
       onClick={onClick}
       className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
         active
-          ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"
-          : "text-muted-foreground hover:bg-background border border-input hover:text-foreground"
+          ? "bg-primary/10 text-primary border border-primary/30"
+          : "text-muted-foreground hover:bg-card border border-input hover:text-foreground"
       }`}
     >
       <Icon className="h-4 w-4" />

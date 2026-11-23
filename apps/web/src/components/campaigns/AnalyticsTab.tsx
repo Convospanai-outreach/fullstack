@@ -24,25 +24,25 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                     label="Sent"
                     value={funnel.sent}
                     icon={Send}
-                    color="text-accent-blue"
+                    color="text-primary"
                 />
                 <MetricCard
                     label="Open Rate"
                     value={`${openRate}%`}
                     icon={MailOpen}
-                    color="text-accent-mint"
+                    color="text-success"
                 />
                 <MetricCard
                     label="Click Rate"
                     value={`${clickRate}%`}
                     icon={MousePointerClick}
-                    color="text-accent-violet"
+                    color="text-primary"
                 />
                 <MetricCard
                     label="Reply Rate"
                     value={`${replyRate}%`}
                     icon={MessageCircle}
-                    color="text-pink-500"
+                    color="text-chart-4"
                 />
             </div>
 
@@ -52,12 +52,12 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="bg-bg-glass backdrop-blur-xl border border-border-subtle rounded-xl p-5 h-full">
-                        <h3 className="text-lg font-semibold mb-4 text-text-primary flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-accent-mint" />
+                    <div className="glass backdrop-blur-xl p-5 h-full">
+                        <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-success" />
                             AI Insights
                         </h3>
-                        <div className="space-y-4 text-sm text-text-secondary">
+                        <div className="space-y-4 text-sm text-muted-foreground">
                             <p>- Open rate is above your baseline.</p>
                             <p>- Most replies cluster on weekdays.</p>
                             <p>- Recommendation: Increase personalization in the subject line.</p>

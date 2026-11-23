@@ -53,7 +53,7 @@ export default function MergeFieldCheck({ campaignId, savedCount = 0 }: { campai
         };
     }, [campaignId, savedCount]);
 
-    if (error) return <div className="border-b border-border bg-card p-4 text-sm text-red-500">{error}</div>;
+    if (error) return <div className="border-b border-border bg-card p-4 text-sm text-destructive">{error}</div>;
     if (!report) {
         return (
             <div className="flex items-center gap-2 border-b border-border bg-card p-4 text-sm text-muted-foreground">
@@ -69,7 +69,7 @@ export default function MergeFieldCheck({ campaignId, savedCount = 0 }: { campai
                 <p className="text-sm text-muted-foreground">The saved sequence has no email steps to check. Save the sequence first if you just added one.</p>
             ) : problems.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
+                    <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
                     Every merge field is filled for all {report.leadsChecked.toLocaleString()} contacts.
                 </p>
             ) : (
@@ -81,7 +81,7 @@ export default function MergeFieldCheck({ campaignId, savedCount = 0 }: { campai
                         <ul className="space-y-2">
                             {step.issues.map((issue) => (
                                 <li key={issue.token} className="flex gap-2 text-sm">
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
                                     <span>
                                         <code className="rounded bg-muted px-1">{`{{${issue.token}}}`}</code>{" "}
                                         <span className="text-muted-foreground">

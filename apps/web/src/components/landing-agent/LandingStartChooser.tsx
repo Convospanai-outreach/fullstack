@@ -26,9 +26,9 @@ export default function LandingStartChooser() {
             <GlassCard className="mx-auto max-w-6xl space-y-6 p-8">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Landing Agent</p>
-                        <h1 className="mt-2 text-3xl font-bold text-white">Start from a template</h1>
-                        <p className="mt-2 text-sm text-slate-300">Pick the layout closest to your goal. You can change everything in the editor.</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-primary">Landing Agent</p>
+                        <h1 className="mt-2 text-3xl font-bold text-foreground">Start from a template</h1>
+                        <p className="mt-2 text-sm text-foreground/80">Pick the layout closest to your goal. You can change everything in the editor.</p>
                     </div>
                     <BackButton onClick={() => setChoice(null)} />
                 </div>
@@ -40,9 +40,9 @@ export default function LandingStartChooser() {
     return (
         <GlassCard className="mx-auto max-w-4xl space-y-6 p-8">
             <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Landing Agent</p>
-                <h1 className="mt-2 text-3xl font-bold text-white">New landing page</h1>
-                <p className="mt-2 text-sm text-slate-300">Choose how you want to start.</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-primary">Landing Agent</p>
+                <h1 className="mt-2 text-3xl font-bold text-foreground">New landing page</h1>
+                <p className="mt-2 text-sm text-foreground/80">Choose how you want to start.</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
                 {landingStartChoices.map((option) => (
@@ -50,10 +50,10 @@ export default function LandingStartChooser() {
                         key={option.id}
                         type="button"
                         onClick={() => setChoice(option.id)}
-                        className="rounded-xl border border-white/10 bg-slate-900/60 p-5 text-left hover:border-cyan-400/60"
+                        className="rounded-xl border border-foreground/10 bg-background/60 p-5 text-left hover:border-primary/60"
                     >
-                        <h2 className="text-lg font-semibold text-white">{option.title}</h2>
-                        <p className="mt-2 text-sm text-slate-300">{option.description}</p>
+                        <h2 className="text-lg font-semibold text-foreground">{option.title}</h2>
+                        <p className="mt-2 text-sm text-foreground/80">{option.description}</p>
                     </button>
                 ))}
             </div>
@@ -63,7 +63,7 @@ export default function LandingStartChooser() {
 
 function BackButton({ onClick }: { onClick: () => void }) {
     return (
-        <button type="button" onClick={onClick} className="text-sm text-cyan-300 underline">
+        <button type="button" onClick={onClick} className="text-sm text-primary underline">
             Back to the choices
         </button>
     );

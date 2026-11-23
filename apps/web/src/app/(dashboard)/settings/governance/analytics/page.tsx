@@ -47,21 +47,21 @@ export default function GovernanceAnalyticsPage() {
                 <MetricCard
                     title="Policy Risk Level"
                     value={stats.policyRiskLevel}
-                    icon={<ShieldCheck className="w-5 h-5 text-emerald-400" />}
+                    icon={<ShieldCheck className="w-5 h-5 text-success" />}
                     subtitle="Based on the last 24h block rate"
-                    color={stats.policyRiskLevel === 'HIGH' ? 'text-red-400' : stats.policyRiskLevel === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}
+                    color={stats.policyRiskLevel === 'HIGH' ? 'text-destructive' : stats.policyRiskLevel === 'MEDIUM' ? 'text-warning' : 'text-success'}
                 />
                 <MetricCard
                     title="Blocked Risks"
                     value={stats.blockedActions}
-                    icon={<AlertTriangle className="w-5 h-5 text-red-400" />}
+                    icon={<AlertTriangle className="w-5 h-5 text-destructive" />}
                     subtitle="Total violations prevented"
                 />
             </div>
 
             <GlassCard className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <Activity className="w-5 h-5 text-blue-400" />
+                    <Activity className="w-5 h-5 text-primary" />
                     <h3 className="text-lg font-bold text-foreground">Governance Activity (24h)</h3>
                 </div>
                 {stats.hourlyActivity.every((count: number) => count === 0) ? (
@@ -76,7 +76,7 @@ export default function GovernanceAnalyticsPage() {
                             return (
                                 <div
                                     key={i}
-                                    className="flex-1 bg-blue-500/20 hover:bg-blue-500/50 transition-all rounded-t-sm cursor-help"
+                                    className="flex-1 bg-primary/20 hover:bg-primary/50 transition-all rounded-t-sm cursor-help"
                                     style={{ height: `${Math.max((count / max) * 100, count > 0 ? 8 : 2)}%` }}
                                     title={`~${hoursAgo}h ago: ${count} action${count === 1 ? '' : 's'}`}
                                 />

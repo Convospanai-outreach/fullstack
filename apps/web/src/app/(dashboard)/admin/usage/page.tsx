@@ -96,8 +96,8 @@ export default function AdminUsagePage() {
   return (
     <div className="p-8 min-h-screen bg-background relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-900/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-900/20 rounded-full blur-[120px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-success/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto space-y-8">
@@ -192,7 +192,7 @@ export default function AdminUsagePage() {
 
             <GlassCard className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <BarChart3 className="w-5 h-5 text-cyan-300" />
+                <BarChart3 className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold text-foreground">Teams</h3>
               </div>
               <div className="overflow-x-auto">

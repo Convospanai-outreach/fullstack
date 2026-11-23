@@ -35,13 +35,13 @@ export default function JobsPage() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case "completed":
-                return "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-400 dark:border-emerald-700";
+                return "bg-success/10 text-success dark:bg-success/20 dark:text-success border-success/30 dark:border-success/30";
             case "running":
-                return "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200 border-sky-400 dark:border-sky-700";
+                return "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary border-primary/30 dark:border-primary/30";
             case "failed":
-                return "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200 border-red-400 dark:border-red-700";
+                return "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive border-destructive/30 dark:border-destructive/30";
             default:
-                return "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-200 border-gray-400 dark:border-gray-600";
+                return "bg-secondary text-foreground dark:bg-card dark:text-foreground border-border dark:border-border";
         }
     };
 
@@ -51,7 +51,7 @@ export default function JobsPage() {
                 <SectionHeader title="Background Jobs" subtitle="Monitor background orchestration tasks and execution history." />
                 <button
                     onClick={loadJobs}
-                    className="self-start sm:self-auto bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700"
+                    className="self-start sm:self-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/40"
                 >
                     Refresh
                 </button>
@@ -66,7 +66,7 @@ export default function JobsPage() {
                         id="type"
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
-                        className="px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                        className="px-3 py-2 text-sm bg-background text-foreground border border-border dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                     >
                         <option value="">All Types</option>
                         <option value="campaign_execution">Campaign Execution</option>
@@ -84,7 +84,7 @@ export default function JobsPage() {
                         id="status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                        className="px-3 py-2 text-sm bg-background text-foreground border border-border dark:border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                     >
                         <option value="">All Statuses</option>
                         <option value="pending">Pending</option>
@@ -96,7 +96,7 @@ export default function JobsPage() {
             </div>
 
             {error && (
-                <div role="alert" className="bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-900 dark:text-red-200 px-4 py-3 rounded-lg">
+                <div role="alert" className="bg-destructive/10 dark:bg-destructive/40 border border-destructive/30 dark:border-destructive/30 text-destructive dark:text-destructive px-4 py-3 rounded-lg">
                     {error}
                 </div>
             )}
@@ -107,11 +107,11 @@ export default function JobsPage() {
                     <p className="mt-2 text-sm font-medium text-foreground">Loading jobs...</p>
                 </div>
             ) : jobs.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-lg border border-border">
+                <div className="glass text-center py-12">
                     <p className="text-muted-foreground font-medium">No jobs found matching the selected filters.</p>
                 </div>
             ) : (
-                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                <div className="glass overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-border">
                             <thead className="bg-muted/60">
@@ -157,7 +157,7 @@ export default function JobsPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
                                             <Link
                                                 href={`/jobs/${job.id}`}
-                                                className="text-sky-700 dark:text-sky-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                                                className="text-primary dark:text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                                             >
                                                 View Details <span className="sr-only">for job {job.id}</span>
                                             </Link>

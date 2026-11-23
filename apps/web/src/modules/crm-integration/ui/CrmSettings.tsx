@@ -96,7 +96,7 @@ export default function CrmSettings() {
                 <select
                     value={provider}
                     onChange={(e) => setProvider(e.target.value)}
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6 }}
                 >
                     <option value="HUBSPOT">HubSpot</option>
                 </select>
@@ -109,7 +109,7 @@ export default function CrmSettings() {
                     value={accessToken}
                     onChange={(e) => setAccessToken(e.target.value)}
                     placeholder="Paste your HubSpot access token"
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6 }}
                 />
             </div>
 
@@ -120,7 +120,7 @@ export default function CrmSettings() {
                     value={refreshToken}
                     onChange={(e) => setRefreshToken(e.target.value)}
                     placeholder="Optional refresh token"
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6 }}
                 />
             </div>
 
@@ -130,7 +130,7 @@ export default function CrmSettings() {
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: '1px solid hsl(var(--border))', borderRadius: 6 }}
                 />
             </div>
 

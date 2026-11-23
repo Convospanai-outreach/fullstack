@@ -8,32 +8,32 @@ export default function FeaturesSection() {
         {
             title: "Sovereign Firewall",
             description: "Bank-grade security. Our local Micro-LLM (Phi-3) inspects every outgoing message, ensuring PII never leaves your device.",
-            icon: <Zap className="w-6 h-6 text-yellow-400" />
+            icon: <Zap className="w-6 h-6 text-warning" />
         },
         {
             title: "Compliance Guardrails",
             description: "Built for DPDP & GDPR. The system mechanically redacts sensitive data before it touches the cloud.",
-            icon: <Shield className="w-6 h-6 text-green-400" />
+            icon: <Shield className="w-6 h-6 text-success" />
         },
         {
             title: "SafeRun™ Assisted Mode",
             description: "No more bans. Our local-first engine executes actions from your own IP, mimicking human behavior perfectly.",
-            icon: <Shield className="w-6 h-6 text-blue-400" />
+            icon: <Shield className="w-6 h-6 text-primary" />
         },
         {
             title: "Smart ICP Builder",
             description: "Define your Ideal Customer Profile with AI-driven attributes and buying signals.",
-            icon: <Users className="w-6 h-6 text-purple-400" />
+            icon: <Users className="w-6 h-6 text-primary" />
         },
         {
             title: "Precision Targeting",
             description: "Pinpoint decision-makers with multi-source verification using our lead validation engine.",
-            icon: <Target className="w-6 h-6 text-red-400" />
+            icon: <Target className="w-6 h-6 text-destructive" />
         },
         {
             title: "Deep Analytics",
             description: "Track open rates, replies, and conversions with real-time actionable insights.",
-            icon: <BarChart3 className="w-6 h-6 text-indigo-400" />
+            icon: <BarChart3 className="w-6 h-6 text-primary" />
         }
     ];
 
@@ -46,7 +46,7 @@ export default function FeaturesSection() {
                     {features.map((feature, index) => (
                         <GlassCard key={index} title={feature.title} className="h-full">
                             <div className="mb-4">{feature.icon}</div>
-                            <p className="text-gray-400 leading-relaxed">
+                            <p className="text-muted-foreground leading-relaxed">
                                 {feature.description}
                             </p>
                         </GlassCard>

@@ -45,7 +45,7 @@ interface RecentLeadsCardProps {
 export function RecentLeadsCard({ leads, totalLeads, loading, onSelect }: RecentLeadsCardProps) {
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-lg p-3.5 h-full animate-pulse">
+      <div className="glass p-3.5 h-full animate-pulse">
         <div className="h-2.5 w-24 bg-muted rounded mb-4" />
         {[...Array(4)].map((_, i) => <div key={i} className="h-6 bg-muted rounded mb-1.5" />)}
       </div>
@@ -53,7 +53,7 @@ export function RecentLeadsCard({ leads, totalLeads, loading, onSelect }: Recent
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3.5 h-full flex flex-col">
+    <div className="glass p-3.5 h-full flex flex-col">
       <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
         Recent leads
       </p>

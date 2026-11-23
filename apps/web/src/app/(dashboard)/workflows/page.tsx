@@ -160,7 +160,7 @@ export default function WorkflowsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[1px] bg-border border-[0.5px] border-border p-[1px]">
                     {[...Array(3)].map((_, i) => (
                         <div key={i} className="relative h-44 bg-card overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/[0.02] to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                         </div>
                     ))}
                 </div>
@@ -208,7 +208,7 @@ export default function WorkflowsPage() {
                                             )}>
                                                 {wf.isActive ? (
                                                     <>
-                                                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                                                        <span className="w-1 h-1 rounded-full bg-success/80 animate-pulse" />
                                                         ACTIVE
                                                     </>
                                                 ) : (
@@ -271,7 +271,7 @@ export default function WorkflowsPage() {
                             <input
                                 type="text"
                                 placeholder="AUTOMATION NAME (e.g. Lead Qualification Sync)"
-                                className="w-full bg-muted border border-border px-3 py-2 text-[12.5px] font-mono placeholder:text-muted-foreground text-foreground outline-none focus:border-zinc-500 transition-colors"
+                                className="w-full bg-muted border border-border px-3 py-2 text-[12.5px] font-mono placeholder:text-muted-foreground text-foreground outline-none focus:border-border transition-colors"
                                 value={newWorkflowName}
                                 onChange={(e) => setNewWorkflowName(e.target.value)}
                                 required

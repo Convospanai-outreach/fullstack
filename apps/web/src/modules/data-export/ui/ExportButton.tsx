@@ -35,7 +35,7 @@ export default function ExportButton({ type }: { type: "leads" | "campaigns" }) 
             <button
                 onClick={() => setShowMenu(!showMenu)}
                 disabled={loading}
-                className="inline-flex items-center justify-center px-4 py-2 border border-white/10 rounded-lg shadow-sm text-sm font-medium text-white bg-white/5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center justify-center px-4 py-2 border border-border rounded-none text-[13px] font-medium text-foreground bg-card hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-primary/40 transition-colors"
             >
                 {loading ? "Exporting..." : "Export"}
                 <svg className="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -44,17 +44,17 @@ export default function ExportButton({ type }: { type: "leads" | "campaigns" }) 
             </button>
 
             {showMenu && (
-                <div className="origin-top-right absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                <div className="origin-top-right absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-card ring-1 ring-border ring-opacity-5 focus:outline-none z-50">
                     <div className="py-1">
                         <button
                             onClick={() => handleExport("csv")}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                            className="block w-full text-left px-4 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-foreground"
                         >
                             Export CSV
                         </button>
                         <button
                             onClick={() => handleExport("json")}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+                            className="block w-full text-left px-4 py-2 text-sm text-foreground/80 hover:bg-secondary hover:text-foreground"
                         >
                             Export JSON
                         </button>

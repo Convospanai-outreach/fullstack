@@ -37,7 +37,7 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Active Experiments</CardTitle>
-                        <LineChart className="w-4 h-4 text-blue-500" />
+                        <LineChart className="w-4 h-4 text-primary" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{activeExperiments.length}</div>
@@ -50,7 +50,7 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Training Datasets</CardTitle>
-                        <Database className="w-4 h-4 text-green-500" />
+                        <Database className="w-4 h-4 text-success" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{approvedDatasets.length}</div>
@@ -63,10 +63,10 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
-                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <CheckCircle className="w-4 h-4 text-success" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-green-600">PASS</div>
+                        <div className="text-2xl font-bold text-success">PASS</div>
                         <p className="text-xs text-muted-foreground">
                             All audit logs intact
                         </p>
@@ -91,7 +91,7 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                         ) : (
                             <div className="space-y-4">
                                 {activeExperiments.map((exp) => (
-                                    <div key={exp.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                                    <div key={exp.id} className="border-l-4 border-primary/30 pl-4 py-2">
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <h3 className="font-semibold">{exp.name}</h3>
@@ -119,11 +119,11 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                                 <div key={dataset.id} className="flex items-center justify-between p-3 border rounded-lg">
                                     <div className="flex items-center gap-3">
                                         {dataset.status === 'REVIEWED' ? (
-                                            <CheckCircle className="w-5 h-5 text-green-500" />
+                                            <CheckCircle className="w-5 h-5 text-success" />
                                         ) : dataset.status === 'IN_REVIEW' ? (
-                                            <Clock className="w-5 h-5 text-yellow-500" />
+                                            <Clock className="w-5 h-5 text-warning" />
                                         ) : (
-                                            <XCircle className="w-5 h-5 text-red-500" />
+                                            <XCircle className="w-5 h-5 text-destructive" />
                                         )}
                                         <div>
                                             <p className="font-medium">Dataset {dataset.version}</p>

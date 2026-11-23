@@ -30,7 +30,7 @@ export default function NotificationBell() {
             >
                 🔔
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white border border-background">
+                    <span className="absolute top-1 right-1 w-5 h-5 bg-destructive rounded-full text-xs flex items-center justify-center text-primary-foreground border border-background">
                         {unreadCount}
                     </span>
                 )}
@@ -51,7 +51,7 @@ export default function NotificationBell() {
                                 notifications.map((n: any) => (
                                     <div
                                         key={n.id}
-                                        className={`p-3 border-b border-border hover:bg-muted transition flex gap-3 ${n.read ? "opacity-50" : "bg-purple-500/5"}`}
+                                        className={`p-3 border-b border-border hover:bg-muted transition flex gap-3 ${n.read ? "opacity-50" : "bg-primary/5"}`}
                                     >
                                         <div className="text-xl">
                                             {n.type === "alert" ? "⚠️" : n.type === "success" ? "✅" : "ℹ️"}
@@ -63,7 +63,7 @@ export default function NotificationBell() {
                                         {!n.read && (
                                             <button
                                                 onClick={(e) => handleMarkRead(n.id, e)}
-                                                className="text-xs text-blue-400 hover:text-blue-300 self-start"
+                                                className="text-xs text-primary hover:text-primary self-start"
                                                 title="Mark as read"
                                             >
                                                 •

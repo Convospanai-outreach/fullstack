@@ -16,13 +16,16 @@ export function EdgeStatusPlate({ onClick = () => {} }: { onClick?: () => void }
   const edge = useEdgeStatus();
   if (!edge) return null;
 
-  const base = "block rounded-md border border-sidebar-border bg-sidebar-foreground/5 px-2 py-1.5 hover:bg-sidebar-foreground/10 transition-colors";
+  const base = "glass-dark block p-3 mb-2.5 hover:bg-sidebar-foreground/10 transition-colors";
 
   if (!edge.configured || !edge.state) {
     return (
       <Link href="/edge" onClick={onClick} className={base}>
-        <p className="text-[11.5px] font-medium text-sidebar-foreground">Not paired</p>
-        <p className="mt-0.5 text-[10.5px] leading-snug text-sidebar-foreground/75">
+        <p className="flex items-center gap-1.5 text-[13px] font-medium text-sidebar-foreground">
+          <span className="h-[7px] w-[7px] rounded-full bg-[#C2A36B]" aria-hidden />
+          Not paired
+        </p>
+        <p className="mt-0.5 text-[12px] leading-snug text-sidebar-muted">
           Pair a node to keep personal data on your own device
         </p>
       </Link>

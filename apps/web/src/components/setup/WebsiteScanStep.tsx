@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Globe, Loader2 } from "lucide-react";
 
-const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
-const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400";
+const inputClass = "w-full rounded-lg border border-foreground/10 bg-background/70 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/70";
+const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground";
 
 type Icp = { industry: string; company_size: string; buyer_title: string; trigger_event: string; pain_statement: string };
 export type CompanyProfile = {
@@ -57,8 +57,8 @@ export default function WebsiteScanStep(props: {
   const setIcp = (patch: Partial<Icp>) => profile && setProfile({ icp_primary: { ...profile.icp_primary, ...patch } });
 
   return (
-    <section className="rounded-lg border border-white/10 bg-slate-900/60 p-5">
-      <p className="text-sm text-slate-300">
+    <section className="rounded-lg border border-foreground/10 bg-background/60 p-5">
+      <p className="text-sm text-foreground/80">
         Enter your website and we will read it to draft who you sell to and what to say. Nothing is saved until you review it and continue.
         You can skip this step.
       </p>
@@ -74,24 +74,24 @@ export default function WebsiteScanStep(props: {
           type="button"
           onClick={() => void scan()}
           disabled={scanning || state.url.trim().length < 3}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-card px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
         >
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
           {profile ? "Scan again" : "Scan my website"}
         </button>
       </div>
-      {scanning && <p className="mt-3 text-sm text-slate-400">Reading your site. This can take up to a minute.</p>}
-      {error && <p role="alert" className="mt-3 text-sm text-amber-300">{error}</p>}
-      {savedAt && !profile && <p className="mt-3 text-sm text-emerald-300">Profile saved {new Date(savedAt).toLocaleDateString()}.</p>}
+      {scanning && <p className="mt-3 text-sm text-muted-foreground">Reading your site. This can take up to a minute.</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-warning">{error}</p>}
+      {savedAt && !profile && <p className="mt-3 text-sm text-success">Profile saved {new Date(savedAt).toLocaleDateString()}.</p>}
       {savedAt && (
-        <p className="mt-2 text-sm text-slate-300">
-          Next: <Link href="/playbooks" className="font-semibold text-cyan-300 underline">pick the email playbooks that fit your business</Link>, such as a welcome series or a win-back. You can do this after setup.
+        <p className="mt-2 text-sm text-foreground/80">
+          Next: <Link href="/playbooks" className="font-semibold text-primary underline">pick the email playbooks that fit your business</Link>, such as a welcome series or a win-back. You can do this after setup.
         </p>
       )}
 
       {profile && (
         <div className="mt-6 space-y-4">
-          <p className="text-sm font-semibold text-white">Check and correct what we found</p>
+          <p className="text-sm font-semibold text-foreground">Check and correct what we found</p>
           <div className="grid gap-4 md:grid-cols-2">
             <label><span className={labelClass}>Company name</span><input className={inputClass} value={profile.company_name} onChange={(e) => setProfile({ company_name: e.target.value })} /></label>
             <label><span className={labelClass}>Who you sell to (job title)</span><input className={inputClass} value={profile.icp_primary.buyer_title} onChange={(e) => setIcp({ buyer_title: e.target.value })} /></label>
@@ -105,7 +105,7 @@ export default function WebsiteScanStep(props: {
           <label className="block"><span className={labelClass}>Keywords to find warm prospects (comma separated)</span>
             <input className={inputClass} value={profile.campaign_seed.signal_keywords.join(", ")} onChange={(e) => setProfile({ campaign_seed: { ...profile.campaign_seed, signal_keywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean).slice(0, 10) } })} />
           </label>
-          <label className="flex items-start gap-3 text-sm text-slate-300">
+          <label className="flex items-start gap-3 text-sm text-foreground/80">
             <input type="checkbox" className="mt-1" checked={state.createIcp} onChange={(e) => onChange({ ...state, createIcp: e.target.checked })} />
             <span>Also create an ideal customer profile from this, so I can use it for campaigns.</span>
           </label>

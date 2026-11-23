@@ -48,7 +48,7 @@ export default function DraftScorePanel({ campaignId, subject, body }: { campaig
                     Score this draft
                 </Button>
             </div>
-            {error && <p className="text-amber-600 dark:text-amber-400">{error}</p>}
+            {error && <p className="text-warning dark:text-warning">{error}</p>}
             {scores?.map((s) => (
                 <div key={s.strategyId}>
                     <p className="font-semibold">

@@ -17,14 +17,14 @@ export default function GlobalError({
     return (
         <html>
             <body>
-                <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white px-4">
+                <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground px-4">
                     <h2 className="text-4xl font-bold mb-4">Critical System Error</h2>
-                    <p className="text-gray-400 mb-8 max-w-md text-center">
+                    <p className="text-muted-foreground mb-8 max-w-md text-center">
                         The application encountered a critical error and cannot continue.
                     </p>
                     <button
                         onClick={() => reset()}
-                        className="bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+                        className="bg-card text-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary transition-colors"
                     >
                         Reload Application
                     </button>

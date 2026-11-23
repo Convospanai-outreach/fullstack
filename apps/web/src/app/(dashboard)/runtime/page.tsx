@@ -62,7 +62,7 @@ export default function RuntimeObservabilityPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold uppercase tracking-wider mb-2">
                         <Cpu className="w-3.5 h-3.5" />
                         Infrastructure Telemetry
                     </div>
@@ -94,7 +94,7 @@ export default function RuntimeObservabilityPage() {
                             <Server className="w-5 h-5 text-primary" />
                             <h2 className="text-base font-bold text-foreground">Fastify API Engine</h2>
                         </div>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {health.apiStatus}
                         </span>
@@ -110,7 +110,7 @@ export default function RuntimeObservabilityPage() {
                         </div>
                         <div className="flex justify-between py-1">
                             <span className="text-muted-foreground">Uptime</span>
-                            <span className="font-mono text-emerald-400">{health.uptimeHours} hrs</span>
+                            <span className="font-mono text-success">{health.uptimeHours} hrs</span>
                         </div>
                     </div>
                 </div>
@@ -119,10 +119,10 @@ export default function RuntimeObservabilityPage() {
                 <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                            <Database className="w-5 h-5 text-emerald-400" />
+                            <Database className="w-5 h-5 text-success" />
                             <h2 className="text-base font-bold text-foreground">Postgres / Supabase Pool</h2>
                         </div>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             Connected
                         </span>
@@ -130,7 +130,7 @@ export default function RuntimeObservabilityPage() {
                     <div className="space-y-2 text-xs text-foreground">
                         <div className="flex justify-between py-1 border-b border-border">
                             <span className="text-muted-foreground">Query Ping</span>
-                            <span className="font-mono text-emerald-400">{health.dbLatencyMs} ms</span>
+                            <span className="font-mono text-success">{health.dbLatencyMs} ms</span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-border">
                             <span className="text-muted-foreground">Engine Type</span>
@@ -147,10 +147,10 @@ export default function RuntimeObservabilityPage() {
                 <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                            <Zap className="w-5 h-5 text-amber-400" />
+                            <Zap className="w-5 h-5 text-warning" />
                             <h2 className="text-base font-bold text-foreground">Redis Queue & Cache</h2>
                         </div>
-                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-success/10 text-success border border-success/20">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {health.redisStatus}
                         </span>
@@ -158,7 +158,7 @@ export default function RuntimeObservabilityPage() {
                     <div className="space-y-2 text-xs text-foreground">
                         <div className="flex justify-between py-1 border-b border-border">
                             <span className="text-muted-foreground">Ping Latency</span>
-                            <span className="font-mono text-emerald-400">{health.redisLatencyMs} ms</span>
+                            <span className="font-mono text-success">{health.redisLatencyMs} ms</span>
                         </div>
                         <div className="flex justify-between py-1 border-b border-border">
                             <span className="text-muted-foreground">Relay Loop</span>
@@ -175,29 +175,29 @@ export default function RuntimeObservabilityPage() {
             {/* Detailed Diagnostics */}
             <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <Layers className="w-5 h-5 text-purple-400" />
+                    <Layers className="w-5 h-5 text-primary" />
                     Background Daemon Architecture
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs text-foreground pt-2">
                     <div className="p-4 rounded-xl bg-muted border border-border/60 space-y-1">
                         <p className="font-semibold text-foreground">Outbox Relay Worker</p>
                         <p className="text-muted-foreground">Poll Interval: 500ms</p>
-                        <p className="text-emerald-400">● 0 failed retries</p>
+                        <p className="text-success">● 0 failed retries</p>
                     </div>
                     <div className="p-4 rounded-xl bg-muted border border-border/60 space-y-1">
                         <p className="font-semibold text-foreground">Gmail PubSub Sync</p>
                         <p className="text-muted-foreground">OIDC Leased Lock: Active</p>
-                        <p className="text-emerald-400">● Inbound Watchers 100%</p>
+                        <p className="text-success">● Inbound Watchers 100%</p>
                     </div>
                     <div className="p-4 rounded-xl bg-muted border border-border/60 space-y-1">
                         <p className="font-semibold text-foreground">Campaign Execution Worker</p>
                         <p className="text-muted-foreground">HITL Gate: Mandatory</p>
-                        <p className="text-emerald-400">● Zero rogue dispatches</p>
+                        <p className="text-success">● Zero rogue dispatches</p>
                     </div>
                     <div className="p-4 rounded-xl bg-muted border border-border/60 space-y-1">
                         <p className="font-semibold text-foreground">Deliverability Daemon</p>
                         <p className="text-muted-foreground">Circuit Breakers: 5% Max</p>
-                        <p className="text-emerald-400">● Reputation Protected</p>
+                        <p className="text-success">● Reputation Protected</p>
                     </div>
                 </div>
             </div>

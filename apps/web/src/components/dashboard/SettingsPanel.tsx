@@ -10,7 +10,7 @@ export default function SettingsPanel() {
 
     return (
         <div className="glass p-4 rounded-2xl">
-            <h4 className="text-md font-semibold text-purple-600 mb-3">Workspace Settings</h4>
+            <h4 className="text-md font-semibold text-primary mb-3">Workspace Settings</h4>
             <div className="flex gap-2 mb-4 border-b border-border pb-2 overflow-x-auto">
                 <TabButton id="profile" label="Profile" active={activeTab} onClick={setActiveTab} />
                 <TabButton id="team" label="Team" active={activeTab} onClick={setActiveTab} />

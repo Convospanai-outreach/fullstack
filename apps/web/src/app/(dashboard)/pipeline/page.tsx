@@ -20,7 +20,7 @@ const STAGE_CONFIG: Record<string, { color: string; dot: string; label: string }
     COLD:             { color: "text-primary",     dot: "bg-primary",     label: "Cold" },
     WARM:             { color: "text-warning",     dot: "bg-warning",     label: "Warm" },
     HOT:              { color: "text-destructive", dot: "bg-destructive", label: "Hot 🔥" },
-    COORDINATING:     { color: "text-purple-500",  dot: "bg-purple-500",  label: "Coordinating" },
+    COORDINATING:     { color: "text-primary",  dot: "bg-primary",  label: "Coordinating" },
     MEETING_CONFIRMED:{ color: "text-success",     dot: "bg-success",     label: "Meeting Booked" },
     COMPLETED:        { color: "text-success",     dot: "bg-success",     label: "Completed ✓" },
 };
@@ -128,7 +128,7 @@ export default function PipelinePage() {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
-                        Sales Pipeline <Sparkles className="w-6 h-6 text-purple-500" />
+                        Sales Pipeline <Sparkles className="w-6 h-6 text-primary" />
                     </h1>
                     <p className="text-muted-foreground mt-1">Manage your deals and track conversion across stages.</p>
                 </div>
@@ -171,7 +171,7 @@ export default function PipelinePage() {
                                 return (
                                 <div
                                     key={lead.id}
-                                    className="bg-card p-4 rounded-xl border border-border hover:border-primary/30 transition-all group relative cursor-pointer active:scale-95"
+                                    className="glass p-4 hover:border-primary/30 transition-all group relative cursor-pointer active:scale-95"
                                 >
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shadow-lg">
@@ -208,7 +208,7 @@ export default function PipelinePage() {
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); analyzeLead(lead.id); }}
-                                                className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 transition-all opacity-0 group-hover:opacity-100"
+                                                className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all opacity-0 group-hover:opacity-100"
                                                 title="AI Analyze"
                                             >
                                                 <Zap className="w-3.5 h-3.5" />
@@ -251,9 +251,9 @@ export default function PipelinePage() {
 
             {/* AI Assistance Overlay (if suggestions exist) */}
             {aiSuggestions.length > 0 && (
-                <div className="fixed bottom-10 right-10 w-80 bg-card p-6 border border-purple-500/30 rounded-xl shadow-2xl animate-in slide-in-from-right-full duration-500 z-50">
+                <div className="fixed bottom-10 right-10 w-80 bg-card p-6 border border-primary/30 rounded-xl shadow-2xl animate-in slide-in-from-right-full duration-500 z-50">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-purple-500 font-bold text-sm">
+                        <div className="flex items-center gap-2 text-primary font-bold text-sm">
                             <Sparkles className="w-4 h-4" /> AI Recommendations
                         </div>
                         <button onClick={() => setAiSuggestions([])} className="text-muted-foreground hover:text-foreground" title="Close"><X className="w-4 h-4" /></button>
@@ -264,7 +264,7 @@ export default function PipelinePage() {
                                 <div className="text-xs font-bold text-foreground mb-1">{s.title}</div>
                                 <div className="text-[10px] text-muted-foreground">{s.description}</div>
                                 <div className="mt-2 flex items-center justify-between">
-                                    <span className="text-[8px] uppercase font-bold text-purple-500 px-1.5 py-0.5 bg-purple-500/10 rounded">{s.priority}</span>
+                                    <span className="text-[8px] uppercase font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded">{s.priority}</span>
                                     <button
                                         onClick={() => acceptSuggestion(s, i)}
                                         disabled={acceptingIndex === i}

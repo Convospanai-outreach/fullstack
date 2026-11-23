@@ -10,13 +10,13 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred.";
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-black/90 p-4">
-            <div className="max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 text-center backdrop-blur-xl">
-                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <AlertTriangle className="w-8 h-8 text-red-400" />
+        <div className="min-h-screen flex items-center justify-center bg-foreground/90 p-4">
+            <div className="max-w-md w-full bg-foreground/5 border border-foreground/10 rounded-2xl p-8 text-center backdrop-blur-xl">
+                <div className="w-16 h-16 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <AlertTriangle className="w-8 h-8 text-destructive" />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
-                <p className="text-gray-400 mb-6 text-sm">{message}</p>
+                <h2 className="text-xl font-bold text-foreground mb-2">Something went wrong</h2>
+                <p className="text-muted-foreground mb-6 text-sm">{message}</p>
                 <Button
                     variant="default"
                     className="w-full flex items-center justify-center gap-2"

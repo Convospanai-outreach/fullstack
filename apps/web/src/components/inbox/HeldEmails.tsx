@@ -91,7 +91,7 @@ export function HeldEmails({
                         <ul className="space-y-2">
                             {item.missing.map((m) => (
                                 <li key={m.token} className="flex gap-2 text-sm">
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
                                     <span>
                                         <code className="rounded bg-muted px-1">{`{{${m.token}}}`}</code>{" "}
                                         <span className="text-muted-foreground">{m.reason === "unknown" ? "is not a known field." : "is empty for this contact."}</span>{" "}
@@ -101,7 +101,7 @@ export function HeldEmails({
                             ))}
                             {(item.safety ?? []).map((r) => (
                                 <li key={r.code} className="flex gap-2 text-sm">
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
                                     <span>{r.message}</span>
                                 </li>
                             ))}
@@ -119,7 +119,7 @@ export function HeldEmails({
                                     Cannot send as is: fix the contact or the step, then check again.
                                 </span>
                             )}
-                            {error?.runId === item.runId && <span className="text-xs text-red-500">{error.message}</span>}
+                            {error?.runId === item.runId && <span className="text-xs text-destructive">{error.message}</span>}
                         </div>
                     </GlassCard>
                 </li>

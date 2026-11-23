@@ -17,20 +17,20 @@ export default function GettingStartedWidget() {
     const progress = Math.round((completedSteps.length / ONBOARDING_STEPS.length) * 100);
 
     return (
-        <div className="mb-8 glass border border-border rounded-xl p-6 bg-gradient-to-r from-indigo-900/20 to-purple-900/20">
+        <div className="mb-8 glass border border-border rounded-xl p-6 bg-gradient-to-r from-primary/20 to-primary/20">
             <div className="flex justify-between items-center mb-4">
                 <div>
                     <h3 className="text-xl font-bold text-foreground">Getting Started</h3>
                     <p className="text-sm text-muted-foreground">Complete these steps to set up your account.</p>
                 </div>
                 <div className="text-right">
-                    <span className="text-2xl font-bold text-indigo-400">{progress}%</span>
+                    <span className="text-2xl font-bold text-primary">{progress}%</span>
                 </div>
             </div>
 
             {/* Progress Bar */}
             <div className="w-full bg-muted h-2 rounded-full mb-6 overflow-hidden">
-                <div className="bg-indigo-500 h-2 transition-all duration-500" style={{ width: `${progress}%` }} />
+                <div className="bg-primary h-2 transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
 
             {/* Steps Grid */}
@@ -44,17 +44,17 @@ export default function GettingStartedWidget() {
                             className={clsx(
                                 "p-4 rounded-lg border transition-all flex items-center space-x-3",
                                 isDone
-                                    ? "bg-green-500/10 border-green-500/20 cursor-default opacity-70"
-                                    : "bg-muted border-border hover:bg-accent hover:border-indigo-500/50"
+                                    ? "bg-success/10 border-success/20 cursor-default opacity-70"
+                                    : "bg-muted border-border hover:bg-accent hover:border-primary/50"
                             )}
                         >
                             <div className={clsx(
                                 "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                                isDone ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
+                                isDone ? "bg-success text-primary-foreground" : "bg-muted text-muted-foreground"
                             )}>
                                 {isDone ? "✓" : ""}
                             </div>
-                            <span className={clsx("text-sm font-medium", isDone ? "text-green-700" : "text-foreground")}>
+                            <span className={clsx("text-sm font-medium", isDone ? "text-success" : "text-foreground")}>
                                 {step.label}
                             </span>
                         </Link>

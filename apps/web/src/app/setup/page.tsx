@@ -117,9 +117,9 @@ const STEPS = [
   { id: 14, title: "Test Your Domains", icon: ShieldCheck, description: "Check your email and landing page DNS now, so problems show up before your first send." },
 ];
 
-const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
-const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400";
-const panelClass = "rounded-lg border border-white/10 bg-slate-900/60 p-5";
+const inputClass = "w-full rounded-lg border border-foreground/10 bg-background/70 px-3 py-2.5 text-sm text-foreground outline-none transition focus:border-primary/70";
+const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+const panelClass = "rounded-lg border border-foreground/10 bg-background/60 p-5";
 
 export default function SetupWizardPage() {
   const router = useRouter();
@@ -174,8 +174,8 @@ export default function SetupWizardPage() {
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
-          primaryColor: data.branding?.primaryColor || "#0891b2",
-          accentColor: data.branding?.accentColor || "#22c55e",
+          primaryColor: data.branding?.primaryColor || "#5C1A2B",
+          accentColor: data.branding?.accentColor || "#C2A36B",
           portalTitle: data.branding?.portalTitle || "",
           guidelinesUrl: data.branding?.guidelinesUrl || "",
         },
@@ -440,20 +440,20 @@ export default function SetupWizardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!status) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-200">
-        <section className="max-w-lg rounded-lg border border-amber-400/30 bg-amber-950/20 p-6">
-          <AlertTriangle className="h-6 w-6 text-amber-300" />
-          <h1 className="mt-4 text-2xl font-semibold text-white">Setup is unavailable</h1>
-          <p className="mt-2 text-sm text-slate-300">{loadError || "Retry status loading or sign in again."}</p>
-          <button className="mt-6 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950" onClick={() => { setLoading(true); loadStatus().finally(() => setLoading(false)); }}>
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <section className="max-w-lg rounded-lg border border-warning/30 bg-warning/20 p-6">
+          <AlertTriangle className="h-6 w-6 text-warning" />
+          <h1 className="mt-4 text-2xl font-semibold text-foreground">Setup is unavailable</h1>
+          <p className="mt-2 text-sm text-foreground/80">{loadError || "Retry status loading or sign in again."}</p>
+          <button className="mt-6 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-foreground" onClick={() => { setLoading(true); loadStatus().finally(() => setLoading(false)); }}>
             Retry setup
           </button>
         </section>
@@ -467,20 +467,20 @@ export default function SetupWizardPage() {
   const previous = previousStepId(visibleIds, active.id);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:flex-row">
         <aside className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-80">
-          <div className="flex h-full flex-col rounded-lg border border-white/10 bg-slate-900/70">
-            <div className="border-b border-white/10 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Launch setup</p>
-              <h1 className="mt-2 text-2xl font-semibold text-white">Readiness wizard</h1>
+          <div className="flex h-full flex-col rounded-lg border border-foreground/10 bg-background/70">
+            <div className="border-b border-foreground/10 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Launch setup</p>
+              <h1 className="mt-2 text-2xl font-semibold text-foreground">Readiness wizard</h1>
               <div className="mt-5">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Overall progress</span>
-                  <span className="font-semibold text-white">{completion}%</span>
+                  <span className="text-muted-foreground">Overall progress</span>
+                  <span className="font-semibold text-foreground">{completion}%</span>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-slate-800">
-                  <div className="h-full rounded-full bg-cyan-400 transition-all duration-500" style={{ width: `${completion}%` }} />
+                <div className="mt-2 h-2 rounded-full bg-card">
+                  <div className="h-full rounded-full bg-primary/80 transition-all duration-500" style={{ width: `${completion}%` }} />
                 </div>
               </div>
               <HourglassBuddy stepId={active.id} completion={completion} completedCount={visibleSteps.filter((step) => stepComplete(step.id)).length} saving={saving} errorMessage={actionMessage} />
@@ -496,14 +496,14 @@ export default function SetupWizardPage() {
                     key={step.id}
                     type="button"
                     onClick={() => setActiveStep(step.id)}
-                    className={`mb-1 grid w-full grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-3 py-3 text-left transition ${selected ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                    className={`mb-1 grid w-full grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-3 py-3 text-left transition ${selected ? "bg-card text-foreground" : "text-foreground/80 hover:bg-foreground/5 hover:text-foreground"}`}
                   >
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-md ${selected ? "bg-slate-950 text-white" : complete ? "bg-emerald-400/10 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-md ${selected ? "bg-background text-foreground" : complete ? "bg-success/10 text-success" : "bg-card text-muted-foreground"}`}>
                       {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                     </span>
                     <span>
                       <span className="block text-sm font-semibold">{index + 1}. {step.title}</span>
-                      <span className={`mt-0.5 block text-xs ${selected ? "text-slate-600" : "text-slate-500"}`}>{complete ? "Ready" : "Needs review"}</span>
+                      <span className={`mt-0.5 block text-xs ${selected ? "text-muted-foreground" : "text-muted-foreground"}`}>{complete ? "Ready" : "Needs review"}</span>
                     </span>
                     <ChevronRight className="h-4 w-4 opacity-50" />
                   </button>
@@ -514,17 +514,17 @@ export default function SetupWizardPage() {
         </aside>
 
         <section className="min-w-0 flex-1">
-          <header className="rounded-lg border border-white/10 bg-slate-900/60 p-6">
+          <header className="rounded-lg border border-foreground/10 bg-background/60 p-6">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ActiveIcon className="h-5 w-5" />
                   </span>
-                  <p className="text-sm font-medium text-cyan-200">Step {visibleIds.indexOf(active.id) + 1} of {visibleIds.length}</p>
+                  <p className="text-sm font-medium text-primary">Step {visibleIds.indexOf(active.id) + 1} of {visibleIds.length}</p>
                 </div>
-                <h2 className="mt-5 text-3xl font-semibold tracking-tight text-white">{active.title}</h2>
-                <p className="mt-2 max-w-2xl text-base text-slate-400">{active.description}</p>
+                <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground">{active.title}</h2>
+                <p className="mt-2 max-w-2xl text-base text-muted-foreground">{active.description}</p>
               </div>
               <StatusPill ready={stepComplete(active.id)} />
             </div>
@@ -586,19 +586,19 @@ export default function SetupWizardPage() {
               />
             )}
 
-            <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <footer className="flex flex-col gap-3 rounded-lg border border-foreground/10 bg-background/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
                 type="button"
                 onClick={() => previous && setActiveStep(previous)}
                 disabled={!previous}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-foreground/10 px-4 py-2.5 text-sm font-semibold text-foreground/80 transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" /> Back
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary/80 px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-primary/20 disabled:cursor-wait disabled:opacity-70"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {continueLabel(active.id, formData.step3?.provider)}
@@ -673,31 +673,31 @@ function MailboxProviderStep(props: {
         <section className={panelClass}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">Connected mailboxes</h3>
-              <p className="mt-1 text-sm text-slate-400">Every mailbox connected below — from any provider — becomes available as a sender for outreach campaigns.</p>
+              <h3 className="text-xl font-semibold text-foreground">Connected mailboxes</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Every mailbox connected below — from any provider — becomes available as a sender for outreach campaigns.</p>
             </div>
-            <button type="button" onClick={props.onReload} className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/5" title="Refresh mailboxes">
+            <button type="button" onClick={props.onReload} className="rounded-lg border border-foreground/10 p-2 text-foreground/80 hover:bg-foreground/5" title="Refresh mailboxes">
               <RefreshCw className={`h-4 w-4 ${props.mailboxLoading ? "animate-spin" : ""}`} />
             </button>
           </div>
 
           <div className="mt-5 space-y-3">
             {props.mailboxes.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-white/15 p-6 text-sm text-slate-400">
+              <div className="rounded-lg border border-dashed border-foreground/15 p-6 text-sm text-muted-foreground">
                 No mailboxes are connected yet. Pick a provider below to connect the mailbox that should send approved campaign emails.
               </div>
             ) : props.mailboxes.map((mailbox) => (
-              <div key={mailbox.id} className="rounded-lg border border-white/10 bg-slate-950/50 p-4">
+              <div key={mailbox.id} className="rounded-lg border border-foreground/10 bg-background/50 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-white">{mailbox.displayName || mailbox.email}</p>
-                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">{mailbox.provider || "GOOGLE_WORKSPACE"}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${mailbox.status === "CONNECTED" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{mailbox.status.replace(/_/g, " ")}</span>
+                      <p className="font-semibold text-foreground">{mailbox.displayName || mailbox.email}</p>
+                      <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground/80">{mailbox.provider || "GOOGLE_WORKSPACE"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${mailbox.status === "CONNECTED" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{mailbox.status.replace(/_/g, " ")}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{mailbox.email}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{mailbox.email}</p>
                   </div>
-                  <button type="button" onClick={() => props.onSync(mailbox.id)} className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">
+                  <button type="button" onClick={() => props.onSync(mailbox.id)} className="rounded-lg border border-foreground/10 px-3 py-2 text-sm font-semibold text-foreground hover:bg-foreground/5">
                     Sync replies
                   </button>
                 </div>
@@ -711,12 +711,12 @@ function MailboxProviderStep(props: {
             ))}
           </div>
 
-          {props.actionMessage ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{props.actionMessage}</p> : null}
+          {props.actionMessage ? <p className="mt-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{props.actionMessage}</p> : null}
         </section>
 
         <section className={panelClass}>
-          <h3 className="text-xl font-semibold text-white">Choose a sending provider</h3>
-          <p className="mt-1 text-sm text-slate-400">Google Workspace and Microsoft 365 connect via OAuth (recommended — no app password). SMTP and Resend save when you click Continue below.</p>
+          <h3 className="text-xl font-semibold text-foreground">Choose a sending provider</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Google Workspace and Microsoft 365 connect via OAuth (recommended — no app password). SMTP and Resend save when you click Continue below.</p>
 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {MAILBOX_PROVIDERS.map((p) => (
@@ -728,22 +728,22 @@ function MailboxProviderStep(props: {
                 title={p.comingSoon ? "Coming soon" : undefined}
                 className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
                   p.comingSoon
-                    ? "cursor-not-allowed border-white/5 text-slate-600"
+                    ? "cursor-not-allowed border-foreground/5 text-muted-foreground"
                     : provider === p.id
-                      ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
-                      : "border-white/10 text-slate-300 hover:bg-white/5"
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-foreground/10 text-foreground/80 hover:bg-foreground/5"
                 }`}
               >
                 {p.label}
-                {p.comingSoon ? <span className="ml-1.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">Soon</span> : null}
+                {p.comingSoon ? <span className="ml-1.5 rounded-full bg-foreground/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Soon</span> : null}
               </button>
             ))}
           </div>
 
           <div className="mt-5">
             {provider === "SMTP" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">Any SMTP-capable mail server. Reply detection relies on IMAP polling rather than a native inbox webhook.</p>
+              <div className="rounded-lg border border-foreground/10 bg-background/40 p-4">
+                <p className="text-sm text-muted-foreground">Any SMTP-capable mail server. Reply detection relies on IMAP polling rather than a native inbox webhook.</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field label="Mail provider">
                     <select
@@ -758,7 +758,7 @@ function MailboxProviderStep(props: {
                       {SMTP_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                     {presetForHost(props.formData.step3?.host)?.note && (
-                      <p className="mt-1 text-xs text-slate-500">{presetForHost(props.formData.step3?.host)?.note}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{presetForHost(props.formData.step3?.host)?.note}</p>
                     )}
                   </Field>
                   <Field label="SMTP host">
@@ -783,26 +783,26 @@ function MailboxProviderStep(props: {
                   </Field>
                   <Field label="DKIM selector (optional)">
                     <input className={inputClass} placeholder="e.g. s1 or mail" value={props.formData.step3?.dkimSelector || ""} onChange={(event) => setStep3({ dkimSelector: event.target.value })} />
-                    <p className="mt-1 text-xs text-slate-500">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Your mail provider shows this where it gives you the DKIM record. Leave it empty and we will try common ones.</p>
                   </Field>
                 </div>
                 <button
                   type="button"
                   onClick={() => void testSmtp()}
                   disabled={smtpTest.busy || !props.formData.step3?.host || !props.formData.step3?.user || !props.formData.step3?.password}
-                  className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {smtpTest.busy ? "Sending test email…" : "Send a test email to myself"}
                 </button>
                 {smtpTest.message ? (
-                  <p role="status" className={`mt-2 text-sm ${smtpTest.ok ? "text-emerald-300" : "text-amber-300"}`}>{smtpTest.message}</p>
+                  <p role="status" className={`mt-2 text-sm ${smtpTest.ok ? "text-success" : "text-warning"}`}>{smtpTest.message}</p>
                 ) : null}
               </div>
             )}
 
             {provider === "RESEND" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">Send via the Resend API. Reply detection is optional and configured later in Settings → Mailboxes.</p>
+              <div className="rounded-lg border border-foreground/10 bg-background/40 p-4">
+                <p className="text-sm text-muted-foreground">Send via the Resend API. Reply detection is optional and configured later in Settings → Mailboxes.</p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <Field label="Resend API key">
                     <input type="password" placeholder="re_xxxxxxxxxxxx" className={inputClass} value={props.formData.step3?.resendApiKey || ""} onChange={(event) => setStep3({ resendApiKey: event.target.value })} />
@@ -831,18 +831,18 @@ function MailboxProviderStep(props: {
                   </Field>
                 </div>
 
-                <div className="mt-4 border-t border-white/10 pt-3">
+                <div className="mt-4 border-t border-foreground/10 pt-3">
                   <button
                     type="button"
                     onClick={() => setShowReplyCapture((v) => !v)}
-                    className="flex w-full items-center justify-between text-left text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                    className="flex w-full items-center justify-between text-left text-xs font-semibold text-primary hover:text-primary"
                   >
                     <span>Reply capture (optional, advanced)</span>
                     <span>{showReplyCapture ? "▲" : "▼"}</span>
                   </button>
                   {showReplyCapture && (
-                    <div className="mt-3 space-y-3 rounded-lg border border-white/10 bg-slate-900/40 p-3">
-                      <p className="text-[11px] leading-relaxed text-slate-400">
+                    <div className="mt-3 space-y-3 rounded-lg border border-foreground/10 bg-background/40 p-3">
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
                         Resend doesn't have an inbox, so detecting a prospect's reply requires your own dedicated
                         receiving domain. In your own Resend dashboard: (1) verify a subdomain you control for
                         receiving (e.g. reply.yourdomain.com) and add the MX record Resend gives you - never reuse a
@@ -863,7 +863,7 @@ function MailboxProviderStep(props: {
                             saved - the field itself stays blank-by-default (matching the API key
                             field's convention) so leaving it blank on a resave never wipes it. */}
                         {existingResendInboundDomain && !props.formData.step3?.resendInboundDomain && (
-                          <p className="mt-1 text-[11px] text-slate-500">
+                          <p className="mt-1 text-[11px] text-muted-foreground">
                             Currently configured: {existingResendInboundDomain}. Leave blank to keep it.
                           </p>
                         )}
@@ -884,13 +884,13 @@ function MailboxProviderStep(props: {
             )}
 
             {provider === "GOOGLE" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">Connect a Google Workspace / Gmail mailbox via OAuth. No app password needed, and replies are detected natively.</p>
+              <div className="rounded-lg border border-foreground/10 bg-background/40 p-4">
+                <p className="text-sm text-muted-foreground">Connect a Google Workspace / Gmail mailbox via OAuth. No app password needed, and replies are detected natively.</p>
                 <button
                   type="button"
                   onClick={props.onConnectGoogle}
                   disabled={props.saving}
-                  className="mt-4 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 rounded-lg border border-primary/60 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {props.saving ? "Redirecting…" : "Connect Google Workspace"}
                 </button>
@@ -898,13 +898,13 @@ function MailboxProviderStep(props: {
             )}
 
             {provider === "MICROSOFT" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">Connect a Microsoft 365 / Outlook mailbox via OAuth. No app password needed.</p>
+              <div className="rounded-lg border border-foreground/10 bg-background/40 p-4">
+                <p className="text-sm text-muted-foreground">Connect a Microsoft 365 / Outlook mailbox via OAuth. No app password needed.</p>
                 <button
                   type="button"
                   onClick={props.onConnectMicrosoft}
                   disabled={props.saving}
-                  className="mt-4 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 rounded-lg border border-primary/60 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {props.saving ? "Redirecting…" : "Connect Microsoft 365"}
                 </button>
@@ -916,10 +916,10 @@ function MailboxProviderStep(props: {
 
       <section className={panelClass}>
         <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-1 h-5 w-5 text-cyan-300" />
+          <ShieldCheck className="mt-1 h-5 w-5 text-primary" />
           <div>
-            <h3 className="text-xl font-semibold text-white">Domain readiness</h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <h3 className="text-xl font-semibold text-foreground">Domain readiness</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               {provider === "RESEND"
                 ? "Check the DNS records Resend needs for this domain, and add any missing ones wherever this domain's DNS is hosted (Cloudflare, GoDaddy, etc.)."
                 : provider === "SMTP"
@@ -944,7 +944,7 @@ function MailboxProviderStep(props: {
           )}
         </div>
 
-        <button type="button" onClick={props.onCheckDomain} disabled={props.saving || !props.formData.step3?.domain} className="mt-4 w-full rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="button" onClick={props.onCheckDomain} disabled={props.saving || !props.formData.step3?.domain} className="mt-4 w-full rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50">
           Check DNS records
         </button>
 
@@ -955,18 +955,18 @@ function MailboxProviderStep(props: {
               <div key={key}>
                 <StatusLine label={`${key.toUpperCase()} ${record.host}`} ready={record.status === "VERIFIED"} />
                 {record.status !== "VERIFIED" && record.hint ? (
-                  <div className="mt-1.5 rounded-lg border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-300">
+                  <div className="mt-1.5 rounded-lg border border-foreground/10 bg-background/60 p-3 text-xs text-foreground/80">
                     <p>{record.hint}</p>
-                    {record.expected ? <p className="mt-1 break-all font-mono text-cyan-200">{record.expected}</p> : null}
+                    {record.expected ? <p className="mt-1 break-all font-mono text-primary">{record.expected}</p> : null}
                   </div>
                 ) : null}
                 {record.status !== "VERIFIED" && !record.hint && record.values.length > 0 ? (
-                  <div className="mt-1.5 rounded-lg border border-white/10 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
-                    <p className="text-slate-500">Add this DNS record{record.values.length > 1 ? "s" : ""}:</p>
+                  <div className="mt-1.5 rounded-lg border border-foreground/10 bg-background/60 p-3 font-mono text-xs text-foreground/80">
+                    <p className="text-muted-foreground">Add this DNS record{record.values.length > 1 ? "s" : ""}:</p>
                     {record.values.map((value, i) => (
                       <p key={i} className="mt-1 break-all">
-                        <span className="text-cyan-300">{record.type || "TXT"}</span>{" "}
-                        <span className="text-slate-400">{record.host}</span> → {value}
+                        <span className="text-primary">{record.type || "TXT"}</span>{" "}
+                        <span className="text-muted-foreground">{record.host}</span> → {value}
                       </p>
                     ))}
                   </div>
@@ -974,11 +974,11 @@ function MailboxProviderStep(props: {
               </div>
             ))}
             {props.domainCheck.missing.length > 0 ? (
-              <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-100">Missing: {props.domainCheck.missing.join(", ")}</p>
+              <p className="rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">Missing: {props.domainCheck.missing.join(", ")}</p>
             ) : null}
           </div>
         ) : (
-          <div className="mt-5 space-y-2 text-sm text-slate-400">
+          <div className="mt-5 space-y-2 text-sm text-muted-foreground">
             <ChecklistItem label="At least one connected mailbox" passed={connected.length > 0 || props.status.canSendEmail} />
             <ChecklistItem label="Domain records checked" passed={false} />
             <ChecklistItem label="A sending provider is configured" passed={props.status.canSendEmail} />
@@ -1012,7 +1012,7 @@ function LaunchBrief({
   return (
     <div className="space-y-5">
       <section className={panelClass}>
-        <h3 className="text-xl font-semibold text-white">Who are you reaching out for?</h3>
+        <h3 className="text-xl font-semibold text-foreground">Who are you reaching out for?</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Who are you reaching out for?">
           {OUTREACH_MODES.map((option) => {
             const selected = mode === option.mode;
@@ -1024,20 +1024,20 @@ function LaunchBrief({
                 role="radio"
                 aria-checked={selected}
                 onClick={() => onChoose(option.mode)}
-                className={`rounded-lg border p-4 text-left transition ${selected ? "border-cyan-400 bg-cyan-400/10" : "border-white/10 bg-slate-950/40 hover:border-white/30"}`}
+                className={`rounded-lg border p-4 text-left transition ${selected ? "border-primary/30 bg-primary/10" : "border-foreground/10 bg-background/40 hover:border-foreground/30"}`}
               >
-                <Icon className={`h-5 w-5 ${selected ? "text-cyan-300" : "text-slate-400"}`} />
-                <span className="mt-3 block text-sm font-semibold text-white">{option.title}</span>
-                <span className="mt-1 block text-sm text-slate-400">{option.text}</span>
+                <Icon className={`h-5 w-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                <span className="mt-3 block text-sm font-semibold text-foreground">{option.title}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{option.text}</span>
               </button>
             );
           })}
         </div>
-        {message ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{message}</p> : null}
+        {message ? <p className="mt-4 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">{message}</p> : null}
       </section>
       <section className={panelClass}>
-        <h3 className="text-xl font-semibold text-white">Your leads and your responsibilities</h3>
-        <div className="mt-4 space-y-3 text-sm text-slate-300">
+        <h3 className="text-xl font-semibold text-foreground">Your leads and your responsibilities</h3>
+        <div className="mt-4 space-y-3 text-sm text-foreground/80">
           <p>You own the leads you collect and the data you store about them.</p>
           <p>
             You are responsible for getting consent, publishing a privacy policy, honouring unsubscribe and data-deletion requests, and following the
@@ -1045,13 +1045,13 @@ function LaunchBrief({
           </p>
           <p>This product gives you tools: a consent checkbox on landing page forms, a data-deletion page and a do-not-contact list. It does not give legal advice.</p>
         </div>
-        <label className="mt-5 flex items-start gap-3 text-sm text-white">
+        <label className="mt-5 flex items-start gap-3 text-sm text-foreground">
           <input type="checkbox" className="mt-1" checked={acknowledged} onChange={(e) => onAcknowledge(e.target.checked)} />
           <span>I understand and accept these responsibilities for my team.</span>
         </label>
       </section>
       <section className={panelClass}>
-        <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
+        <h3 className="text-xl font-semibold text-foreground">Account and launch goal</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <ChecklistItem label="Account exists" passed={status.hasAccount} />
           <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
@@ -1067,7 +1067,7 @@ function LaunchBrief({
 function WorkspaceIdentity({ formData, setFormData }: any) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Brand details</h3>
+      <h3 className="text-xl font-semibold text-foreground">Brand details</h3>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <Field label="Company name"><input className={inputClass} value={formData.step2?.companyName || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, companyName: e.target.value } })} /></Field>
         <Field label="Portal title"><input className={inputClass} value={formData.step2?.portalTitle || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, portalTitle: e.target.value } })} /></Field>
@@ -1090,7 +1090,7 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
     (url: string) => fetch(url, { cache: "no-store" }).then((res) => (res.ok ? res.json() : { accounts: [] })),
   );
   const metaConnected = (social?.accounts ?? []).some((a) => (a.platform === "FACEBOOK_PAGE" || a.platform === "INSTAGRAM") && a.status === "CONNECTED");
-  const setUpBelow = <span className="text-xs text-slate-400">Set up below</span>;
+  const setUpBelow = <span className="text-xs text-muted-foreground">Set up below</span>;
 
   const connectors = [
     {
@@ -1099,7 +1099,7 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
       text: "Send sequences from Google Workspace, Microsoft 365, SMTP or Resend.",
       live: true,
       connected: emailReady,
-      action: <button type="button" onClick={onOpenEmail} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Set up email</button>,
+      action: <button type="button" onClick={onOpenEmail} className="text-xs font-semibold text-primary hover:text-primary">Set up email</button>,
     },
     {
       label: "LinkedIn",
@@ -1115,7 +1115,7 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
       text: "Post from your Facebook Page and Instagram, and answer DMs and comments.",
       live: metaLive,
       connected: metaConnected,
-      action: <a href="/settings/social" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">Connect</a>,
+      action: <a href="/settings/social" className="text-xs font-semibold text-primary hover:text-primary">Connect</a>,
     },
     {
       label: "WhatsApp",
@@ -1130,23 +1130,23 @@ function OptionalChannels({ status, emailReady, onOpenEmail }: { status: SetupSt
   return (
     <div className="space-y-5">
       <section className={panelClass}>
-        <h3 className="text-xl font-semibold text-white">Your outreach channels</h3>
+        <h3 className="text-xl font-semibold text-foreground">Your outreach channels</h3>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {connectors.map((connector) => {
             const Icon = connector.icon;
             return (
-              <div key={connector.label} className={`rounded-lg border border-white/10 bg-slate-950/40 p-4 ${connector.live || connector.connected ? "" : "opacity-60"}`}>
+              <div key={connector.label} className={`rounded-lg border border-foreground/10 bg-background/40 p-4 ${connector.live || connector.connected ? "" : "opacity-60"}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-white"><Icon className="h-4 w-4 text-slate-400" />{connector.label}</span>
+                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground"><Icon className="h-4 w-4 text-muted-foreground" />{connector.label}</span>
                   {connector.connected ? (
-                    <span className="flex items-center gap-1 text-xs text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+                    <span className="flex items-center gap-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
                   ) : !connector.live ? (
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-slate-400">Coming soon</span>
+                    <span className="rounded-full border border-foreground/10 px-2 py-0.5 text-xs text-muted-foreground">Coming soon</span>
                   ) : (
                     connector.action
                   )}
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{connector.text}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{connector.text}</p>
               </div>
             );
           })}
@@ -1174,12 +1174,12 @@ function WabaSetupSection() {
 
   return (
     <section className={panelClass}>
-      <h3 className="text-lg font-semibold text-white">WhatsApp Business API (optional)</h3>
-      <p className="mt-2 text-sm text-slate-400">
+      <h3 className="text-lg font-semibold text-foreground">WhatsApp Business API (optional)</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
         Only needed if you plan to send WhatsApp messages from drip sequences. Skip this if you don&apos;t have a WhatsApp Business account yet - sequences will queue a task for a rep to send manually instead.
       </p>
       <div className="mt-4">
-        {settings ? <WabaSetupCard settings={settings} onSaved={setSettings} /> : <p className="text-sm text-slate-500">Loading...</p>}
+        {settings ? <WabaSetupCard settings={settings} onSaved={setSettings} /> : <p className="text-sm text-muted-foreground">Loading...</p>}
       </div>
     </section>
   );
@@ -1218,44 +1218,44 @@ function ExtensionSyncToken() {
 
   return (
     <section className={panelClass}>
-      <h3 className="text-lg font-semibold text-white">Connect the Chrome extension</h3>
-      <p className="mt-2 text-sm text-slate-400">
+      <h3 className="text-lg font-semibold text-foreground">Connect the Chrome extension</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
         Open the extension popup and click &quot;Connect to CraftMyFunnel&quot;. A tab opens here and links the extension to your account, with nothing to copy or paste. The extension saves every lead to the team you&apos;re in when you connect.
       </p>
       <a
         href={STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-cyan-300 hover:text-cyan-200"
+        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary"
       >
         Install the extension from the Chrome Web Store <ExternalLink className="h-3.5 w-3.5" />
       </a>
-      <div className="mt-4 border-t border-white/10 pt-4">
-        <p className="text-sm text-slate-400">
+      <div className="mt-4 border-t border-foreground/10 pt-4">
+        <p className="text-sm text-muted-foreground">
           No Connect button in your extension (version 1.1.0 or older), or using a self-hosted workspace? Generate a sync token and paste it into the popup&apos;s &quot;Sync token&quot; field (in 1.2.0, under &quot;Advanced: connect manually&quot;). Version 1.1.0 also asks for an extension key: any text works there.
         </p>
         <button
           type="button"
           onClick={generate}
           disabled={generating}
-          className="mt-3 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+          className="mt-3 rounded-lg bg-primary/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/80 disabled:opacity-60"
         >
           {generating ? "Generating..." : "Generate sync token"}
         </button>
         {syncToken && (
           <div className="mt-4 space-y-2">
             <div className="flex gap-2">
-              <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
+              <code className="flex-1 overflow-x-auto rounded-lg border border-foreground/10 bg-background/70 p-3 text-xs text-foreground">
                 {syncToken.token}
               </code>
-              <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
+              <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-foreground/10 bg-foreground/5 p-3 text-foreground hover:bg-foreground/10">
                 <Copy className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
+            <p className="text-xs text-muted-foreground">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
             {syncToken.team && (
-              <p className="text-xs text-slate-300">
-                This token saves leads to the team <span className="font-semibold text-white">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
+              <p className="text-xs text-foreground/80">
+                This token saves leads to the team <span className="font-semibold text-foreground">{syncToken.team.name}</span>. The extension&apos;s &quot;Check Connection&quot; should show the same team.
               </p>
             )}
           </div>
@@ -1306,8 +1306,8 @@ function ExtensionAutoEnrich() {
     <section className={panelClass}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-white">Enrich captured leads</h3>
-          <p className="mt-2 text-sm text-slate-400">
+          <h3 className="text-lg font-semibold text-foreground">Enrich captured leads</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
             When the extension saves a LinkedIn profile, look up the person&apos;s work email and company domain, add their Crystal personality profile if Crystal is connected, and score the lead. Uses 1 credit per new lead.
           </p>
         </div>
@@ -1318,9 +1318,9 @@ function ExtensionAutoEnrich() {
           aria-label="Enrich captured leads"
           onClick={toggle}
           disabled={enabled === null || saving}
-          className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-60 ${enabled ? "bg-cyan-500" : "bg-slate-600"}`}
+          className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-60 ${enabled ? "bg-primary" : "bg-secondary"}`}
         >
-          <span className={`inline-block h-5 w-5 rounded-full bg-white transition ${enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          <span className={`inline-block h-5 w-5 rounded-full bg-card transition ${enabled ? "translate-x-5" : "translate-x-0.5"}`} />
         </button>
       </div>
     </section>
@@ -1330,7 +1330,7 @@ function ExtensionAutoEnrich() {
 function MessageVoice({ formData, setFormData }: any) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Drafting voice</h3>
+      <h3 className="text-xl font-semibold text-foreground">Drafting voice</h3>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <Field label="Tone"><input className={inputClass} value={formData.step5?.tone || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, tone: e.target.value } })} /></Field>
         <Field label="Greeting"><input className={inputClass} value={formData.step5?.greetingStyle || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, greetingStyle: e.target.value } })} /></Field>
@@ -1345,8 +1345,8 @@ function MessageVoice({ formData, setFormData }: any) {
 function AiDrafting({ formData, setFormData, status }: any) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">AI provider</h3>
-      <p className="mt-1 text-sm text-slate-400">Used for draft preparation. Keep approval controls separate from generation.</p>
+      <h3 className="text-xl font-semibold text-foreground">AI provider</h3>
+      <p className="mt-1 text-sm text-muted-foreground">Used for draft preparation. Keep approval controls separate from generation.</p>
       <Field label="Provider API key"><input type="password" className={`${inputClass} mt-5`} value={formData.step6?.geminiKey || ""} onChange={(e) => setFormData({ ...formData, step6: { ...formData.step6, geminiKey: e.target.value } })} /></Field>
       <div className="mt-4"><ChecklistItem label="Drafting key saved" passed={status.hasGeminiKey} /></div>
     </section>
@@ -1356,19 +1356,19 @@ function AiDrafting({ formData, setFormData, status }: any) {
 function LeadInputs({ status, onOpenLeads }: { status: SetupStatus; onOpenLeads: () => void }) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Lead segment</h3>
+      <h3 className="text-xl font-semibold text-foreground">Lead segment</h3>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <Metric label="Imported leads" value={String(status.leadCount)} />
         <Metric label="Reachable by email" value={String(status.leadsWithEmail)} />
         <Metric label="Campaigns" value={String(status.campaignCount)} />
       </div>
       {status.leadCount > 0 ? (
-        <div className="mt-5 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm flex items-center justify-between">
+        <div className="mt-5 rounded-lg bg-success/10 border border-success/30 p-4 text-success text-sm flex items-center justify-between">
           <span>Lead segment ready ({status.leadCount} leads imported). You do not need to re-upload.</span>
-          <button type="button" onClick={onOpenLeads} className="text-xs text-cyan-300 hover:underline">Manage leads</button>
+          <button type="button" onClick={onOpenLeads} className="text-xs text-primary hover:underline">Manage leads</button>
         </div>
       ) : (
-        <button type="button" onClick={onOpenLeads} className="mt-5 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Open lead import</button>
+        <button type="button" onClick={onOpenLeads} className="mt-5 rounded-lg border border-foreground/10 px-4 py-2 text-sm font-semibold hover:bg-foreground/5">Open lead import</button>
       )}
     </section>
   );
@@ -1377,16 +1377,16 @@ function LeadInputs({ status, onOpenLeads }: { status: SetupStatus; onOpenLeads:
 function CampaignPlan({ status, onOpenCampaigns }: { status: SetupStatus; onOpenCampaigns: () => void }) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Campaign plan</h3>
-      <p className="mt-1 text-sm text-slate-400">Review workflow configuration before outreach begins.</p>
+      <h3 className="text-xl font-semibold text-foreground">Campaign plan</h3>
+      <p className="mt-1 text-sm text-muted-foreground">Review workflow configuration before outreach begins.</p>
       <div className="mt-5"><ChecklistItem label={status.campaignCount > 0 ? "Campaign ready" : "Needs setup"} passed={status.campaignCount > 0} /></div>
       {status.campaignCount > 0 ? (
-        <div className="mt-5 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm flex items-center justify-between">
+        <div className="mt-5 rounded-lg bg-success/10 border border-success/30 p-4 text-success text-sm flex items-center justify-between">
           <span>Campaign workflow is active ({status.campaignCount} campaign configured). No duplicate setup required.</span>
-          <button type="button" onClick={onOpenCampaigns} className="text-xs text-cyan-300 hover:underline">View campaigns</button>
+          <button type="button" onClick={onOpenCampaigns} className="text-xs text-primary hover:underline">View campaigns</button>
         </div>
       ) : (
-        <button type="button" onClick={onOpenCampaigns} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Create campaign <ExternalLink className="h-4 w-4" /></button>
+        <button type="button" onClick={onOpenCampaigns} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-foreground/10 px-4 py-2 text-sm font-semibold hover:bg-foreground/5">Create campaign <ExternalLink className="h-4 w-4" /></button>
       )}
       <MeetingGoalField />
     </section>
@@ -1425,14 +1425,14 @@ function MeetingGoalField() {
   };
 
   return (
-    <div className="mt-6 border-t border-white/10 pt-5">
+    <div className="mt-6 border-t border-foreground/10 pt-5">
       <Field label="How many meetings a month do you want? (optional)">
         <div className="flex gap-2">
           <input className={`${inputClass} max-w-[10rem]`} type="number" inputMode="numeric" min={1} max={1000} placeholder="e.g. 20" value={goal} onChange={(e) => setGoal(e.target.value)} />
-          <button type="button" onClick={save} disabled={saving || !goal} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5 disabled:opacity-50">{saving ? "Saving..." : "Save goal"}</button>
+          <button type="button" onClick={save} disabled={saving || !goal} className="rounded-lg border border-foreground/10 px-4 py-2 text-sm font-semibold hover:bg-foreground/5 disabled:opacity-50">{saving ? "Saving..." : "Save goal"}</button>
         </div>
       </Field>
-      <p className="mt-2 text-xs text-slate-400">Home shows whether you're on pace. Skip this if you're not sure yet.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Home shows whether you're on pace. Skip this if you're not sure yet.</p>
     </div>
   );
 }
@@ -1440,7 +1440,7 @@ function MeetingGoalField() {
 function MeetingAssets({ formData, setFormData, status }: any) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Meeting support links</h3>
+      <h3 className="text-xl font-semibold text-foreground">Meeting support links</h3>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <Field label="Calendar link"><input className={inputClass} value={formData.step9?.calendarLink || ""} onChange={(e) => setFormData({ ...formData, step9: { ...formData.step9, calendarLink: e.target.value } })} /></Field>
         <Field label="Proof or demo URL"><input className={inputClass} value={formData.step9?.demoUrl || ""} onChange={(e) => setFormData({ ...formData, step9: { ...formData.step9, demoUrl: e.target.value } })} /></Field>
@@ -1457,7 +1457,7 @@ function CommercialReadiness({ status }: { status: SetupStatus }) {
       {status.teamCredits <= 0 && (
         <a
           href="/credits"
-          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+          className="inline-flex items-center gap-2 rounded-lg border border-primary/60 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20"
         >
           Add credits to start sending
         </a>
@@ -1505,28 +1505,28 @@ function EdgeNodePairingSection({ paired, pairingStatus }: { paired: boolean; pa
 
   return (
     <section className={panelClass}>
-      <h3 className="text-lg font-semibold text-white">Sovereign Wall edge node (optional)</h3>
-      <p className="mt-2 text-sm text-slate-400">
+      <h3 className="text-lg font-semibold text-foreground">Sovereign Wall edge node (optional)</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
         Only needed if you&apos;ve bought a physical Sovereign Wall device for on-premise PII masking. Skip this otherwise - it has no effect on the rest of your setup.
       </p>
       {(paired || justPaired) ? (
-        <div className="mt-4 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm">
+        <div className="mt-4 rounded-lg bg-success/10 border border-success/30 p-4 text-success text-sm">
           Node paired ({pairingStatus}). Manage it from Settings &gt; Compliance.
         </div>
       ) : (
         <div className="mt-4 space-y-3">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Find the hardware fingerprint and public key in your device&apos;s startup log (printed once the node is powered on with cloud connectivity configured).
           </p>
           <Field label="Hardware fingerprint"><input className={inputClass} value={fingerprint} onChange={(e) => setFingerprint(e.target.value)} /></Field>
           <Field label="Public key (PEM)"><textarea className={`${inputClass} min-h-28 font-mono text-xs`} value={publicKey} onChange={(e) => setPublicKey(e.target.value)} /></Field>
           <Field label="Endpoint (optional, LAN address)"><input className={inputClass} value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="http://192.168.1.50:8000" /></Field>
-          {pairError && <p className="text-xs text-rose-400">{pairError}</p>}
+          {pairError && <p className="text-xs text-chart-4">{pairError}</p>}
           <button
             type="button"
             onClick={pair}
             disabled={pairing || !fingerprint || !publicKey}
-            className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+            className="rounded-lg bg-primary/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/80 disabled:opacity-60"
           >
             {pairing ? "Pairing..." : "Pair node"}
           </button>
@@ -1539,8 +1539,8 @@ function EdgeNodePairingSection({ paired, pairingStatus }: { paired: boolean; pa
 function NotificationsStep() {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Notification preferences</h3>
-      <p className="mt-1 text-sm text-slate-400">Control which system emails and in-app alerts your team receives. Changes save immediately and can be revisited anytime in Settings.</p>
+      <h3 className="text-xl font-semibold text-foreground">Notification preferences</h3>
+      <p className="mt-1 text-sm text-muted-foreground">Control which system emails and in-app alerts your team receives. Changes save immediately and can be revisited anytime in Settings.</p>
       <div className="mt-5">
         <NotificationSettings />
       </div>
@@ -1591,8 +1591,8 @@ function InviteTeamStep() {
 
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">Invite your team</h3>
-      <p className="mt-1 text-sm text-slate-400">
+      <h3 className="text-xl font-semibold text-foreground">Invite your team</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
         Add teammates now so they can start working the moment their invite lands. Paste one email per line
         or separate them with commas. This step is optional and can be skipped.
       </p>
@@ -1605,12 +1605,12 @@ function InviteTeamStep() {
         />
       </Field>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">{parsed.length} email{parsed.length === 1 ? "" : "s"} ready to invite</p>
+        <p className="text-xs text-muted-foreground">{parsed.length} email{parsed.length === 1 ? "" : "s"} ready to invite</p>
         <button
           type="button"
           onClick={sendInvites}
           disabled={sending || parsed.length === 0}
-          className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+          className="rounded-lg bg-primary/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/80 disabled:opacity-60"
         >
           {sending ? "Sending..." : `Send invite${parsed.length === 1 ? "" : "s"}`}
         </button>
@@ -1618,12 +1618,12 @@ function InviteTeamStep() {
       {results && (
         <div className="mt-4 space-y-2">
           {results.map((result) => (
-            <div key={result.email} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-sm">
-              <span className="truncate text-slate-200">{result.email}</span>
+            <div key={result.email} className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background/40 px-3 py-2 text-sm">
+              <span className="truncate text-foreground">{result.email}</span>
               {result.ok ? (
-                <span className="text-emerald-300">Invited</span>
+                <span className="text-success">Invited</span>
               ) : (
-                <span className="text-rose-400">{result.error || "Failed"}</span>
+                <span className="text-chart-4">{result.error || "Failed"}</span>
               )}
             </div>
           ))}
@@ -1636,10 +1636,10 @@ function InviteTeamStep() {
 function ActionPanel({ title, text, ready, action, onAction }: { title: string; text: string; ready: boolean; action: string; onAction: () => void }) {
   return (
     <section className={panelClass}>
-      <h3 className="text-xl font-semibold text-white">{title}</h3>
-      <p className="mt-1 text-sm text-slate-400">{text}</p>
+      <h3 className="text-xl font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{text}</p>
       <div className="mt-5"><ChecklistItem label={ready ? "Ready for review" : "Needs setup"} passed={ready} /></div>
-      <button type="button" onClick={onAction} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">{action} <ExternalLink className="h-4 w-4" /></button>
+      <button type="button" onClick={onAction} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-foreground/10 px-4 py-2 text-sm font-semibold hover:bg-foreground/5">{action} <ExternalLink className="h-4 w-4" /></button>
     </section>
   );
 }
@@ -1654,23 +1654,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ChecklistItem({ label, passed }: { label: string; passed: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2.5">
-      {passed ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Circle className="h-5 w-5 text-slate-500" />}
-      <span className="text-sm text-slate-200">{label}</span>
+    <div className="flex items-center gap-3 rounded-lg border border-foreground/10 bg-background/40 px-3 py-2.5">
+      {passed ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+      <span className="text-sm text-foreground">{label}</span>
     </div>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg border border-white/10 bg-slate-950/50 p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-lg font-semibold text-white">{value}</dd></div>;
+  return <div className="rounded-lg border border-foreground/10 bg-background/50 p-3"><dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt><dd className="mt-1 text-lg font-semibold text-foreground">{value}</dd></div>;
 }
 
 function StatusLine({ label, ready }: { label: string; ready: boolean }) {
-  return <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm"><span className="truncate text-slate-300">{label}</span><StatusPill ready={ready} /></div>;
+  return <div className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 px-3 py-2 text-sm"><span className="truncate text-foreground/80">{label}</span><StatusPill ready={ready} /></div>;
 }
 
 function StatusPill({ ready }: { ready: boolean }) {
-  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ready ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{ready ? "Ready" : "Needs review"}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ready ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>{ready ? "Ready" : "Needs review"}</span>;
 }
 
 function continueLabel(stepId: number, provider?: string) {

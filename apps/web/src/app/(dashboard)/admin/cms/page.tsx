@@ -28,11 +28,11 @@ export default async function CMSDashboard() {
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
                     <div>
-                        <div className="flex items-center gap-2 text-purple-400 mb-2">
+                        <div className="flex items-center gap-2 text-primary mb-2">
                             <Globe size={18} />
                             <span className="text-sm font-semibold tracking-wider uppercase">Content Management</span>
                         </div>
-                        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-card via-primary/80 to-primary/60 bg-clip-text text-transparent">
                             Git-Based CMS
                         </h1>
                         <p className="text-muted-foreground mt-2">
@@ -43,7 +43,7 @@ export default async function CMSDashboard() {
                     <div className="flex items-center gap-3">
                         <Link
                             href="/admin/cms/edit"
-                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2.5 rounded-xl transition duration-200 neo-shadow"
+                            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4 py-2.5 rounded-xl transition duration-200 neo-shadow"
                         >
                             <Plus size={16} />
                             <span>Create File</span>
@@ -56,17 +56,17 @@ export default async function CMSDashboard() {
                     {files.length > 0 ? (
                         files.map((file) => (
                             <Link key={file} href={`/admin/cms/edit?file=${encodeURIComponent(file)}`} className="group">
-                                <div className="glass p-6 rounded-2xl border border-border hover:border-purple-500/50 hover:bg-muted transition duration-300 flex flex-col justify-between h-44 cursor-pointer relative overflow-hidden group neo-shadow">
-                                    <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-300" />
+                                <div className="glass p-6 rounded-2xl border border-border hover:border-primary/50 hover:bg-muted transition duration-300 flex flex-col justify-between h-44 cursor-pointer relative overflow-hidden group neo-shadow">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all duration-300" />
                                     
                                     <div>
-                                        <div className="flex items-center gap-3 text-purple-300 mb-3">
+                                        <div className="flex items-center gap-3 text-primary mb-3">
                                             <FileText size={22} className="group-hover:scale-110 transition duration-300" />
-                                            <span className="text-xs font-semibold tracking-widest uppercase bg-purple-950/80 px-2.5 py-1 rounded-md border border-purple-800/40">
+                                            <span className="text-xs font-semibold tracking-widest uppercase bg-primary/80 px-2.5 py-1 rounded-md border border-primary/40">
                                                 {file.split("/")[0] || "root"}
                                             </span>
                                         </div>
-                                        <h3 className="font-bold text-lg text-foreground group-hover:text-purple-300 transition duration-200 truncate">
+                                        <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition duration-200 truncate">
                                             {file.split("/").slice(1).join("/") || file}
                                         </h3>
                                         <p className="text-xs text-muted-foreground mt-1 truncate">
@@ -78,7 +78,7 @@ export default async function CMSDashboard() {
                                         <span className="font-mono text-[10px] text-muted-foreground">
                                             markdown
                                         </span>
-                                        <span className="flex items-center gap-1 group-hover:text-purple-400 transition duration-200">
+                                        <span className="flex items-center gap-1 group-hover:text-primary transition duration-200">
                                             <Edit3 size={12} />
                                             Edit File
                                         </span>

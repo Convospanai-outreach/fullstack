@@ -16,13 +16,13 @@ export function ForecastingWidget({ current, weighted, total }: ForecastingProps
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        Revenue Forecast <Target className="w-4 h-4 text-blue-400" />
+                        Revenue Forecast <Target className="w-4 h-4 text-primary" />
                     </h3>
                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Weighted Pipeline Analysis</p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                    <TrendingUp className="w-3 h-3 text-emerald-400" />
-                    <span className="text-[10px] font-bold text-emerald-400">+12% vs LY</span>
+                <div className="flex items-center gap-2 px-3 py-1 bg-success/10 rounded-full border border-success/20">
+                    <TrendingUp className="w-3 h-3 text-success" />
+                    <span className="text-[10px] font-bold text-success">+12% vs LY</span>
                 </div>
             </div>
 
@@ -33,7 +33,7 @@ export function ForecastingWidget({ current, weighted, total }: ForecastingProps
                 </div>
                 <div className="p-4 rounded-xl bg-muted border border-border">
                     <div className="text-[10px] text-muted-foreground font-bold uppercase mb-1">Forecasted</div>
-                    <div className="text-xl font-bold text-blue-400">${total.toLocaleString()}</div>
+                    <div className="text-xl font-bold text-primary">${total.toLocaleString()}</div>
                 </div>
             </div>
 
@@ -44,7 +44,7 @@ export function ForecastingWidget({ current, weighted, total }: ForecastingProps
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden border border-border p-0.5">
                     <div
-                        className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                        className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full transition-all duration-1000 shadow-[0_0_15px_hsl(var(--primary)/0.5)]"
                         style={{ width: `${percentage}%` }}
                     />
                 </div>
@@ -52,7 +52,7 @@ export function ForecastingWidget({ current, weighted, total }: ForecastingProps
 
             <div className="pt-4 border-t border-border">
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground italic">
-                    <ArrowUpRight className="w-3 h-3 text-blue-400" />
+                    <ArrowUpRight className="w-3 h-3 text-primary" />
                     Based on {weighted.toLocaleString()} in weighted pipeline opportunities.
                 </div>
             </div>

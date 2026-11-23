@@ -62,8 +62,8 @@ export default function GovernancePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-center justify-center h-[240px] text-center">
-                            <div className="bg-emerald-500/10 p-4 rounded-full mb-4">
-                                <ShieldCheck className="w-10 h-10 text-emerald-400" />
+                            <div className="bg-success/10 p-4 rounded-full mb-4">
+                                <ShieldCheck className="w-10 h-10 text-success" />
                             </div>
                             <h4 className="text-foreground font-bold">Zero Violations Detected</h4>
                             <p className="text-muted-foreground text-sm max-w-xs mt-2">Your AI guardrails are effectively blocking restricted content and PII breaches.</p>

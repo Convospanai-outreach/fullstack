@@ -57,14 +57,14 @@ export default function ConnectExtensionPage() {
         <main className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center gap-5 px-6 py-16">
             <h1 className="text-2xl font-semibold">Connect the CraftMyFunnel extension</h1>
             {!state ? (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-destructive">
                     This link is incomplete. Open the extension and click &quot;Sign in with CraftMyFunnel&quot; again.
                 </p>
             ) : status === "done" ? (
                 <p className="text-sm">The extension is connected. You can close this tab and go back to LinkedIn.</p>
             ) : (
                 <>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                         The extension will use your CraftMyFunnel account and plan. It drafts comments, notes and
                         messages for you to review; nothing is sent on LinkedIn until you press Send yourself.
                     </p>
@@ -72,18 +72,18 @@ export default function ConnectExtensionPage() {
                         type="button"
                         onClick={connect}
                         disabled={status === "working"}
-                        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                        className="rounded-md bg-background px-4 py-2 text-sm font-medium text-foreground disabled:opacity-60"
                     >
                         {status === "working" ? "Connecting..." : "Connect the extension"}
                     </button>
                     {status === "no-extension" && (
-                        <p className="text-sm text-amber-700">
+                        <p className="text-sm text-warning">
                             {extensionSeen
                                 ? "The extension did not answer. Start sign-in from the extension again."
                                 : "The extension was not found on this page. Install or reload it, then start sign-in from the extension."}
                         </p>
                     )}
-                    {status === "error" && <p className="text-sm text-red-600">{message}</p>}
+                    {status === "error" && <p className="text-sm text-destructive">{message}</p>}
                 </>
             )}
         </main>

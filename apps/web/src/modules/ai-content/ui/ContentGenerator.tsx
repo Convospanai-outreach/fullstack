@@ -26,7 +26,7 @@ export default function ContentGenerator({ lead, onDraftGenerated }: { lead: any
     };
 
     return (
-        <div style={{ background: "#f9fafb", padding: 16, borderRadius: 8, border: "1px solid #e5e7eb" }}>
+        <div style={{ background: "#f9fafb", padding: 16, borderRadius: 8, border: '1px solid hsl(var(--border))' }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>AI Assistant</h4>
                 <button
@@ -48,7 +48,7 @@ export default function ContentGenerator({ lead, onDraftGenerated }: { lead: any
             </div>
 
             {draft && (
-                <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #eee" }}>
+                <div style={{ background: "#fff", padding: 12, borderRadius: 6, border: '1px solid hsl(var(--border))' }}>
                     <div style={{ marginBottom: 8 }}>
                         <span style={{ fontSize: 12, color: "#666", fontWeight: 500 }}>Subject:</span>
                         <div style={{ fontSize: 14 }}>{draft.subject}</div>

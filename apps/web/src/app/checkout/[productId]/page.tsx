@@ -96,7 +96,7 @@ export default function CheckoutPage() {
                 handler: () => {
                     toast.success("Payment successful!");
                 },
-                theme: { color: "#7c3aed" },
+                theme: { color: "#5C1A2B" },
             });
             rzp.open();
             setSubmitting(false);
@@ -108,7 +108,7 @@ export default function CheckoutPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-400">
+            <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
                 Loading...
             </div>
         );
@@ -116,22 +116,22 @@ export default function CheckoutPage() {
 
     if (notFound || !product) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-300">
+            <div className="min-h-screen flex items-center justify-center bg-background text-foreground/80">
                 <div className="text-center space-y-2">
                     <h1 className="text-xl font-semibold">Product not found</h1>
-                    <p className="text-sm text-neutral-500">This checkout link is no longer available.</p>
+                    <p className="text-sm text-muted-foreground">This checkout link is no longer available.</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center p-4">
-            <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-2xl p-8 space-y-6">
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-background border border-border rounded-2xl p-8 space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold">{product.name}</h1>
                     {product.description && (
-                        <p className="text-neutral-400 text-sm mt-1">{product.description}</p>
+                        <p className="text-muted-foreground text-sm mt-1">{product.description}</p>
                     )}
                     <div className="text-3xl font-bold mt-4">
                         {(product.priceAmount / 100).toFixed(2)} {product.currency}
@@ -140,22 +140,22 @@ export default function CheckoutPage() {
 
                 <div className="space-y-3">
                     <div className="space-y-1">
-                        <label htmlFor="checkout-name" className="text-sm text-neutral-400">Name</label>
+                        <label htmlFor="checkout-name" className="text-sm text-muted-foreground">Name</label>
                         <input
                             id="checkout-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="glass w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                     </div>
                     <div className="space-y-1">
-                        <label htmlFor="checkout-email" className="text-sm text-neutral-400">Email</label>
+                        <label htmlFor="checkout-email" className="text-sm text-muted-foreground">Email</label>
                         <input
                             id="checkout-email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-neutral-800 border border-neutral-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="glass w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                     </div>
 
@@ -163,14 +163,14 @@ export default function CheckoutPage() {
                         <button
                             type="button"
                             onClick={() => setGateway("STRIPE")}
-                            className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${gateway === "STRIPE" ? "bg-purple-600 border-purple-500" : "bg-neutral-800 border-neutral-700 text-neutral-400"}`}
+                            className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${gateway === "STRIPE" ? "bg-primary border-primary/30" : "bg-card border-border text-muted-foreground"}`}
                         >
                             Card (Stripe)
                         </button>
                         <button
                             type="button"
                             onClick={() => setGateway("RAZORPAY")}
-                            className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${gateway === "RAZORPAY" ? "bg-purple-600 border-purple-500" : "bg-neutral-800 border-neutral-700 text-neutral-400"}`}
+                            className={`flex-1 py-2 rounded-md text-sm font-medium border transition-colors ${gateway === "RAZORPAY" ? "bg-primary border-primary/30" : "bg-card border-border text-muted-foreground"}`}
                         >
                             Razorpay
                         </button>
@@ -180,7 +180,7 @@ export default function CheckoutPage() {
                 <button
                     onClick={handlePay}
                     disabled={submitting}
-                    className="w-full py-3 rounded-md bg-purple-600 hover:bg-purple-500 font-semibold text-white transition-colors disabled:opacity-50"
+                    className="w-full py-3 rounded-md bg-primary hover:bg-primary font-semibold text-primary-foreground transition-colors disabled:opacity-50"
                 >
                     {submitting ? "Processing..." : `Pay ${(product.priceAmount / 100).toFixed(2)} ${product.currency}`}
                 </button>

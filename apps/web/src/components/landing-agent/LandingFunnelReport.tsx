@@ -77,7 +77,7 @@ export default function LandingFunnelReport() {
         <GlassCard className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-text-primary">Funnel report</h2>
+                    <h2 className="text-lg font-semibold text-foreground">Funnel report</h2>
                     <p className="text-sm text-muted-foreground">From the first visit to a won deal, for the chosen dates.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ export default function LandingFunnelReport() {
                 </div>
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             {loading && !report && <p className="text-sm text-muted-foreground">Loading the report...</p>}
 
             {report && !hasAnyCount && <p className="text-sm text-muted-foreground">No visits in this range yet.</p>}
@@ -130,7 +130,7 @@ export default function LandingFunnelReport() {
                             </thead>
                             <tbody>
                                 {report.steps.map((step) => (
-                                    <tr key={step.key} className="border-t border-white/10">
+                                    <tr key={step.key} className="border-t border-foreground/10">
                                         <td className="py-2 pr-4">{step.label}</td>
                                         <td className="py-2 pr-4">{step.count.toLocaleString()}</td>
                                         <td className="py-2 pr-4">{dropOffText(step.dropOffPercent)}</td>
@@ -150,7 +150,7 @@ export default function LandingFunnelReport() {
                     {report.sources && report.sources.rows.length > 0 && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
-                                <h3 className="text-sm font-semibold text-text-primary">Where sign-ups came from</h3>
+                                <h3 className="text-sm font-semibold text-foreground">Where sign-ups came from</h3>
                                 <select aria-label="Group sign-ups by" value={groupBy} onChange={(e) => setGroupBy(e.target.value as FunnelSourceDimension)} className="rounded-md border px-2 py-1 text-sm">
                                     {SOURCE_OPTIONS.map((o) => (
                                         <option key={o.value} value={o.value}>
@@ -173,7 +173,7 @@ export default function LandingFunnelReport() {
                                     </thead>
                                     <tbody>
                                         {report.sources.rows.map((row) => (
-                                            <tr key={row.source} className="border-t border-white/10">
+                                            <tr key={row.source} className="border-t border-foreground/10">
                                                 <td className="py-2 pr-4">{row.source}</td>
                                                 <td className="py-2 pr-4">{row.leads.toLocaleString()}</td>
                                                 <td className="py-2 pr-4">{row.contacted.toLocaleString()}</td>

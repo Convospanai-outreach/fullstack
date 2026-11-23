@@ -23,8 +23,8 @@ export function ToneSlider({ label, leftLabel, rightLabel, defaultValue = 50, on
     return (
         <div className="w-full space-y-3">
             <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-text-primary">{label}</span>
-                <span className="text-xs text-text-muted">{value}%</span>
+                <span className="text-sm font-medium text-foreground">{label}</span>
+                <span className="text-xs text-muted-foreground">{value}%</span>
             </div>
 
             <div className="relative group">
@@ -34,12 +34,12 @@ export function ToneSlider({ label, leftLabel, rightLabel, defaultValue = 50, on
                     max="100"
                     value={value}
                     onChange={handleChange}
-                    className="w-full h-2 bg-bg-glassStrong rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent-blue/50"
+                    className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/50"
                 />
                 {/* Custom thumb styles would go here via standard CSS or extensive Tailwind classes if strictly needed, keeping it simple for now */}
             </div>
 
-            <div className="flex justify-between text-xs text-text-secondary font-medium">
+            <div className="flex justify-between text-xs text-muted-foreground font-medium">
                 <span>{leftLabel}</span>
                 <span>{rightLabel}</span>
             </div>

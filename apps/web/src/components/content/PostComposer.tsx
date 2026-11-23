@@ -420,7 +420,7 @@ export function PostComposer({ open, onClose, post, defaultWhen, accounts, onCha
                             <button type="button" disabled={busy !== null} onClick={() => decide("REJECT")} className="h-9 rounded-md border border-destructive/30 px-3 text-sm text-destructive disabled:opacity-50">
                                 {busy === "REJECT" ? "Saving..." : "Send back"}
                             </button>
-                            <button type="button" disabled={busy !== null} onClick={() => decide("APPROVE")} className="h-9 rounded-md bg-success px-3 text-sm font-medium text-white disabled:opacity-50">
+                            <button type="button" disabled={busy !== null} onClick={() => decide("APPROVE")} className="h-9 rounded-md bg-success px-3 text-sm font-medium text-primary-foreground disabled:opacity-50">
                                 {busy === "APPROVE" ? "Saving..." : "Approve"}
                             </button>
                         </div>

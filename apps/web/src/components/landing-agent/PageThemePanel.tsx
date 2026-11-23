@@ -53,14 +53,14 @@ export default function PageThemePanel({ theme, onChange }: Props) {
 
     return (
         <div className="space-y-3">
-            <p className="text-xs text-slate-400">Pick a look, then your colours and font. Changes show in the canvas.</p>
+            <p className="text-xs text-muted-foreground">Pick a look, then your colours and font. Changes show in the canvas.</p>
             <div className="grid grid-cols-2 gap-2">
                 <button
                     type="button"
                     aria-pressed={!current.preset && theme !== null}
                     disabled={!theme?.preset}
                     onClick={useCurrentLook}
-                    className="rounded-lg border border-white/10 px-2 py-2 text-left text-xs text-slate-200 disabled:opacity-60"
+                    className="rounded-lg border border-foreground/10 px-2 py-2 text-left text-xs text-foreground disabled:opacity-60"
                 >
                     Current look
                 </button>
@@ -73,7 +73,7 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                             type="button"
                             aria-pressed={current.preset === preset}
                             onClick={() => update({ preset })}
-                            className="space-y-1 rounded-lg border border-white/10 p-2 text-left text-xs text-slate-200"
+                            className="space-y-1 rounded-lg border border-foreground/10 p-2 text-left text-xs text-foreground"
                         >
                             <span
                                 aria-hidden="true"
@@ -87,7 +87,7 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                     );
                 })}
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+            <div className="grid grid-cols-2 gap-2 text-xs text-foreground/80">
                 <label className="flex items-center justify-between gap-2">
                     Primary
                     <input
@@ -95,7 +95,7 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                         aria-label="Primary colour"
                         value={current.primary.toLowerCase()}
                         onChange={(e) => update({ primary: e.target.value })}
-                        className="h-8 w-12 cursor-pointer rounded border border-white/10 bg-transparent"
+                        className="h-8 w-12 cursor-pointer rounded border border-foreground/10 bg-transparent"
                     />
                 </label>
                 <label className="flex items-center justify-between gap-2">
@@ -105,16 +105,16 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                         aria-label="Accent colour"
                         value={current.accent.toLowerCase()}
                         onChange={(e) => update({ accent: e.target.value })}
-                        className="h-8 w-12 cursor-pointer rounded border border-white/10 bg-transparent"
+                        className="h-8 w-12 cursor-pointer rounded border border-foreground/10 bg-transparent"
                     />
                 </label>
             </div>
-            <label className="block space-y-1 text-xs text-slate-300">
+            <label className="block space-y-1 text-xs text-foreground/80">
                 Font
                 <select
                     value={current.font ?? "system"}
                     onChange={(e) => update({ font: e.target.value as ThemeFont })}
-                    className="w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-slate-100"
+                    className="w-full rounded-md border border-foreground/10 bg-background px-2 py-1.5 text-foreground"
                 >
                     {THEME_FONTS.map((font) => (
                         <option key={font} value={font}>
@@ -127,7 +127,7 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                 <button
                     type="button"
                     onClick={useBrandColours}
-                    className="rounded-md border border-white/10 px-2 py-1.5 text-xs text-slate-200 hover:bg-white/5"
+                    className="rounded-md border border-foreground/10 px-2 py-1.5 text-xs text-foreground hover:bg-foreground/5"
                 >
                     Use my brand colours
                 </button>
@@ -135,14 +135,14 @@ export default function PageThemePanel({ theme, onChange }: Props) {
                     <button
                         type="button"
                         onClick={() => onChange(null)}
-                        className="rounded-md border border-white/10 px-2 py-1.5 text-xs text-slate-400 hover:bg-white/5"
+                        className="rounded-md border border-foreground/10 px-2 py-1.5 text-xs text-muted-foreground hover:bg-foreground/5"
                     >
                         Remove theme
                     </button>
                 ) : null}
             </div>
             {brandMessage ? (
-                <p role="status" className="text-xs text-amber-300">
+                <p role="status" className="text-xs text-warning">
                     {brandMessage}
                 </p>
             ) : null}

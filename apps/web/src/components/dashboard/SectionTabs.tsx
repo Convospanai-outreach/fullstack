@@ -36,7 +36,7 @@ export function SectionTabs() {
                         key={tab.href}
                         href={tab.href}
                         aria-current={active ? "page" : undefined}
-                        className={`whitespace-nowrap border-b-2 px-3 py-2 text-[13px] transition-colors ${
+                        className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-[13px] leading-[1.3] transition-colors ${
                             active
                                 ? "border-primary text-foreground"
                                 : "border-transparent text-muted-foreground hover:text-foreground"

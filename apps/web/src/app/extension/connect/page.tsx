@@ -29,7 +29,7 @@ export default async function ExtensionConnectPage({
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground">
             <div className="w-full max-w-md space-y-4">
                 <div className="mb-2 flex items-center justify-center gap-2 text-xl font-black">
                     <LogoMark priority className="h-9 w-9" />
@@ -39,7 +39,7 @@ export default async function ExtensionConnectPage({
                 {isKnownExtensionId(extensionId) ? (
                     <ConnectExtension extensionId={extensionId} />
                 ) : (
-                    <p className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                    <p className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
                         This link doesn&apos;t come from the CraftMyFunnel extension, so nothing was connected. Open the extension and click Connect to start again.
                     </p>
                 )}

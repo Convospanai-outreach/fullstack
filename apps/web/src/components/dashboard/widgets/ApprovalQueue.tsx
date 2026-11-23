@@ -103,21 +103,21 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
 
     return (
         <Card className="border-border rounded-[2.5rem] overflow-hidden shadow-sm relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/[0.04] blur-3xl rounded-full" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-warning/[0.04] blur-3xl rounded-full" />
 
             <CardHeader className="pb-6 pt-8 px-8 border-b border-border bg-muted/40">
                 <CardTitle className="text-xl font-bold font-outfit flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400/50 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning/50 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-warning"></span>
                         </div>
                         <span className="text-foreground tracking-tight">Governance Gate</span>
                         <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted rounded-lg ml-1" onClick={loadData}>
                             <RefreshCcw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
                         </Button>
                     </div>
-                    <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                    <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest">
                         {requests.length} Awaiting
                     </Badge>
                 </CardTitle>
@@ -140,25 +140,25 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="flex flex-col gap-4 p-5 rounded-2xl bg-card border border-border border-l-[3px] border-l-orange-500 transition-all group/item cursor-default"
+                                className="glass flex flex-col gap-4 p-5 border-l-[3px] border-l-warning/30 transition-all group/item cursor-default"
                             >
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2.5 rounded-xl bg-orange-100 group-hover/item:scale-110 transition-transform">
-                                            <AlertTriangle className="w-5 h-5 text-orange-700" />
+                                        <div className="p-2.5 rounded-xl bg-warning/10 group-hover/item:scale-110 transition-transform">
+                                            <AlertTriangle className="w-5 h-5 text-warning" />
                                         </div>
                                         <div>
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700/70 block leading-none mb-1.5">{req.type}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-warning/70 block leading-none mb-1.5">{req.type}</span>
                                             <span className="text-base font-bold text-foreground font-outfit">Sovereign Intervention</span>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                         {req.tier === "HARD_BLOCK" ? (
-                                            <Badge variant="secondary" className="text-[10px] h-5 bg-red-100 text-red-700 border-red-200 px-2 font-black uppercase tracking-tighter">Hard Block</Badge>
+                                            <Badge variant="secondary" className="text-[10px] h-5 bg-destructive/10 text-destructive border-destructive/30 px-2 font-black uppercase tracking-tighter">Hard Block</Badge>
                                         ) : (
-                                            <Badge variant="secondary" className="text-[10px] h-5 bg-amber-100 text-amber-700 border-amber-200 px-2 font-black uppercase tracking-tighter">Queued · 24h</Badge>
+                                            <Badge variant="secondary" className="text-[10px] h-5 bg-warning/10 text-warning border-warning/30 px-2 font-black uppercase tracking-tighter">Queued · 24h</Badge>
                                         )}
-                                        <Badge variant="secondary" className="text-[10px] h-5 bg-red-100 text-red-700 border-red-200 px-2 font-black uppercase tracking-tighter">{req.risk}</Badge>
+                                        <Badge variant="secondary" className="text-[10px] h-5 bg-destructive/10 text-destructive border-destructive/30 px-2 font-black uppercase tracking-tighter">{req.risk}</Badge>
                                         <button
                                             onClick={() => startEditing(req)}
                                             className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest"
@@ -186,7 +186,7 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
                                 <div className="grid grid-cols-2 gap-4 mt-2">
                                     <Button
                                         size="sm"
-                                        className="w-full h-11 rounded-1.5xl font-black text-xs uppercase tracking-widest bg-orange-600 hover:bg-orange-500 text-white transition-all active:scale-95 border-none"
+                                        className="w-full h-11 rounded-1.5xl font-black text-xs uppercase tracking-widest bg-warning hover:bg-warning text-primary-foreground transition-all active:scale-95 border-none"
                                         onClick={() => handleApprove(req)}
                                     >
                                         <CheckCircle2 className="w-4 h-4 mr-2" /> {editingId === req.id ? 'Apply & Approve' : 'Approve'}
@@ -194,7 +194,7 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="w-full h-11 rounded-1.5xl font-black text-xs uppercase tracking-widest border-border hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-all active:scale-95 bg-card"
+                                        className="w-full h-11 rounded-1.5xl font-black text-xs uppercase tracking-widest border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all active:scale-95 bg-card"
                                         onClick={() => handleReject(req.id)}
                                     >
                                         <XCircle className="w-4 h-4 mr-2" /> Reject

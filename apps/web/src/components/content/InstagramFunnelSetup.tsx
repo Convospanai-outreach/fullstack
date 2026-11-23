@@ -26,8 +26,8 @@ const fetcher = async (url: string) => {
 };
 
 const BADGE: Record<StepState, { label: string; className: string }> = {
-    done: { label: "Done", className: "bg-emerald-500/15 text-emerald-600" },
-    todo: { label: "To do", className: "bg-amber-500/15 text-amber-600" },
+    done: { label: "Done", className: "bg-success/15 text-success" },
+    todo: { label: "To do", className: "bg-warning/15 text-warning" },
     blocked: { label: "Waiting", className: "bg-muted text-muted-foreground" },
     optional: { label: "Optional", className: "bg-muted text-muted-foreground" },
 };

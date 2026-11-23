@@ -18,7 +18,7 @@ interface KPIRowProps {
   error?: boolean;
 }
 
-const strip = "grid grid-cols-2 lg:grid-cols-4 gap-x-6 border-y border-border mb-6";
+const strip = "grid grid-cols-2 lg:grid-cols-4 gap-4 mt-2 mb-6";
 
 // Home's four numbers. A metric with nothing behind it yet shows what will fill it and
 // the next step, instead of a bare 0.
@@ -30,7 +30,7 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
     return (
       <div className={strip}>
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="py-4 text-sm text-destructive">Unavailable</div>
+          <div key={i} className="glass px-5 py-[18px] text-sm text-destructive">Unavailable</div>
         ))}
       </div>
     );
@@ -40,7 +40,7 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
     return (
       <div className={strip}>
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="py-4">
+          <div key={i} className="glass px-5 py-[18px]">
             <div className="h-3 w-24 rounded bg-muted animate-pulse mb-3" />
             <div className="h-8 w-16 rounded bg-muted animate-pulse" />
           </div>
@@ -92,11 +92,11 @@ export function KPIRow({ data, loading, error }: KPIRowProps) {
   return (
     <div className={strip}>
       {kpis.map((kpi) => (
-        <div key={kpi.id} className="py-4">
-          <p className="text-sm text-muted-foreground mb-1">{kpi.label}</p>
+        <div key={kpi.id} className="glass px-5 py-[18px]">
+          <p className="text-[13px] text-muted-foreground">{kpi.label}</p>
           {kpi.value ? (
             <>
-              <Link href={kpi.href} className="block font-display text-3xl font-medium tracking-tight text-foreground hover:text-primary">
+              <Link href={kpi.href} className="block font-display text-4xl font-semibold leading-[1.1] mt-1.5 text-primary hover:text-primary/80">
                 {kpi.value}
               </Link>
               {kpi.note && <p className="mt-1 text-xs text-muted-foreground">{kpi.note}</p>}

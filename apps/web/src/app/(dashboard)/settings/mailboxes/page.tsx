@@ -463,13 +463,13 @@ export default function MailboxesSettingsPage() {
 
     const statusBadge = (mb: ConnectedMailbox) => {
         if (mb.status === "CONNECTED") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-success bg-emerald-500/10 border border-emerald-500/20">● Active</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-success bg-success/10 border border-success/20">● Active</span>;
         }
         if (mb.status === "NEEDS_RECONNECT") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-warning bg-amber-500/10 border border-amber-500/20">⚠️ Reconnect</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-warning bg-warning/10 border border-warning/20">⚠️ Reconnect</span>;
         }
         if (mb.status === "PAUSED") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary bg-blue-500/10 border border-blue-500/20">⏸ Paused</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary bg-primary/10 border border-primary/20">⏸ Paused</span>;
         }
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-muted-foreground bg-muted border border-border">{mb.status}</span>;
     };
@@ -496,13 +496,13 @@ export default function MailboxesSettingsPage() {
                 </div>
 
                 {success && (
-                    <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-success flex items-center justify-between">
+                    <div className="mb-6 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success flex items-center justify-between">
                         <span>{success}</span>
-                        <button onClick={() => setSuccess("")} className="text-xs text-emerald-300 hover:underline">Dismiss</button>
+                        <button onClick={() => setSuccess("")} className="text-xs text-success hover:underline">Dismiss</button>
                     </div>
                 )}
                 {error && (
-                    <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-destructive flex items-center justify-between">
+                    <div className="mb-6 rounded-xl border border-chart-4/30 bg-chart-4/10 p-4 text-sm text-destructive flex items-center justify-between">
                         <span>{error}</span>
                         <button onClick={() => setError("")} className="text-xs text-destructive hover:underline">Dismiss</button>
                     </div>
@@ -513,7 +513,7 @@ export default function MailboxesSettingsPage() {
                     <button
                         onClick={connectGmail}
                         disabled={connecting}
-                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-indigo-600/20"
+                        className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-primary/20"
                     >
                         <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M20.64 12.2c0-.638-.057-1.252-.164-1.84H12v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616Z" />
@@ -527,7 +527,7 @@ export default function MailboxesSettingsPage() {
                     {/* Connect Microsoft */}
                     <button
                         onClick={connectMicrosoft}
-                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-blue-600/20"
+                        className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-primary/20"
                     >
                         <svg className="w-4 h-4 shrink-0" viewBox="0 0 23 23" fill="currentColor">
                             <path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z" />
@@ -554,10 +554,10 @@ export default function MailboxesSettingsPage() {
 
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
-                        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-8 h-8 border-2 border-primary/30 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : mailboxes.length === 0 ? (
-                    <div className="bg-card border border-border rounded-2xl p-12 text-center">
+                    <div className="glass p-12 text-center">
                         <div className="text-5xl mb-4">📭</div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">No mailboxes connected</h2>
                         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -573,11 +573,11 @@ export default function MailboxesSettingsPage() {
                             const hasError = mb.metadata?.lastWatchError || mb.metadata?.lastSyncError;
 
                             return (
-                                <div key={mb.id} className="bg-card border border-border rounded-2xl p-5 space-y-4 transition hover:border-border">
+                                <div key={mb.id} className="glass p-5 space-y-4 transition hover:border-border">
                                     {/* Main Row */}
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-start gap-3.5 min-w-0">
-                                            <div className="shrink-0 w-11 h-11 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-base uppercase mt-0.5">
+                                            <div className="shrink-0 w-11 h-11 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-base uppercase mt-0.5">
                                                 {mb.email[0]}
                                             </div>
                                             <div className="min-w-0 space-y-1">
@@ -598,7 +598,7 @@ export default function MailboxesSettingsPage() {
                                             {mb.status === "NEEDS_RECONNECT" && (
                                                 <button
                                                     onClick={connectGmail}
-                                                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow"
+                                                    className="px-3 py-1.5 rounded-lg bg-warning hover:bg-warning text-primary-foreground font-semibold text-xs transition shadow"
                                                 >
                                                     Reconnect
                                                 </button>
@@ -611,7 +611,7 @@ export default function MailboxesSettingsPage() {
                                             </button>
                                             <button
                                                 onClick={() => disconnectMailbox(mb.id)}
-                                                className="px-3 py-1.5 rounded-lg text-destructive hover:bg-rose-500/10 font-semibold text-xs transition"
+                                                className="px-3 py-1.5 rounded-lg text-destructive hover:bg-chart-4/10 font-semibold text-xs transition"
                                             >
                                                 Disconnect
                                             </button>
@@ -631,7 +631,7 @@ export default function MailboxesSettingsPage() {
                                         </div>
                                         <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                                             <div
-                                                className={`h-full transition-all duration-500 ${pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-indigo-500"}`}
+                                                className={`h-full transition-all duration-500 ${pct >= 90 ? "bg-chart-4" : pct >= 70 ? "bg-warning" : "bg-primary"}`}
                                                 style={{ width: `${pct}%` }}
                                             />
                                         </div>
@@ -691,7 +691,7 @@ export default function MailboxesSettingsPage() {
 
                                     {/* Error Banner if any */}
                                     {hasError && (
-                                        <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2.5 text-xs text-destructive flex items-center gap-2">
+                                        <div className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-2.5 text-xs text-destructive flex items-center gap-2">
                                             <span>⚠️</span>
                                             <span>Sync Error: {mb.metadata?.lastWatchError || mb.metadata?.lastSyncError}</span>
                                         </div>
@@ -712,13 +712,13 @@ export default function MailboxesSettingsPage() {
                     </div>
 
                     {domainActionError && (
-                        <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-destructive flex items-center justify-between">
+                        <div className="mb-4 rounded-xl border border-chart-4/30 bg-chart-4/10 p-3 text-xs text-destructive flex items-center justify-between">
                             <span>{domainActionError}</span>
                             <button onClick={() => setDomainActionError("")} className="text-destructive hover:underline">Dismiss</button>
                         </div>
                     )}
 
-                    <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                    <div className="glass p-5 space-y-4">
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -731,7 +731,7 @@ export default function MailboxesSettingsPage() {
                             <button
                                 onClick={() => checkOrAddResendDomain(newDomainInput)}
                                 disabled={!newDomainInput.trim() || domainActionBusy === newDomainInput}
-                                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-4 py-2 rounded-lg text-white font-semibold text-xs shrink-0"
+                                className="bg-primary hover:bg-primary/90 disabled:opacity-50 px-4 py-2 rounded-lg text-primary-foreground font-semibold text-xs shrink-0"
                             >
                                 {domainActionBusy === newDomainInput ? "Checking…" : "Add / Check Domain"}
                             </button>
@@ -752,9 +752,9 @@ export default function MailboxesSettingsPage() {
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <p className="text-foreground font-semibold text-sm truncate">{d.domain}</p>
                                                     {d.status === "VERIFIED" ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-success bg-emerald-500/10 border border-emerald-500/20">● Verified</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-success bg-success/10 border border-success/20">● Verified</span>
                                                     ) : (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-warning bg-amber-500/10 border border-amber-500/20">⚠ {d.status === "MISSING" ? "Missing records" : "Unknown"}</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20">⚠ {d.status === "MISSING" ? "Missing records" : "Unknown"}</span>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
@@ -768,7 +768,7 @@ export default function MailboxesSettingsPage() {
                                                     <button
                                                         onClick={() => removeResendDomain(d.domain)}
                                                         disabled={busy}
-                                                        className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-destructive text-xs font-semibold disabled:opacity-50"
+                                                        className="px-3 py-1.5 rounded-lg bg-chart-4/10 hover:bg-chart-4/20 border border-chart-4/20 text-destructive text-xs font-semibold disabled:opacity-50"
                                                     >
                                                         Remove
                                                     </button>
@@ -814,8 +814,8 @@ export default function MailboxesSettingsPage() {
 
             {/* Mailbox Edit Controls Modal */}
             {editingMailbox && (
-                <div role="dialog" aria-modal="true" aria-labelledby="controls-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+                <div role="dialog" aria-modal="true" aria-labelledby="controls-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
+                    <div className="glass max-w-md w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="controls-modal-title" className="text-lg font-bold text-foreground">Mailbox Controls — {editingMailbox.email}</h2>
                             <button onClick={() => setEditingMailbox(null)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
@@ -907,7 +907,7 @@ export default function MailboxesSettingsPage() {
                                 <button type="button" onClick={() => setEditingMailbox(null)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={savingControls} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs">
+                                <button type="submit" disabled={savingControls} className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs">
                                     {savingControls ? "Saving…" : "Save Controls"}
                                 </button>
                             </div>
@@ -918,8 +918,8 @@ export default function MailboxesSettingsPage() {
 
             {/* Custom SMTP Modal Dialog */}
             {showSmtpModal && (
-                <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
+                    <div className="glass max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="smtp-modal-title" className="text-xl font-bold text-foreground">Connect Custom SMTP Mailbox</h2>
                             <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
@@ -970,7 +970,7 @@ export default function MailboxesSettingsPage() {
                                 <label className="block text-muted-foreground text-xs mb-1">Send Verification Test Email To:</label>
                                 <div className="flex gap-2">
                                     <input type="email" placeholder="mytest@domain.com" value={smtpTestRecipient} onChange={(e) => setSmtpTestRecipient(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
-                                    <button type="button" onClick={handleTestSmtp} disabled={smtpTesting} className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-semibold text-xs shrink-0">
+                                    <button type="button" onClick={handleTestSmtp} disabled={smtpTesting} className="bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-lg text-primary-foreground font-semibold text-xs shrink-0">
                                         {smtpTesting ? "Testing…" : "Send Test"}
                                     </button>
                                 </div>
@@ -981,7 +981,7 @@ export default function MailboxesSettingsPage() {
 
                             <div className="pt-3 flex justify-end gap-2">
                                 <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
-                                <button type="submit" disabled={smtpSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
+                                <button type="submit" disabled={smtpSaving} className="px-4 py-2 rounded-lg bg-success hover:bg-success/90 text-primary-foreground font-semibold text-xs">
                                     {smtpSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
                             </div>
@@ -992,8 +992,8 @@ export default function MailboxesSettingsPage() {
 
             {/* Resend Modal Dialog */}
             {showResendModal && (
-                <div role="dialog" aria-modal="true" aria-labelledby="resend-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                <div role="dialog" aria-modal="true" aria-labelledby="resend-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
+                    <div className="glass max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="resend-modal-title" className="text-xl font-bold text-foreground">Connect Resend Mailbox</h2>
                             <button onClick={() => setShowResendModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
@@ -1018,7 +1018,7 @@ export default function MailboxesSettingsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setResendShowReplyCapture((v) => !v)}
-                                    className="flex items-center justify-between w-full text-left text-xs font-semibold text-indigo-400 hover:text-indigo-300"
+                                    className="flex items-center justify-between w-full text-left text-xs font-semibold text-primary hover:text-primary"
                                 >
                                     <span>⚙️ Reply Capture (optional, advanced)</span>
                                     <span>{resendShowReplyCapture ? "▲" : "▼"}</span>
@@ -1044,7 +1044,7 @@ export default function MailboxesSettingsPage() {
                                 <label className="block text-muted-foreground text-xs mb-1">Send Verification Test Email To:</label>
                                 <div className="flex gap-2">
                                     <input type="email" placeholder="mytest@domain.com" value={resendTestRecipient} onChange={(e) => setResendTestRecipient(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
-                                    <button type="button" onClick={handleTestResend} disabled={resendTesting} className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-semibold text-xs shrink-0">
+                                    <button type="button" onClick={handleTestResend} disabled={resendTesting} className="bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-lg text-primary-foreground font-semibold text-xs shrink-0">
                                         {resendTesting ? "Testing…" : "Send Test"}
                                     </button>
                                 </div>
@@ -1055,7 +1055,7 @@ export default function MailboxesSettingsPage() {
 
                             <div className="pt-3 flex justify-end gap-2">
                                 <button type="button" onClick={() => setShowResendModal(false)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
-                                <button type="submit" disabled={resendSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
+                                <button type="submit" disabled={resendSaving} className="px-4 py-2 rounded-lg bg-success hover:bg-success/90 text-primary-foreground font-semibold text-xs">
                                     {resendSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
                             </div>

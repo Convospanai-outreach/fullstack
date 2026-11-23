@@ -35,14 +35,14 @@ export default function EmailFinderPage() {
     return (
         <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
             <h1>Email Finder</h1>
-            <p style={{ color: "#6b7280", marginBottom: 24 }}>
+            <p style={{ color: "hsl(var(--muted-foreground))", marginBottom: 24 }}>
                 Find professional email addresses using Hunter.io
             </p>
 
             <EmailSearchForm onSubmit={handleSearch} loading={loading} />
 
             {error && (
-                <div style={{ padding: 16, background: "#fee2e2", color: "#991b1b", borderRadius: 8, marginTop: 16 }}>
+                <div style={{ padding: 16, background: "hsl(var(--destructive) / 0.12)", color: "hsl(var(--destructive))", borderRadius: 8, marginTop: 16 }}>
                     {error}
                 </div>
             )}

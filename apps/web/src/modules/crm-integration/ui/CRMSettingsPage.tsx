@@ -100,7 +100,7 @@ export default function CRMSettingsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading CRM console...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading CRM console...</div>;
 
     const currentIntegration = integrations.find(i => i.provider === activeProvider);
 
@@ -116,14 +116,14 @@ export default function CRMSettingsPage() {
                 <div className="lg:col-span-1 space-y-4">
                     <ProviderCard
                         name="HubSpot"
-                        icon={<div className="w-8 h-8 bg-[#ff7a59] rounded-lg flex items-center justify-center text-white font-bold text-xs">HS</div>}
+                        icon={/* palette-ok: HubSpot brand */ <div className="w-8 h-8 bg-[#ff7a59] rounded-lg flex items-center justify-center text-foreground font-bold text-xs">HS</div>}
                         isActive={activeProvider === 'HUBSPOT'}
                         connected={integrations.some(i => i.provider === 'HUBSPOT' && i.isActive)}
                         onClick={() => setActiveProvider('HUBSPOT')}
                     />
                     <ProviderCard
                         name="Salesforce"
-                        icon={<div className="w-8 h-8 bg-[#00A1E0] rounded-lg flex items-center justify-center text-white font-bold text-xs">SF</div>}
+                        icon={/* palette-ok: Salesforce brand */ <div className="w-8 h-8 bg-[#00A1E0] rounded-lg flex items-center justify-center text-foreground font-bold text-xs">SF</div>}
                         isActive={false}
                         connected={false}
                         comingSoon
@@ -133,17 +133,17 @@ export default function CRMSettingsPage() {
 
                 {/* Configuration Console */}
                 <GlassCard className="lg:col-span-3 p-8 space-y-8">
-                    <div className="flex justify-between items-center border-b border-white/10 pb-6">
+                    <div className="flex justify-between items-center border-b border-foreground/10 pb-6">
                         <div className="flex items-center gap-3">
-                            <Database className="w-6 h-6 text-blue-400" />
-                            <h3 className="text-xl font-bold text-white">{activeProvider} Configuration</h3>
+                            <Database className="w-6 h-6 text-primary" />
+                            <h3 className="text-xl font-bold text-foreground">{activeProvider} Configuration</h3>
                         </div>
                         {currentIntegration?.isActive ? (
-                            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold border border-emerald-500/20">
+                            <div className="flex items-center gap-2 bg-success/10 text-success px-3 py-1 rounded-full text-xs font-bold border border-success/20">
                                 <CheckCircle2 className="w-3 h-3" /> Connected
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 bg-white/5 text-gray-500 px-3 py-1 rounded-full text-xs font-bold border border-white/10">
+                            <div className="flex items-center gap-2 bg-foreground/5 text-muted-foreground px-3 py-1 rounded-full text-xs font-bold border border-foreground/10">
                                 <XCircle className="w-3 h-3" /> Disconnected
                             </div>
                         )}
@@ -152,25 +152,25 @@ export default function CRMSettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Auth Section */}
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-white/80 font-bold text-sm uppercase tracking-wider">
+                            <div className="flex items-center gap-2 text-foreground/80 font-bold text-sm uppercase tracking-wider">
                                 <LinkIcon className="w-4 h-4" /> Authentication
                             </div>
                             <div className="space-y-2">
-                                <label className="text-xs text-gray-400 font-medium">Private App Access Token</label>
+                                <label className="text-xs text-muted-foreground font-medium">Private App Access Token</label>
                                 <input
                                     type="password"
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                     placeholder={currentIntegration ? "••••••••••••••••" : "pat-na1-..."}
-                                    className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
+                                    className="w-full bg-background/50 border border-foreground/10 rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-primary/30 transition-all font-mono text-sm"
                                 />
-                                <p className="text-[10px] text-gray-500 italic">Required for secure API access to your {activeProvider} account.</p>
+                                <p className="text-[10px] text-muted-foreground italic">Required for secure API access to your {activeProvider} account.</p>
                             </div>
                         </div>
 
                         {/* Sync Settings */}
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-white/80 font-bold text-sm uppercase tracking-wider">
+                            <div className="flex items-center gap-2 text-foreground/80 font-bold text-sm uppercase tracking-wider">
                                 <RefreshCcw className="w-4 h-4" /> Sync Rules
                             </div>
                             <div className="space-y-4">
@@ -200,8 +200,8 @@ export default function CRMSettingsPage() {
                     </div>
 
                     {/* Field Mapping */}
-                    <div className="space-y-6 pt-6 border-t border-white/10">
-                        <div className="flex items-center gap-2 text-white/80 font-bold text-sm uppercase tracking-wider">
+                    <div className="space-y-6 pt-6 border-t border-foreground/10">
+                        <div className="flex items-center gap-2 text-foreground/80 font-bold text-sm uppercase tracking-wider">
                             <Settings className="w-4 h-4" /> Attribute Mapping
                         </div>
 
@@ -233,7 +233,7 @@ export default function CRMSettingsPage() {
                         <button
                             onClick={handleSave}
                             disabled={saving}
-                            className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
+                            className="bg-primary hover:bg-primary disabled:bg-primary/30 text-primary-foreground font-bold py-3 px-8 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
                         >
                             <Save className="w-4 h-4" />
                             {saving ? "Saving..." : `Save ${activeProvider} Settings`}
@@ -250,39 +250,39 @@ function ProviderCard({ name, icon, isActive, connected, comingSoon, onClick }: 
         <button
             onClick={onClick}
             className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${isActive
-                ? 'bg-blue-500/10 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
+                ? 'bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
                 : comingSoon
-                    ? 'bg-white/5 border-white/10 opacity-60'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    ? 'bg-foreground/5 border-foreground/10 opacity-60'
+                    : 'bg-foreground/5 border-foreground/10 hover:bg-foreground/10'
                 }`}
         >
             <div className="flex items-center gap-4 text-left">
                 {icon}
                 <div>
-                    <div className="text-sm font-bold text-white">{name}</div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-sm font-bold text-foreground">{name}</div>
+                    <div className="text-[10px] text-muted-foreground">
                         {comingSoon ? 'Coming soon' : connected ? 'Connected' : 'Setup required'}
                     </div>
                 </div>
             </div>
-            {connected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+            {connected && <CheckCircle2 className="w-4 h-4 text-success" />}
         </button>
     );
 }
 
 function SyncToggle({ label, description, checked, onChange, disabled }: any) {
     return (
-        <div className={`flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 ${disabled ? "opacity-50" : ""}`}>
+        <div className={`flex items-center justify-between p-3 bg-foreground/5 rounded-xl border border-foreground/5 ${disabled ? "opacity-50" : ""}`}>
             <div>
-                <div className="text-white text-xs font-bold">{label}</div>
-                <div className="text-[10px] text-gray-400">{description}</div>
+                <div className="text-foreground text-xs font-bold">{label}</div>
+                <div className="text-[10px] text-muted-foreground">{description}</div>
             </div>
             <label className={`relative inline-flex items-center ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
                 {/* Disabled while a save is in flight - editing a toggle mid-save would get
                     silently reverted when the post-save refetch applies the stale snapshot
                     the in-flight request was actually sent with. */}
                 <input type="checkbox" className="sr-only peer" checked={Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-                <div className="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                <div className="w-8 h-4 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-border after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
             </label>
         </div>
     );
@@ -290,13 +290,13 @@ function SyncToggle({ label, description, checked, onChange, disabled }: any) {
 
 function MappingItem({ label, value, onChange }: any) {
     return (
-        <div className="flex items-center p-3 bg-slate-950/30 rounded-xl border border-white/5 gap-3">
-            <div className="flex-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest">{label}</div>
-            <ArrowRight className="w-3 h-3 text-gray-700" />
+        <div className="flex items-center p-3 bg-background/30 rounded-xl border border-foreground/5 gap-3">
+            <div className="flex-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</div>
+            <ArrowRight className="w-3 h-3 text-foreground" />
             <input
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-32 bg-transparent text-xs text-blue-400 font-mono focus:outline-none focus:text-blue-300"
+                className="w-32 bg-transparent text-xs text-primary font-mono focus:outline-none focus:text-primary"
             />
         </div>
     );

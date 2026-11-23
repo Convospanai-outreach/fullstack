@@ -88,7 +88,7 @@ export default function LandingAgentWireframesPage() {
                             Generate and compare three page directions, then open the selected one in editor.
                         </p>
                     </div>
-                    <Button onClick={handleGenerate} disabled={generating} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                    <Button onClick={handleGenerate} disabled={generating} className="bg-primary hover:bg-primary text-primary-foreground">
                         {generating ? "Generating..." : "Generate 3 Wireframes"}
                     </Button>
                 </div>

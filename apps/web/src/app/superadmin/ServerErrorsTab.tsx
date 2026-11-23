@@ -53,7 +53,7 @@ export default function ServerErrorsTab({ onLoggedOut }: { onLoggedOut: () => vo
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <AlertTriangle className="h-4 w-4 text-amber-300" />
+            <AlertTriangle className="h-4 w-4 text-warning" />
             Server Errors
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">

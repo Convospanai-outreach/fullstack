@@ -255,7 +255,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ConsentBanner measurementId={gaMeasurementId} />
           <a
             href="#main-content"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:shadow-xl focus:outline-none transition-all"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-foreground focus:rounded-lg focus:shadow-xl focus:outline-none transition-all"
           >
             Skip to main content
           </a>

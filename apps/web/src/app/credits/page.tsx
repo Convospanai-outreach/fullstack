@@ -86,7 +86,7 @@ export default function CreditsPage() {
                     email: "",
                 },
                 theme: {
-                    color: "#3b82f6",
+                    color: "#5C1A2B",
                 },
             };
 
@@ -108,42 +108,42 @@ export default function CreditsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Balance Card */}
-                <GlassCard className="lg:col-span-1 p-8 flex flex-col justify-between border-blue-500/20 bg-blue-500/5 relative overflow-hidden">
-                    <div className="absolute top-[-20px] right-[-20px] w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+                <GlassCard className="lg:col-span-1 p-8 flex flex-col justify-between border-primary/20 bg-primary/5 relative overflow-hidden">
+                    <div className="absolute top-[-20px] right-[-20px] w-40 h-40 bg-primary/10 rounded-full blur-3xl"></div>
                     <div>
-                        <div className="p-3 bg-blue-500/20 rounded-xl w-fit mb-6 text-blue-400">
+                        <div className="p-3 bg-primary/20 rounded-xl w-fit mb-6 text-primary">
                             <Coins className="w-8 h-8" />
                         </div>
-                        <h3 className="text-gray-400 font-medium mb-1">Available Credits</h3>
-                        <div className="text-5xl font-bold text-white tracking-tight">
+                        <h3 className="text-muted-foreground font-medium mb-1">Available Credits</h3>
+                        <div className="text-5xl font-bold text-foreground tracking-tight">
                             {loading ? "..." : balance?.toLocaleString()}
                         </div>
-                        <p className="text-sm text-gray-500 mt-4 flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-yellow-500" /> Auto-renews next billing cycle
+                        <p className="text-sm text-muted-foreground mt-4 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-warning" /> Auto-renews next billing cycle
                         </p>
                     </div>
                 </GlassCard>
 
                 {/* Bundle Options */}
                 <div className="lg:col-span-2 space-y-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Top-up Bundles</h3>
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Top-up Bundles</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {BUNDLES.map(bundle => (
                             <GlassCard
                                 key={bundle.id}
-                                className={`p-6 border-white/5 transition-all hover:border-blue-500/50 group ${bundle.popular ? 'bg-white/5 border-blue-500/30' : ''}`}
+                                className={`p-6 border-foreground/5 transition-all hover:border-primary/50 group ${bundle.popular ? 'bg-foreground/5 border-primary/30' : ''}`}
                             >
-                                <h4 className="font-bold text-white mb-1">{bundle.label}</h4>
-                                <div className="text-2xl font-bold text-blue-400 mb-2">
-                                    {bundle.credits.toLocaleString()} <span className="text-xs text-gray-500">Credits</span>
+                                <h4 className="font-bold text-foreground mb-1">{bundle.label}</h4>
+                                <div className="text-2xl font-bold text-primary mb-2">
+                                    {bundle.credits.toLocaleString()} <span className="text-xs text-muted-foreground">Credits</span>
                                 </div>
-                                <p className="text-xs text-gray-400 mb-6 h-8">{bundle.desc}</p>
+                                <p className="text-xs text-muted-foreground mb-6 h-8">{bundle.desc}</p>
                                 <button
                                     disabled={purchasing !== null}
                                     onClick={() => openTopUpModal(bundle)}
                                     className={`w-full py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${bundle.popular
-                                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                                        : 'bg-white/10 hover:bg-white/20 text-white'
+                                        ? 'bg-primary hover:bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                                        : 'bg-foreground/10 hover:bg-foreground/20 text-primary-foreground'
                                         }`}
                                 >
                                     {purchasing === bundle.id ? "Processing..." : `Buy for ₹${bundle.price}`}
@@ -158,43 +158,43 @@ export default function CreditsPage() {
             {/* History Table */}
             <GlassCard className="p-8">
                 <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                    <div className="p-2 bg-primary/20 rounded-lg text-primary">
                         <History className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-bold text-white">Transaction History</h3>
+                    <h3 className="text-xl font-bold text-foreground">Transaction History</h3>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b border-white/10 text-xs text-gray-500 uppercase tracking-wider">
+                            <tr className="border-b border-foreground/10 text-xs text-muted-foreground uppercase tracking-wider">
                                 <th className="pb-4 font-medium">Date</th>
                                 <th className="pb-4 font-medium">Description</th>
                                 <th className="pb-4 font-medium">Type</th>
                                 <th className="pb-4 font-medium text-right">Amount</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-foreground/5">
                             {history.map(tx => (
-                                <tr key={tx.id} className="text-sm group hover:bg-white/5 transition-colors">
-                                    <td className="py-4 text-gray-400">
+                                <tr key={tx.id} className="text-sm group hover:bg-foreground/5 transition-colors">
+                                    <td className="py-4 text-muted-foreground">
                                         {formatDistanceToNow(new Date(tx.createdAt), { addSuffix: true })}
                                     </td>
-                                    <td className="py-4 font-medium text-white">{tx.description}</td>
+                                    <td className="py-4 font-medium text-foreground">{tx.description}</td>
                                     <td className="py-4">
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${tx.type === 'topup' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${tx.type === 'topup' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
                                             }`}>
                                             {tx.type}
                                         </span>
                                     </td>
-                                    <td className={`py-4 text-right font-bold ${tx.amount > 0 ? 'text-green-400' : 'text-blue-400'}`}>
+                                    <td className={`py-4 text-right font-bold ${tx.amount > 0 ? 'text-success' : 'text-primary'}`}>
                                         {tx.amount > 0 ? `+${tx.amount}` : tx.amount}
                                     </td>
                                 </tr>
                             ))}
                             {history.length === 0 && !loading && (
                                 <tr>
-                                    <td colSpan={4} className="py-8 text-center text-gray-500 italic">
+                                    <td colSpan={4} className="py-8 text-center text-muted-foreground italic">
                                         No transactions yet.
                                     </td>
                                 </tr>
@@ -211,14 +211,14 @@ export default function CreditsPage() {
                 footer={
                     <>
                         <button
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10"
+                            className="px-4 py-2 rounded-lg text-sm font-medium text-foreground/80 hover:bg-foreground/10"
                             onClick={() => setBillingModalOpen(false)}
                         >
                             Cancel
                         </button>
                         <button
                             disabled={purchasing !== null || (billingCountry === "OTHER" && !billingCustomCountry.trim())}
-                            className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                            className="px-4 py-2 rounded-lg text-sm font-bold bg-primary hover:bg-primary text-primary-foreground disabled:opacity-50"
                             onClick={() => {
                                 setBillingModalOpen(false);
                                 if (pendingBundle) {
@@ -233,38 +233,38 @@ export default function CreditsPage() {
                 }
             >
                 <div className="space-y-4">
-                    <p className="text-xs text-gray-400">Used to determine GST treatment on your invoice.</p>
+                    <p className="text-xs text-muted-foreground">Used to determine GST treatment on your invoice.</p>
                     <div>
-                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <label className="text-xs font-semibold text-foreground block mb-1">Country</label>
                         <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                             value={billingCountry}
                             onChange={(e) => setBillingCountry(e.target.value)}
                         >
                             {BILLING_COUNTRIES.map((c) => (
-                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                                <option key={c.code} value={c.code} className="bg-background">{c.label}</option>
                             ))}
                         </select>
                     </div>
                     {billingCountry === "IN" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">State</label>
                             <select
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                                 value={billingState}
                                 onChange={(e) => setBillingState(e.target.value)}
                             >
                                 {INDIAN_STATES.map((s) => (
-                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                    <option key={s} value={s} className="bg-background">{s}</option>
                                 ))}
                             </select>
                         </div>
                     )}
                     {billingCountry === "OTHER" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">Country name</label>
                             <input
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg p-2 text-sm text-foreground"
                                 value={billingCustomCountry}
                                 onChange={(e) => setBillingCustomCountry(e.target.value)}
                                 placeholder="Enter your country"

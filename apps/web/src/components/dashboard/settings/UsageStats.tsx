@@ -60,7 +60,7 @@ export function UsageStats() {
                     <CardTitle>Available Credits</CardTitle>
                     <Link
                         href="/credits"
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary transition-colors"
                     >
                         <PlusCircle className="w-3.5 h-3.5" />
                         Top Up
@@ -74,7 +74,7 @@ export function UsageStats() {
                                 {lowCredits ? "Low balance - optimization active" : "Sufficient for execution"}
                             </p>
                         </div>
-                        <Zap className={`h-8 w-8 ${lowCredits ? "text-red-500" : "text-blue-500"}`} />
+                        <Zap className={`h-8 w-8 ${lowCredits ? "text-destructive" : "text-primary"}`} />
                     </div>
                 </CardContent>
             </Card>
@@ -111,7 +111,7 @@ export function UsageStats() {
                                 Semantic Cache is enabled
                             </p>
                         </div>
-                        <TrendingUp className="h-8 w-8 text-green-500" />
+                        <TrendingUp className="h-8 w-8 text-success" />
                     </div>
                 </CardContent>
             </Card>

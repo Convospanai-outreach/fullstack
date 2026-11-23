@@ -6,7 +6,6 @@ import {
     DollarSign,
     Target,
     PieChart,
-    Calendar,
     Download
 } from "lucide-react";
 import {
@@ -23,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
+import { formatCompact, formatCompactUsd, formatPercent } from "@/lib/formatNumber";
 import {
     XAxis,
     YAxis,
@@ -66,8 +66,8 @@ export default function ROIDashboardPage() {
         return () => ctrl.abort();
     }, [months]);
 
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+    const formatCurrency = formatCompactUsd;
+    const hasSpend = (data?.financials?.spend || 0) > 0;
 
     // Prevent CSV formula injection: a cell whose text starts with =, +, -, @, tab or CR can
     // be interpreted as a formula by Excel/Sheets when the file is opened. Prefixing
@@ -156,17 +156,16 @@ export default function ROIDashboardPage() {
             <AnalyticsTabs />
             <div className="flex justify-between items-end mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">Campaign ROI</h1>
+                    <h1 className="text-[40px] leading-[1.15] font-semibold text-foreground mb-1">Campaign ROI</h1>
                     <p className="text-muted-foreground max-w-xl">
                         Track the financial impact of your AI agents. Measure spend, attribution, and bottom-line revenue.
                     </p>
                 </div>
                 <div className="flex gap-2">
                     <div
-                        className="flex items-center gap-1 rounded-lg border border-border p-1"
+                        className="glass inline-flex items-center gap-[3px] rounded-[3px] p-[3px]"
                         title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
                     >
-                        <Calendar className="w-4 h-4 mx-2 text-muted-foreground" />
                         {MONTH_OPTIONS.map((opt) => (
                             <Button
                                 key={opt}
@@ -187,7 +186,7 @@ export default function ROIDashboardPage() {
             </div>
 
             {/* KPI Grid */}
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Lifetime totals</p>
+            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground mb-2">Lifetime totals</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
                     <>
@@ -207,14 +206,14 @@ export default function ROIDashboardPage() {
                         />
                         <StatCard
                             label="Return on Ad Spend"
-                            value={`${(data?.financials?.roi || 0).toFixed(1)}%`}
+                            value={hasSpend ? formatPercent(data?.financials?.roi ?? null) : "—"}
                             icon={TrendingUp}
-                            description="Efficiency Ratio"
+                            description={hasSpend ? "Efficiency Ratio" : "Shows after spend is recorded"}
                             trend={roiTrend}
                         />
                         <StatCard
                             label="Conversion Rate"
-                            value={`${(data?.funnel?.conversionRate || 0).toFixed(1)}%`}
+                            value={formatPercent(data?.funnel?.conversionRate ?? null)}
                             icon={Target}
                             description="Lead to Win Velocity"
                         />
@@ -237,23 +236,23 @@ export default function ROIDashboardPage() {
                                         <AreaChart data={data?.history}>
                                             <defs>
                                                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                                                 </linearGradient>
                                                 <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                            <XAxis dataKey="date" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                                            <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => formatCompactUsd(Number(val))} />
                                             <Tooltip
-                                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px' }}
-                                                itemStyle={{ color: '#fff' }}
+                                                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                                                itemStyle={{ color: 'hsl(var(--foreground))' }}
                                             />
-                                            <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
-                                            <Area type="monotone" dataKey="spend" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" name="Spend" />
+                                            <Area type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" name="Revenue" />
+                                            <Area type="monotone" dataKey="spend" stroke="hsl(var(--chart-2))" strokeWidth={3} fillOpacity={1} fill="url(#colorSpend)" name="Spend" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 )}
@@ -292,7 +291,7 @@ export default function ROIDashboardPage() {
                                                         {c.status}
                                                     </Badge>
                                                 </td>
-                                                <td className="py-3 text-right font-mono text-muted-foreground">{c.sent.toLocaleString()}</td>
+                                                <td className="py-3 text-right font-mono text-muted-foreground">{formatCompact(c.sent)}</td>
                                                 <td className="py-3 text-right font-mono text-foreground">
                                                     {c.openRate.toFixed(1)}%
                                                 </td>
@@ -319,24 +318,24 @@ export default function ROIDashboardPage() {
                             <div className="space-y-6 mt-2">
                                 {/* Funnel Steps */}
                                 <div className="relative">
-                                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 to-transparent opacity-30" />
+                                    <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary to-transparent opacity-30" />
 
                                     <FunnelStep
                                         label="Leads Contacted"
                                         count={data?.funnel?.totalSent || 0}
-                                        color="bg-blue-500"
+                                        color="bg-primary"
                                         percent={100}
                                     />
                                     <FunnelStep
                                         label="Opportunities"
                                         count={data?.funnel?.opportunities || 0}
-                                        color="bg-purple-500"
+                                        color="bg-primary"
                                         percent={data?.funnel?.totalSent ? (data.funnel.opportunities / data.funnel.totalSent * 100) : 0}
                                     />
                                     <FunnelStep
                                         label="Closed Won"
                                         count={data?.funnel?.wins || 0}
-                                        color="bg-emerald-500"
+                                        color="bg-success"
                                         percent={data?.funnel?.totalSent ? (data.funnel.wins / data.funnel.totalSent * 100) : 0}
                                     />
                                 </div>

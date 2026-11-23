@@ -72,20 +72,20 @@ export class ErrorBoundary extends Component<Props, State> {
 
             // Default error UI
             return (
-                <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+                <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-primary/80 to-background">
                     <GlassCard className="max-w-md w-full p-8">
                         <div className="text-center">
-                            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400" />
-                            <h1 className="text-2xl font-bold text-white mb-2">
+                            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+                            <h1 className="text-2xl font-bold text-foreground mb-2">
                                 Something went wrong
                             </h1>
-                            <p className="text-gray-400 mb-6">
+                            <p className="text-muted-foreground mb-6">
                                 We encountered an unexpected error. Please try again.
                             </p>
 
                             {process.env['NODE_ENV'] === 'development' && this.state.error && (
-                                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-left">
-                                    <p className="text-red-300 text-sm font-mono break-all">
+                                <div className="mb-6 p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-left">
+                                    <p className="text-destructive text-sm font-mono break-all">
                                         {this.state.error.message}
                                     </p>
                                 </div>

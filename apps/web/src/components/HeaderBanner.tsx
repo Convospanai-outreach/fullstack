@@ -6,7 +6,7 @@ export function HeaderBanner() {
                 CraftMyFunnel
             </h1>
 
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto mt-6 leading-relaxed">
+            <p className="text-xl text-foreground/80 max-w-3xl mx-auto mt-6 leading-relaxed">
                 The AI Agent Army that spans the conventions
                 from digital to real.
                 Assist. Orchestrate. Scale without gravity.

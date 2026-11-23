@@ -36,14 +36,14 @@ export default function OrgGraph() {
     const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
     const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
 
-    if (loading) return <div className="h-[500px] flex items-center justify-center text-white/50">Loading Organization Map...</div>;
+    if (loading) return <div className="h-[500px] flex items-center justify-center text-foreground/50">Loading Organization Map...</div>;
 
     return (
-        <div className="h-[600px] w-full bg-slate-900 rounded-xl border border-white/10 overflow-hidden">
-            <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded text-xs text-white">
-                <div className="flex items-center gap-2 mb-1"><div className="w-3 h-3 bg-blue-600 rounded"></div> Team</div>
-                <div className="flex items-center gap-2 mb-1"><div className="w-3 h-3 border border-gray-500 rounded"></div> User</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-500 rounded"></div> Campaign</div>
+        <div className="h-[600px] w-full bg-background rounded-xl border border-foreground/10 overflow-hidden">
+            <div className="absolute top-4 left-4 z-10 bg-foreground/50 p-2 rounded text-xs text-foreground">
+                <div className="flex items-center gap-2 mb-1"><div className="w-3 h-3 bg-primary rounded"></div> Team</div>
+                <div className="flex items-center gap-2 mb-1"><div className="w-3 h-3 border border-border rounded"></div> User</div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-primary rounded"></div> Campaign</div>
             </div>
             <ReactFlow
                 nodes={nodes}

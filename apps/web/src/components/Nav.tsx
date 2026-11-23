@@ -18,7 +18,7 @@ export default function Nav() {
         <div className="relative">
             <button 
                 onClick={() => setOpen(!open)} 
-                className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-slate-300 hover:text-white"
+                className="p-2.5 rounded-xl bg-foreground/5 border border-foreground/10 hover:bg-foreground/10 transition-colors text-foreground/80 hover:text-foreground"
             >
                 {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -29,7 +29,7 @@ export default function Nav() {
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute top-16 right-0 w-64 glass-premium rounded-3xl p-4 shadow-2xl border border-white/10 z-50 overflow-hidden"
+                        className="absolute top-16 right-0 w-64 glass-premium rounded-3xl p-4 shadow-2xl border border-foreground/10 z-50 overflow-hidden"
                     >
                         <div className="flex flex-col gap-2 relative z-10">
                             {links.map((link, idx) => (
@@ -42,9 +42,9 @@ export default function Nav() {
                                     <Link 
                                         href={link.href}
                                         onClick={() => setOpen(false)}
-                                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-500/10 text-slate-400 hover:text-white transition-all group/nav"
+                                        className="flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-foreground transition-all group/nav"
                                     >
-                                        <div className="p-2 rounded-lg bg-white/5 group-hover/nav:bg-indigo-500/20 group-hover/nav:text-indigo-400 transition-colors">
+                                        <div className="p-2 rounded-lg bg-foreground/5 group-hover/nav:bg-primary/20 group-hover/nav:text-primary transition-colors">
                                             <link.icon className="w-4 h-4" />
                                         </div>
                                         <span className="text-sm font-bold font-outfit">{link.label}</span>

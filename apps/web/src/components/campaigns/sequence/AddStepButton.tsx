@@ -27,7 +27,7 @@ export default function AddStepButton({
                 <button
                     type="button"
                     disabled={disabled}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/50 px-4 py-2 text-sm font-medium text-blue-500 transition hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 px-4 py-2 text-sm font-medium text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Plus className="h-4 w-4" /> Add step
                 </button>

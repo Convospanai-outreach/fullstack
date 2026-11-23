@@ -104,7 +104,7 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
       <p className="mt-1 mb-4 text-sm text-muted-foreground">{subline}</p>
 
       {items.length === 0 ? (
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="glass flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-success" />
             <div>
@@ -130,7 +130,7 @@ export function NeedsYou({ hasLeads }: { hasLeads: boolean }) {
             .map((item) => {
               const entries = cardDraft && item.type === "approvals" ? item.top.slice(1) : item.top;
               return (
-            <div key={item.type} className="rounded-lg border border-border bg-card p-4">
+            <div key={item.type} className="glass p-4">
               <div className="mb-2 flex items-baseline justify-between gap-2">
                 <Link href={item.href} className="text-sm font-medium text-foreground hover:text-primary">
                   {cardDraft && item.type === "approvals" ? "More waiting for your approval" : LABELS[item.type]}

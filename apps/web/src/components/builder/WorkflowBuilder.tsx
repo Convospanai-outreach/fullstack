@@ -110,17 +110,17 @@ export default function WorkflowBuilder() {
     };
 
     return (
-        <div className="h-[600px] w-full border border-gray-700 rounded-lg overflow-hidden bg-gray-900 text-white flex flex-col">
-            <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+        <div className="h-[600px] w-full border border-border rounded-lg overflow-hidden bg-background text-foreground flex flex-col">
+            <div className="p-4 bg-card border-b border-border flex justify-between items-center">
                 <div className="flex gap-2">
-                    <button onClick={() => addNode("New Action")} className="px-3 py-1.5 bg-blue-600 rounded hover:bg-blue-500 text-sm">
+                    <button onClick={() => addNode("New Action")} className="px-3 py-1.5 bg-primary rounded hover:bg-primary text-sm">
                         + Action
                     </button>
-                    <button onClick={() => addNode("Condition")} className="px-3 py-1.5 bg-purple-600 rounded hover:bg-purple-500 text-sm">
+                    <button onClick={() => addNode("Condition")} className="px-3 py-1.5 bg-primary rounded hover:bg-primary text-sm">
                         + Condition
                     </button>
                     <select
-                        className="px-3 py-1.5 bg-gray-700 rounded text-sm outline-none"
+                        className="px-3 py-1.5 bg-secondary rounded text-sm outline-none"
                         onChange={(e) => loadTemplate(e.target.value as any)}
                         defaultValue=""
                     >
@@ -130,7 +130,7 @@ export default function WorkflowBuilder() {
                         <option value="tax">Tax Filing Query</option>
                     </select>
                 </div>
-                <button onClick={saveWorkflow} className="px-4 py-1.5 bg-green-600 rounded hover:bg-green-500 text-sm font-semibold">
+                <button onClick={saveWorkflow} className="px-4 py-1.5 bg-success rounded hover:bg-success text-sm font-semibold">
                     Save to Edge Node
                 </button>
             </div>

@@ -114,7 +114,7 @@ export function SovereignConsole() {
                     <p className="text-muted-foreground font-medium">Real-time local intelligence and privacy orchestration</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === "ONLINE" ? "bg-emerald-100 border-emerald-200 text-emerald-700" : "bg-red-100 border-red-200 text-red-700"}`}>
+                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === "ONLINE" ? "bg-success/10 border-success/30 text-success" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
                         <Cpu className={`w-5 h-5 ${piStatus === "ONLINE" ? "animate-pulse" : ""}`} />
                         <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
                     </div>
@@ -124,8 +124,8 @@ export function SovereignConsole() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-emerald-700 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-emerald-100">
+                        <CardTitle className="flex items-center gap-3 text-success font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-success/10">
                                 <ShieldCheck className="w-5 h-5" />
                             </div>
                             Sovereign Firewall
@@ -137,9 +137,9 @@ export function SovereignConsole() {
                             <div className="flex justify-between items-center py-3 border-b border-border">
                                 <span className="text-sm font-bold text-muted-foreground">Status</span>
                                 {edgeStatus === "UP" ? (
-                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3">Active (edge node)</Badge>
+                                    <Badge className="bg-success/10 text-success border-success/30 px-3">Active (edge node)</Badge>
                                 ) : edgeStatus === "DOWN" ? (
-                                    <Badge className="bg-red-100 text-red-700 border-red-200 px-3">Edge node down, AI calls blocked</Badge>
+                                    <Badge className="bg-destructive/10 text-destructive border-destructive/30 px-3">Edge node down, AI calls blocked</Badge>
                                 ) : (
                                     <Badge className="bg-muted text-muted-foreground border-border px-3">Not configured</Badge>
                                 )}
@@ -150,7 +150,7 @@ export function SovereignConsole() {
                             </div>
                             <div className="flex justify-between items-center py-3">
                                 <span className="text-sm font-bold text-muted-foreground">Last PII Blocked</span>
-                                <span className="text-xs font-mono text-indigo-600">Recent</span>
+                                <span className="text-xs font-mono text-primary">Recent</span>
                             </div>
                         </div>
                     </CardContent>
@@ -158,8 +158,8 @@ export function SovereignConsole() {
 
                 <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-orange-700 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-orange-100">
+                        <CardTitle className="flex items-center gap-3 text-warning font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-warning/10">
                                 <Radio className="w-5 h-5" />
                             </div>
                             Sentinel Events
@@ -176,7 +176,7 @@ export function SovereignConsole() {
                             {audits.map((event) => (
                                 <div key={event.id} className="group relative p-3 rounded-xl bg-muted border border-border hover:bg-accent transition-all">
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
+                                        <span className="text-[10px] font-black text-warning uppercase tracking-tighter">
                                             {event.status}
                                         </span>
                                         <Badge variant="outline" className="text-[8px] h-4 border-border text-muted-foreground uppercase">{event.score}</Badge>
@@ -190,8 +190,8 @@ export function SovereignConsole() {
 
                 <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-purple-700 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-purple-100">
+                        <CardTitle className="flex items-center gap-3 text-primary font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-primary/10">
                                 <Activity className="w-5 h-5" />
                             </div>
                             Signal Feed
@@ -209,7 +209,7 @@ export function SovereignConsole() {
                                 <div key={signal.id} className="p-4 rounded-2xl bg-muted border border-border hover:border-primary/30 transition-all">
                                     <div className="flex justify-between mb-2">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{signal.source}</span>
-                                        <span className="text-[10px] font-bold text-indigo-600/70">{signal.time}</span>
+                                        <span className="text-[10px] font-bold text-primary/70">{signal.time}</span>
                                     </div>
                                     <p className="text-xs font-bold text-foreground mb-3 line-clamp-2 leading-relaxed">"{signal.context}"</p>
                                     <div className="flex items-center justify-between">
@@ -229,7 +229,7 @@ export function SovereignConsole() {
                 <Card>
                     <CardHeader className="py-4">
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-yellow-500" />
+                            <Activity className="w-4 h-4 text-warning" />
                             ORCHESTRATION_QUEUE
                         </CardTitle>
                     </CardHeader>
@@ -238,7 +238,7 @@ export function SovereignConsole() {
                             <span className="text-5xl font-black text-foreground">{queueDepth}</span>
                             <div className="pb-1">
                                 <p className="text-xs text-muted-foreground uppercase tracking-widest">Pending Tasks</p>
-                                <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-mono">Latency: live queue</p>
+                                <p className="text-[10px] text-success dark:text-success font-mono">Latency: live queue</p>
                             </div>
                         </div>
                     </CardContent>
@@ -247,7 +247,7 @@ export function SovereignConsole() {
                 <Card>
                     <CardHeader className="py-4">
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
-                            <ShieldAlert className="w-4 h-4 text-orange-500" />
+                            <ShieldAlert className="w-4 h-4 text-warning" />
                             RATE_LIMIT_STATUS
                         </CardTitle>
                     </CardHeader>
@@ -270,15 +270,15 @@ export function SovereignConsole() {
                     {mounted && (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={roiHistory}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" vertical={false} />
-                                <XAxis dataKey="time" stroke="#78716C" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#78716C" fontSize={12} tickLine={false} axisLine={false} unit="$" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                                <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} unit="$" />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E5E4" }}
+                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                                     itemStyle={{ fontSize: "12px" }}
                                 />
-                                <Line type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={2} dot={false} name="Revenue" />
-                                <Line type="monotone" dataKey="spend" stroke="#DC2626" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Spend" />
+                                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} name="Revenue" />
+                                <Line type="monotone" dataKey="spend" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Spend" />
                             </LineChart>
                         </ResponsiveContainer>
                     )}
@@ -300,7 +300,7 @@ function FrictionBar({ percent }: { percent: number }) {
     return (
         <div
             ref={barRef}
-            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-1000"
+            className="h-full bg-gradient-to-r from-primary to-primary/60 shadow-[0_0_10px_hsl(var(--primary)/0.5)] transition-all duration-1000"
             title={`Friction: ${percent}%`}
         />
     );

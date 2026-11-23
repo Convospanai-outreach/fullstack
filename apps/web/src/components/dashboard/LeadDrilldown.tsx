@@ -48,7 +48,7 @@ export function LeadDrilldown({ lead, onClose }: LeadDrilldownProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 bg-foreground/60 z-40" onClick={onClose} aria-hidden="true" />
       <aside className="fixed top-0 right-0 bottom-0 w-[320px] bg-card border-l border-border z-50 flex flex-col p-5">
         <div className="flex items-start justify-between">
           <div>

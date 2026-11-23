@@ -7,7 +7,7 @@ import { LogoMark } from "@/components/brand/LogoMark";
 type Fields = { firstName: string; lastName: string; phone: string; company: string };
 
 const inputClass =
-    "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-blue-400 focus:outline-none";
+    "w-full rounded-lg border border-foreground/10 bg-foreground/5 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/30 focus:outline-none";
 
 export default function CompleteProfileForm({ initial, nextPath }: { initial: Fields; nextPath: string }) {
     const router = useRouter();
@@ -43,7 +43,7 @@ export default function CompleteProfileForm({ initial, nextPath }: { initial: Fi
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 text-foreground">
             <form onSubmit={submit} className="w-full max-w-md space-y-4">
                 <div className="mb-2 flex items-center justify-center gap-2 text-xl font-black">
                     <LogoMark priority className="h-9 w-9" />
@@ -56,11 +56,11 @@ export default function CompleteProfileForm({ initial, nextPath }: { initial: Fi
                 </div>
                 <input required aria-label="Company name" placeholder="Company name" autoComplete="organization" className={inputClass} value={fields.company} onChange={set("company")} />
                 <input required aria-label="Phone number" placeholder="Phone number" type="tel" autoComplete="tel" className={inputClass} value={fields.phone} onChange={set("phone")} />
-                {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+                {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 <button
                     type="submit"
                     disabled={saving}
-                    className="w-full rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200 disabled:opacity-60"
+                    className="w-full rounded-lg bg-card px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary disabled:opacity-60"
                 >
                     {saving ? "Saving..." : "Continue"}
                 </button>

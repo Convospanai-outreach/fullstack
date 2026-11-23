@@ -25,12 +25,12 @@ export function DomainHealthBanner() {
 
   if (!banner) return null;
   return (
-    <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-      <p className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300">
+    <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
+      <p className="flex items-start gap-2 text-xs text-warning dark:text-warning">
         <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>{banner.text}</span>
       </p>
-      <Link href="/settings/domain-health" className="shrink-0 rounded-md border border-amber-500/40 px-2.5 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-500/10 dark:text-amber-300">
+      <Link href="/settings/domain-health" className="shrink-0 rounded-md border border-warning/40 px-2.5 py-1 text-[11px] font-medium text-warning hover:bg-warning/10 dark:text-warning">
         Check domains →
       </Link>
     </div>

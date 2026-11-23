@@ -112,23 +112,23 @@ export default function UserManagementPage() {
     };
 
     return (
-        <div className="p-8 min-h-screen bg-black relative overflow-hidden">
+        <div className="p-8 min-h-screen bg-foreground relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
             </div>
 
             <div className="relative z-10 max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <SectionHeader title="User Management" subtitle="Invite-only Admin Console" />
                     <div className="flex gap-3">
-                        <Link href="/admin/invites" className="border border-white/10 text-white px-4 py-2 rounded-lg font-medium transition-colors hover:bg-white/5">
+                        <Link href="/admin/invites" className="border border-foreground/10 text-foreground px-4 py-2 rounded-lg font-medium transition-colors hover:bg-foreground/5">
                             View Invites
                         </Link>
                         <button
                             onClick={() => setShowCreate(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors"
                         >
                             + Invite User
                         </button>
@@ -136,11 +136,11 @@ export default function UserManagementPage() {
                 </div>
 
                 {latestInviteLink && (
-                    <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-100">
+                    <div className="mb-6 rounded-xl border border-success/20 bg-success/10 p-4 text-success">
                         <div className="mb-2 text-sm font-semibold">Invite link</div>
                         <div className="flex gap-2">
-                            <input readOnly value={latestInviteLink} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
-                            <button onClick={() => navigator.clipboard.writeText(latestInviteLink)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-500">
+                            <input readOnly value={latestInviteLink} className="min-w-0 flex-1 rounded-lg border border-foreground/10 bg-foreground/30 px-3 py-2 text-sm text-foreground" />
+                            <button onClick={() => navigator.clipboard.writeText(latestInviteLink)} className="rounded-lg bg-success px-3 py-2 text-sm text-primary-foreground hover:bg-success">
                                 Copy
                             </button>
                         </div>
@@ -149,26 +149,26 @@ export default function UserManagementPage() {
 
                 {/* Create User Modal */}
                 {showCreate && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                        <div className="bg-gray-900 border border-white/10 p-8 rounded-xl w-full max-w-md">
-                            <h3 className="text-xl font-bold text-white mb-6">Invite User</h3>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-sm">
+                        <div className="bg-background border border-foreground/10 p-8 rounded-xl w-full max-w-md">
+                            <h3 className="text-xl font-bold text-foreground mb-6">Invite User</h3>
                             <form onSubmit={handleCreate} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Email</label>
+                                    <label className="block text-sm text-muted-foreground mb-1">Email</label>
                                     <input
                                         type="email"
                                         value={newUser.email}
                                         onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-4 py-2 text-foreground"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Enterprise Role</label>
+                                    <label className="block text-sm text-muted-foreground mb-1">Enterprise Role</label>
                                     <select
                                         value={newUser.enterpriseRole}
                                         onChange={(e) => setNewUser({ ...newUser, enterpriseRole: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                        className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-4 py-2 text-foreground"
                                     >
                                         {enterpriseRoleOptions.map((role) => (
                                             <option key={role} value={role}>
@@ -181,13 +181,13 @@ export default function UserManagementPage() {
                                     <button
                                         type="button"
                                         onClick={() => setShowCreate(false)}
-                                        className="flex-1 px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/5"
+                                        className="flex-1 px-4 py-2 rounded-lg border border-foreground/10 text-foreground hover:bg-foreground/5"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                                        className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
                                     >
                                         Send Invite
                                     </button>
@@ -198,9 +198,9 @@ export default function UserManagementPage() {
                 )}
 
                 {/* Users Table */}
-                <div className="glass rounded-xl border border-white/10 overflow-hidden">
+                <div className="glass rounded-xl border border-foreground/10 overflow-hidden">
                     <table className="w-full text-left">
-                        <thead className="bg-white/5 text-gray-400 text-sm uppercase">
+                        <thead className="bg-foreground/5 text-muted-foreground text-sm uppercase">
                             <tr>
                                 <th className="px-6 py-4">User</th>
                                 <th className="px-6 py-4">Role</th>
@@ -210,18 +210,18 @@ export default function UserManagementPage() {
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/10">
+                        <tbody className="divide-y divide-foreground/10">
                             {loading ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>Loading users...</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={6}>Loading users...</td></tr>
                             ) : error ? (
-                                <tr><td className="px-6 py-6 text-red-400" colSpan={6}>{error}</td></tr>
+                                <tr><td className="px-6 py-6 text-destructive" colSpan={6}>{error}</td></tr>
                             ) : users.length === 0 ? (
-                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>No users yet.</td></tr>
+                                <tr><td className="px-6 py-6 text-muted-foreground" colSpan={6}>No users yet.</td></tr>
                             ) : users.map((user) => (
-                                <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                                <tr key={user.id} className="hover:bg-foreground/5 transition-colors">
                                     <td className="px-6 py-4">
-                                        <div className="text-white font-medium">{user.name || "Unknown"}</div>
-                                        <div className="text-gray-400 text-sm">{user.email}</div>
+                                        <div className="text-foreground font-medium">{user.name || "Unknown"}</div>
+                                        <div className="text-muted-foreground text-sm">{user.email}</div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <select
@@ -235,7 +235,7 @@ export default function UserManagementPage() {
                                                     }
                                                 }))
                                             }
-                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                                            className="bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm"
                                         >
                                             {roleOptions.map((role) => (
                                                 <option key={role} value={role}>
@@ -256,7 +256,7 @@ export default function UserManagementPage() {
                                                     }
                                                 }))
                                             }
-                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                                            className="bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm"
                                         >
                                             {enterpriseRoleOptions.map((role) => (
                                                 <option key={role} value={role}>
@@ -265,16 +265,16 @@ export default function UserManagementPage() {
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="px-6 py-4 text-gray-400 text-sm">
+                                    <td className="px-6 py-4 text-muted-foreground text-sm">
                                         {new Date(user.createdAt).toLocaleDateString()}
                                     </td>
-                                    <td className="px-6 py-4 text-right text-gray-400 text-sm">
+                                    <td className="px-6 py-4 text-right text-muted-foreground text-sm">
                                         {user.memberships?.length || 0}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button
                                             onClick={() => handleRoleUpdate(user.id)}
-                                            className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+                                            className="px-3 py-1.5 rounded-lg bg-foreground/10 text-foreground text-sm hover:bg-foreground/20"
                                         >
                                             Save
                                         </button>

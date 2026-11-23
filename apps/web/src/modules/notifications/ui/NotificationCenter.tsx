@@ -106,7 +106,7 @@ export default function NotificationCenter() {
                     background: "#fff",
                     borderRadius: 8,
                     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    border: "1px solid #eee",
+                    border: '1px solid hsl(var(--border))',
                     zIndex: 1000
                 }}>
                     <div style={{ padding: "12px 16px", borderBottom: "1px solid #eee", fontWeight: 600 }}>

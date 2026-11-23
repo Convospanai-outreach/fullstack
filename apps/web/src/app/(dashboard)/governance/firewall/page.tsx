@@ -53,7 +53,7 @@ export default function FirewallPage() {
                     <CardContent>
                         {events.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-[200px] text-center">
-                                <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
+                                <CheckCircle2 className="w-8 h-8 text-success mb-2" />
                                 <p className="text-foreground font-semibold text-sm">All Traffic Clean</p>
                                 <p className="text-muted-foreground text-xs mt-1">No prompt injection or PII leakage detected in active sessions.</p>
                             </div>
@@ -62,7 +62,7 @@ export default function FirewallPage() {
                                 {events.map((event, i) => (
                                     <div key={i} className="flex justify-between items-center p-4 bg-muted border border-border rounded-xl">
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-red-500/10 p-2 rounded-lg text-red-400">
+                                            <div className="bg-destructive/10 p-2 rounded-lg text-destructive">
                                                 <EyeOff className="w-5 h-5" />
                                             </div>
                                             <div>

@@ -55,37 +55,37 @@ export class StrictQualityBoundary extends Component<BoundaryProps, BoundaryStat
           initial={{ opacity: 0, filter: "blur(10px)" }}
           animate={{ opacity: 1, filter: "blur(0px)" }}
           transition={{ type: "tween", ease: [0.16, 1, 0.3, 1], duration: 1.2 }}
-          className="relative flex flex-col items-start justify-center w-full min-h-[400px] p-12 bg-black border-[0.5px] border-rose-500/20 overflow-hidden"
+          className="relative flex flex-col items-start justify-center w-full min-h-[400px] p-12 bg-foreground border-[0.5px] border-chart-4/20 overflow-hidden"
         >
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(244,63,94,0.03)_50%,transparent_75%)] bg-[length:4px_4px]" />
+          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,hsl(var(--destructive)/0.03)_50%,transparent_75%)] bg-[length:4px_4px]" />
           
           <div className="relative z-10 flex flex-col gap-6">
-            <div className="inline-flex items-center gap-3 border-[0.5px] border-rose-500/40 bg-rose-500/10 px-3 py-1">
-              <span className="animate-pulse w-2 h-2 bg-rose-500" />
-              <span className="font-mono text-[10px] text-rose-400 uppercase tracking-[0.3em]">
+            <div className="inline-flex items-center gap-3 border-[0.5px] border-chart-4/40 bg-chart-4/10 px-3 py-1">
+              <span className="animate-pulse w-2 h-2 bg-chart-4" />
+              <span className="font-mono text-[10px] text-chart-4 uppercase tracking-[0.3em]">
                 System Fragmentation
               </span>
             </div>
             
             <div className="space-y-2">
-              <h2 className="text-3xl font-light tracking-tighter text-zinc-100 font-mono">
+              <h2 className="text-3xl font-light tracking-tighter text-foreground font-mono">
                 Boundary Fault Detected.
               </h2>
-              <p className="text-zinc-500 max-w-md text-sm leading-relaxed">
+              <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
                 The {this.props.moduleName} module experienced a critical execution failure. Telemetry has been dispatched to the engineering grid.
               </p>
             </div>
 
             <div className="flex flex-col gap-1 mt-4">
-              <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest">Incident Hash</span>
-              <span className="text-xs text-zinc-400 font-mono bg-white/5 px-2 py-1 border-[0.5px] border-white/10 w-fit">
+              <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">Incident Hash</span>
+              <span className="text-xs text-muted-foreground font-mono bg-foreground/5 px-2 py-1 border-[0.5px] border-foreground/10 w-fit">
                 {this.state.errorId}
               </span>
             </div>
 
             <button 
               onClick={() => this.setState({ hasError: false, errorId: null })}
-              className="mt-8 px-6 py-3 border-[0.5px] border-white/20 text-xs font-mono uppercase tracking-widest text-zinc-300 hover:bg-white/5 hover:text-white transition-all duration-300"
+              className="mt-8 px-6 py-3 border-[0.5px] border-foreground/20 text-xs font-mono uppercase tracking-widest text-foreground/80 hover:bg-foreground/5 hover:text-foreground transition-all duration-300"
             >
               Reinitialize Module
             </button>

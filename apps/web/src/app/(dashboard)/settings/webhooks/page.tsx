@@ -145,21 +145,21 @@ export default function WebhooksPage() {
                         </h3>
                         <button
                             onClick={() => setShowCreate(!showCreate)}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-bold transition-all flex items-center gap-2"
+                            className="px-3 py-1.5 bg-primary hover:bg-primary rounded text-xs font-bold transition-all flex items-center gap-2"
                         >
                             <Plus className="w-4 h-4" /> Add Webhook
                         </button>
                     </div>
 
                     {showCreate && (
-                        <GlassCard className="p-6 border-blue-500/20 bg-blue-500/5 animate-in fade-in slide-in-from-top-4 duration-300">
+                        <GlassCard className="p-6 border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-4 duration-300">
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-[10px] text-muted-foreground uppercase font-bold mb-1 block">Endpoint URL</label>
                                     <input
                                         type="url"
                                         placeholder="https://api.yourdomain.com/webhooks"
-                                        className="w-full bg-background border border-input rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
+                                        className="w-full bg-card border border-input rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary"
                                         value={newUrl}
                                         onChange={e => setNewUrl(e.target.value)}
                                     />
@@ -172,7 +172,7 @@ export default function WebhooksPage() {
                                                 key={ev.id}
                                                 onClick={() => toggleEvent(ev.id)}
                                                 className={`text-left px-3 py-2 rounded-lg text-xs font-medium transition-all ${selectedEvents.includes(ev.id)
-                                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                                    ? 'bg-primary/20 text-primary border border-primary/30'
                                                     : 'bg-muted text-muted-foreground border border-transparent hover:bg-muted'
                                                     }`}
                                             >
@@ -183,7 +183,7 @@ export default function WebhooksPage() {
                                 </div>
                                 <div className="flex justify-end gap-3 pt-2">
                                     <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-                                    <button onClick={handleCreate} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold">Create</button>
+                                    <button onClick={handleCreate} className="px-4 py-2 bg-primary hover:bg-primary rounded-lg text-xs font-bold">Create</button>
                                 </div>
                             </div>
                         </GlassCard>
@@ -193,7 +193,7 @@ export default function WebhooksPage() {
                         {webhooks.map(wh => (
                             <GlassCard
                                 key={wh.id}
-                                className={`p-4 border-border transition-all hover:border-border ${activeWebhookId === wh.id ? 'border-blue-500/50 bg-blue-500/5' : ''}`}
+                                className={`p-4 border-border transition-all hover:border-border ${activeWebhookId === wh.id ? 'border-primary/50 bg-primary/5' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-4">
@@ -219,7 +219,7 @@ export default function WebhooksPage() {
                                                     </code>
                                                     <button
                                                         onClick={() => rotateSecret(wh.id)}
-                                                        className="text-[9px] text-primary hover:text-blue-300 font-bold uppercase"
+                                                        className="text-[9px] text-primary hover:text-primary font-bold uppercase"
                                                     >
                                                         Rotate
                                                     </button>
@@ -230,7 +230,7 @@ export default function WebhooksPage() {
                                     <div className="flex gap-1">
                                         <button
                                             onClick={() => sendTest(wh.id)}
-                                            className="p-2 text-primary hover:text-blue-300 hover:bg-blue-400/10 rounded"
+                                            className="p-2 text-primary hover:text-primary hover:bg-primary/10 rounded"
                                             title="Send Test Event"
                                         >
                                             <Zap className="w-4 h-4" />
@@ -244,7 +244,7 @@ export default function WebhooksPage() {
                                         </button>
                                         <button
                                             onClick={() => handleDelete(wh.id)}
-                                            className="p-2 text-destructive/50 hover:text-destructive hover:bg-red-400/10 rounded"
+                                            className="p-2 text-destructive/50 hover:text-destructive hover:bg-destructive/10 rounded"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -310,14 +310,14 @@ export default function WebhooksPage() {
                                             <div className="pt-2 border-t border-border space-y-2 animated fadeIn">
                                                 <div className="space-y-1">
                                                     <div className="text-[9px] text-muted-foreground uppercase font-bold">Payload</div>
-                                                    <pre className="text-[9px] bg-background p-2 rounded text-blue-200 overflow-x-auto">
+                                                    <pre className="text-[9px] bg-background p-2 rounded text-primary overflow-x-auto">
                                                         {JSON.stringify(log.payload, null, 2)}
                                                     </pre>
                                                 </div>
                                                 {log.response && (
                                                     <div className="space-y-1">
                                                         <div className="text-[9px] text-muted-foreground uppercase font-bold">Response</div>
-                                                        <pre className="text-[9px] bg-background p-2 rounded text-emerald-200 overflow-x-auto">
+                                                        <pre className="text-[9px] bg-background p-2 rounded text-success overflow-x-auto">
                                                             {typeof log.response === 'string' ? log.response : JSON.stringify(log.response, null, 2)}
                                                         </pre>
                                                     </div>

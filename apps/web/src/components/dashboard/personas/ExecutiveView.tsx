@@ -70,23 +70,23 @@ export default function ExecutiveView() {
                             <LineChart data={trends}>
                                 <defs>
                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                                <XAxis dataKey="date" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}
-                                    itemStyle={{ color: '#fff' }}
+                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="value"
-                                    stroke="#6366f1"
+                                    stroke="hsl(var(--chart-1))"
                                     strokeWidth={3}
-                                    dot={{ r: 4, fill: "#6366f1" }}
+                                    dot={{ r: 4, fill: "hsl(var(--chart-1))" }}
                                     activeDot={{ r: 8 }}
                                 />
                             </LineChart>
@@ -96,10 +96,10 @@ export default function ExecutiveView() {
 
                 {/* Account Health & Recommendations */}
                 <div className="space-y-6">
-                    <Card className="border-l-4 border-l-emerald-500">
+                    <Card className="border-l-4 border-l-success/30">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <ActivityIcon className="text-emerald-500 w-5 h-5" />
+                                <ActivityIcon className="text-success w-5 h-5" />
                                 Pipeline Health
                             </CardTitle>
                         </CardHeader>

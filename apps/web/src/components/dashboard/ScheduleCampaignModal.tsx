@@ -60,7 +60,7 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/60 backdrop-blur-sm animate-in fade-in">
             <div className="glass w-full max-w-md p-6 rounded-2xl relative border border-border shadow-2xl">
                 <button
                     onClick={onClose}
@@ -71,7 +71,7 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
 
                 <div className="mb-6">
                     <h2 className="text-xl font-bold text-foreground mb-1">Schedule Campaign</h2>
-                    <p className="text-sm text-muted-foreground">Run <span className="text-purple-600 font-medium">{campaignName}</span> automatically at a future time.</p>
+                    <p className="text-sm text-muted-foreground">Run <span className="text-primary font-medium">{campaignName}</span> automatically at a future time.</p>
                 </div>
 
                 <form onSubmit={handleSchedule} className="space-y-6">
@@ -84,7 +84,7 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
                                 type="datetime-local"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all [color-scheme:light]"
+                                className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all [color-scheme:light]"
                                 required
                                 min={new Date().toISOString().slice(0, 16)}
                             />

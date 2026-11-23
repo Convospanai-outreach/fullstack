@@ -24,30 +24,30 @@ export function NudgeBar() {
             text: "You have 5 agent actions awaiting your approval in the Governance Gate.",
             actionLabel: "Review Now",
             icon: Zap,
-            border: "border-amber-500",
-            bg: "bg-amber-50/60",
-            iconBg: "bg-amber-100",
-            iconText: "text-amber-700"
+            border: "border-warning/30",
+            bg: "bg-warning/60",
+            iconBg: "bg-warning/10",
+            iconText: "text-warning"
         },
         {
             id: 'linkedin',
             text: "Your LinkedIn session is expiring in 2 hours. Refresh now to prevent downtime.",
             actionLabel: "Refresh",
             icon: Bell,
-            border: "border-blue-500",
-            bg: "bg-blue-50/60",
-            iconBg: "bg-blue-100",
-            iconText: "text-blue-700"
+            border: "border-primary/30",
+            bg: "bg-primary/60",
+            iconBg: "bg-primary/10",
+            iconText: "text-primary"
         },
         {
             id: 'campaign',
             text: "A campaign is paused due to high friction. Review the Phi-3 verdict.",
             actionLabel: "View Details",
             icon: Lightbulb,
-            border: "border-purple-500",
-            bg: "bg-purple-50/60",
-            iconBg: "bg-purple-100",
-            iconText: "text-purple-700"
+            border: "border-primary/30",
+            bg: "bg-primary/60",
+            iconBg: "bg-primary/10",
+            iconText: "text-primary"
         }
     ];
 
@@ -101,7 +101,7 @@ export function NudgeBar() {
                 <Button
                     variant="outline"
                     size="sm"
-                    className="bg-background hover:bg-primary hover:text-white transition-all group-hover:px-6 rounded-xl font-bold font-outfit text-xs px-4 py-5"
+                    className="bg-background hover:bg-primary hover:text-primary-foreground transition-all group-hover:px-6 rounded-xl font-bold font-outfit text-xs px-4 py-5"
                 >
                     {nudge.actionLabel}
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

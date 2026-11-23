@@ -93,10 +93,10 @@ export function Omnibox() {
     };
 
     const quickActions = [
-        { label: "Create Campaign", icon: Megaphone, color: "text-purple-400", href: "/campaigns/new" },
-        { label: "Add Lead", icon: Users, color: "text-blue-400", href: "/leads/new" },
-        { label: "Configure Workflow", icon: Workflow, color: "text-emerald-400", href: "/workflows" },
-        { label: "Knowledge Base", icon: Database, color: "text-amber-400", href: "/knowledge" },
+        { label: "Create Campaign", icon: Megaphone, color: "text-primary", href: "/campaigns/new" },
+        { label: "Add Lead", icon: Users, color: "text-primary", href: "/leads/new" },
+        { label: "Configure Workflow", icon: Workflow, color: "text-success", href: "/workflows" },
+        { label: "Knowledge Base", icon: Database, color: "text-warning", href: "/knowledge" },
     ];
 
     // Static pages + tools — jump-to navigation, no network round-trip needed. Covers every
@@ -178,7 +178,7 @@ export function Omnibox() {
                         onChange={(e) => setQuery(e.target.value)}
                     />
                     {loading ? (
-                        <Loader2 className="w-5 h-5 text-brand-500 animate-spin" />
+                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
                     ) : (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded border border-border">
                             <Command className="w-3 h-3 text-muted-foreground" />
@@ -216,11 +216,11 @@ export function Omnibox() {
                                         <button
                                             key={idx}
                                             onClick={() => handleSelect(item)}
-                                            className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${selectedIndex === idx ? "bg-brand-500/10 border-brand-500/30" : "hover:bg-accent border-transparent"
+                                            className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${selectedIndex === idx ? "bg-primary/10 border-primary/30" : "hover:bg-accent border-transparent"
                                                 } border group`}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:text-brand-500 transition-colors`}>
+                                                <div className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors`}>
                                                     <item.icon className="w-4 h-4" />
                                                 </div>
                                                 <div className="text-left">
@@ -239,7 +239,7 @@ export function Omnibox() {
                                     <Zap className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                                     <div className="text-muted-foreground font-medium">No direct matches found</div>
                                     <button
-                                        className="text-brand-500 text-sm font-bold mt-2 hover:underline"
+                                        className="text-primary text-sm font-bold mt-2 hover:underline"
                                         onClick={() => {
                                             toast.info("AI RAG Search triggered...");
                                             handleSelect({ href: `/knowledge?q=${query}` });

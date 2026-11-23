@@ -44,7 +44,7 @@ export default function CRMIntegrationPage() {
                     <div>
                         <div className="flex items-center gap-3 mb-2">
                             <h1 className="text-3xl font-black text-foreground tracking-tight">CRM Bridge</h1>
-                            <Badge variant="warning" className="bg-amber-500/20 text-amber-300 border-amber-500/30">Integration Preview</Badge>
+                            <Badge variant="warning" className="bg-warning/20 text-warning border-warning/30">Integration Preview</Badge>
                         </div>
                         <p className="text-muted-foreground max-w-2xl">
                             Bi-directional sync between CraftMyFunnel and your System of Record.
@@ -52,8 +52,8 @@ export default function CRMIntegrationPage() {
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200 flex items-center gap-3 text-sm">
-                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+                <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning flex items-center gap-3 text-sm">
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-warning" />
                     <span>
                         <strong className="font-bold text-foreground">Integration Preview:</strong> Native CRM Sync is currently under active development. Connector cards demonstrate configuration layout.
                     </span>
@@ -95,7 +95,7 @@ export default function CRMIntegrationPage() {
                             onSync={() => handleSync('PIPEDRIVE')}
                             loading={connecting === 'PIPEDRIVE'}
                         />
-                        <div className="glass p-6 rounded-2xl border border-border border-dashed flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
+                        <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] p-6 rounded-2xl border border-border  flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
                             <Database className="w-10 h-10 text-muted-foreground mb-4 opacity-30" />
                             <h3 className="text-foreground font-bold mb-1">Request a Connector</h3>
                             <p className="text-xs text-muted-foreground mb-4">Need Zoho, Dynamics, or Copper?</p>
@@ -120,7 +120,7 @@ export default function CRMIntegrationPage() {
                                         </p>
                                     </div>
                                     <div className="h-6 w-11 bg-primary rounded-full relative cursor-pointer">
-                                        <div className="absolute top-1 right-1 h-4 w-4 bg-white rounded-full transition-all shadow-sm" />
+                                        <div className="absolute top-1 right-1 h-4 w-4 bg-card rounded-full transition-all shadow-sm" />
                                     </div>
                                 </div>
 
@@ -132,7 +132,7 @@ export default function CRMIntegrationPage() {
                                         </p>
                                     </div>
                                     <div className="h-6 w-11 bg-muted rounded-full relative cursor-pointer">
-                                        <div className="absolute top-1 left-1 h-4 w-4 bg-white/50 rounded-full transition-all shadow-sm" />
+                                        <div className="absolute top-1 left-1 h-4 w-4 bg-foreground/50 rounded-full transition-all shadow-sm" />
                                     </div>
                                 </div>
 
@@ -154,7 +154,7 @@ export default function CRMIntegrationPage() {
                             <div className="space-y-4">
                                 {[1, 2, 3].map((_, i) => (
                                     <div key={i} className="flex gap-3 items-start p-3 hover:bg-accent rounded-xl transition">
-                                        <div className={`mt-0.5 p-1.5 rounded-full ${i === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                        <div className={`mt-0.5 p-1.5 rounded-full ${i === 0 ? 'bg-success/20 text-success' : 'bg-primary/20 text-primary'}`}>
                                             <ArrowRightLeft className="w-3 h-3" />
                                         </div>
                                         <div>
@@ -184,11 +184,11 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
     return (
         <div className="glass p-6 rounded-2xl border border-border hover:border-primary/30 transition-all group relative overflow-hidden">
             <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-lg">
+                <div className="w-12 h-12 bg-card rounded-xl flex items-center justify-center p-2 shadow-lg">
                     {/* Fallback specific icon handling or img */}
-                    <div className="text-black font-black text-xs">{name.substring(0, 2).toUpperCase()}</div>
+                    <div className="text-foreground font-black text-xs">{name.substring(0, 2).toUpperCase()}</div>
                 </div>
-                <Badge variant={isActive ? "success" : "default"} className={isActive ? "bg-emerald-500/20 text-emerald-400 border-none" : "bg-muted text-muted-foreground"}>
+                <Badge variant={isActive ? "success" : "default"} className={isActive ? "bg-success/20 text-success border-none" : "bg-muted text-muted-foreground"}>
                     {isActive ? "Connected" : "Not Connected"}
                 </Badge>
             </div>

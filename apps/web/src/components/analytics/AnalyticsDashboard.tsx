@@ -56,7 +56,7 @@ export function AnalyticsDashboard() {
             });
     }, []);
 
-    if (loading || !mounted) return <div className="p-8 text-center text-gray-400">Loading analytics...</div>;
+    if (loading || !mounted) return <div className="p-8 text-center text-muted-foreground">Loading analytics...</div>;
 
     // Safely extract values from the actual API shape
     const overview = data?.overview;
@@ -93,44 +93,44 @@ export function AnalyticsDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Trend Chart */}
-                <div className="glass p-6 rounded-xl border border-white/10">
+                <div className="glass p-6 rounded-xl border border-foreground/10">
                     <h3 className="text-lg font-semibold mb-6 gradient-text">Campaign Activity</h3>
                     <div className="h-[300px] w-full">
                         {trends.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                                 <LineChart data={trends}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis dataKey="date" stroke="#94a3b8" />
-                                    <YAxis stroke="#94a3b8" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" />
+                                    <YAxis stroke="hsl(var(--muted-foreground))" />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                        itemStyle={{ color: '#e2e8f0' }}
+                                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: 'none', borderRadius: '8px' }}
+                                        itemStyle={{ color: 'hsl(var(--foreground))' }}
                                     />
                                     <Legend />
-                                    <Line type="monotone" dataKey="sent" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                                    <Line type="monotone" dataKey="opened" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="sent" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
+                                    <Line type="monotone" dataKey="opened" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">No campaign data yet</div>
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No campaign data yet</div>
                         )}
                     </div>
                 </div>
 
                 {/* Funnel Chart */}
-                <div className="glass p-6 rounded-xl border border-white/10">
+                <div className="glass p-6 rounded-xl border border-foreground/10">
                     <h3 className="text-lg font-semibold mb-6 gradient-text">Email Funnel</h3>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                             <BarChart data={funnelData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                                <XAxis type="number" stroke="#94a3b8" />
-                                <YAxis dataKey="name" type="category" stroke="#94a3b8" width={80} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                                <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
+                                <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" width={80} />
                                 <Tooltip
-                                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                    cursor={{ fill: 'hsl(var(--foreground) / 0.05)' }}
+                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: 'none', borderRadius: '8px' }}
                                 />
-                                <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={30} />
+                                <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={30} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -142,12 +142,12 @@ export function AnalyticsDashboard() {
 
 function KPICard({ title, value, icon }: { title: string; value: string | number; icon: string }) {
     return (
-        <div className="glass p-6 rounded-xl border border-white/10 hover:border-blue-500/30 transition-colors">
+        <div className="glass p-6 rounded-xl border border-foreground/10 hover:border-primary/30 transition-colors">
             <div className="flex justify-between items-start mb-2">
-                <span className="text-gray-400 text-sm font-medium">{title}</span>
+                <span className="text-muted-foreground text-sm font-medium">{title}</span>
                 <span className="text-xl">{icon}</span>
             </div>
-            <div className="text-3xl font-bold text-white">{value ?? 0}</div>
+            <div className="text-3xl font-bold text-foreground">{value ?? 0}</div>
         </div>
     );
 }

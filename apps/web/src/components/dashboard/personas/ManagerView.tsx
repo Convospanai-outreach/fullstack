@@ -83,21 +83,21 @@ export default function ManagerView() {
                 </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-amber-500">
+            <Card className="border-l-4 border-l-warning/30">
                 <CardHeader>
                     <CardTitle className="text-sm font-bold flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                        <AlertCircle className="w-4 h-4 text-warning" />
                         Sample Approvals Pending
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ul className="space-y-2 text-sm">
                         <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
                             <span>Root has 14 follow-ups due in "Ops Pipeline".</span>
                         </li>
                         <li className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-warning" />
                             <span>Approval needed for "Q4 Outreach Campaign" launch.</span>
                         </li>
                     </ul>

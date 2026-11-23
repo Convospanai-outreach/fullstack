@@ -178,6 +178,10 @@ jobs:
       working-directory: apps/web
       run: npm run lint
 
+    - name: Colour lint
+      working-directory: apps/web
+      run: npm run lint:colors
+
     - name: Unit Tests
       working-directory: apps/web
       run: npm run test:unit

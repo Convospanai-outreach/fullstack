@@ -88,26 +88,26 @@ export default function SettingsPage() {
         }
     };
 
-    if (loading) return <div className="p-6 text-white">Loading settings...</div>;
+    if (loading) return <div className="p-6 text-foreground">Loading settings...</div>;
 
     return (
         <div className="p-6 max-w-2xl">
-            <h1 className="text-2xl font-bold text-white mb-6">Settings</h1>
+            <h1 className="text-2xl font-bold text-foreground mb-6">Settings</h1>
 
             {message && (
-                <div className={`mb-6 p-4 rounded-lg text-sm font-medium ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-300" : "bg-rose-500/10 border border-rose-500/30 text-rose-300"}`}>
+                <div className={`mb-6 p-4 rounded-lg text-sm font-medium ${message.type === "success" ? "bg-success/10 border border-success/30 text-success" : "bg-chart-4/10 border border-chart-4/30 text-chart-4"}`}>
                     {message.text}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="glass p-6 rounded-xl border border-white/10 space-y-6">
+            <form onSubmit={handleSubmit} className="glass p-6 rounded-xl border border-foreground/10 space-y-6">
                 <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">AI Provider Keys</h3>
-                    <p className="text-xs text-gray-400 mb-4">Configure credentials for AI draft generation, email enrichment, and strategic analysis.</p>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">AI Provider Keys</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Configure credentials for AI draft generation, email enrichment, and strategic analysis.</p>
 
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="settings-gemini-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-gemini-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 Google Gemini API Key
                             </label>
                             <input
@@ -116,12 +116,12 @@ export default function SettingsPage() {
                                 placeholder="AIzaSy..."
                                 value={settings.apiKeyGemini}
                                 onChange={(e) => setSettings({ ...settings, apiKeyGemini: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="settings-openai-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-openai-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 OpenAI API Key
                             </label>
                             <input
@@ -130,12 +130,12 @@ export default function SettingsPage() {
                                 placeholder="sk-..."
                                 value={settings.apiKeyOpenAI}
                                 onChange={(e) => setSettings({ ...settings, apiKeyOpenAI: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="settings-groq-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-groq-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 Groq API Key
                             </label>
                             <input
@@ -144,12 +144,12 @@ export default function SettingsPage() {
                                 placeholder="gsk_..."
                                 value={settings.apiKeyGroq}
                                 onChange={(e) => setSettings({ ...settings, apiKeyGroq: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="settings-anthropic-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-anthropic-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 Anthropic Claude API Key
                             </label>
                             <input
@@ -158,17 +158,17 @@ export default function SettingsPage() {
                                 placeholder="sk-ant-..."
                                 value={settings.apiKeyAnthropic}
                                 onChange={(e) => setSettings({ ...settings, apiKeyAnthropic: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/10">
-                    <h3 className="text-lg font-semibold text-white mb-1">Integrations</h3>
+                <div className="pt-4 border-t border-foreground/10">
+                    <h3 className="text-lg font-semibold text-foreground mb-1">Integrations</h3>
                     <div className="space-y-4 mt-3">
                         <div>
-                            <label htmlFor="settings-hubspot-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-hubspot-key" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 HubSpot API Key
                             </label>
                             <input
@@ -176,12 +176,12 @@ export default function SettingsPage() {
                                 type="password"
                                 value={settings.hubspotApiKey}
                                 onChange={(e) => setSettings({ ...settings, hubspotApiKey: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="settings-linkedin-cookie" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-gray-300">
+                            <label htmlFor="settings-linkedin-cookie" className="block mb-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
                                 LinkedIn Cookie
                             </label>
                             <input
@@ -189,14 +189,14 @@ export default function SettingsPage() {
                                 type="password"
                                 value={settings.liCookie}
                                 onChange={(e) => setSettings({ ...settings, liCookie: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/30"
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/10">
-                    <h3 className="text-lg font-semibold text-white mb-3">Notifications</h3>
+                <div className="pt-4 border-t border-foreground/10">
+                    <h3 className="text-lg font-semibold text-foreground mb-3">Notifications</h3>
 
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
@@ -205,9 +205,9 @@ export default function SettingsPage() {
                                 type="checkbox"
                                 checked={settings.notifications.emailGlobal}
                                 onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailGlobal: e.target.checked } })}
-                                className="rounded border-white/10 bg-white/5"
+                                className="rounded border-foreground/10 bg-foreground/5"
                             />
-                            <label htmlFor="settings-email-global" className="text-sm text-gray-300">
+                            <label htmlFor="settings-email-global" className="text-sm text-foreground/80">
                                 Email Notifications (Global)
                             </label>
                         </div>
@@ -218,9 +218,9 @@ export default function SettingsPage() {
                                 type="checkbox"
                                 checked={settings.notifications.emailCampaign}
                                 onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailCampaign: e.target.checked } })}
-                                className="rounded border-white/10 bg-white/5"
+                                className="rounded border-foreground/10 bg-foreground/5"
                             />
-                            <label htmlFor="settings-email-campaign" className="text-sm text-gray-300">
+                            <label htmlFor="settings-email-campaign" className="text-sm text-foreground/80">
                                 Email Notifications (Campaigns)
                             </label>
                         </div>
@@ -231,9 +231,9 @@ export default function SettingsPage() {
                                 type="checkbox"
                                 checked={settings.notifications.emailLeads}
                                 onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailLeads: e.target.checked } })}
-                                className="rounded border-white/10 bg-white/5"
+                                className="rounded border-foreground/10 bg-foreground/5"
                             />
-                            <label htmlFor="settings-email-leads" className="text-sm text-gray-300">
+                            <label htmlFor="settings-email-leads" className="text-sm text-foreground/80">
                                 Email Notifications (Leads)
                             </label>
                         </div>
@@ -244,9 +244,9 @@ export default function SettingsPage() {
                                 type="checkbox"
                                 checked={settings.notifications.inAppGlobal}
                                 onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, inAppGlobal: e.target.checked } })}
-                                className="rounded border-white/10 bg-white/5"
+                                className="rounded border-foreground/10 bg-foreground/5"
                             />
-                            <label htmlFor="settings-inapp-global" className="text-sm text-gray-300">
+                            <label htmlFor="settings-inapp-global" className="text-sm text-foreground/80">
                                 In-App Notifications
                             </label>
                         </div>
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                     <button
                         type="submit"
                         disabled={saving}
-                        className="px-5 py-2.5 rounded-lg bg-cyan-400 text-slate-950 font-semibold hover:bg-cyan-300 disabled:opacity-70 disabled:cursor-not-allowed transition"
+                        className="px-5 py-2.5 rounded-lg bg-primary/80 text-foreground font-semibold hover:bg-primary/20 disabled:opacity-70 disabled:cursor-not-allowed transition"
                     >
                         {saving ? "Saving..." : "Save Changes"}
                     </button>

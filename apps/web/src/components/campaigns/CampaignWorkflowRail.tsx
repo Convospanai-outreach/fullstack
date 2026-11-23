@@ -59,13 +59,13 @@ export function CampaignWorkflowRail({ campaignId }: { campaignId: string }) {
                         </p>
                         <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
                             <div
-                                className="h-full bg-emerald-500"
+                                className="h-full bg-success"
                                 style={{ width: `${Math.round((step.done / summary.leadCount) * 100)}%` }}
                             />
                         </div>
                         <p className="mt-1.5 text-[11px] text-muted-foreground">
                             {step.done} done · {step.current} here
-                            {step.blocked > 0 && <span className="text-red-500"> · {step.blocked} blocked</span>}
+                            {step.blocked > 0 && <span className="text-destructive"> · {step.blocked} blocked</span>}
                         </p>
                     </li>
                 ))}

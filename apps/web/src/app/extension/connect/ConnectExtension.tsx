@@ -116,17 +116,17 @@ export default function ConnectExtension({ extensionId }: { extensionId: string 
     }
 
     if (status.state === "working") {
-        return <p className="text-center text-sm text-slate-300" role="status">{status.step}</p>;
+        return <p className="text-center text-sm text-foreground/80" role="status">{status.step}</p>;
     }
 
     if (status.state === "ready") {
         return (
-            <div className="space-y-3 text-center text-sm text-slate-300">
+            <div className="space-y-3 text-center text-sm text-foreground/80">
                 <p>The extension will save leads to the team you&apos;re in now.</p>
                 <button
                     type="button"
                     onClick={() => void connect()}
-                    className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                    className="rounded-lg bg-primary/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/80"
                 >
                     Connect the extension
                 </button>
@@ -136,12 +136,12 @@ export default function ConnectExtension({ extensionId }: { extensionId: string 
 
     if (status.state === "done") {
         return (
-            <div className="space-y-2 rounded-lg border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" role="status">
+            <div className="space-y-2 rounded-lg border border-success/30 bg-success/10 p-4 text-sm text-success" role="status">
                 <p className="font-semibold">
                     {status.teamName ? `Connected to ${status.teamName}. You can close this tab.` : "Connected. You can close this tab."}
                 </p>
                 {status.teamName && (
-                    <p className="text-emerald-200/80">
+                    <p className="text-success/80">
                         Leads you save with the extension go to the team {status.teamName}. To save to a different team, switch teams in CraftMyFunnel and connect again.
                     </p>
                 )}
@@ -150,11 +150,11 @@ export default function ConnectExtension({ extensionId }: { extensionId: string 
     }
 
     return (
-        <div className="space-y-3 rounded-lg border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100" role="alert">
+        <div className="space-y-3 rounded-lg border border-chart-4/30 bg-chart-4/10 p-4 text-sm text-chart-4" role="alert">
             <p>{status.message}</p>
             {status.showInstall && (
                 <p>
-                    <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-300 hover:text-cyan-200">
+                    <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:text-primary">
                         Get the extension from the Chrome Web Store
                     </a>
                 </p>
@@ -162,7 +162,7 @@ export default function ConnectExtension({ extensionId }: { extensionId: string 
             <button
                 type="button"
                 onClick={retry}
-                className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                className="rounded-lg bg-primary/90 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-primary/80"
             >
                 {status.reload ? "Sign in again" : "Retry"}
             </button>

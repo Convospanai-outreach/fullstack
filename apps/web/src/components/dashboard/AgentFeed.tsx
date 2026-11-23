@@ -5,7 +5,7 @@ export default function AgentFeed({ activities }: any) {
         <div className="flex flex-col gap-3 max-h-64 overflow-auto pr-2">
             {activities.map((a: any, idx: number) => (
                 <div key={idx} className="flex gap-3 items-start">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-400 flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground">
                         {a.agent.charAt(0)}
                     </div>
                     <div className="flex-1 text-sm">

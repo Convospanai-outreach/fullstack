@@ -83,7 +83,7 @@ export default function StrategyPicker({
                 <div className="space-y-2 rounded-lg border border-border p-3 text-xs" aria-label="ICP fit">
                     <p className="font-semibold">Fit with {icp!.name}</p>
                     {fit.notes.map((note) => (
-                        <p key={`${note.strategyId}-${note.level}`} className={`flex items-start gap-1.5 ${note.level === "warning" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                        <p key={`${note.strategyId}-${note.level}`} className={`flex items-start gap-1.5 ${note.level === "warning" ? "text-warning dark:text-warning" : "text-muted-foreground"}`}>
                             {note.level === "warning" ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                             <span><strong>{findStrategy(note.strategyId)?.name}:</strong> {note.text}</span>
                         </p>
@@ -120,7 +120,7 @@ export default function StrategyPicker({
                                         onClick={() => toggle(strategy.id)}
                                         className={`rounded-full border px-3 py-1 text-xs transition disabled:cursor-not-allowed ${
                                             selected
-                                                ? "border-indigo-500 bg-indigo-500/10 text-foreground"
+                                                ? "border-primary/30 bg-primary/10 text-foreground"
                                                 : "border-border text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:hover:text-muted-foreground"
                                         }`}
                                     >

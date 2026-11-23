@@ -15,12 +15,12 @@ export default function BulkActions({ selectedCount, onDelete, onExport, onClear
 
     return (
         <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-            <GlassCard className="flex items-center gap-4 px-6 py-3 bg-gray-900/90 border-blue-500/30 shadow-2xl backdrop-blur-xl">
-                <span className="text-white font-medium">
+            <GlassCard className="flex items-center gap-4 px-6 py-3 bg-background/90 border-primary/30 shadow-2xl backdrop-blur-xl">
+                <span className="text-foreground font-medium">
                     {selectedCount} selected
                 </span>
 
-                <div className="h-6 w-px bg-white/20" />
+                <div className="h-6 w-px bg-foreground/20" />
 
                 <div className="flex gap-2">
                     <Button onClick={onExport} variant="outline" className="px-3 py-1 text-sm">
@@ -33,7 +33,7 @@ export default function BulkActions({ selectedCount, onDelete, onExport, onClear
 
                 <button
                     onClick={onClearSelection}
-                    className="ml-2 text-gray-400 hover:text-white text-sm"
+                    className="ml-2 text-muted-foreground hover:text-foreground text-sm"
                 >
                     Cancel
                 </button>

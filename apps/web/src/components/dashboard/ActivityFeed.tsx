@@ -12,11 +12,11 @@ interface ActivityItem {
 }
 
 const ICONS = {
-    email: { icon: Mail, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    connection: { icon: UserPlus, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    enrichment: { icon: Search, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    click: { icon: MousePointer2, color: 'text-orange-400', bg: 'bg-orange-400/10' },
-    error: { icon: AlertCircle, color: 'text-red-400', bg: 'bg-red-400/10' },
+    email: { icon: Mail, color: 'text-primary', bg: 'bg-primary/10' },
+    connection: { icon: UserPlus, color: 'text-success', bg: 'bg-success/10' },
+    enrichment: { icon: Search, color: 'text-primary', bg: 'bg-primary/10' },
+    click: { icon: MousePointer2, color: 'text-warning', bg: 'bg-warning/10' },
+    error: { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
 };
 
 export function ActivityFeed({ activities = [] }: { activities?: ActivityItem[] }) {

@@ -67,7 +67,7 @@ export default async function CampaignsPage({
                     <ExportButton type="campaigns" />
 
                     <Link href="/campaigns/new" id="create-campaign-btn">
-                        <button className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 px-4 text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-2">
+                        <button className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 px-4 text-[13px] font-medium shadow-sm transition-all flex items-center gap-2">
                             <Plus className="w-4 h-4" />
                             Create Campaign
                         </button>
@@ -82,7 +82,7 @@ export default async function CampaignsPage({
                         type="text"
                         name="search"
                         placeholder="Search by campaign name or description..."
-                        className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        className="w-full bg-card border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         defaultValue={search}
                         id="campaign-search-input"
                     />
@@ -92,7 +92,7 @@ export default async function CampaignsPage({
                     <select
                         name="status"
                         defaultValue={status}
-                        className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                        className="w-full bg-card border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                         id="campaign-status-select"
                     >
                         <option value="">All Campaigns</option>
@@ -108,13 +108,13 @@ export default async function CampaignsPage({
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card">
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16 ">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : campaigns.length === 0 ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card flex flex-col items-center justify-center">
-                    <Megaphone className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
-                    <h3 className="text-sm font-semibold text-foreground tracking-wide">No Campaigns Found</h3>
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16  flex flex-col items-center justify-center">
+                    <Megaphone className="w-10 h-10 text-primary mb-4 stroke-[1.5]" />
+                    <h3 className="text-[15px] font-semibold text-foreground">No Campaigns Found</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">
                         No sequences match your search criteria. Create an outreach campaign to start queueing contacts.
                     </p>
