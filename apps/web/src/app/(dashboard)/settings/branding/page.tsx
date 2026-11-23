@@ -42,7 +42,7 @@ function getSafeImageUrl(url: string): string | null {
 
 export default function BrandingSettingsPage() {
     const [logoUrl, setLogoUrl] = useState("");
-    const [primaryColor, setPrimaryColor] = useState("#3B82F6");
+    const [primaryColor, setPrimaryColor] = useState("#5C1A2B");
     const [portalTitle, setPortalTitle] = useState("");
     const [emailFooterText, setEmailFooterText] = useState(DEFAULT_EMAIL_FOOTER_TEXT);
     const [privacyContactEmail, setPrivacyContactEmail] = useState("");

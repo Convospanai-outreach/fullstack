@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
+import { formatCompact, formatCompactUsd, formatPercent } from "@/lib/formatNumber";
 import {
     XAxis,
     YAxis,
@@ -66,8 +67,8 @@ export default function ROIDashboardPage() {
         return () => ctrl.abort();
     }, [months]);
 
-    const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+    const formatCurrency = formatCompactUsd;
+    const hasSpend = (data?.financials?.spend || 0) > 0;
 
     // Prevent CSV formula injection: a cell whose text starts with =, +, -, @, tab or CR can
     // be interpreted as a formula by Excel/Sheets when the file is opened. Prefixing
@@ -163,7 +164,7 @@ export default function ROIDashboardPage() {
                 </div>
                 <div className="flex gap-2">
                     <div
-                        className="flex items-center gap-1 rounded-lg border border-border p-1"
+                        className="glass inline-flex items-center gap-[3px] rounded-[3px] p-[3px]"
                         title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
                     >
                         <Calendar className="w-4 h-4 mx-2 text-muted-foreground" />
@@ -207,14 +208,14 @@ export default function ROIDashboardPage() {
                         />
                         <StatCard
                             label="Return on Ad Spend"
-                            value={`${(data?.financials?.roi || 0).toFixed(1)}%`}
+                            value={hasSpend ? formatPercent(data?.financials?.roi ?? null) : "—"}
                             icon={TrendingUp}
-                            description="Efficiency Ratio"
+                            description={hasSpend ? "Efficiency Ratio" : "Shows after spend is recorded"}
                             trend={roiTrend}
                         />
                         <StatCard
                             label="Conversion Rate"
-                            value={`${(data?.funnel?.conversionRate || 0).toFixed(1)}%`}
+                            value={formatPercent(data?.funnel?.conversionRate ?? null)}
                             icon={Target}
                             description="Lead to Win Velocity"
                         />
@@ -247,7 +248,7 @@ export default function ROIDashboardPage() {
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                                             <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val / 1000}k`} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => formatCompactUsd(Number(val))} />
                                             <Tooltip
                                                 contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
                                                 itemStyle={{ color: 'hsl(var(--foreground))' }}
@@ -292,7 +293,7 @@ export default function ROIDashboardPage() {
                                                         {c.status}
                                                     </Badge>
                                                 </td>
-                                                <td className="py-3 text-right font-mono text-muted-foreground">{c.sent.toLocaleString()}</td>
+                                                <td className="py-3 text-right font-mono text-muted-foreground">{formatCompact(c.sent)}</td>
                                                 <td className="py-3 text-right font-mono text-foreground">
                                                     {c.openRate.toFixed(1)}%
                                                 </td>

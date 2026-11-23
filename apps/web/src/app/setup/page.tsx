@@ -174,8 +174,8 @@ export default function SetupWizardPage() {
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
-          primaryColor: data.branding?.primaryColor || "#0891b2",
-          accentColor: data.branding?.accentColor || "#22c55e",
+          primaryColor: data.branding?.primaryColor || "#5C1A2B",
+          accentColor: data.branding?.accentColor || "#C2A36B",
           portalTitle: data.branding?.portalTitle || "",
           guidelinesUrl: data.branding?.guidelinesUrl || "",
         },

@@ -29,11 +29,11 @@ type Props = {
 const GLASS = "M30 20 H90 C90 50 68 62 62 80 C68 98 90 110 90 140 H30 C30 110 52 98 58 80 C52 62 30 50 30 20 Z";
 
 function Mouth({ mood }: { mood: BuddyMood }) {
-  const common = { fill: "none", stroke: "#0f172a", strokeWidth: 2.4, strokeLinecap: "round" as const };
-  if (mood === "cheer") return <path d="M50 56 Q60 70 70 56 Z" fill="#0f172a" stroke="#0f172a" strokeWidth={2} strokeLinejoin="round" />;
+  const common = { fill: "none", stroke: "#1A1414", strokeWidth: 2.4, strokeLinecap: "round" as const };
+  if (mood === "cheer") return <path d="M50 56 Q60 70 70 56 Z" fill="#1A1414" stroke="#1A1414" strokeWidth={2} strokeLinejoin="round" />;
   if (mood === "happy") return <path d="M51 57 Q60 66 69 57" {...common} />;
   if (mood === "concerned") return <path d="M52 63 Q60 57 68 63" {...common} />;
-  if (mood === "thinking") return <ellipse cx="60" cy="60" rx="3" ry="3.4" fill="#0f172a" />;
+  if (mood === "thinking") return <ellipse cx="60" cy="60" rx="3" ry="3.4" fill="#1A1414" />;
   return <path d="M53 59 Q60 63 67 59" {...common} />;
 }
 
@@ -144,7 +144,7 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
         aria-label={`Show ${BUDDY_NAME}, your setup helper`}
       >
         <svg viewBox="0 0 120 160" className="h-5 w-4" aria-hidden="true">
-          <path d={GLASS} fill="#22d3ee" fillOpacity={0.35} stroke="hsl(var(--muted-foreground))" strokeWidth={6} />
+          <path d={GLASS} fill="#C2A36B" fillOpacity={0.35} stroke="hsl(var(--muted-foreground))" strokeWidth={6} />
         </svg>
         Show {BUDDY_NAME}
       </button>
@@ -173,12 +173,12 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
               <path d={GLASS} />
             </clipPath>
           </defs>
-          <path d={GLASS} fill="#0f172a" fillOpacity={0.55} />
+          <path d={GLASS} fill="#1A1414" fillOpacity={0.55} />
           <g clipPath={`url(#${clipId})`}>
             <rect
               x="20"
               width="80"
-              fill="#22d3ee"
+              fill="#C2A36B"
               y={78 - topHeight}
               height={topHeight}
               style={{ transition: reduceMotion ? "none" : "all 700ms ease" }}
@@ -186,7 +186,7 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
             <rect
               x="20"
               width="80"
-              fill="#22d3ee"
+              fill="#C2A36B"
               y={140 - bottomHeight}
               height={bottomHeight}
               style={{ transition: reduceMotion ? "none" : "all 700ms ease" }}
@@ -197,30 +197,30 @@ export function HourglassBuddy({ stepId, completion, completedCount, saving, err
                 x2="60"
                 y1="78"
                 y2="130"
-                stroke="#22d3ee"
+                stroke="#C2A36B"
                 strokeWidth="2"
                 strokeDasharray="3 5"
                 className={reduceMotion ? "" : "buddy-stream"}
               />
             )}
           </g>
-          <path d={GLASS} fill="none" stroke="#cbd5e1" strokeWidth="3" strokeLinejoin="round" />
+          <path d={GLASS} fill="none" stroke="#E8DFD2" strokeWidth="3" strokeLinejoin="round" />
           <rect x="22" y="12" width="76" height="8" rx="4" fill="hsl(var(--muted-foreground))" />
           <rect x="22" y="140" width="76" height="8" rx="4" fill="hsl(var(--muted-foreground))" />
           {/* Face on the upper bulb: white eyes read on both sand and empty glass. */}
           <g>
-            <ellipse cx="50" cy="42" rx="6" ry={blink || mood === "happy" ? 1.2 : 6.5} fill="#f8fafc" />
-            <ellipse cx="70" cy="42" rx="6" ry={blink || mood === "happy" ? 1.2 : 6.5} fill="#f8fafc" />
+            <ellipse cx="50" cy="42" rx="6" ry={blink || mood === "happy" ? 1.2 : 6.5} fill="#FBF8F3" />
+            <ellipse cx="70" cy="42" rx="6" ry={blink || mood === "happy" ? 1.2 : 6.5} fill="#FBF8F3" />
             {!blink && mood !== "happy" && (
               <>
-                <circle cx={mood === "thinking" ? 52 : 50} cy={mood === "thinking" ? 40 : 43} r="2.6" fill="#0f172a" />
-                <circle cx={mood === "thinking" ? 72 : 70} cy={mood === "thinking" ? 40 : 43} r="2.6" fill="#0f172a" />
+                <circle cx={mood === "thinking" ? 52 : 50} cy={mood === "thinking" ? 40 : 43} r="2.6" fill="#1A1414" />
+                <circle cx={mood === "thinking" ? 72 : 70} cy={mood === "thinking" ? 40 : 43} r="2.6" fill="#1A1414" />
               </>
             )}
             {mood === "concerned" && (
               <>
-                <path d="M43 32 L55 35" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" />
-                <path d="M77 32 L65 35" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" />
+                <path d="M43 32 L55 35" stroke="#1A1414" strokeWidth="2.2" strokeLinecap="round" />
+                <path d="M77 32 L65 35" stroke="#1A1414" strokeWidth="2.2" strokeLinecap="round" />
               </>
             )}
             <Mouth mood={mood} />

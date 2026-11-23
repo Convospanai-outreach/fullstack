@@ -92,7 +92,7 @@ export default function PaymentsSettingsPage() {
 
                         <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-[#635bff] flex items-center justify-center text-foreground text-xs font-bold">S</div>
+                                {/* palette-ok: Stripe brand mark */}<div className="w-8 h-8 rounded bg-[#635bff] flex items-center justify-center text-foreground text-xs font-bold">S</div>
                                 <div>
                                     <div className="font-medium text-foreground">Stripe</div>
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -113,7 +113,7 @@ export default function PaymentsSettingsPage() {
 
                         <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-[#0f6fff] flex items-center justify-center text-foreground text-xs font-bold">R</div>
+                                {/* palette-ok: Razorpay brand mark */}<div className="w-8 h-8 rounded bg-[#0f6fff] flex items-center justify-center text-foreground text-xs font-bold">R</div>
                                 <div>
                                     <div className="font-medium text-foreground">Razorpay</div>
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
