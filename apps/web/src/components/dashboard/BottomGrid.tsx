@@ -31,7 +31,7 @@ const dotColorByType: Record<ActivityType, string> = {
 function BottomGridSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="bg-card border border-border rounded-lg p-3.5">
+      <div className="glass p-3.5">
         <div className="h-2.5 w-24 bg-muted rounded mb-4" />
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex gap-2.5 py-2 border-b border-border last:border-0">
@@ -54,7 +54,7 @@ export function BottomGrid({
   return (
     <div>
       {/* Activity feed */}
-      <div className="bg-card border border-border rounded-lg p-3.5">
+      <div className="glass p-3.5">
         <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
           Recent activity
         </p>

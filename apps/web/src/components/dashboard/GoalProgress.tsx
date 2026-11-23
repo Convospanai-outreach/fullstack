@@ -92,7 +92,7 @@ export function GoalProgress() {
 
   if (!data.goal) {
     return (
-      <section aria-label="Monthly meeting goal" className="mb-4 flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+      <section aria-label="Monthly meeting goal" className="glass mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Target className="h-5 w-5 text-primary" />
           <p className="text-sm text-foreground">
@@ -110,7 +110,7 @@ export function GoalProgress() {
 
   const percent = Math.min(100, Math.round((data.booked / data.goal) * 100));
   return (
-    <section aria-label="Monthly meeting goal" className="mb-4 rounded-lg border border-border bg-card p-4">
+    <section aria-label="Monthly meeting goal" className="glass mb-4 p-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground">Monthly meeting goal</p>
         {editing ? editor : (

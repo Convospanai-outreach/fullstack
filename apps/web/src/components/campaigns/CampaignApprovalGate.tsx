@@ -92,7 +92,7 @@ export function CampaignApprovalGate({ campaignId }: { campaignId: string }) {
             {data.capped && <p className="text-xs text-warning">This campaign is large, so only the newest requests are shown. Older ones may be missing.</p>}
             <ul className="space-y-3">
                 {data.requests.map((request) => (
-                    <li key={request.requestId} className="rounded-md border border-border bg-card p-3 text-xs space-y-2">
+                    <li key={request.requestId} className="glass p-3 text-xs space-y-2">
                         <p className="text-foreground">
                             <span className="font-medium">Proposed: {readable(request.actionType)}</span>
                             {request.requestedBy && <span className="text-muted-foreground"> · asked by {request.requestedBy}</span>}

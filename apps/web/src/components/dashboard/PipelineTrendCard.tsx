@@ -11,7 +11,7 @@ interface PipelineTrendCardProps {
 export function PipelineTrendCard({ trend, loading }: PipelineTrendCardProps) {
   if (loading || trend.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-lg p-3.5 h-full animate-pulse">
+      <div className="glass p-5 h-full animate-pulse">
         <div className="h-2.5 w-32 bg-muted rounded mb-4" />
         <div className="h-[110px] bg-muted rounded" />
       </div>
@@ -37,7 +37,7 @@ export function PipelineTrendCard({ trend, loading }: PipelineTrendCardProps) {
   const delta = latest - first;
 
   return (
-    <div className="bg-card border border-border rounded-lg p-3.5 h-full flex flex-col">
+    <div className="glass p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground">
           Pipeline trend — 30 days
@@ -53,7 +53,7 @@ export function PipelineTrendCard({ trend, loading }: PipelineTrendCardProps) {
           <circle cx={points[points.length - 1]!.x} cy={points[points.length - 1]!.y} r="2.5" fill="hsl(var(--primary))" />
         )}
       </svg>
-      <p className="text-[18px] font-mono text-foreground mt-1">{latest}<span className="text-[10px] text-muted-foreground ml-1.5">active pipeline</span></p>
+      <p className="font-display text-[28px] font-semibold text-foreground mt-1">{latest}<span className="font-sans text-xs font-normal text-muted-foreground ml-1.5">active pipeline</span></p>
     </div>
   );
 }

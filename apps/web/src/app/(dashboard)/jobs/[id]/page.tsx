@@ -74,7 +74,7 @@ export default function JobDetailPage({
     if (error || !job) {
         return (
             <div role="alert" className="min-h-[50vh] flex items-center justify-center">
-                <div className="text-center bg-card p-6 rounded-lg border border-border shadow-sm max-w-md">
+                <div className="glass text-center p-6 max-w-md">
                     <p className="text-destructive font-semibold mb-4">{error || "Job not found"}</p>
                     <Link
                         href="/jobs"
@@ -96,7 +96,7 @@ export default function JobDetailPage({
                 ← Back to jobs
             </Link>
 
-            <div className="bg-card rounded-lg border border-border shadow-sm p-6 space-y-6">
+            <div className="glass p-6 space-y-6">
                 <div className="flex flex-wrap justify-between items-start gap-4">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Job Details</h1>
@@ -162,7 +162,7 @@ export default function JobDetailPage({
                 )}
             </div>
 
-            <section aria-labelledby="job-payload-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+            <section aria-labelledby="job-payload-heading" className="glass p-6">
                 <h2 id="job-payload-heading" className="text-lg font-bold text-foreground mb-3">Payload</h2>
                 <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
                     {JSON.stringify(job.payload, null, 2)}
@@ -170,7 +170,7 @@ export default function JobDetailPage({
             </section>
 
             {job.result && (
-                <section aria-labelledby="job-result-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+                <section aria-labelledby="job-result-heading" className="glass p-6">
                     <h2 id="job-result-heading" className="text-lg font-bold text-foreground mb-3">Result</h2>
                     <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
                         {JSON.stringify(job.result, null, 2)}

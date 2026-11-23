@@ -171,7 +171,7 @@ export default function PipelinePage() {
                                 return (
                                 <div
                                     key={lead.id}
-                                    className="bg-card p-4 rounded-xl border border-border hover:border-primary/30 transition-all group relative cursor-pointer active:scale-95"
+                                    className="glass p-4 hover:border-primary/30 transition-all group relative cursor-pointer active:scale-95"
                                 >
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shadow-lg">

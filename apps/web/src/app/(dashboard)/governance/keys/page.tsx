@@ -167,7 +167,7 @@ export default function SecurityKeysPage() {
                 {loading ? (
                     Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-2xl" />)
                 ) : keys.length === 0 ? (
-                    <div className="glass p-12 rounded-3xl border-dashed border-2 border-border flex flex-col items-center text-center">
+                    <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] p-12 rounded-3xl  border-2 border-border flex flex-col items-center text-center">
                         <Key className="w-12 h-12 text-muted-foreground mb-4" />
                         <h4 className="text-lg font-bold text-foreground">No active API keys</h4>
                         <p className="text-sm text-muted-foreground max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with CraftMyFunnel.</p>

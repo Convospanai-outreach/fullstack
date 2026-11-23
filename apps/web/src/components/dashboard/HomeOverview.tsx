@@ -61,7 +61,7 @@ export function HomeOverview() {
           <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-6">
             {data.stages.map((s) => (
               <li key={s.stage}>
-                <Link href="/pipeline" className="block rounded-lg border border-border bg-card px-3.5 py-3 hover:bg-accent/40">
+                <Link href="/pipeline" className="glass block px-3.5 py-3 hover:bg-accent/40">
                   <span className="block text-xs text-muted-foreground">{STAGE_LABELS[s.stage] ?? words(s.stage)}</span>
                   <span className={`block font-display text-2xl font-medium ${s.count > 0 ? "text-foreground" : "text-muted-foreground"}`}>{s.count}</span>
                 </Link>
@@ -79,7 +79,7 @@ export function HomeOverview() {
             <Link href="/campaigns/new" className={action}>Start a campaign</Link>
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <div className="glass overflow-x-auto">
             <table className="w-full min-w-[420px] text-sm tabular-nums">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
@@ -122,7 +122,7 @@ export function HomeOverview() {
         {data.record.length === 0 ? (
           <p className={empty}>Every draft you approve or reject is listed here, starting with your first one.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <div className="glass overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">

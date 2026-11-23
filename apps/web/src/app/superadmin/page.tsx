@@ -53,7 +53,7 @@ export default function SuperAdminPage() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
-            <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg">
+            <div className="glass w-full max-w-sm p-8">
                 <div className="mb-6 flex flex-col items-center gap-2 text-center">
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">
                         <Lock className="h-5 w-5" />

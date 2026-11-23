@@ -95,7 +95,7 @@ export default function CRMIntegrationPage() {
                             onSync={() => handleSync('PIPEDRIVE')}
                             loading={connecting === 'PIPEDRIVE'}
                         />
-                        <div className="glass p-6 rounded-2xl border border-border border-dashed flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
+                        <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] p-6 rounded-2xl border border-border  flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
                             <Database className="w-10 h-10 text-muted-foreground mb-4 opacity-30" />
                             <h3 className="text-foreground font-bold mb-1">Request a Connector</h3>
                             <p className="text-xs text-muted-foreground mb-4">Need Zoho, Dynamics, or Copper?</p>

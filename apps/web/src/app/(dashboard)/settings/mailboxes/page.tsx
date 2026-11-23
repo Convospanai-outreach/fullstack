@@ -557,7 +557,7 @@ export default function MailboxesSettingsPage() {
                         <div className="w-8 h-8 border-2 border-primary/30 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : mailboxes.length === 0 ? (
-                    <div className="bg-card border border-border rounded-2xl p-12 text-center">
+                    <div className="glass p-12 text-center">
                         <div className="text-5xl mb-4">📭</div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">No mailboxes connected</h2>
                         <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -573,7 +573,7 @@ export default function MailboxesSettingsPage() {
                             const hasError = mb.metadata?.lastWatchError || mb.metadata?.lastSyncError;
 
                             return (
-                                <div key={mb.id} className="bg-card border border-border rounded-2xl p-5 space-y-4 transition hover:border-border">
+                                <div key={mb.id} className="glass p-5 space-y-4 transition hover:border-border">
                                     {/* Main Row */}
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-start gap-3.5 min-w-0">
@@ -718,7 +718,7 @@ export default function MailboxesSettingsPage() {
                         </div>
                     )}
 
-                    <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                    <div className="glass p-5 space-y-4">
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -815,7 +815,7 @@ export default function MailboxesSettingsPage() {
             {/* Mailbox Edit Controls Modal */}
             {editingMailbox && (
                 <div role="dialog" aria-modal="true" aria-labelledby="controls-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+                    <div className="glass max-w-md w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="controls-modal-title" className="text-lg font-bold text-foreground">Mailbox Controls — {editingMailbox.email}</h2>
                             <button onClick={() => setEditingMailbox(null)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
@@ -919,7 +919,7 @@ export default function MailboxesSettingsPage() {
             {/* Custom SMTP Modal Dialog */}
             {showSmtpModal && (
                 <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                    <div className="glass max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="smtp-modal-title" className="text-xl font-bold text-foreground">Connect Custom SMTP Mailbox</h2>
                             <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
@@ -993,7 +993,7 @@ export default function MailboxesSettingsPage() {
             {/* Resend Modal Dialog */}
             {showResendModal && (
                 <div role="dialog" aria-modal="true" aria-labelledby="resend-modal-title" className="fixed inset-0 z-50 bg-foreground/80 flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                    <div className="glass max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="resend-modal-title" className="text-xl font-bold text-foreground">Connect Resend Mailbox</h2>
                             <button onClick={() => setShowResendModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>

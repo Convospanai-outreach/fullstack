@@ -107,11 +107,11 @@ export default function JobsPage() {
                     <p className="mt-2 text-sm font-medium text-foreground">Loading jobs...</p>
                 </div>
             ) : jobs.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-lg border border-border">
+                <div className="glass text-center py-12">
                     <p className="text-muted-foreground font-medium">No jobs found matching the selected filters.</p>
                 </div>
             ) : (
-                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                <div className="glass overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-border">
                             <thead className="bg-muted/60">

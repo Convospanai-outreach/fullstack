@@ -273,11 +273,11 @@ export default async function LeadsPage({
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card">
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16 ">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : leads.length === 0 ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card flex flex-col items-center justify-center">
+                <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] text-center py-16  flex flex-col items-center justify-center">
                     <Users className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
                     <h3 className="text-sm font-semibold text-foreground tracking-wide">No Leads Found</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">

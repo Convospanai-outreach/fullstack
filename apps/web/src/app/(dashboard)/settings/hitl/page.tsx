@@ -112,7 +112,7 @@ export default function HITLPage() {
                 ) : (
                     <div className="space-y-4">
                         {pending.map((req) => (
-                            <div key={req.id} className="p-6 bg-card rounded-2xl border border-border hover:border-primary/30 transition-all group">
+                            <div key={req.id} className="glass p-6 hover:border-primary/30 transition-all group">
                                 <div className="flex flex-col md:flex-row justify-between gap-6">
                                     <div className="space-y-4 flex-1">
                                         <div className="flex items-center gap-3">

@@ -55,7 +55,7 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
     const Icon = def?.icon;
     const summary = stepSummary(data, Boolean(def?.isCondition));
     return (
-        <div className="relative w-80 rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="glass relative w-80 p-4">
             <Handle type="target" position={Position.Top} className="!bg-primary" />
             <div className="flex items-center gap-2.5">
                 {Icon && <Icon className="h-4 w-4 shrink-0 text-primary" />}

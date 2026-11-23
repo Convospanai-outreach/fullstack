@@ -16,7 +16,7 @@ export default function AIPanel() {
     const [prompt, setPrompt] = useState("");
 
     return (
-        <div className="flex h-full w-[340px] shrink-0 flex-col rounded-lg border border-border bg-card">
+        <div className="glass flex h-full w-[340px] shrink-0 flex-col">
             <div className="flex items-center gap-2 border-b border-border p-4">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">Sequence assistant</h3>

@@ -140,7 +140,7 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="flex flex-col gap-4 p-5 rounded-2xl bg-card border border-border border-l-[3px] border-l-warning/30 transition-all group/item cursor-default"
+                                className="glass flex flex-col gap-4 p-5 border-l-[3px] border-l-warning/30 transition-all group/item cursor-default"
                             >
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">

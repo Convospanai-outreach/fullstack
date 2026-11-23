@@ -27,7 +27,7 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
 
     return (
         <Link href={`/campaigns/${campaign.id}`}>
-            <div className="border border-border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer bg-card">
+            <div className="glass p-4 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex justify-between items-start mb-2">
                     <h3 className="text-lg font-semibold text-foreground">
                         {campaign.name}

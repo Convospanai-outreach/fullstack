@@ -52,7 +52,7 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="bg-card backdrop-blur-xl border border-border rounded-xl p-5 h-full">
+                    <div className="glass backdrop-blur-xl p-5 h-full">
                         <h3 className="text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-success" />
                             AI Insights

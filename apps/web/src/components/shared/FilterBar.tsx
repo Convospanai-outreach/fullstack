@@ -31,14 +31,14 @@ export default function FilterBar({ onSearch, placeholder = "Search...", showSta
     }, [debouncedQuery, status]);
 
     return (
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 bg-card p-4 rounded-lg shadow-sm border border-border">
+        <div className="glass flex flex-col sm:flex-row gap-4 mb-6 p-4">
             <div className="flex-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <input
                     type="text"
-                    className="block w-full pl-10 pr-3 py-2 border border-border rounded-md leading-5 bg-card placeholder-muted-foreground focus:outline-none focus:placeholder-muted-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary/30 sm:text-sm"
+                    className="glass block w-full pl-10 pr-3 py-2 leading-5 placeholder-muted-foreground focus:outline-none focus:placeholder-muted-foreground focus:ring-1 focus:ring-primary/40 focus:border-primary/30 sm:text-sm"
                     placeholder={placeholder}
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}

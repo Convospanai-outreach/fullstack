@@ -57,7 +57,7 @@ export function WorkspaceHelpPanel() {
                 <div
                     role="dialog"
                     aria-label="Help"
-                    className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-card shadow-xl z-[60] p-4"
+                    className="glass absolute right-0 top-full mt-2 w-80 z-[60] p-4"
                 >
                     {help ? (
                         <div className="space-y-3">

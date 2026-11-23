@@ -76,7 +76,7 @@ export function ToolsMenu() {
             {open && (
                 <div
                     role="menu"
-                    className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-border bg-card shadow-xl z-[60] p-3"
+                    className="glass absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto z-[60] p-3"
                 >
                     {!data ? (
                         <div className="p-4 text-center text-xs text-muted-foreground">Loading tools…</div>

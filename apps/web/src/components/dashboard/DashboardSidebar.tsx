@@ -31,7 +31,6 @@ import {
   FileText,
   Lock,
 } from "lucide-react";
-import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
 import { EdgeStatusPlate } from "@/components/dashboard/EdgeStatusPlate";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
@@ -78,7 +77,7 @@ function NavEntry({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={`
-        flex items-center gap-2.5 px-2.5 py-2 rounded-[3px] text-[14px] font-normal
+        flex items-center gap-2.5 px-2.5 py-2 rounded-[3px] text-[13px] leading-[1.3] font-normal
         transition-colors duration-150
         ${active
           ? 'bg-sidebar-active text-sidebar-foreground shadow-[inset_2px_0_0_#C2A36B]'
@@ -144,8 +143,8 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         {/* Logo row */}
         <div className="flex items-center justify-between px-4 pt-4 pb-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <LogoMark className="h-[26px] w-[26px]" />
-            <span className="text-[20px] font-semibold text-sidebar-foreground font-display">CraftMyFunnel</span>
+            <i aria-hidden className="block h-[26px] w-[26px] bg-[linear-gradient(135deg,#DCC392,#A8884F)] [clip-path:polygon(0_0,100%_0,60%_55%,60%_100%,40%_100%,40%_55%)]" />
+            <span className="text-[22px] font-semibold text-sidebar-foreground font-display">CraftMyFunnel</span>
           </Link>
           {/* Mobile close */}
           <button

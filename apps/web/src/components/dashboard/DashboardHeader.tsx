@@ -29,7 +29,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
   return (
-    <header className="fixed top-0 left-0 lg:left-[232px] right-0 h-14 border-b border-border z-40 flex items-center gap-3.5 px-7 bg-[var(--header-bg)] backdrop-blur-[16px]">
+    <header className="fixed top-0 left-0 lg:left-[232px] right-0 h-[51px] border-b border-border z-40 flex items-center gap-3.5 px-7 bg-[var(--header-bg)] backdrop-blur-[16px]">
       {/* Left: mobile hamburger */}
       <button
         onClick={onToggleSidebar}

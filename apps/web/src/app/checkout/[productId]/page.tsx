@@ -145,7 +145,7 @@ export default function CheckoutPage() {
                             id="checkout-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            className="glass w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                     </div>
                     <div className="space-y-1">
@@ -155,7 +155,7 @@ export default function CheckoutPage() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                            className="glass w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                         />
                     </div>
 

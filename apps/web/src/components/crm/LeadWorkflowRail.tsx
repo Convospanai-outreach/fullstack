@@ -63,7 +63,7 @@ export function LeadWorkflowRail({ leadId }: { leadId: string }) {
     const { steps, approval } = data;
 
     return (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3" aria-label="Governed workflow">
+        <div className="glass p-4 space-y-3" aria-label="Governed workflow">
             <ol className="flex flex-wrap gap-x-4 gap-y-3">
                 {steps.map((step, i) => (
                     <li key={step.key} className="flex items-center gap-2 min-w-[8.5rem]" title={step.rule}>

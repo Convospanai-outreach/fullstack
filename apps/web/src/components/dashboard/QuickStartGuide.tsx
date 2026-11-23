@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 export function QuickStartGuide() {
     return (
-        <div className="relative mb-8 col-span-1 overflow-hidden rounded-2xl border border-border bg-card p-8 md:col-span-3">
+        <div className="glass relative mb-8 col-span-1 overflow-hidden p-8 md:col-span-3">
             <div className="pointer-events-none absolute -mr-16 -mt-16 right-0 top-0 h-64 w-64 rounded-full bg-primary/[0.06] blur-3xl" />
 
             <div className="relative z-10 flex gap-6">

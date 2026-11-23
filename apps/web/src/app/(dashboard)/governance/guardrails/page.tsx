@@ -228,7 +228,7 @@ export default function GuardrailsPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="glass p-6 rounded-2xl border-dashed border-2 border-border flex flex-col items-center text-center">
+                    <div className="rounded-[4px] border border-dashed border-border bg-[var(--glass-fill)] p-6 rounded-2xl  border-2 border-border flex flex-col items-center text-center">
                         <Lock className="w-8 h-8 text-muted-foreground mb-3" />
                         <h4 className="text-sm font-bold text-foreground">Advanced Policy Editor</h4>
                         <p className="text-xs text-muted-foreground mt-1 mb-4">Upload custom RegEx patterns for deep content introspection.</p>

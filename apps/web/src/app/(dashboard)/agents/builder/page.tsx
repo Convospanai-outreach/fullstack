@@ -302,7 +302,7 @@ export default function AgentBuilderPage() {
                             </Button>
 
                             {showAddMenu && (
-                                <div className="absolute top-full left-0 mt-2 w-56 rounded-xl bg-card border border-border p-2 shadow-2xl backdrop-blur-xl z-20 space-y-1">
+                                <div className="glass absolute top-full left-0 mt-2 w-56 p-2 backdrop-blur-xl z-20 space-y-1">
                                     <button
                                         onClick={() => addNode('trigger', 'HubSpot Trigger', 'Trigger')}
                                         className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-2"

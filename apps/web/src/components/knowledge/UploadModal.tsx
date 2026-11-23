@@ -75,7 +75,7 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Content / Context</label>
                         <textarea
-                            className="w-full h-40 bg-card border border-border rounded-md p-3 text-sm focus:outline-none focus:border-primary"
+                            className="glass w-full h-40 p-3 text-sm focus:outline-none focus:border-primary"
                             placeholder="Paste the text content here..."
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
