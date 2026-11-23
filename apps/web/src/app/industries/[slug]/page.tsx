@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Page, PageHero, Section, Cards, Steps, Stats, Checklist, Faq, CtaBand, JsonLd } from "@/components/marketing/site/kit";
+import { Page, PageHero, Section, Cards, Steps, Stats, Checklist, Faq, CtaBand, JsonLd, SovereignBand } from "@/components/marketing/site/kit";
 import { INDUSTRIES, MARKET_LABEL, industryBySlug } from "@/lib/marketing/industries";
 import { SANDBOXES } from "@/lib/marketing/sandboxes";
 import { SandboxFunnel } from "@/components/marketing/site/SandboxFunnel";
@@ -57,6 +57,7 @@ export default async function IndustryPage({ params }: Props) {
       <Section tone="light" title="Questions">
         <Faq items={i.faq} />
       </Section>
+      <SovereignBand law={i.market === "india" ? "DPDP" : i.market === "us-eu" ? "GDPR" : "GDPR and DPDP"} />
       <Section tone="beige" eyebrow="Other industries" title="Explore more.">
         <Cards items={others.map((o) => ({ tag: MARKET_LABEL[o.market], title: o.name, href: `/industries/${o.slug}`, linkText: "Explore" }))} />
         <Link className="ph-link" href="/industries">All industries</Link>

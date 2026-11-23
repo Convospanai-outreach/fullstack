@@ -53,13 +53,13 @@ const GENERATE_TOOLS: Tool[] = [
 
 function ToolTable({ tools }: { tools: Tool[] }) {
     return (
-        <div className="overflow-x-auto rounded-xl border border-[#0c1b30]/10 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-[#1A1414]/10 bg-white">
             <table className="w-full text-left text-sm">
                 <tbody>
                     {tools.map(t => (
-                        <tr key={t.name} className="border-b border-[#0c1b30]/10 last:border-0 align-top">
-                            <td className="px-4 py-3 font-mono text-xs text-[#006a9a] whitespace-nowrap">{t.name}</td>
-                            <td className="px-4 py-3 text-[#0c1b30]/75">{t.does}</td>
+                        <tr key={t.name} className="border-b border-[#1A1414]/10 last:border-0 align-top">
+                            <td className="px-4 py-3 font-mono text-xs text-[#5C1A2B] whitespace-nowrap">{t.name}</td>
+                            <td className="px-4 py-3 text-[#1A1414]/75">{t.does}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -70,39 +70,39 @@ function ToolTable({ tools }: { tools: Tool[] }) {
 
 export default function McpDocPage() {
     return (
-        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#f5f5f5] text-[#0c1b30] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen font-[family-name:var(--font-home)] bg-[#F3EDE4] text-[#1A1414] pt-28 pb-24 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto space-y-12">
-                <Link href="/docs" className="inline-flex items-center gap-2 text-xs font-semibold text-[#0c1b30]/65 hover:text-[#006a9a] transition-colors">
+                <Link href="/docs" className="inline-flex items-center gap-2 text-xs font-semibold text-[#1A1414]/65 hover:text-[#5C1A2B] transition-colors">
                     <ArrowLeft className="w-3.5 h-3.5" />
                     Back to Documentation Hub
                 </Link>
 
-                <div className="space-y-4 border-b border-[#0c1b30]/10 pb-8">
+                <div className="space-y-4 border-b border-[#1A1414]/10 pb-8">
                     <h1 className="text-3xl sm:text-4xl font-medium tracking-tight">MCP Server for AI Agents</h1>
-                    <p className="text-base sm:text-lg text-[#0c1b30]/65 leading-relaxed">
+                    <p className="text-base sm:text-lg text-[#1A1414]/65 leading-relaxed">
                         Connect Claude, ChatGPT or any MCP-compatible client to your CraftMyFunnel workspace to read your pipeline, prepare campaigns and
                         keep records current. Agents prepare work. You review it in the browser. Nothing is sent to a prospect through this connection.
                     </p>
                 </div>
 
-                <div className="space-y-10 text-[#0c1b30]/75 leading-relaxed text-sm sm:text-base">
+                <div className="space-y-10 text-[#1A1414]/75 leading-relaxed text-sm sm:text-base">
                     <section className="space-y-3">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Connect</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Connect</h2>
                         <p>Add a custom connector in your client and use this server URL:</p>
-                        <pre className="rounded-xl bg-white border border-[#0c1b30]/10 p-4 text-xs overflow-x-auto"><code>{MCP_URL}</code></pre>
+                        <pre className="rounded-xl bg-white border border-[#1A1414]/10 p-4 text-xs overflow-x-auto"><code>{MCP_URL}</code></pre>
                         <ol className="list-decimal pl-5 space-y-1">
                             <li>Your client discovers the sign-in details automatically and registers itself.</li>
                             <li>You are sent to CraftMyFunnel to sign in, choose one workspace and choose which permissions to grant.</li>
                             <li>The client receives a token for that workspace only. Access tokens last one hour and refresh automatically. A connection expires after 30 days.</li>
                         </ol>
                         <p>
-                            Manage or disconnect connections, and review pending changes, at <Link href="/mcp/connect" className="text-[#006a9a] underline">craftmyfunnel.live/mcp/connect</Link>.
+                            Manage or disconnect connections, and review pending changes, at <Link href="/mcp/connect" className="text-[#5C1A2B] underline">craftmyfunnel.live/mcp/connect</Link>.
                             Disconnecting revokes access immediately.
                         </p>
                     </section>
 
                     <section className="space-y-3">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Permissions</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Permissions</h2>
                         <ul className="list-disc pl-5 space-y-1">
                             <li><strong>cmf:read</strong>: read campaigns, leads, inbox, analytics and other workspace records.</li>
                             <li><strong>cmf:write</strong>: propose changes. Every change waits for your approval in the browser.</li>
@@ -115,7 +115,7 @@ export default function McpDocPage() {
                     </section>
 
                     <section className="space-y-3">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Review before change</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Review before change</h2>
                         <p>
                             When an agent calls a write tool, CraftMyFunnel records the request and waits. You approve or reject it at the connections page. Only then does the
                             change run. If a request times out or the outcome is uncertain, the agent is told to check the workspace before retrying, so a change is never applied twice.
@@ -123,7 +123,7 @@ export default function McpDocPage() {
                     </section>
 
                     <section className="space-y-3">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">What agents cannot do</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">What agents cannot do</h2>
                         <ul className="list-disc pl-5 space-y-1">
                             <li>Send emails or messages, or start a campaign.</li>
                             <li>Approve or reject items in the approval queue.</li>
@@ -133,17 +133,17 @@ export default function McpDocPage() {
                     </section>
 
                     <section className="space-y-4">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Tools</h2>
-                        <h3 className="text-lg font-semibold text-[#0c1b30]">Read (cmf:read)</h3>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Tools</h2>
+                        <h3 className="text-lg font-semibold text-[#1A1414]">Read (cmf:read)</h3>
                         <ToolTable tools={READ_TOOLS} />
-                        <h3 className="text-lg font-semibold text-[#0c1b30]">Propose changes (cmf:write, browser approval required)</h3>
+                        <h3 className="text-lg font-semibold text-[#1A1414]">Propose changes (cmf:write, browser approval required)</h3>
                         <ToolTable tools={WRITE_TOOLS} />
-                        <h3 className="text-lg font-semibold text-[#0c1b30]">Generate (cmf:generate)</h3>
+                        <h3 className="text-lg font-semibold text-[#1A1414]">Generate (cmf:generate)</h3>
                         <ToolTable tools={GENERATE_TOOLS} />
                     </section>
 
                     <section className="space-y-3">
-                        <h2 className="text-2xl font-bold text-[#0c1b30]">Data handling</h2>
+                        <h2 className="text-2xl font-bold text-[#1A1414]">Data handling</h2>
                         <ul className="list-disc pl-5 space-y-1">
                             <li>Tool results are bounded excerpts. Large records are not returned in full.</li>
                             <li>Audit entries record which tool ran and when. They do not store prompts, lead details or results.</li>
@@ -151,10 +151,10 @@ export default function McpDocPage() {
                             <li>Requests are rate limited per user and workspace.</li>
                         </ul>
                         <p>
-                            See our <Link href="/privacy" className="text-[#006a9a] underline">Privacy Policy</Link>,{" "}
-                            <Link href="/terms" className="text-[#006a9a] underline">Terms</Link> and{" "}
-                            <Link href="/docs/security-architecture" className="text-[#006a9a] underline">security architecture</Link>.
-                            Questions? <Link href="/support" className="text-[#006a9a] underline">Contact support</Link>.
+                            See our <Link href="/privacy" className="text-[#5C1A2B] underline">Privacy Policy</Link>,{" "}
+                            <Link href="/terms" className="text-[#5C1A2B] underline">Terms</Link> and{" "}
+                            <Link href="/docs/security-architecture" className="text-[#5C1A2B] underline">security architecture</Link>.
+                            Questions? <Link href="/support" className="text-[#5C1A2B] underline">Contact support</Link>.
                         </p>
                     </section>
                 </div>
