@@ -1,0 +1,210 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "updated": "2026-09-29",
+    "notes": "Fictional example that shows the structure only. Every name, number and quote is invented. Replace them with real, provable ones before use."
+  },
+  "meta": {
+    "brand": "Tallyfox",
+    "lang": "en",
+    "url": "tallyfox.example/reports",
+    "title": "Weekly client reports in 15 minutes | Tallyfox",
+    "description": "Tallyfox pulls Stripe, HubSpot and Google Ads into one client report. Set up in 10 minutes, no code. 14-day money-back guarantee.",
+    "og_title": "Weekly client reports in 15 minutes",
+    "og_description": "Connect three accounts, pick a template, send the report. Built for agencies with 5 to 50 clients.",
+    "draft_notice": "FICTIONAL EXAMPLE: structure only. Replace every name, number and quote with real ones."
+  },
+  "theme": {
+    "accent": "#c2410c"
+  },
+  "sections": [
+    {
+      "type": "hero",
+      "eyebrow": "For agencies with 5 to 50 clients",
+      "headline": "Send every client report in 15 minutes, not 4 hours",
+      "subheadline": "Tallyfox pulls Stripe, HubSpot and Google Ads into one branded report, then emails it on Monday at 9:00.",
+      "cta": {
+        "label": "Start my free trial",
+        "href": "#pricing"
+      },
+      "secondary_cta": {
+        "label": "Watch the 2-minute demo",
+        "href": "#how"
+      },
+      "triggers": [
+        "No card required",
+        "Set up in 10 minutes"
+      ]
+    },
+    {
+      "type": "proof_bar",
+      "logos": [
+        "Northwind Logistics",
+        "Brightside Studio",
+        "Kestrel Partners"
+      ],
+      "items": [
+        {
+          "value": "412",
+          "label": "agencies send reports with Tallyfox"
+        },
+        {
+          "value": "4.7 / 5",
+          "label": "average rating from 189 reviews"
+        }
+      ]
+    },
+    {
+      "type": "problem",
+      "headline": "Friday afternoons should not disappear into spreadsheets",
+      "body": [
+        "You copy numbers from three tabs into a template, check them twice, and still get the one email that starts with 'this does not match what I see'.",
+        "Every client has a slightly different report, so nothing you build once gets reused."
+      ]
+    },
+    {
+      "type": "benefits",
+      "headline": "One report, built while you do other work",
+      "items": [
+        {
+          "title": "Numbers arrive on their own",
+          "body": "Connect Stripe, HubSpot and Google Ads once. The report refreshes every night, so nobody re-exports anything.",
+          "proof": "Northwind cut reporting from 4 hours to 15 minutes a week."
+        },
+        {
+          "title": "One template per client type",
+          "body": "Pick from 6 layouts, add the client logo, and clone it for the next account in a click."
+        },
+        {
+          "title": "Clients get a live link",
+          "body": "Send a link instead of a PDF. The numbers stay current, and you see when it was opened."
+        }
+      ]
+    },
+    {
+      "type": "how_it_works",
+      "headline": "Live in three steps",
+      "steps": [
+        {
+          "title": "Connect your accounts",
+          "body": "Sign in to Stripe, HubSpot and Google Ads. Read-only access."
+        },
+        {
+          "title": "Pick a template",
+          "body": "Start from a layout built for agencies, add your logo."
+        },
+        {
+          "title": "Send on schedule",
+          "body": "Choose the day and time. Tallyfox emails the live link."
+        }
+      ]
+    },
+    {
+      "type": "testimonials",
+      "headline": "What agency owners say",
+      "items": [
+        {
+          "quote": "Reporting went from four hours to fifteen minutes in our first month. Nobody stays late on Fridays anymore.",
+          "name": "Marta Ruiz",
+          "role": "Finance lead",
+          "company": "Northwind Logistics"
+        }
+      ]
+    },
+    {
+      "type": "pricing",
+      "headline": "Pick the plan that matches your client count",
+      "plans": [
+        {
+          "name": "Solo",
+          "price": "$29",
+          "period": "per month",
+          "for_whom": "Freelancers with up to 5 clients",
+          "features": [
+            "5 client reports",
+            "3 data sources"
+          ],
+          "cta": {
+            "label": "Start Solo free",
+            "href": "#"
+          }
+        },
+        {
+          "name": "Agency",
+          "price": "$79",
+          "period": "per month",
+          "for_whom": "Teams with 6 to 50 clients",
+          "features": [
+            "50 client reports",
+            "All data sources",
+            "Client logos"
+          ],
+          "recommended": true,
+          "cta": {
+            "label": "Start Agency free",
+            "href": "#"
+          }
+        }
+      ]
+    },
+    {
+      "type": "faq",
+      "headline": "Questions agencies ask before starting",
+      "items": [
+        {
+          "q": "Do my clients need an account?",
+          "a": "No. They open a link. You can protect it with a passcode."
+        },
+        {
+          "q": "What if a number looks wrong?",
+          "a": "Each figure links to its source. Click it to see the query and the date it was pulled."
+        }
+      ]
+    },
+    {
+      "type": "final_cta",
+      "headline": "Get your Fridays back",
+      "body": "Try Tallyfox for 14 days. If it does not save you an hour a week, you get a full refund.",
+      "cta": {
+        "label": "Start my free trial",
+        "href": "#pricing"
+      },
+      "triggers": [
+        "No card required",
+        "Cancel anytime"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "label": "Google RSA headline 1",
+      "platform": "google-ads",
+      "field": "rsa-headline",
+      "text": "Client reports in 15 minutes"
+    },
+    {
+      "label": "Google RSA headline 2",
+      "platform": "google-ads",
+      "field": "rsa-headline",
+      "text": "Stop copying numbers by hand"
+    },
+    {
+      "label": "Google RSA description",
+      "platform": "google-ads",
+      "field": "rsa-description",
+      "text": "Pull Stripe, HubSpot and Google Ads into one client report. Set up in 10 minutes."
+    },
+    {
+      "label": "LinkedIn post hook",
+      "platform": "linkedin",
+      "field": "post",
+      "text": "We timed it: a weekly client report took our team 4 hours. Then we connected three accounts and it took 15 minutes. Here is exactly what we changed, step by step, and what still needs a human eye before you hit send."
+    },
+    {
+      "label": "Email subject",
+      "platform": "email",
+      "field": "subject-mobile",
+      "text": "Your Monday report is ready"
+    }
+  ]
+}

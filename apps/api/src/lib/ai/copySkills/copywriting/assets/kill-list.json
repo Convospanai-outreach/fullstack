@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "updated": "2026-09-29",
+    "notes": "Marketing-speak that says nothing while sounding finished. The fix is never a synonym: name the actual thing. 'forms' are matched case-insensitively on word boundaries. Used by scripts/copy_check.py score."
+  },
+  "words": [
+    {"forms": ["seamless", "seamlessly"], "fix": "What the user does not do: 'no manual export', 'no re-typing'."},
+    {"forms": ["robust", "powerful"], "fix": "The capability that earns the adjective, with a number."},
+    {"forms": ["innovative", "innovation", "cutting-edge", "cutting edge", "revolutionary", "game-changing", "game changer", "groundbreaking", "state-of-the-art", "next-generation", "next-gen"], "fix": "What it does that the old way could not."},
+    {"forms": ["streamline", "streamlines", "streamlined", "optimize", "optimise", "optimizes", "supercharge", "supercharges", "turbocharge"], "fix": "The before and after: '4 hours to 15 minutes'."},
+    {"forms": ["leverage", "leverages", "leveraging", "utilize", "utilise", "utilizes", "utilizing"], "fix": "'use', or name the mechanism."},
+    {"forms": ["solution", "solutions", "platform", "ecosystem"], "fix": "What it literally is: 'an invoicing tool', 'a scheduling app'."},
+    {"forms": ["empower", "empowers", "empowering", "unlock", "unlocks", "unleash", "elevate", "elevates"], "fix": "The specific new ability the reader gains."},
+    {"forms": ["best-in-class", "world-class", "industry-leading", "market-leading", "top-notch", "second to none", "unparalleled", "unmatched"], "fix": "The ranking, award or metric, with its source. Otherwise delete."},
+    {"forms": ["all-in-one", "comprehensive", "end-to-end", "one-stop shop", "holistic"], "fix": "The two or three things it replaces, by name."},
+    {"forms": ["effortless", "effortlessly", "intuitive", "user-friendly", "easy-to-use", "hassle-free", "frictionless"], "fix": "The real effort: 'set up in 10 minutes, no code'."},
+    {"forms": ["synergy", "synergies", "paradigm", "paradigm shift", "disrupt", "disruptive", "disrupting"], "fix": "Say what changes for whom."},
+    {"forms": ["scalable", "scale up", "future-proof", "mission-critical", "enterprise-grade", "turnkey"], "fix": "The number it scales to, the guarantee, or the customer who relies on it."},
+    {"forms": ["delve", "tapestry", "landscape", "realm", "testament", "beacon", "myriad", "plethora"], "fix": "Plain noun for the thing itself. These are also common AI tells."},
+    {"forms": ["transform", "transforms", "transformative", "reimagine", "reimagined", "redefine", "redefines"], "fix": "What was before, what is after."},
+    {"forms": ["journey", "curated", "bespoke", "tailored"], "fix": "What the reader actually gets and how it differs from the default."},
+    {"forms": ["passionate", "dedicated", "committed to excellence", "customer-centric", "customer-first"], "fix": "Show it with a specific act, response time or guarantee."}
+  ],
+  "phrases": [
+    {"forms": ["take your business to the next level", "take it to the next level", "to the next level", "next level"], "fix": "The level, named: what improves and by how much."},
+    {"forms": ["in today's fast-paced world", "in today's digital age", "in today's competitive landscape", "in an ever-changing world", "now more than ever"], "fix": "Open with the reader's actual situation or your claim."},
+    {"forms": ["look no further", "say goodbye to", "say hello to", "welcome to"], "fix": "State the offer directly."},
+    {"forms": ["we're passionate about", "we are passionate about", "our mission is to", "we pride ourselves"], "fix": "Say what customers get. Mission language belongs on About, briefly."},
+    {"forms": ["what sets us apart", "we go above and beyond", "one-of-a-kind"], "fix": "Give the proof, or cut."},
+    {"forms": ["at the end of the day", "it goes without saying", "needless to say"], "fix": "Cut. Start at the point."},
+    {"forms": ["trusted by thousands", "loved by thousands", "thousands of customers", "thousands of teams", "millions of users"], "fix": "The exact number, or a named customer. Round numbers read as invented."},
+    {"forms": ["and much more", "and so much more"], "fix": "List the next item or stop."},
+    {"forms": ["a game changer", "a must-have", "a must have", "the ultimate"], "fix": "Say which job it does and how well."}
+  ],
+  "weak_ctas": [
+    {"forms": ["submit"], "fix": "Name the thing they get: 'Send my request'."},
+    {"forms": ["learn more"], "fix": "Say what they will learn or see: 'See pricing', 'Read the case study'."},
+    {"forms": ["click here"], "fix": "Verb plus the value: 'Get the checklist'."},
+    {"forms": ["get started"], "fix": "The first concrete action: 'Create your first invoice'."},
+    {"forms": ["sign up"], "fix": "What they get for signing up: 'Start my free trial'."},
+    {"forms": ["read more"], "fix": "Say what is behind it."},
+    {"forms": ["go", "continue", "next", "ok", "send"], "fix": "Name the outcome of the click."}
+  ],
+  "unproven_superlatives": [
+    "best", "greatest", "leading", "number one", "no. 1", "#1", "fastest", "cheapest", "most powerful", "most advanced",
+    "ultimate", "perfect", "flawless", "guaranteed results", "risk-free", "100%", "always", "never fails", "unbeatable"
+  ],
+  "intensifiers": ["very", "really", "extremely", "just", "actually", "basically", "literally", "truly", "simply", "highly", "incredibly", "totally", "absolutely"],
+  "ai_tell_phrases": [
+    "more than just", "whether you're", "whether you are", "in the world of", "dive into",
+    "unlock the power", "navigate the", "game-changer", "elevate your", "at its core", "ever-evolving", "rich tapestry", "stands as a testament",
+    "in conclusion", "it's important to note", "it is important to note", "look no further", "here's the thing"
+  ],
+  "benefit_signals": [
+    "save", "saves", "cut", "cuts", "faster", "fewer", "more", "without", "never", "no more", "free", "get", "gets", "grow", "win", "wins",
+    "stop", "stops", "avoid", "finish", "finishes", "double", "triple", "half", "in minutes", "in days", "in a day", "back", "keep", "keeps",
+    "earn", "earns", "reduce", "reduces", "increase", "increases", "hours", "days", "minutes", "money", "time"
+  ]
+}

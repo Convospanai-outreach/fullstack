@@ -1,4 +1,5 @@
 import { TOON } from "@/lib/ai/TOON";
+import { COLD_EMAIL_RULES, HUMAN_VOICE_RULES } from "@/lib/ai/writingRules";
 import { AUDIENCE_RULES } from "@/modules/email-campaigner/service/audienceRules";
 
 // The prompts behind the older email draft path (email-worker): one for a live draft, one for a batch
@@ -27,6 +28,10 @@ ${input.personalityGuidance || "None"}
 How to use the lead's location, the ICP and the personality guidance:
 ${AUDIENCE_RULES}
 
+${COLD_EMAIL_RULES}
+
+${HUMAN_VOICE_RULES}
+
 Return JSON with keys: subject, body.
         `.trim();
 }
@@ -47,6 +52,10 @@ ${input.personalityGuidance || "None"}
 
 How to use the lead's location, the ICP and the personality guidance:
 ${AUDIENCE_RULES}
+
+${COLD_EMAIL_RULES}
+
+${HUMAN_VOICE_RULES}
 
 Return JSON with keys: subject, body.
         `.trim();

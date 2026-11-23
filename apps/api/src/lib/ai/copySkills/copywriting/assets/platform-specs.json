@@ -1,0 +1,86 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "updated": "2026-09-29",
+    "verify_note": "Platforms change limits and truncation points without notice. Treat these numbers as a working baseline and verify them in the platform's own ad or publishing preview before a large spend or a launch.",
+    "notes": "limit = hard maximum the platform accepts (null when there is none). visible = characters a reader sees before truncation or a fold (null when not truncated). Units are characters unless a note says pixels. confidence: high = stable and widely documented, medium = varies by device, placement or test."
+  },
+  "google-ads": {
+    "rsa-headline": {"limit": 30, "visible": 30, "notes": "Up to 15 headlines, 3 shown at a time. Each must stand alone in any order.", "confidence": "high"},
+    "rsa-description": {"limit": 90, "visible": 90, "notes": "Up to 4 descriptions, 2 shown. Description 1 often appears alone on mobile.", "confidence": "high"},
+    "rsa-path": {"limit": 15, "visible": 15, "notes": "Two optional path fields after the display URL domain.", "confidence": "high"},
+    "pmax-headline": {"limit": 30, "visible": 30, "notes": "Short headlines. Performance Max needs at least 3 and allows up to 15.", "confidence": "high"},
+    "pmax-long-headline": {"limit": 90, "visible": 90, "notes": "Up to 5 long headlines.", "confidence": "high"},
+    "pmax-description": {"limit": 90, "visible": 90, "notes": "One short description of 60 characters is required, others up to 90.", "confidence": "medium"},
+    "business-name": {"limit": 25, "visible": 25, "notes": "Shown with the logo in several formats.", "confidence": "high"}
+  },
+  "meta-ads": {
+    "primary-text": {"limit": 2200, "visible": 125, "notes": "Feed placements cut the text near 125 characters behind 'See more'. Put the hook and the offer before that point.", "confidence": "medium"},
+    "headline": {"limit": 255, "visible": 40, "notes": "Recommended 27 to 40 characters. Longer headlines get cut, mostly on mobile.", "confidence": "medium"},
+    "description": {"limit": 255, "visible": 30, "notes": "Often hidden on mobile placements. Never rely on it.", "confidence": "medium"}
+  },
+  "linkedin": {
+    "post": {"limit": 3000, "visible": 210, "notes": "The feed cuts the post near 210 characters behind 'see more' on desktop, and shorter on mobile. The first two lines are the hook.", "confidence": "medium"},
+    "ad-intro": {"limit": 600, "visible": 150, "notes": "150 characters recommended to avoid truncation in sponsored content.", "confidence": "high"},
+    "ad-headline": {"limit": 200, "visible": 70, "notes": "Often cut after about 70 characters, depending on format.", "confidence": "medium"},
+    "article-title": {"limit": 150, "visible": 100, "notes": "Keep the key words first.", "confidence": "medium"}
+  },
+  "x": {
+    "post": {"limit": 280, "visible": 280, "notes": "Links count as 23 characters. Most non-Latin scripts count double.", "confidence": "high"},
+    "bio": {"limit": 160, "visible": 160, "notes": "", "confidence": "high"},
+    "display-name": {"limit": 50, "visible": 50, "notes": "", "confidence": "high"}
+  },
+  "instagram": {
+    "caption": {"limit": 2200, "visible": 125, "notes": "The feed shows about 125 characters before 'more'. Up to 30 hashtags allowed.", "confidence": "medium"},
+    "bio": {"limit": 150, "visible": 150, "notes": "", "confidence": "high"},
+    "name": {"limit": 30, "visible": 30, "notes": "The searchable name field.", "confidence": "high"}
+  },
+  "tiktok": {
+    "caption": {"limit": 2200, "visible": 80, "notes": "Only the first line or two shows before 'more'. The limit has changed several times.", "confidence": "medium"},
+    "bio": {"limit": 80, "visible": 80, "notes": "", "confidence": "high"},
+    "ad-text": {"limit": 100, "visible": 100, "notes": "In-feed ad text.", "confidence": "medium"}
+  },
+  "youtube": {
+    "title": {"limit": 100, "visible": 60, "notes": "Search and mobile results cut near 60 characters. Front-load the subject.", "confidence": "medium"},
+    "description": {"limit": 5000, "visible": 100, "notes": "About the first 100 characters show above the fold. Put the link or hook there.", "confidence": "medium"},
+    "channel-description": {"limit": 1000, "visible": 100, "notes": "", "confidence": "medium"}
+  },
+  "pinterest": {
+    "pin-title": {"limit": 100, "visible": 40, "notes": "Feed view shows roughly the first 40 characters.", "confidence": "medium"},
+    "pin-description": {"limit": 500, "visible": 50, "notes": "Only the first 50 to 60 characters show in the feed. Keywords first.", "confidence": "medium"}
+  },
+  "email": {
+    "subject-desktop": {"limit": null, "visible": 60, "notes": "Desktop clients show around 60 characters, some more.", "confidence": "medium"},
+    "subject-mobile": {"limit": null, "visible": 35, "notes": "Phones show roughly 30 to 40 characters. Put the point first.", "confidence": "medium"},
+    "preheader": {"limit": null, "visible": 90, "notes": "Inbox preview text shows around 40 to 130 characters depending on the client. Aim for 40 to 90.", "confidence": "medium"},
+    "from-name": {"limit": null, "visible": 25, "notes": "Cut at about 25 characters on mobile.", "confidence": "medium"}
+  },
+  "seo": {
+    "title": {"limit": null, "visible": 60, "px": 580, "px_font": 20, "notes": "Google truncates by pixel width (about 580 px), so roughly 55 to 60 characters. Wide letters cut earlier.", "confidence": "medium"},
+    "meta-description": {"limit": null, "visible": 155, "notes": "About 155 characters on desktop (about 920 px), around 120 on mobile. Google may rewrite it.", "confidence": "medium"},
+    "url-slug": {"limit": null, "visible": 60, "notes": "Short and readable. Truncated in results.", "confidence": "medium"},
+    "h1": {"limit": null, "visible": 70, "notes": "No hard rule. Keep it as a claim a reader can take in at a glance.", "confidence": "medium"}
+  },
+  "open-graph": {
+    "og-title": {"limit": null, "visible": 60, "notes": "Cut around 60 to 90 characters depending on the network.", "confidence": "medium"},
+    "og-description": {"limit": null, "visible": 110, "notes": "Facebook shows about 110 to 200; LinkedIn and Slack differ.", "confidence": "medium"}
+  },
+  "sms": {
+    "gsm-segment": {"limit": 160, "visible": 160, "notes": "One segment in the GSM alphabet. Longer messages split into 153-character segments and cost more.", "confidence": "high"},
+    "unicode-segment": {"limit": 70, "visible": 70, "notes": "One emoji or non-GSM character drops the whole message to 70 per segment (67 when split).", "confidence": "high"}
+  },
+  "push": {
+    "title": {"limit": null, "visible": 40, "notes": "iOS shows roughly 40 characters, Android about 40 to 65.", "confidence": "medium"},
+    "body": {"limit": null, "visible": 120, "notes": "Around 110 to 130 characters show before the cut on a lock screen. Front-load the reason to open.", "confidence": "medium"}
+  },
+  "app-store": {
+    "ios-name": {"limit": 30, "visible": 30, "notes": "App Store title.", "confidence": "high"},
+    "ios-subtitle": {"limit": 30, "visible": 30, "notes": "", "confidence": "high"},
+    "ios-promo-text": {"limit": 170, "visible": 170, "notes": "Can be changed without a new release.", "confidence": "high"},
+    "play-title": {"limit": 30, "visible": 30, "notes": "Google Play title.", "confidence": "high"},
+    "play-short-description": {"limit": 80, "visible": 80, "notes": "", "confidence": "high"}
+  },
+  "button": {
+    "cta": {"limit": null, "visible": 25, "notes": "Two to four words. Past about 25 characters buttons wrap or shrink on mobile.", "confidence": "medium"}
+  }
+}
