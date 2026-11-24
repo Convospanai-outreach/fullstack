@@ -1,0 +1,26 @@
+{
+  "slug": "chennai",
+  "name": "Chennai",
+  "state": "Tamil Nadu",
+  "stateCode": "IN-TN",
+  "placename": "Chennai, Tamil Nadu, India",
+  "position": "13.0827;80.2707",
+  "icbm": "13.0827, 80.2707",
+  "latitude": "13.0827",
+  "longitude": "80.2707",
+  "corridors": [
+    "OMR IT Expressway",
+    "Guindy Industrial Estate",
+    "Sriperumbudur Auto Cluster",
+    "Ambattur",
+    "T. Nagar Commercial Hub"
+  ],
+  "industryFocus": [
+    "Automotive & EV Manufacturing",
+    "SaaS & Enterprise Applications",
+    "Hardware & Electronic Assembly",
+    "Shipping & Port Logistics"
+  ],
+  "summary": "Governed outbound sales and meeting workflows across the OMR IT Expressway and Chennai manufacturing corridors.",
+  "order": 8
+}

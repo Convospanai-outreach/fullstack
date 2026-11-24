@@ -1,0 +1,26 @@
+{
+  "slug": "pune",
+  "name": "Pune",
+  "state": "Maharashtra",
+  "stateCode": "IN-MH",
+  "placename": "Pune, Maharashtra, India",
+  "position": "18.5204;73.8567",
+  "icbm": "18.5204, 73.8567",
+  "latitude": "18.5204",
+  "longitude": "73.8567",
+  "corridors": [
+    "Hinjawadi Rajiv Gandhi Infotech Park",
+    "Magarpatta City",
+    "Kharadi EON Free Zone",
+    "Viman Nagar",
+    "Bhosari Industrial Area"
+  ],
+  "industryFocus": [
+    "Automotive & Industrial Manufacturing",
+    "Product Engineering & IT Services",
+    "Healthcare & BFSI Back-Office",
+    "Corporate Training & Staffing"
+  ],
+  "summary": "Accelerating B2B contract acquisition for Pune’s engineering powerhouses, IT campuses, and automotive OEMs.",
+  "order": 7
+}

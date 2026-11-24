@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { GlassCard } from './ui/GlassCard';
 import { AlertTriangle } from 'lucide-react';
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { APP_URL } from "../../config/appUrl.mjs";
 
 interface Props {
     children: ReactNode;
@@ -100,7 +101,7 @@ export class ErrorBoundary extends Component<Props, State> {
                                     Try Again
                                 </Button>
                                 <Button
-                                    onClick={() => window.location.href = '/dashboard'}
+                                    onClick={() => window.location.assign(`${APP_URL}/dashboard`)}
                                     variant="outline"
                                     className="w-full"
                                 >
