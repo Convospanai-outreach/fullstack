@@ -9,7 +9,7 @@
 3. Move `apps/web` to its own app host and configure its auth callbacks and cookies for that host.
 4. Set `NEXT_PUBLIC_SITE_URL` on `apps/web` to the public site host, then deploy the app. Its marketing redirects remain disabled until this variable is set.
 
-Before pushing this branch, reconcile `packages/ui/fonts.ts` and the site's browser font assertion with #1039 after its Montserrat change merges. Remote CI, deployed redirects, and cross-host cookie behavior remain unverified.
+This branch includes merged #1039 and uses Montserrat in the shared font source and both browser style checks. Remote CI, deployed redirects, and cross-host cookie behavior remain unverified.
 
 CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landing-page funnels, buyer-signal review, and team governance. The repo ships three deployable services with shared contracts and shared operational docs.
 
