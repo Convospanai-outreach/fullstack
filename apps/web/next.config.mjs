@@ -3,7 +3,6 @@ import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { withSentryConfig } from '@sentry/nextjs';
-import { SITE_URL } from './config/siteUrl.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -123,6 +122,7 @@ const nextConfig = {
     // until verified in prod. These run before src/proxy.ts, which still enforces auth on
     // the destination.
     async redirects() {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
         const marketingPaths = [
             '/', '/about', '/blog/:path*', '/careers/:path*', '/contact', '/docs/:path*',
             '/faq', '/help', '/industries/:path*', '/locations/:path*', '/pricing', '/privacy',
@@ -137,7 +137,7 @@ const nextConfig = {
             destination: '/pricing/manage',
             permanent: false,
         };
-        return [appCheckoutReturn, ...[
+        const appRedirects = [
             ['/audit-logs', '/settings/audit'],
             ['/governance/audit', '/settings/audit'],
             ['/governance/guardrails', '/settings/guardrails'],
@@ -149,6 +149,8 @@ const nextConfig = {
             ['/team', '/settings/team'],
             ['/crm', '/settings/crm'],
             ['/dashboard/settings', '/settings'],
+        ];
+        const legacy = [
             // Old marketing URLs -> Industries / Regions (Nov 2026 site rework).
             ['/use-cases', '/industries'],
             ['/use-cases/cybersecurity', '/industries/cybersecurity'],
@@ -162,8 +164,13 @@ const nextConfig = {
             ['/use-cases/training', '/industries'],
             ['/use-cases/regions/:region', '/regions/:region'],
             ['/funnel', '/'],
-        ].map(([source, destination]) => ({ source, destination: source === '/funnel' || source.startsWith('/use-cases') ? SITE_URL + destination : destination, permanent: false })),
-        ...marketingPaths.map(source => ({ source, destination: SITE_URL + source, permanent: false }))].concat(
+        ];
+        return [
+            appCheckoutReturn,
+            ...appRedirects.map(([source, destination]) => ({ source, destination, permanent: false })),
+            ...(siteUrl ? legacy.map(([source, destination]) => ({ source, destination: siteUrl + destination, permanent: false })) : []),
+            ...(siteUrl ? marketingPaths.map(source => ({ source, destination: siteUrl + source, permanent: false })) : []),
+        ].concat(
             // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
             toNextRedirects(loadSiteRedirects())
         );

@@ -2,6 +2,15 @@
 
 > Split branch (`feat/site-app-split`, 2026-11-24): `apps/site` now owns public marketing, content, SEO, and site assets. `apps/web` retains authenticated product UI, customer landing pages, CMS, and app-owned API handlers. Site requests to public APIs are rewritten to the app; old marketing URLs on the app redirect to the site. This is local work pending CI and deployment review; the production topology described below has not yet changed.
 
+### Site and app split rollout
+
+1. Deploy `apps/site` with `NEXT_PUBLIC_APP_URL` set to the future app host. Its production build fails when this variable is missing.
+2. Point the public domain at the site service.
+3. Move `apps/web` to its own app host and configure its auth callbacks and cookies for that host.
+4. Set `NEXT_PUBLIC_SITE_URL` on `apps/web` to the public site host, then deploy the app. Its marketing redirects remain disabled until this variable is set.
+
+Before pushing this branch, reconcile `packages/ui/fonts.ts` and the site's browser font assertion with #1039 after its Montserrat change merges. Remote CI, deployed redirects, and cross-host cookie behavior remain unverified.
+
 CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landing-page funnels, buyer-signal review, and team governance. The repo ships three deployable services with shared contracts and shared operational docs.
 
 ## Current Status

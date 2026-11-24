@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import nextConfig from "../../next.config.mjs";
 
 // One home per concept: duplicate dashboard pages redirect to their canonical page.
@@ -32,6 +32,22 @@ function childPageExists(root: string, destination: string): boolean {
 
 describe("IA redirects", async () => {
     const redirects = await nextConfig.redirects!();
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("keeps marketing redirects disabled until the site URL is configured", async () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+        const rules = await nextConfig.redirects!();
+        expect(rules.some((rule) => rule.source === "/about")).toBe(false);
+        expect(rules.some((rule) => rule.source === "/use-cases")).toBe(false);
+        expect(rules.some((rule) => rule.source === "/pricing" && rule.destination !== "/pricing/manage")).toBe(false);
+    });
+
+    it("sends marketing and legacy paths to the configured site", async () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.example.test/");
+        const rules = await nextConfig.redirects!();
+        expect(rules.find((rule) => rule.source === "/about")?.destination).toBe("https://site.example.test/about");
+        expect(rules.find((rule) => rule.source === "/use-cases")?.destination).toBe("https://site.example.test/industries");
+    });
 
     it("are temporary until verified in prod", () => {
         expect(redirects.length).toBeGreaterThan(0);

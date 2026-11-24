@@ -110,10 +110,14 @@ jobs:
       run: npm test --workspace apps/site
     - name: Build
       run: npm run build --workspace apps/site
+      env:
+        NEXT_PUBLIC_APP_URL: https://app.example.test
     - name: Install Chromium
       run: npx playwright install --with-deps chromium
     - name: Browser Style Checks
       run: npm run test:e2e --workspace apps/site
+      env:
+        NEXT_PUBLIC_APP_URL: https://app.example.test
 
   web-build:
     name: Web Build (apps/web)
