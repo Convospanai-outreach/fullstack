@@ -11,6 +11,7 @@ for (const theme of THEMES) {
     for (const route of ROUTES) {
       test(`global css: ${route} ${theme} ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
+        await page.route('**/api/proxy/billing/plans*', (request) => request.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
         await page.addInitScript((t) => {
           try { localStorage.setItem('theme', t); } catch { /* storage blocked */ }
         }, theme);

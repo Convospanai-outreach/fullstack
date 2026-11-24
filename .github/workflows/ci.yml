@@ -89,6 +89,32 @@ jobs:
         echo "Docs-only change set detected."
         echo "Skipping Web Build, API Strict Typecheck, and Docker Build Smoke."
 
+  site-build:
+    name: Site Build (apps/site)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Use Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '22.x'
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+    - name: Install dependencies
+      run: npm ci --workspace apps/site --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+    - name: Type Check
+      run: npm run typecheck --workspace apps/site
+    - name: Unit Tests
+      run: npm test --workspace apps/site
+    - name: Build
+      run: npm run build --workspace apps/site
+    - name: Install Chromium
+      run: npx playwright install --with-deps chromium
+    - name: Browser Style Checks
+      run: npm run test:e2e --workspace apps/site
+
   web-build:
     name: Web Build (apps/web)
     needs: detect-docs-only
@@ -538,7 +564,7 @@ jobs:
 
   ci-gate:
     name: CI Gate
-    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke, api-image-boot]
+    needs: [detect-docs-only, docs-only-validation, site-build, web-build, api-typecheck, docker-smoke, api-image-boot]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -550,6 +576,10 @@ jobs:
             exit 1
           fi
         else
+          if [ "${{ needs.site-build.result }}" != "success" ]; then
+            echo "::error::Site Build did not complete successfully."
+            exit 1
+          fi
           if [ "${{ needs.web-build.result }}" != "success" ]; then
             echo "::error::Web Build did not complete successfully."
             exit 1
