@@ -39,12 +39,13 @@ type InboundReply = {
     createdAt: Date;
 };
 
-export async function onInboundReply(message: InboundReply) {
+export async function onInboundReply(message: InboundReply, { classify = true } = {}) {
     // Queue the AI reply suggestion first: it is independent of the alert's sentiment/dedupe
     // early returns. It swallows its own errors.
     // Run side by side so a slow enqueue never delays the alert.
     await Promise.all([
         (async () => {
+            if (!classify) return;
             try {
                 const { enqueueReplyClassification } = await import("./replyClassificationService");
                 await enqueueReplyClassification(message);

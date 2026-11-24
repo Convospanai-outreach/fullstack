@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { toPlainText } from "./actionInboxService";
 import { promoteLeadOnJudgedReply } from "./replyPromotion";
 import { enforceOptOutOnJudgedReply } from "./replyOptOut";
+import { getDripPlaybook } from "@/modules/playbooks/dripPlaybooks";
 
 // Reply classification is a best-effort suggestion for the Action Inbox, run as a queued job
 // so it can never slow down or fail inbound-reply ingestion. Two exceptions: a reply judged
@@ -41,7 +42,10 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
             leadId: true,
             content: true,
             lead: { select: { email: true } },
-            emailEvent: { select: { email: { select: { subject: true } } } },
+            emailEvent: { select: {
+                teamId: true,
+                email: { select: { subject: true, campaign: { select: { teamId: true, aiConfig: true } } } },
+            } },
         },
     });
     if (!message) return { skipped: "not_found" as const };
@@ -58,13 +62,20 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
     }
 
     const { ReplyAnalyzerAgent } = await import("@/lib/ai/agents/ReplyAnalyzerAgent");
+    const campaign = message.emailEvent?.email?.campaign;
+    const config = campaign?.aiConfig as { dripPlaybook?: { kind?: unknown } } | null | undefined;
+    const kind = config?.dripPlaybook?.kind;
+    const playbook = message.emailEvent?.teamId === teamId && campaign?.teamId === teamId && typeof kind === "string"
+        ? getDripPlaybook(kind)
+        : undefined;
     const result = await ReplyAnalyzerAgent.analyzeAndTrack(
         message.emailEvent?.email?.subject ?? "",
         toPlainText(message.content).slice(0, MAX_CLASSIFIED_CHARS),
         message.leadId,
         message.lead.email ?? "",
         message.id,
-        teamId
+        teamId,
+        playbook,
     );
     await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: result.classification, confidence: result.confidence, channel: "EMAIL" });
     await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: result.classification, confidence: result.confidence });

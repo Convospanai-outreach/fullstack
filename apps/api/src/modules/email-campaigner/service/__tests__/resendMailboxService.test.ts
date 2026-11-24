@@ -218,7 +218,7 @@ describe("sendViaResendMailbox", () => {
         expect((result as any).fallbackAllowed).toBe(false);
     });
 
-    it("fails pre-dispatch without a send attempt when the mailbox's send-slot reservation is denied", async () => {
+    it("blocks sending and fallback when the mailbox's send-slot reservation is denied", async () => {
         (reserveMailboxSend as Mock).mockResolvedValue({ ok: false, reason: "Daily send limit reached." });
 
         const result = await sendViaResendMailbox({
@@ -230,7 +230,7 @@ describe("sendViaResendMailbox", () => {
             trackingId: "track-1",
         });
 
-        expect(result).toEqual({ success: false, error: "RESEND_SEND_PRE_DISPATCH_FAILED", fallbackAllowed: true });
+        expect(result).toEqual({ success: false, error: "Daily send limit reached.", fallbackAllowed: false });
         expect(mockResendSend).not.toHaveBeenCalled();
     });
 });

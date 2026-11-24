@@ -634,7 +634,7 @@ export async function assertMailboxCanSend(teamId: string, mailboxId: string) {
     const sentTodayDate = mailbox.sentTodayDate ? new Date(mailbox.sentTodayDate) : null;
     const sentToday = sentTodayDate && sentTodayDate >= today ? mailbox.sentToday : 0;
     const warmupLimit = mailbox.isWarmingUp
-        ? Math.max(5, Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5))
+        ? Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5)
         : mailbox.dailyLimit;
 
     if (sentToday >= warmupLimit) {
@@ -686,7 +686,7 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string) {
     }
 
     const warmupLimit = mailbox.isWarmingUp
-        ? Math.max(5, Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5))
+        ? Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5)
         : mailbox.dailyLimit;
     const today = new Date();
     today.setHours(0, 0, 0, 0);

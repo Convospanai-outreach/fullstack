@@ -79,6 +79,10 @@ describe("sendWarmupSeedTraffic", () => {
 
         const result = await sendWarmupSeedTraffic();
 
+        expect(mockDb.connectedMailbox.findMany).toHaveBeenCalledWith({
+            where: { isWarmingUp: true, status: "CONNECTED", provider: { in: ["GOOGLE_WORKSPACE", "SMTP"] } },
+            take: 25,
+        });
         expect(result.sent).toBe(1);
         expect(mockSendViaGmailMailbox).toHaveBeenCalledWith(
             expect.objectContaining({ teamId: "team-1", mailboxId: "mailbox-1", to: "seed1@warmup.craftmyfunnel.live" })

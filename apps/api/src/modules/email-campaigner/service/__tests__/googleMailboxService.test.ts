@@ -16,6 +16,8 @@ import {
     registerGoogleMailboxWatch,
     renewDueGoogleMailboxWatches,
     advanceMailboxWarmup,
+    assertMailboxCanSend,
+    reserveMailboxSend,
     resolveGoogleMailbox,
     updateMailboxControls,
     assertGmailMailboxLeaseInTransaction,
@@ -1970,6 +1972,22 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         mockFetch.mockResolvedValueOnce(response({ historyId: "" }, true, 200));
 
         await expect(registerGoogleMailboxWatch("team-1", "mailbox-1")).rejects.toThrow("GMAIL_WATCH_RESPONSE_INVALID");
+    });
+
+    it("keeps the warmup ramp below the mailbox's configured daily cap", async () => {
+        const sentTodayDate = new Date();
+        sentTodayDate.setHours(0, 0, 0, 0);
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
+            status: "CONNECTED", email: "sender@example.test", isWarmingUp: true,
+            dailyLimit: 2, warmupDay: 0, sentToday: 2, sentTodayDate,
+        });
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 0 });
+
+        await expect(assertMailboxCanSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: false });
+        await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: false });
+        expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ sentToday: { lt: 2 } }),
+        }));
     });
 
     it("advances warmup status for connected warming mailboxes", async () => {

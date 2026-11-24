@@ -4,6 +4,7 @@ import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { internalErrorMessage } from "@/lib/internalError";
+import { configureResendCloudflareDns, MailDnsSetupError } from "@/lib/resendCloudflareDns";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { apiKey, fromName, email, inboundDomain, webhookSecret } = body;
+    const { apiKey, fromName, email, inboundDomain, webhookSecret, cloudflareZoneId, cloudflareToken } = body;
 
     if (!apiKey || !email) {
       return NextResponse.json({ error: "Missing required Resend connection parameters." }, { status: 400 });
@@ -36,6 +37,22 @@ export async function POST(req: NextRequest) {
     const { error } = await resend.apiKeys.list();
     if (error) {
       return NextResponse.json({ error: error.message || "Resend API key verification failed." }, { status: 400 });
+    }
+
+    if (cloudflareZoneId || cloudflareToken) {
+      const senderDomain = /^[^\s@]+@([^\s@]+)$/.exec(fromEmail)?.[1];
+      if (!senderDomain || typeof cloudflareZoneId !== "string" || typeof cloudflareToken !== "string") {
+        return NextResponse.json({ error: "Enter a sender email, Cloudflare zone ID, and zone token." }, { status: 400 });
+      }
+      if (trimmedInboundDomain && !trimmedWebhookSecret) {
+        return NextResponse.json({ error: "Enter the Resend webhook signing secret to connect a receiving domain." }, { status: 400 });
+      }
+      const domains = await configureResendCloudflareDns({
+        resend, senderDomain, inboundDomain: trimmedInboundDomain, zoneId: cloudflareZoneId.trim(), token: cloudflareToken.trim(),
+      });
+      if (domains.some((domain) => !domain.ready)) {
+        return NextResponse.json({ error: "DNS records are in place and Resend verification is pending. Try connecting again after DNS propagates." }, { status: 409 });
+      }
     }
 
     const { prisma } = await import("@/lib/db");
@@ -75,6 +92,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, mailboxId: mailbox.id, email: mailbox.email });
   } catch (err: any) {
+    if (err instanceof MailDnsSetupError) return NextResponse.json({ error: err.message }, { status: 400 });
     return NextResponse.json({ error: internalErrorMessage(err, "Internal server error during Resend connection.") }, { status: 500 });
   }
 }

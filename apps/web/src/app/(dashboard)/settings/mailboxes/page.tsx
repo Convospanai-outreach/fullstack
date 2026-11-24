@@ -89,6 +89,9 @@ export default function MailboxesSettingsPage() {
     // Resend Modal State
     const [showResendModal, setShowResendModal] = useState(false);
     const [resendApiKey, setResendApiKey] = useState("");
+    const [resendCloudflareZoneId, setResendCloudflareZoneId] = useState("");
+    const [resendCloudflareToken, setResendCloudflareToken] = useState("");
+    const [resendConnectError, setResendConnectError] = useState("");
     const [resendFromName, setResendFromName] = useState("");
     const [resendEmail, setResendEmail] = useState("");
     const [resendInboundDomain, setResendInboundDomain] = useState("");
@@ -111,7 +114,11 @@ export default function MailboxesSettingsPage() {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 if (showSmtpModal) setShowSmtpModal(false);
-                if (showResendModal) setShowResendModal(false);
+                if (showResendModal) {
+                    setResendCloudflareToken("");
+                    setResendConnectError("");
+                    setShowResendModal(false);
+                }
                 if (editingMailbox) setEditingMailbox(null);
             }
         };
@@ -376,7 +383,7 @@ export default function MailboxesSettingsPage() {
     const handleSaveResend = async (e: React.FormEvent) => {
         e.preventDefault();
         setResendSaving(true);
-        setError("");
+        setResendConnectError("");
         try {
             const res = await fetch("/api/integrations/resend/connect", {
                 method: "POST",
@@ -387,18 +394,21 @@ export default function MailboxesSettingsPage() {
                     email: resendEmail,
                     inboundDomain: resendInboundDomain || undefined,
                     webhookSecret: resendWebhookSecret || undefined,
+                    cloudflareZoneId: resendCloudflareZoneId.trim() || undefined,
+                    cloudflareToken: resendCloudflareToken.trim() || undefined,
                 }),
             });
             const data = await res.json();
             if (res.ok && data.success) {
                 setSuccess(`Resend Mailbox (${data.email}) connected successfully!`);
+                setResendCloudflareToken("");
                 setShowResendModal(false);
                 loadMailboxes();
             } else {
-                setError(data.error || "Failed to connect Resend mailbox.");
+                setResendConnectError(data.error || "Failed to connect Resend mailbox.");
             }
         } catch {
-            setError("Failed to connect Resend mailbox.");
+            setResendConnectError("Failed to connect Resend mailbox.");
         } finally {
             setResendSaving(false);
         }
@@ -663,7 +673,7 @@ export default function MailboxesSettingsPage() {
                                         <div className="bg-muted rounded-lg p-2.5 border border-border">
                                             <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Warmup State</span>
                                             <span className="text-foreground font-medium truncate block mt-0.5">
-                                                {mb.isWarmingUp ? `🔥 Day ${mb.warmupDay || 0}/${mb.warmupTargetDays || 30}` : "✅ Warmed Up"}
+                                                {mb.isWarmingUp ? `Ramp day ${mb.warmupDay || 0}/${mb.warmupTargetDays || 30}` : "Ramp off"}
                                             </span>
                                         </div>
 
@@ -899,9 +909,14 @@ export default function MailboxesSettingsPage() {
                                     className="rounded bg-muted border-border"
                                 />
                                 <label htmlFor="isWarmingUp" className="text-foreground text-xs">
-                                    Enable Warmup Schedule (Gradual Daily Limit Scaling)
+                                    Gradually increase the daily sending limit
                                 </label>
                             </div>
+                            {editingMailbox.provider === "RESEND" && (
+                                <p className="text-muted-foreground text-xs">
+                                    This ramp applies to the emails you send through Resend. The seed mailbox runner supports Gmail and SMTP.
+                                </p>
+                            )}
 
                             <div className="pt-3 flex justify-end gap-2 border-t border-border">
                                 <button type="button" onClick={() => setEditingMailbox(null)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">
@@ -996,7 +1011,7 @@ export default function MailboxesSettingsPage() {
                     <div className="glass max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between border-b border-border pb-3">
                             <h2 id="resend-modal-title" className="text-xl font-bold text-foreground">Connect Resend Mailbox</h2>
-                            <button onClick={() => setShowResendModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
+                            <button onClick={() => { setResendCloudflareToken(""); setResendConnectError(""); setShowResendModal(false); }} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
                         </div>
                         <form onSubmit={handleSaveResend} className="space-y-3 text-sm">
                             <div>
@@ -1013,6 +1028,17 @@ export default function MailboxesSettingsPage() {
                                     <input type="email" placeholder="john@domain.com" value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                             </div>
+
+                            <details className="pt-2 border-t border-border">
+                                <summary className="cursor-pointer text-xs font-semibold text-primary">Set up DNS with Cloudflare</summary>
+                                <p className="my-2 text-xs text-muted-foreground">
+                                    Use a token scoped to this zone with Zone Read and DNS Edit. We add Resend's DNS records and check verification when you connect.
+                                </p>
+                                <label htmlFor="resend-cloudflare-zone" className="block text-xs mb-1">Cloudflare zone ID</label>
+                                <input id="resend-cloudflare-zone" value={resendCloudflareZoneId} onChange={(e) => setResendCloudflareZoneId(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2" />
+                                <label htmlFor="resend-cloudflare-token" className="block text-xs mt-2 mb-1">Cloudflare token</label>
+                                <input id="resend-cloudflare-token" type="password" autoComplete="off" value={resendCloudflareToken} onChange={(e) => setResendCloudflareToken(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2" />
+                            </details>
 
                             <div className="pt-2 border-t border-border">
                                 <button
@@ -1053,8 +1079,9 @@ export default function MailboxesSettingsPage() {
                                 )}
                             </div>
 
+                            {resendConnectError && <p role="alert" className="text-xs text-destructive">{resendConnectError}</p>}
                             <div className="pt-3 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowResendModal(false)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
+                                <button type="button" onClick={() => { setResendCloudflareToken(""); setResendConnectError(""); setShowResendModal(false); }} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
                                 <button type="submit" disabled={resendSaving} className="px-4 py-2 rounded-lg bg-success hover:bg-success/90 text-primary-foreground font-semibold text-xs">
                                     {resendSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
