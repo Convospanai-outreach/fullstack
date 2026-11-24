@@ -43,6 +43,30 @@
 
 @layer base {
   :root {
+    --brand-burgundy: 92,26,43;
+    --brand-burgundy-hover: 70,18,31;
+    --brand-ink: 26,20,20;
+    --brand-cream: 243,237,228;
+    --brand-beige: 232,223,210;
+    --brand-gold: 194,163,107;
+    --brand-burgundy-glow: 122,42,61;
+    --brand-burgundy-shadow: 46,12,21;
+    --brand-burgundy-mid: 74,21,34;
+    --brand-white: 255,255,255;
+    --brand-card: 251,248,243;
+    --brand-hero-glow: 58,48,44;
+    --brand-hero-shadow: 42,34,32;
+    --brand-burgundy-light: 116,37,58;
+    --brand-burgundy-dark: 58,14,26;
+    --brand-gold-light: 220,195,146;
+    --brand-gold-dark: 168,136,79;
+    --brand-black: 0,0,0;
+    --brand-card-gold: 239,228,207;
+    --brand-placeholder-ink: 12,27,48;
+    --brand-shadow-ink: 20,4,10;
+    --radius-none: 0px;
+    --radius-card: 4px;
+    --radius-input: 2px;
     --background: 36 38.5% 92.4%;
     --foreground: 0 13% 9%;
     --card: 37.5 50% 96.9%;

@@ -6,6 +6,7 @@
     "node": ">=22 <23"
   },
   "workspaces": [
+    "apps/site",
     "apps/web",
     "apps/api",
     "packages/*"
@@ -34,7 +35,11 @@
     "readiness:audit:no-seed": "node scripts/readiness/no-seed-readiness-audit.mjs",
     "readiness:check-db-shape": "npx tsx scripts/readiness/check-db-shape.ts",
     "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts",
-    "migrations:scan:destructive": "node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts"
+    "migrations:scan:destructive": "node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts",
+    "build:site": "npm run build --workspace apps/site",
+    "dev:site": "npm run dev --workspace apps/site",
+    "start:site": "npm run start --workspace apps/site",
+    "typecheck:site": "npm run typecheck --workspace apps/site"
   },
   "overrides": {
     "effect": "3.22.5",
