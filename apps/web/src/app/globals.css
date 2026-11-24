@@ -39,7 +39,7 @@
   --color-chart-6: hsl(var(--chart-6));
   --color-chart-7: hsl(var(--chart-7));
   --color-chart-8: hsl(var(--chart-8));
-  --font-display: var(--font-bricolage), "Inter", system-ui, sans-serif;
+  --font-display: var(--font-home), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-home), ui-sans-serif, system-ui, sans-serif;
 }
 

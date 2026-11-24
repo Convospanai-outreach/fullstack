@@ -1,5 +1,5 @@
-import { Cormorant_Garamond, Jost } from "next/font/google";
+import { Montserrat } from "next/font/google";
 
-/** Marketing type, Italian-luxury direction: Jost for text, Cormorant Garamond for headlines. */
-export const siteSans = Jost({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--font-home" });
-export const siteSerif = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], display: "swap", variable: "--font-display" });
+/** One typeface for the whole product: Montserrat (variable font, all weights). Both CSS variables resolve to the same file. */
+export const siteSans = Montserrat({ subsets: ["latin"], display: "swap", variable: "--font-home" });
+export const siteSerif = Montserrat({ subsets: ["latin"], display: "swap", variable: "--font-display" });

@@ -209,11 +209,11 @@
 @media (max-width: 800px) { .ph-sbx-panel { grid-template-columns: 1fr; gap: 24px; } .ph-sbx-card { padding: 22px; } }
 
 /* ---------- Bordeaux (Italian-luxury) layer ---------- */
-.ph h1, .ph h2 { font-family: var(--font-display), Georgia, serif; font-size: 58px; line-height: 1.06; font-weight: 500; letter-spacing: -0.01em; }
-.ph h3, .ph-tabpanel h3, .ph-sbx-panel h3 { font-family: var(--font-display), Georgia, serif; font-size: 28px; font-weight: 600; letter-spacing: 0; line-height: 1.15; }
+.ph h1, .ph h2 { font-family: var(--font-display), sans-serif; font-size: 58px; line-height: 1.06; font-weight: 500; letter-spacing: -0.01em; }
+.ph h3, .ph-tabpanel h3, .ph-sbx-panel h3 { font-family: var(--font-display), sans-serif; font-size: 28px; font-weight: 600; letter-spacing: 0; line-height: 1.15; }
 .ph-lead, .ph-hero p { font-weight: 400; letter-spacing: 0; font-size: 19px; line-height: 1.55; }
 .ph-eyebrow, .ph-label, .ph-tag { font-weight: 500; letter-spacing: .2em; }
-.ph-stat strong, .ph-step-n, .ph-quote blockquote, .ph-faq summary { font-family: var(--font-display), Georgia, serif; letter-spacing: 0; }
+.ph-stat strong, .ph-step-n, .ph-quote blockquote, .ph-faq summary { font-family: var(--font-display), sans-serif; letter-spacing: 0; }
 .ph-stat strong { font-size: 52px; color: var(--ph-navy); }
 .ph-step-n { font-size: 56px; color: var(--ph-yellow); }
 .ph-faq summary { font-size: 24px; }
