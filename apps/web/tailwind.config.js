@@ -55,7 +55,7 @@ module.exports = {
                 sm: "calc(0.75rem - 4px)",
             },
             fontFamily: {
-                sans: ["var(--font-inter)", "sans-serif"],
+                sans: ["var(--font-home)", "sans-serif"],
                 mono: ["var(--font-jetbrains-mono)", "monospace"],
                 outfit: ["var(--font-outfit)", "sans-serif"],
             },

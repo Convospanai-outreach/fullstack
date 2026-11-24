@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // One check for the whole product: marketing pages and dashboard pages must resolve the same global tokens.
-// Body font is Jost, the page paints a theme background, and no element uses a blue/violet/cyan colour.
+// Body font is Montserrat, the page paints a theme background, and no element uses a blue/violet/cyan colour.
 // Dashboard routes need the usual authenticated test session; marketing routes run without one.
 const ROUTES = ['/', '/pricing', '/industries/cybersecurity', '/dashboard', '/campaigns', '/analytics/roi'];
 const THEMES = ['light', 'dark'] as const;
@@ -53,7 +53,7 @@ for (const theme of THEMES) {
           };
         });
 
-        expect(result.font).toContain('Jost');
+        expect(result.font).toContain('Montserrat');
         expect(result.background).toBe(BACKGROUND[theme]);
         expect(result.overflowX, 'page scrolls sideways').toBe(false);
         expect(result.cool, 'blue/violet/cyan colours found').toEqual([]);

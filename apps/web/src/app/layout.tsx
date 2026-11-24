@@ -6,34 +6,8 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { ClientOverlays } from "@/components/layout/ClientOverlays";
 import { StrictQualityBoundary } from "@/components/StrictQualityBoundary";
 import Script from "next/script";
-import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Bricolage_Grotesque, Public_Sans } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import { siteSans, siteSerif } from "@/components/marketing/home/fonts";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-});
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-jakarta",
-});
-
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500"],
-  variable: "--font-bricolage",
-});
-
-const publicSans = Public_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500"],
-  variable: "--font-public-sans",
-});
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -125,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
       <html
         lang="en"
-        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} ${bricolage.variable} ${publicSans.variable} ${siteSans.variable} ${siteSerif.variable}`}
+        className={`${jetbrainsMono.variable} ${siteSans.variable} ${siteSerif.variable}`}
         data-scroll-behavior="smooth"
         suppressHydrationWarning
       >
