@@ -4,6 +4,9 @@
   "exports": {
     "./tokens.css": "./tokens.css",
     "./base.css": "./base.css",
-    "./fonts": "./fonts.ts"
+    "./fonts": "./fonts.ts",
+    "./NavBar": "./NavBar.tsx",
+    "./Footer": "./Footer.tsx",
+    "./LogoMark": "./LogoMark.tsx"
   }
 }

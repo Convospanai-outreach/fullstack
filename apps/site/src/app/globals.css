@@ -2,6 +2,7 @@
 
 @import "../../../../packages/ui/tokens.css";
 @import "../../../../packages/ui/base.css";
+@source "../../../../packages/ui";
 
 @layer components {
   .backdrop-wave-pattern {

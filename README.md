@@ -1,5 +1,7 @@
 # CraftMyFunnel
 
+> Split branch (`feat/site-app-split`, 2026-11-24): `apps/site` now owns public marketing, content, SEO, and site assets. `apps/web` retains authenticated product UI, customer landing pages, CMS, and app-owned API handlers. Site requests to public APIs are rewritten to the app; old marketing URLs on the app redirect to the site. This is local work pending CI and deployment review; the production topology described below has not yet changed.
+
 CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landing-page funnels, buyer-signal review, and team governance. The repo ships three deployable services with shared contracts and shared operational docs.
 
 ## Current Status

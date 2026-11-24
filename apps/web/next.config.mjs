@@ -3,6 +3,7 @@ import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { withSentryConfig } from '@sentry/nextjs';
+import { SITE_URL } from './config/siteUrl.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -122,7 +123,21 @@ const nextConfig = {
     // until verified in prod. These run before src/proxy.ts, which still enforces auth on
     // the destination.
     async redirects() {
-        return [
+        const marketingPaths = [
+            '/', '/about', '/blog/:path*', '/careers/:path*', '/contact', '/docs/:path*',
+            '/faq', '/help', '/industries/:path*', '/locations/:path*', '/pricing', '/privacy',
+            '/products/:path*', '/regions/:path*', '/security', '/support', '/terms',
+            '/trust/:path*', '/vs/:path*', '/data-deletion', '/google-api-disclosure',
+            '/robots.txt', '/sitemap.xml', '/manifest.webmanifest', '/llms.txt', '/llms-full.txt',
+            '/uploads/:path*',
+        ];
+        const appCheckoutReturn = {
+            source: '/pricing',
+            has: [{ type: 'query', key: 'checkout', value: 'cancelled' }],
+            destination: '/pricing/manage',
+            permanent: false,
+        };
+        return [appCheckoutReturn, ...[
             ['/audit-logs', '/settings/audit'],
             ['/governance/audit', '/settings/audit'],
             ['/governance/guardrails', '/settings/guardrails'],
@@ -147,7 +162,8 @@ const nextConfig = {
             ['/use-cases/training', '/industries'],
             ['/use-cases/regions/:region', '/regions/:region'],
             ['/funnel', '/'],
-        ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
+        ].map(([source, destination]) => ({ source, destination: source === '/funnel' || source.startsWith('/use-cases') ? SITE_URL + destination : destination, permanent: false })),
+        ...marketingPaths.map(source => ({ source, destination: SITE_URL + source, permanent: false }))].concat(
             // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
             toNextRedirects(loadSiteRedirects())
         );

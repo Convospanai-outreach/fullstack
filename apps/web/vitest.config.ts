@@ -31,6 +31,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
+            '@craftmyfunnel/ui': path.resolve(__dirname, '../../packages/ui'),
         },
     },
 });

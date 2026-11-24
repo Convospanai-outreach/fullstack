@@ -79,9 +79,15 @@ const config = {
             '/client/:path*', '/superadmin/:path*', '/p/:path*', '/mcp/connect', '/cms/:path*',
         ];
         return [
-            ...legacy,
-            ...appPaths.map(source => [source, `${APP_URL}${source}`]),
-        ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
+            {
+                source: '/pricing',
+                has: [{ type: 'query', key: 'checkout', value: 'cancelled' }],
+                destination: `${APP_URL}/pricing/manage`,
+                permanent: false,
+            },
+            ...legacy.map(([source, destination]) => ({ source, destination, permanent: false })),
+            ...appPaths.map(source => ({ source, destination: `${APP_URL}${source}`, permanent: false })),
+        ].concat(
             toNextRedirects(loadSiteRedirects()),
         );
     },
@@ -89,7 +95,7 @@ const config = {
         return [
             '/api/invite-requests', '/api/contact', '/api/careers/apply',
             '/api/help/search', '/api/help/assistant', '/api/support/contact',
-            '/api/errors/client', '/api/site-banner', '/api/proxy/billing/plans',
+            '/api/errors/client', '/api/proxy/errors/client', '/api/site-banner', '/api/proxy/billing/plans',
             '/api/openapi.json', '/.well-known/api-catalog', '/.well-known/agent-card.json',
             '/.well-known/agent-skills/index.json', '/.well-known/agent-skills/:skill/SKILL.md',
             '/.well-known/http-message-signatures-directory', '/.well-known/microsoft-identity-association.json',

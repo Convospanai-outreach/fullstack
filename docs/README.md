@@ -1,5 +1,7 @@
 # CraftMyFunnel Documentation
 
+> The `feat/site-app-split` branch adds `apps/site` for public marketing, content, and SEO while `apps/web` retains product UI, CMS, and app-owned APIs. The split is local and awaits CI and deployment verification; older topology sections describe current production.
+
 This folder holds the current architecture, readiness, deployment, QA, and implementation docs for the CraftMyFunnel monorepo.
 
 ## Start Here

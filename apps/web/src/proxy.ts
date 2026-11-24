@@ -10,12 +10,6 @@ import {
     parseEnabledHiddenFeatureKeys,
     PRODUCT_FLAGS,
 } from './lib/productFlags';
-import { getRobotsTxt } from './app/robots';
-import {
-    isMarkdownRequested,
-    getMarkdownForPath,
-    createMarkdownResponse,
-} from './lib/markdownNegotiator';
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER, getBaseSiteUrl } from './lib/apiCatalog';
 import { isValidInternalRelay } from './lib/internalRelay';
 import { mcpAdmissionGrant } from './lib/mcpAdmission';
@@ -67,25 +61,6 @@ async function appProxy(req: NextRequest) {
             response.headers.set(key, value);
         });
         return response;
-    }
-
-    if (path === "/robots.txt") {
-        return new NextResponse(getRobotsTxt(), {
-            status: 200,
-            headers: {
-                "Content-Type": "text/plain; charset=utf-8",
-                "Cache-Control": "public, max-age=86400, s-maxage=86400",
-            },
-        });
-    }
-
-    if (isMarkdownRequested(req)) {
-        // Canonical host, not req.nextUrl.origin: behind Render the incoming
-        // origin can be an internal/localhost URL, which would leak into the
-        // canonical links these discovery docs emit (F-25).
-        const baseUrl = getBaseSiteUrl();
-        const markdown = getMarkdownForPath(path, baseUrl);
-        return createMarkdownResponse(markdown);
     }
 
     if (path === "/.well-known/api-catalog") {

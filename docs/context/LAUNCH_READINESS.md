@@ -1,5 +1,7 @@
 # Launch Readiness Wiki
 
+> The `feat/site-app-split` branch adds a separate `apps/site` build and route boundary. Local checks and target-branch CI, host configuration, cross-host redirects, CMS content paths, and deployment verification are required before this split is considered released. Older test counts below predate the split.
+
 > 2026-11-04 MCP update: the scores and test counts below describe an earlier reassessment. They do not approve the new MCP interface. MCP stays disabled until the additive migration, both service releases, HTTPS discovery, OAuth/client verification and target-branch CI are reviewed. See [current MCP evidence and limits](../MCP_INTEGRATION.md) and [runtime findings](../MCP_RUNTIME_REVIEW.md).
 
 ## Current Launch Recommendation
