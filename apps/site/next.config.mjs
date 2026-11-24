@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withSentryConfig } from '@sentry/nextjs';
 import { APP_URL } from './config/appUrl.mjs';
+import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const isProduction = process.env.NODE_ENV === 'production';
@@ -38,6 +39,12 @@ const config = {
     },
     async headers() {
         return [{
+            source: '/',
+            headers: [{
+                key: 'Link',
+                value: '</.well-known/api-catalog>; rel="api-catalog", </api/openapi.json>; rel="service-desc"; type="application/json", </docs>; rel="service-doc"; type="text/html", </llms.txt>; rel="describedby"; type="text/plain"',
+            }],
+        }, {
             source: '/:path*',
             headers: [
                 { key: 'Content-Security-Policy', value: csp },
@@ -50,11 +57,42 @@ const config = {
             ],
         }];
     },
+    async redirects() {
+        const legacy = [
+            ['/use-cases', '/industries'],
+            ['/use-cases/cybersecurity', '/industries/cybersecurity'],
+            ['/use-cases/security-services', '/industries/gcc-services'],
+            ['/use-cases/facility-management', '/industries/gcc-services'],
+            ['/use-cases/managed-it-cloud', '/industries/managed-it-cloud'],
+            ['/use-cases/managed-services', '/industries/managed-it-cloud'],
+            ['/use-cases/ai-data-erp', '/industries/sap-erp'],
+            ['/use-cases/staffing', '/industries/staffing'],
+            ['/use-cases/consulting', '/industries/dpdp-consulting'],
+            ['/use-cases/training', '/industries'],
+            ['/use-cases/regions/:region', '/regions/:region'],
+            ['/funnel', '/'],
+        ];
+        const appPaths = [
+            '/login/:path*', '/signup', '/forgot-password', '/magic-link', '/verify-email',
+            '/accept-invite', '/client-login', '/agent-login', '/complete-profile', '/onboarding',
+            '/setup', '/dashboard/:path*', '/checkout/:path*', '/credits', '/extension/:path*',
+            '/client/:path*', '/superadmin/:path*', '/p/:path*', '/mcp/connect', '/cms/:path*',
+        ];
+        return [
+            ...legacy,
+            ...appPaths.map(source => [source, `${APP_URL}${source}`]),
+        ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
+            toNextRedirects(loadSiteRedirects()),
+        );
+    },
     async rewrites() {
         return [
             '/api/invite-requests', '/api/contact', '/api/careers/apply',
             '/api/help/search', '/api/help/assistant', '/api/support/contact',
             '/api/errors/client', '/api/site-banner', '/api/proxy/billing/plans',
+            '/api/openapi.json', '/.well-known/api-catalog', '/.well-known/agent-card.json',
+            '/.well-known/agent-skills/index.json', '/.well-known/agent-skills/:skill/SKILL.md',
+            '/.well-known/http-message-signatures-directory', '/.well-known/microsoft-identity-association.json',
         ].map(source => ({ source, destination: `${APP_URL}${source}` }));
     },
 };

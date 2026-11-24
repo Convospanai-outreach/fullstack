@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
@@ -47,7 +47,8 @@ describe("the footer", () => {
 describe("the trust pages are public", () => {
     it("are reachable without a session", () => {
         const layout = readFileSync(resolve(__dirname, "../layout.tsx"), "utf8");
-        expect(existsSync(resolve(__dirname, "../../proxy.ts"))).toBe(false);
+        const proxy = readFileSync(resolve(__dirname, "../../proxy.ts"), "utf8");
+        expect(proxy).not.toMatch(/next-auth|getToken|session-token/);
         expect(layout).not.toMatch(/next-auth|SessionProvider/);
     });
 });
