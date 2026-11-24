@@ -74,8 +74,7 @@ function stripHtml(html: string): string {
 // Resend's "email.received" webhook payload only carries metadata (from/to/subject/message_id) -
 // the actual reply text/html has to be fetched separately via the receiving-emails API, using
 // this specific mailbox's own Resend API key (each team brings its own Resend account).
-async function fetchReceivedEmailBody(mailbox: { encryptedAccessToken: unknown }, emailId?: string | null): Promise<{ content: string; from: string } | null> {
-  if (!emailId) return null;
+async function fetchReceivedEmailBody(mailbox: { encryptedAccessToken: unknown }, emailId: string): Promise<{ content: string; from: string } | null> {
   try {
     const apiKey = await decryptCredential(mailbox.encryptedAccessToken as any);
     if (!apiKey) return null;
@@ -262,7 +261,17 @@ export async function POST(req: NextRequest) {
           console.warn("[ResendWebhook] email.received without email_id; skipped");
           return NextResponse.json({ ok: true, skipped: true, reason: "missing_email_id" });
         }
+        const existing = await prisma.emailEvent.findUnique({
+          where: { teamId_provider_providerMessageId_type: { teamId, provider: "RESEND", providerMessageId: inboundEmailId, type: "REPLY_RECEIVED" } },
+          select: { id: true },
+        });
+        if (existing) return NextResponse.json({ ok: true, duplicate: true });
+
         const body = await fetchReceivedEmailBody(mailbox, inboundEmailId);
+        if (!body) {
+          // Acknowledging or creating the event here would prevent a later delivery from recovering the body.
+          return NextResponse.json({ error: "Could not retrieve the Resend reply body" }, { status: 500 });
+        }
 
         // Same parity as the Gmail/IMAP reply paths: a Message row is what actually makes
         // the reply show up in the Inbox UI. The event goes first, so a redelivery fails on
@@ -276,10 +285,10 @@ export async function POST(req: NextRequest) {
             return tx.message.create({
               data: {
                 leadId: email.leadId,
-                content: body?.content || event.data?.subject || "Reply detected",
+                content: body.content,
                 direction: "INBOUND",
                 platform: "EMAIL",
-                sender: body?.from || event.data?.from || "",
+                sender: body.from || event.data?.from || "",
                 status: "received",
                 isRead: false,
                 emailEventId: emailEvent.id,
@@ -292,7 +301,7 @@ export async function POST(req: NextRequest) {
         }
 
         const { onInboundReply } = await import("@/modules/inbox/inboundReplyNotifier");
-        void onInboundReply(inboundMessage);
+        void onInboundReply(inboundMessage, { classify: Boolean(body.content) });
         await rescoreLead(email.leadId);
         break;
       }

@@ -1,9 +1,8 @@
 // Sends real send/receive traffic between a customer's warming-up ConnectedMailbox and a
 // platform-owned pool of dedicated seed mailboxes (WarmupSeedMailbox), so a new mailbox builds
 // sender reputation with real accepted deliveries and reciprocal replies instead of sitting
-// idle until the customer's first real campaign. Only reaches Gmail/SMTP mailboxes today -
-// the same provider scope emailService.sendEmail() itself supports; Microsoft 365/Resend
-// mailboxes are skipped, not a regression introduced here.
+// idle until the customer's first real campaign. The seed runner uses Gmail and SMTP.
+// Resend mailboxes use the send limit ramp for their regular traffic.
 import { prisma } from "@/lib/db";
 import { assertMailboxCanSend, reserveMailboxSend, releaseMailboxSend, sendViaGmailMailbox } from "./googleMailboxService";
 import { getSmtpConfig } from "./smtpConfigService";
@@ -102,6 +101,7 @@ async function sendFromWarmingMailbox(mailbox: any, to: string, subject: string,
         const outcome = await sendViaGmailMailbox({ teamId: mailbox.teamId, mailboxId: mailbox.id, to, subject, html });
         return outcome.success;
     }
+    if (mailbox.provider !== "SMTP") return false;
     const config = await getSmtpConfig(mailbox.teamId);
     if (!config) return false;
     const result = await sendViaSMTP(config, { to, subject, html });
@@ -114,7 +114,7 @@ async function sendFromWarmingMailbox(mailbox: any, to: string, subject: string,
 // limit - even under concurrent ticks (see reserveMailboxSend in googleMailboxService.ts).
 export async function sendWarmupSeedTraffic(limit = 25) {
     const warmingMailboxes = await prisma.connectedMailbox.findMany({
-        where: { isWarmingUp: true, status: "CONNECTED" },
+        where: { isWarmingUp: true, status: "CONNECTED", provider: { in: ["GOOGLE_WORKSPACE", "SMTP"] } },
         take: limit,
     });
 

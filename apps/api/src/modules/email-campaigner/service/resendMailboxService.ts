@@ -61,7 +61,7 @@ export async function sendViaResendMailbox(input: {
     // call — same race-avoidance reason as sendViaGmailMailbox (see OPEN-105). Released
     // below on any failure path.
     const reservation = await reserveMailboxSend(input.teamId, mailbox.id);
-    if (!reservation.ok) return { success: false, error: "RESEND_SEND_PRE_DISPATCH_FAILED", fallbackAllowed: true };
+    if (!reservation.ok) return { success: false, error: reservation.reason, fallbackAllowed: false };
 
     const fromName = mailbox.displayName || mailbox.email;
     const inboundDomain = (mailbox.metadata as any)?.inboundDomain as string | undefined;

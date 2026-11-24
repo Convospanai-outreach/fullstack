@@ -75,6 +75,23 @@ describe("ReplyAnalyzerAgent classification and draft", () => {
         mockAskAI.mockResolvedValue("Hi");
     });
 
+    it.each([
+        ["INTERESTED", "suggest one next step"],
+        ["QUESTION", "Answer the question first"],
+    ])("uses the %s playbook path to create a reviewable draft", async (classification, instruction) => {
+        mockClassifyReply.mockResolvedValue(classified(classification));
+
+        await ReplyAnalyzerAgent.analyzeAndTrack("Re: proposal", "Can we talk?", "lead-1", "a@b.com", "msg-1", "team-1", {
+            name: "Proposal follow-up", goal: "Help the customer make a decision.",
+        });
+
+        expect(mockAskAI.mock.calls[0]?.[0]).toContain(instruction);
+        expect(mockAskAI.mock.calls[0]?.[0]).toContain("Help the customer make a decision.");
+        expect(mockPrisma.replyTracker.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ status: "PENDING_REVIEW", replyDraft: "Hi" }),
+        }));
+    });
+
     it("classifies the masked reply with Jev for the lead's team", async () => {
         mockClassifyReply.mockResolvedValue(classified("NOT_INTERESTED", 0.9));
         const result = await ReplyAnalyzerAgent.analyzeAndTrack("Re: hi", "No thanks", "lead-1", "a@b.com", "msg-1", "team-1");

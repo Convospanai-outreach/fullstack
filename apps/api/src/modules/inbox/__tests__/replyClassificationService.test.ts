@@ -109,8 +109,23 @@ describe("classifyInboundReply", () => {
         expect(mockDb.message.findFirst).toHaveBeenCalledWith(expect.objectContaining({
             where: { id: "msg-1", direction: "INBOUND", lead: { teamId: "team-a" } },
         }));
-        expect(mockAnalyze).toHaveBeenCalledWith("Re: hello", "Sounds great, let's talk", "lead-1", "asha@acme.test", "msg-1", "team-a");
+        expect(mockAnalyze).toHaveBeenCalledWith("Re: hello", "Sounds great, let's talk", "lead-1", "asha@acme.test", "msg-1", "team-a", undefined);
         expect(result).toEqual({ classification: "INTERESTED" });
+    });
+
+    it.each(["team-a", "team-b"])("uses the original drip playbook only within the reply's team (%s)", async (campaignTeam) => {
+        mockDb.message.findFirst.mockResolvedValue({
+            ...message,
+            emailEvent: { teamId: "team-a", email: { subject: "Re: hello", campaign: {
+                teamId: campaignTeam, aiConfig: { dripPlaybook: { kind: "proposalFollowUp" } },
+            } } },
+        });
+
+        await classifyInboundReply("team-a", "msg-1");
+
+        expect(mockAnalyze.mock.calls[0]?.[6]).toEqual(campaignTeam === "team-a"
+            ? expect.objectContaining({ name: "Proposal follow-up" })
+            : undefined);
     });
 
     it("never classifies a message whose lead is in another team", async () => {

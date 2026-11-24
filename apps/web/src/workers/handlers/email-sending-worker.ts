@@ -117,7 +117,7 @@ export async function handleEmailSending(payload: JobPayload) {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const effectiveLimit = mailbox.isWarmingUp
-    ? Math.max(5, Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5))
+    ? Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5)
     : mailbox.dailyLimit;
   const minDelaySeconds = mailbox.minDelaySeconds ?? 180;
 

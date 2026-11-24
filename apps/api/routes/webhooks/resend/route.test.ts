@@ -4,7 +4,7 @@ const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceL
     mockPrisma: {
         email: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
         connectedMailbox: { findUnique: vi.fn() },
-        emailEvent: { create: vi.fn() },
+        emailEvent: { create: vi.fn(), findUnique: vi.fn() },
         message: { create: vi.fn() },
         suppressionEntry: { upsert: vi.fn() },
         lead: { update: vi.fn() },
@@ -31,6 +31,7 @@ vi.mock("@/lib/crm/leadStageTransitions", () => ({
 vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
     leadScoringService: { scoreAndPersist: mockScoreAndPersist },
 }));
+vi.mock("@/modules/inbox/inboundReplyNotifier", () => ({ onInboundReply: vi.fn() }));
 vi.mock("resend", () => ({
     Resend: vi.fn(function Resend() {
         return { emails: { receiving: { get: mockResendReceivingGet } } };
@@ -38,6 +39,7 @@ vi.mock("resend", () => ({
 }));
 
 import { POST } from "./route";
+import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 
 function request(body: unknown) {
     return new Request("http://localhost/webhooks/resend", {
@@ -251,14 +253,44 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
         });
     });
 
-    it("falls back to the webhook's subject line when the body fetch fails", async () => {
-        mockResendReceivingGet.mockResolvedValue({ data: null, error: { message: "not found" } });
+    it("leaves the reply unwritten when retrieval fails and saves its body on redelivery", async () => {
+        mockResendReceivingGet.mockResolvedValueOnce({ data: null, error: { message: "not found" } });
 
-        await POST(request(receivedEvent));
+        const first = await POST(request(receivedEvent));
+        expect(first.status).toBe(500);
+        expect(mockPrisma.emailEvent.create).not.toHaveBeenCalled();
+        expect(mockPrisma.message.create).not.toHaveBeenCalled();
+        expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+        expect(onInboundReply).not.toHaveBeenCalled();
 
+        const retry = await POST(request(receivedEvent));
+        expect(retry.status).toBe(200);
+        expect(mockPrisma.emailEvent.create).toHaveBeenCalledTimes(1);
         expect(mockPrisma.message.create).toHaveBeenCalledWith(expect.objectContaining({
-            data: expect.objectContaining({ content: "Re: Following up", sender: "lead@example.com" }),
+            data: expect.objectContaining({ content: "Sounds good, let's talk next week." }),
         }));
+        expect(onInboundReply).toHaveBeenCalledWith(expect.anything(), { classify: true });
+    });
+
+    it("records a successfully retrieved empty reply without queueing classification", async () => {
+        mockResendReceivingGet.mockResolvedValueOnce({ data: { text: null, html: null, from: "lead@example.com" }, error: null });
+        const res = await POST(request(receivedEvent));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.message.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ content: "" }),
+        }));
+        expect(onInboundReply).toHaveBeenCalledWith(expect.anything(), { classify: false });
+    });
+
+    it("acknowledges a previously saved reply without contacting Resend again", async () => {
+        mockPrisma.emailEvent.findUnique.mockResolvedValueOnce({ id: "event-1" });
+        const res = await POST(request(receivedEvent));
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toMatchObject({ duplicate: true });
+        expect(mockResendReceivingGet).not.toHaveBeenCalled();
+        expect(onInboundReply).not.toHaveBeenCalled();
     });
 
     it("records a second reply to the same sent email as its own Message", async () => {
