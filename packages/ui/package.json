@@ -1,0 +1,9 @@
+{
+  "name": "@craftmyfunnel/ui",
+  "private": true,
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./base.css": "./base.css",
+    "./fonts": "./fonts.ts"
+  }
+}
