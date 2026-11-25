@@ -193,7 +193,7 @@ async function appProxy(req: NextRequest) {
         "/api/invite-requests", "/api/invitations/accept",
         // Email+password signup: callers have no session yet. Rate-limited in the route itself.
         "/api/register",
-        "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe",
+        "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe", "/api/proxy/email/unsubscribe",
         // Anonymous funnel-visitor checkout - see apps/api/server.ts's own publicPaths for the
         // same routes (they carry no CraftMyFunnel session by design; security boundary is the
         // Stripe/Razorpay state token, not a Clerk cookie).

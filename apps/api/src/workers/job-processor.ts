@@ -25,6 +25,13 @@ function asString(value: unknown): string | undefined {
 
 async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim) {
     switch (jobType) {
+        case "mailbox_reputation_check": {
+            const teamId = asString(payload.teamId);
+            const mailboxId = asString(payload.mailboxId);
+            if (!teamId || !mailboxId) throw new NonRetryableJobError("Missing mailbox reputation scope");
+            const { evaluateMailboxReputation } = await import("@/modules/overseer/mailboxReputation");
+            return { checked: Boolean(await evaluateMailboxReputation(teamId, mailboxId, new Date(), "webhook")) };
+        }
         case "scheduled_inbox_reply": {
             const job = await prisma.job.findUnique({ where: { id: claim.jobId }, select: { teamId: true, expiresAt: true } });
             const userId = asString(payload.userId);
@@ -347,6 +354,14 @@ export const worker = {
         try {
             await JobQueue.assertClaim(claim.jobId, claim.version);
             result = await runHandler(job.type, payload, claim);
+            const hold = (result as { deferredSendingReason?: unknown } | null)?.deferredSendingReason;
+            if (hold === "MAILBOX_REPUTATION_HOLD" || hold === "TEAM_SENDING_HOLD" || hold === "GROWTH_CAP") {
+                await JobQueue.defer(claim.jobId, claim.version, {
+                    processAt: new Date(Date.now() + 30 * 60_000 + Math.floor(Math.random() * 5 * 60_000)),
+                    reason: hold,
+                });
+                return { deferred: true, reason: hold };
+            }
         } catch (error) {
             if (error instanceof GmailMailboxLeaseContendedError) {
                 const delayMs = 15_000 + Math.floor(Math.random() * 30_001);

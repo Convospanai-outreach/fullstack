@@ -1,5 +1,7 @@
 "use client";
 
+import SendingTab from "./SendingTab";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -279,7 +281,7 @@ const ADMIN_TOOLS = [
   { href: "/admin/audit", label: "Audit trail" },
 ];
 
-type TabType = "activity" | "usage" | "billing" | "api" | "health" | "serverErrors" | "enquiries" | "applications" | "features" | "auditLog";
+type TabType = "activity" | "usage" | "billing" | "api" | "health" | "serverErrors" | "enquiries" | "applications" | "features" | "auditLog" | "sending";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
@@ -618,6 +620,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 icon={Layers}
                 label="Features & Teams"
               />
+              <TabButton active={activeTab === "sending"} onClick={() => setActiveTab("sending")} icon={Layers} label="Sending" />
               <TabButton
                 active={activeTab === "auditLog"}
                 onClick={() => setActiveTab("auditLog")}
@@ -1070,6 +1073,8 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             {activeTab === "applications" && <ApplicationsTab onLoggedOut={onLoggedOut} />}
 
             {activeTab === "features" && <FeaturesTab teams={data.teams} onLoggedOut={onLoggedOut} />}
+
+            {activeTab === "sending" && <SendingTab onLoggedOut={onLoggedOut} />}
 
             {activeTab === "auditLog" && (
               <GlassCard className="overflow-hidden p-0">

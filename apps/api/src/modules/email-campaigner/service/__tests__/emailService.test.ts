@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { DEFAULT_EMAIL_FOOTER_TEXT, emailService, resolveEmailFooterText } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig, sendViaSmtpMailbox } from "../smtpConfigService";
-import { isSuppressed, selectMailboxForSend, sendViaGmailMailbox } from "../googleMailboxService";
+import { ensureLegacySmtpMailbox, sendViaSmtpMailbox } from "../smtpConfigService";
+import { isSuppressed, reserveMailboxSend, selectMailboxForSend, sendViaGmailMailbox } from "../googleMailboxService";
 import { sendViaResendMailbox } from "../resendMailboxService";
 
 const { mockPrisma } = vi.hoisted(() => ({
@@ -19,10 +19,12 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/email/smtpClient", () => ({ sendViaSMTP: vi.fn() }));
-vi.mock("../smtpConfigService", () => ({ getSmtpConfig: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
+vi.mock("../smtpConfigService", () => ({ ensureLegacySmtpMailbox: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
 vi.mock("../googleMailboxService", () => ({
     isSuppressed: vi.fn(),
     selectMailboxForSend: vi.fn(),
+    reserveMailboxSend: vi.fn().mockResolvedValue({ ok: true }),
+    releaseMailboxSend: vi.fn(),
     sendViaGmailMailbox: vi.fn(),
     signTrackedUrl: vi.fn(() => "tracking-signature"),
 }));
@@ -69,7 +71,7 @@ describe("emailService Gmail fallback policy", () => {
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
         (selectMailboxForSend as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
     });
@@ -87,7 +89,7 @@ describe("emailService Gmail fallback policy", () => {
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: true, providerId: "gmail-message-1", deliveryProvider: "GMAIL_API" });
 
-        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(ensureLegacySmtpMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(sentEmailData()).toEqual(expect.objectContaining({
             deliveryProvider: "GMAIL_API",
@@ -114,10 +116,18 @@ describe("emailService Gmail fallback policy", () => {
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
         expect(sentEmailData()).toEqual(expect.objectContaining({
             deliveryProvider: "SMTP",
-            mailboxId: null,
+            mailboxId: "legacy-smtp",
             providerId: "smtp-message-1",
         }));
         expect(sentEmailData()).not.toHaveProperty("threadId");
+    });
+
+    it("applies the connected mailbox limit before sending through a converted legacy SMTP config", async () => {
+        vi.mocked(reserveMailboxSend).mockResolvedValueOnce({ ok: false, reason: "GROWTH_CAP" });
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: false, error: "GROWTH_CAP" });
+        expect(reserveMailboxSend).toHaveBeenCalledWith("team-1", "legacy-smtp");
+        expect(sendViaSMTP).not.toHaveBeenCalled();
     });
 
     it("uses SMTP once after a Gmail HTTP 400 explicit rejection and persists SMTP evidence", async () => {
@@ -128,7 +138,7 @@ describe("emailService Gmail fallback policy", () => {
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
 
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
-        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: "legacy-smtp" }));
     });
 
     it.each([401, 403])("uses approved SMTP fallback after Gmail HTTP %s explicit rejection", async () => {
@@ -161,7 +171,7 @@ describe("emailService Gmail fallback policy", () => {
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: false, error });
 
-        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(ensureLegacySmtpMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(prisma.email.create).not.toHaveBeenCalled();
     });
@@ -173,7 +183,7 @@ describe("emailService Gmail fallback policy", () => {
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
-        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: "legacy-smtp" }));
     });
 
     it("returns a sanitized SMTP failure after an approved Gmail fallback", async () => {
@@ -247,7 +257,7 @@ describe("emailService mandatory email footer on send", () => {
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
         (selectMailboxForSend as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
     });
@@ -274,6 +284,20 @@ describe("emailService mandatory email footer on send", () => {
 
         expect(sentHtml()).toContain("Talk soon - Priya");
         expect(sentHtml()).not.toContain(DEFAULT_EMAIL_FOOTER_TEXT);
+    });
+
+    it("uses the app origin for the visible unsubscribe link and the legacy SMTP headers", async () => {
+        vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.test");
+        try {
+            await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+            const url = "https://app.example.test/api/email/unsubscribe/" + sentEmailData().trackingId;
+            expect(sentHtml()).toContain(url);
+            expect(sendViaSMTP).toHaveBeenCalledWith(smtpConfig, expect.objectContaining({
+                headers: { "List-Unsubscribe": "<" + url + ">", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+            }));
+        } finally {
+            vi.unstubAllEnvs();
+        }
     });
 
     it("still includes the mandatory unsubscribe instruction alongside the custom footer", async () => {
@@ -305,7 +329,7 @@ describe("emailService Resend routing", () => {
         (isSuppressed as Mock).mockResolvedValue(false);
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
         (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(null);
@@ -324,7 +348,7 @@ describe("emailService Resend routing", () => {
             .resolves.toEqual({ success: true, providerId: "resend-message-1", deliveryProvider: "RESEND" });
 
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
-        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(ensureLegacySmtpMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(sentEmailData()).toEqual(expect.objectContaining({
             deliveryProvider: "RESEND",
@@ -345,7 +369,7 @@ describe("emailService Resend routing", () => {
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
 
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
-        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: "legacy-smtp" }));
     });
 
     it("does not fall back to SMTP when a Resend failure disallows fallback", async () => {
@@ -370,7 +394,7 @@ describe("emailService explicit mailboxId (drip-sequence sender assignment)", ()
         (isSuppressed as Mock).mockResolvedValue(false);
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
     });
@@ -434,7 +458,7 @@ describe("emailService SMTP-mailbox routing (ConnectedMailbox provider SMTP)", (
         (isSuppressed as Mock).mockResolvedValue(false);
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
     });
@@ -452,13 +476,29 @@ describe("emailService SMTP-mailbox routing (ConnectedMailbox provider SMTP)", (
             .resolves.toEqual({ success: true, providerId: "mailbox-message-1", deliveryProvider: "SMTP" });
 
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
-        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(ensureLegacySmtpMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(sentEmailData()).toEqual(expect.objectContaining({
             deliveryProvider: "SMTP",
             mailboxId: "smtp-mailbox-1",
             providerId: "mailbox-message-1",
         }));
+    });
+
+    it("passes the same one-click URL in the connected SMTP headers and footer", async () => {
+        vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.test");
+        try {
+            (selectMailboxForSend as Mock).mockResolvedValue({ id: "smtp-mailbox-1", provider: "SMTP" });
+            (sendViaSmtpMailbox as Mock).mockResolvedValue({ success: true, deliveryProvider: "SMTP", mailboxId: "smtp-mailbox-1" });
+            await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+            const url = "https://app.example.test/api/email/unsubscribe/" + sentEmailData().trackingId;
+            expect(sendViaSmtpMailbox).toHaveBeenCalledWith(expect.objectContaining({
+                html: expect.stringContaining(url),
+                headers: { "List-Unsubscribe": "<" + url + ">", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+            }));
+        } finally {
+            vi.unstubAllEnvs();
+        }
     });
 
     it("falls back to the legacy per-team SMTP config when the mailbox send fails", async () => {
@@ -473,7 +513,7 @@ describe("emailService SMTP-mailbox routing (ConnectedMailbox provider SMTP)", (
             .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
 
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
-        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: "legacy-smtp" }));
     });
 
     it("sends through the exact assigned SMTP mailbox without consulting selectMailboxForSend", async () => {
@@ -503,7 +543,7 @@ describe("emailService DPDP send gate", () => {
         (prisma.lead.findUnique as Mock).mockResolvedValue({ status: "NEW", teamId: metadata.teamId });
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
         (selectMailboxForSend as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
     });

@@ -1,6 +1,4 @@
-function getAppBaseUrl(): string {
-  return (process.env["NEXTAUTH_URL"] || process.env["APP_URL"] || "http://localhost:3000").replace(/\/$/, "");
-}
+import { getAppBaseUrl } from "./linkTracking";
 
 export function buildUnsubscribeUrl(trackingId: string): string {
   return `${getAppBaseUrl()}/api/email/unsubscribe/${trackingId}`;

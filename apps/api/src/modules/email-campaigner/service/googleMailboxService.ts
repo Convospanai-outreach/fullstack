@@ -4,6 +4,9 @@ import crypto from "crypto";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
 import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 import type { EmailAttachment } from "./emailAttachment";
+import { classifyRecipientProvider } from "./resendFeedback";
+import { mailboxSendingHold, type SendPurpose } from "@/modules/overseer/mailboxReputationHold";
+import { mailboxSendLimit } from "../../../../../../packages/db/mailboxQuota";
 
 const db = prisma;
 
@@ -623,11 +626,15 @@ export async function updateMailboxControls(teamId: string, mailboxId: string, r
     });
 }
 
-export async function assertMailboxCanSend(teamId: string, mailboxId: string) {
-    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
+export async function assertMailboxCanSend(teamId: string, mailboxId: string, purpose: SendPurpose = "outreach") {
+    const mailbox = await prisma.connectedMailbox.findFirst({
+        where: { id: mailboxId, teamId }, include: { team: { select: { sendSafety: true } } },
+    });
     if (!mailbox || mailbox.status !== "CONNECTED") {
         return { ok: false, reason: "Mailbox is not connected." };
     }
+    const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
+    if (hold) return { ok: false, reason: hold };
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -673,11 +680,15 @@ export async function markMailboxSend(teamId: string, mailboxId: string) {
 // mailbox can both read a count that's under the limit before either one's write lands,
 // letting both through. reserveMailboxSend/releaseMailboxSend close that gap by claiming the
 // slot atomically, in one conditional UPDATE, *before* the provider call is made.
-export async function reserveMailboxSend(teamId: string, mailboxId: string) {
-    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
+export async function reserveMailboxSend(teamId: string, mailboxId: string, purpose: SendPurpose = "outreach") {
+    const mailbox = await prisma.connectedMailbox.findFirst({
+        where: { id: mailboxId, teamId }, include: { team: { select: { sendSafety: true } } },
+    });
     if (!mailbox || mailbox.status !== "CONNECTED") {
         return { ok: false as const, reason: "Mailbox is not connected." };
     }
+    const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
+    if (hold) return { ok: false as const, reason: hold };
     if (mailbox.lastSentAt) {
         const nextAllowedAt = new Date(mailbox.lastSentAt.getTime() + mailbox.minDelaySeconds * 1000);
         if (nextAllowedAt > new Date()) {
@@ -685,22 +696,29 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string) {
         }
     }
 
-    const warmupLimit = mailbox.isWarmingUp
-        ? Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5)
-        : mailbox.dailyLimit;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const now = new Date();
+    const { limit: warmupLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), { ...mailbox, id: mailboxId }, today);
+    const sentToday = mailbox.sentTodayDate && mailbox.sentTodayDate >= today ? mailbox.sentToday : 0;
+    if (growthLimited && sentToday >= warmupLimit) return { ok: false as const, reason: "GROWTH_CAP" };
 
+    const currentMailbox = {
+        id: mailboxId, teamId, status: "CONNECTED", updatedAt: mailbox.updatedAt,
+        AND: [{ OR: [
+            { lastSentAt: null },
+            { lastSentAt: { lte: new Date(now.getTime() - mailbox.minDelaySeconds * 1000) } },
+        ] }],
+    };
     const sameDayClaim = await prisma.connectedMailbox.updateMany({
-        where: { id: mailboxId, teamId, sentTodayDate: today, sentToday: { lt: warmupLimit } },
+        where: { ...currentMailbox, sentTodayDate: today, sentToday: { lt: warmupLimit } },
         data: { sentToday: { increment: 1 }, lastSentAt: now },
     });
     if (sameDayClaim.count > 0) return { ok: true as const, mailbox };
 
     if (warmupLimit > 0) {
         const rolloverClaim = await prisma.connectedMailbox.updateMany({
-            where: { id: mailboxId, teamId, OR: [{ sentTodayDate: null }, { sentTodayDate: { lt: today } }] },
+            where: { ...currentMailbox, OR: [{ sentTodayDate: null }, { sentTodayDate: { lt: today } }] },
             data: { sentToday: 1, sentTodayDate: today, lastSentAt: now },
         });
         if (rolloverClaim.count > 0) return { ok: true as const, mailbox };
@@ -708,12 +726,18 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string) {
         // A concurrent caller may have just performed the day rollover above between our two
         // attempts; retry the same-day claim once more before giving up.
         const retryClaim = await prisma.connectedMailbox.updateMany({
-            where: { id: mailboxId, teamId, sentTodayDate: today, sentToday: { lt: warmupLimit } },
+            where: { ...currentMailbox, sentTodayDate: today, sentToday: { lt: warmupLimit } },
             data: { sentToday: { increment: 1 }, lastSentAt: now },
         });
         if (retryClaim.count > 0) return { ok: true as const, mailbox };
     }
 
+    const current = await assertMailboxCanSend(teamId, mailboxId, purpose);
+    if (!current.ok && current.reason) return { ok: false as const, reason: current.reason };
+    const latest = current.mailbox;
+    if (growthLimited && latest?.sentTodayDate && latest.sentTodayDate >= today && latest.sentToday >= warmupLimit) {
+        return { ok: false as const, reason: "GROWTH_CAP" };
+    }
     return { ok: false as const, reason: `Daily send limit reached for ${mailbox.email}.` };
 }
 
@@ -835,7 +859,7 @@ export type GmailSendSuccess = {
 
 export type GmailSendFailure = {
     success: false;
-    error: "GMAIL_SEND_PRE_DISPATCH_FAILED" | "GMAIL_SEND_REJECTED" | "GMAIL_SEND_TIMEOUT" | "GMAIL_SEND_FAILED" | "GMAIL_SEND_RESPONSE_INVALID";
+    error: "GROWTH_CAP" | "MAILBOX_REPUTATION_HOLD" | "TEAM_SENDING_HOLD" | "GMAIL_SEND_PRE_DISPATCH_FAILED" | "GMAIL_SEND_REJECTED" | "GMAIL_SEND_TIMEOUT" | "GMAIL_SEND_FAILED" | "GMAIL_SEND_RESPONSE_INVALID";
     outcome: "PRE_DISPATCH_NO_SEND" | "EXPLICIT_REJECTION" | "AMBIGUOUS";
     fallbackAllowed: boolean;
 };
@@ -877,6 +901,7 @@ export async function sendViaGmailMailbox(input: {
     html: string;
     replyTo?: string;
     unsubscribeUrl?: string;
+    purpose?: SendPurpose;
     attachments?: EmailAttachment[];
 }): Promise<GmailSendOutcome> {
     let mailbox: any;
@@ -921,8 +946,13 @@ export async function sendViaGmailMailbox(input: {
     // Reserve the mailbox's daily send slot atomically, right before the actual provider
     // call, so two concurrent sends through the same mailbox can't both pass a stale
     // capacity check (see OPEN-105). Released below on any failure path.
-    const reservation = await reserveMailboxSend(input.teamId, mailbox.id);
-    if (!reservation.ok) return gmailPreDispatchFailure();
+    const reservation = await reserveMailboxSend(input.teamId, mailbox.id, input.purpose);
+    if (!reservation.ok) {
+        if (reservation.reason === "MAILBOX_REPUTATION_HOLD" || reservation.reason === "TEAM_SENDING_HOLD" || reservation.reason === "GROWTH_CAP") {
+            return { success: false, error: reservation.reason, outcome: "PRE_DISPATCH_NO_SEND", fallbackAllowed: false };
+        }
+        return gmailPreDispatchFailure();
+    }
 
     let response: Response;
     let data: unknown;
@@ -1457,7 +1487,7 @@ async function createInboundCampaignEvent(input: {
                         ...providerIds.map((providerId) => ({ providerId })),
                     ],
                 },
-                select: { id: true, leadId: true, campaignId: true },
+                select: { id: true, leadId: true, campaignId: true, lead: { select: { email: true } } },
             });
             if (!matchedEmail) return "ignored" as const;
             const existingEvent = await tx.emailEvent.findFirst({
@@ -1469,6 +1499,7 @@ async function createInboundCampaignEvent(input: {
                 return "duplicate" as const;
             }
 
+            const recipientProvider = await classifyRecipientProvider(matchedEmail.lead?.email ?? undefined);
             const emailEvent = await tx.emailEvent.create({
                 data: {
                     teamId,
@@ -1479,7 +1510,7 @@ async function createInboundCampaignEvent(input: {
                     type,
                     provider: "GMAIL_API",
                     providerMessageId: message.id,
-                    payload: { from, subject, threadId: message.threadId, gmailId: message.id },
+                    payload: { recipientProvider, threadId: message.threadId, gmailId: message.id },
                 },
             });
 

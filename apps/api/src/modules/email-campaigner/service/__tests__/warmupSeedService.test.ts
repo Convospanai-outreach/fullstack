@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, beforeAll } from "vitest";
 
 const mockDb: any = vi.hoisted(() => ({
-    connectedMailbox: { findMany: vi.fn() },
+    connectedMailbox: { findMany: vi.fn(), findFirst: vi.fn() },
     warmupSeedMailbox: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
 }));
 
@@ -106,7 +106,7 @@ describe("sendWarmupSeedTraffic", () => {
 
         expect(result.sent).toBe(1);
         expect(mockSendViaGmailMailbox).not.toHaveBeenCalled();
-        expect(mockReserveMailboxSend).toHaveBeenCalledWith("team-2", "mailbox-2");
+        expect(mockReserveMailboxSend).toHaveBeenCalledWith("team-2", "mailbox-2", "warmup");
         expect(mockSendViaSMTP).toHaveBeenCalled();
         expect(mockReleaseMailboxSend).not.toHaveBeenCalled();
     });
@@ -138,6 +138,14 @@ describe("sendWarmupSeedTraffic", () => {
         expect(mockSendViaGmailMailbox).not.toHaveBeenCalled();
     });
 
+    it("stops before selecting a seed when the sending mailbox has a reputation hold", async () => {
+        mockDb.connectedMailbox.findMany.mockResolvedValue([{ id: "held", teamId: "team", provider: "SMTP" }]);
+        mockAssertMailboxCanSend.mockResolvedValue({ ok: false, reason: "MAILBOX_REPUTATION_HOLD" });
+        expect(await sendWarmupSeedTraffic()).toEqual({ sent: 0 });
+        expect(mockDb.warmupSeedMailbox.findMany).not.toHaveBeenCalled();
+        expect(mockSendViaSMTP).not.toHaveBeenCalled();
+    });
+
     it("stops once the seed pool has no eligible mailbox left for today", async () => {
         mockDb.connectedMailbox.findMany.mockResolvedValue([
             { id: "mailbox-4", teamId: "team-4", provider: "GOOGLE_WORKSPACE", isWarmingUp: true, status: "CONNECTED" },
@@ -155,6 +163,14 @@ describe("sendWarmupSeedReply", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockDb.warmupSeedMailbox.update.mockResolvedValue({});
+    });
+
+    it("skips a queued seed exchange after its target mailbox is held", async () => {
+        mockDb.warmupSeedMailbox.findUnique.mockResolvedValue(seedMailbox());
+        mockDb.connectedMailbox.findFirst.mockResolvedValue({ metadata: { reputation: { sendingHold: { reason: "complaint" } } } });
+        expect(await sendWarmupSeedReply({ seedMailboxId: "seed", mailboxId: "held", teamId: "team", toEmail: "sender@example.test" }))
+            .toEqual({ skipped: true, reason: "target_sending_held" });
+        expect(mockSendViaSMTP).not.toHaveBeenCalled();
     });
 
     it("decrypts the seed mailbox's password and sends the reply via SMTP", async () => {

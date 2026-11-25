@@ -105,34 +105,38 @@ export class MicrosoftGraphProvider implements MailProvider {
                 },
               ]
             : []),
-          ...(input.headers?.["List-Unsubscribe"]
-            ? [
-                {
-                  name: "List-Unsubscribe",
-                  value: input.headers["List-Unsubscribe"],
-                },
-              ]
-            : []),
-          ...(input.headers?.["List-Unsubscribe-Post"]
-            ? [
-                {
-                  name: "List-Unsubscribe-Post",
-                  value: input.headers["List-Unsubscribe-Post"],
-                },
-              ]
-            : []),
         ],
       },
       saveToSentItems: "true",
     };
 
+    let body = JSON.stringify(payload);
+    let contentType = "application/json";
+    const unsubscribe = input.headers?.["List-Unsubscribe"];
+    const oneClick = input.headers?.["List-Unsubscribe-Post"];
+    if (unsubscribe && oneClick) {
+      // Graph's JSON custom-header interface requires x- headers. Send standard MIME headers through MIME.
+      const { default: nodemailer } = await import("nodemailer");
+      const composer = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "windows" });
+      const mime = await composer.sendMail({
+        from: mailbox.email,
+        to: input.to,
+        subject: input.subject,
+        html: input.html,
+        messageId: rfcMessageId,
+        replyTo: input.headers?.["Reply-To"],
+        headers: { "List-Unsubscribe": unsubscribe, "List-Unsubscribe-Post": oneClick },
+      });
+      body = mime.message.toString("base64");
+      contentType = "text/plain";
+    }
     const response = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+        "Content-Type": contentType,
       },
-      body: JSON.stringify(payload),
+      body,
     });
 
     if (response.status === 429) {

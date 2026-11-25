@@ -55,6 +55,7 @@ const { mockDb } = vi.hoisted(() => {
             findUnique: vi.fn(),
         },
         email: {
+            count: vi.fn().mockResolvedValue(350),
             findMany: vi.fn(),
             findFirst: vi.fn(),
             update: vi.fn(),
@@ -1987,6 +1988,30 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: false });
         expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({ sentToday: { lt: 2 } }),
+        }));
+    });
+
+    it("returns GROWTH_CAP for a mailbox that already reached its post-warmup capacity", async () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        (prisma.email.count as Mock).mockResolvedValueOnce(140);
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
+            id: "mailbox-1", status: "CONNECTED", email: "sender@example.test",
+            isWarmingUp: false, dailyLimit: 200, warmupDay: 4, sentToday: 30, sentTodayDate: today,
+        });
+        await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toEqual({ ok: false, reason: "GROWTH_CAP" });
+        expect(prisma.connectedMailbox.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("enforces the throttle again in the atomic slot claim", async () => {
+        const previous = new Date(Date.now() - 180_000);
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
+            id: "mailbox-1", status: "CONNECTED", email: "sender@example.test",
+            isWarmingUp: true, dailyLimit: 50, warmupDay: 8, sentToday: 3, lastSentAt: previous, minDelaySeconds: 120,
+        });
+        await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: true });
+        expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ AND: [{ OR: [{ lastSentAt: null }, { lastSentAt: { lte: expect.any(Date) } }] }] }),
         }));
     });
 

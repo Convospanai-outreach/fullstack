@@ -58,6 +58,7 @@ function RecordCell({ ok }: { ok: boolean }) {
 export default function DomainHealthPage() {
     const [stats, setStats] = useState<DeliverabilityStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [mailboxHealth, setMailboxHealth] = useState<Array<{ id: string; email: string; reputation: { level?: string; checkedAt?: string; sendingHold?: unknown } }>>([]);
     const [error, setError] = useState<string | null>(null);
     const [cooldown, setCooldown] = useState<{ hours: number; canEdit: boolean } | null>(null);
     const [savingCooldown, setSavingCooldown] = useState(false);
@@ -85,6 +86,14 @@ export default function DomainHealthPage() {
         const controller = new AbortController();
         fetch(`${API_BASE}/settings/account-reply-cooldown`, { signal: controller.signal })
             .then(async (response) => { if (response.ok) setCooldown(await response.json()); })
+            .catch(() => {});
+        return () => controller.abort();
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetch(API_BASE + "/settings/mailbox-reputation", { signal: controller.signal })
+            .then(async (response) => { if (response.ok) setMailboxHealth((await response.json()).mailboxes); })
             .catch(() => {});
         return () => controller.abort();
     }, []);
@@ -122,6 +131,17 @@ export default function DomainHealthPage() {
             )}
 
             {loading && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
+
+            <GlassCard className="space-y-3 p-5">
+                <h2 className="text-base font-semibold">Mailbox reputation</h2>
+                <p className="text-sm text-muted-foreground">Seven-day complaint thresholds are 0.04% with two complaints for early warning, 0.08% with three for action, and 0.3% with two for a hard stop. Bounce, delivery delay, failure and domain health can also require action.</p>
+                {mailboxHealth.map(({ id, email, reputation }) => <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-sm" key={id}>
+                    <Link className="text-primary underline" href={"/settings/domain-health/" + encodeURIComponent(id)}>{email}</Link>
+                    <span className={reputation.sendingHold ? "text-destructive" : "text-muted-foreground"}>
+                        {reputation.sendingHold ? "Sending held" : reputation.level ?? "Pending check"}{reputation.checkedAt ? " · " + new Date(reputation.checkedAt).toLocaleString() : ""}
+                    </span>
+                </div>)}
+            </GlassCard>
 
             {cooldown && (
                 <GlassCard className="p-6 space-y-2">

@@ -8,6 +8,7 @@ import { assertMailboxCanSend, reserveMailboxSend, releaseMailboxSend, sendViaGm
 import { getSmtpConfig } from "./smtpConfigService";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { JobQueue } from "@/lib/queue";
+import { mailboxSendingHold } from "@/modules/overseer/mailboxReputationHold";
 
 const ENCRYPTION_KEY = process.env["ENCRYPTION_KEY"] || "";
 
@@ -98,7 +99,7 @@ async function sendFromWarmingMailbox(mailbox: any, to: string, subject: string,
     if (mailbox.provider === "GOOGLE_WORKSPACE") {
         // sendViaGmailMailbox reserves/marks this mailbox's daily send quota atomically
         // itself - the caller must not also mark it, or a warmup send gets double-counted.
-        const outcome = await sendViaGmailMailbox({ teamId: mailbox.teamId, mailboxId: mailbox.id, to, subject, html });
+        const outcome = await sendViaGmailMailbox({ teamId: mailbox.teamId, mailboxId: mailbox.id, to, subject, html, purpose: "warmup" });
         return outcome.success;
     }
     if (mailbox.provider !== "SMTP") return false;
@@ -122,7 +123,7 @@ export async function sendWarmupSeedTraffic(limit = 25) {
     for (const mailbox of warmingMailboxes) {
         // Cheap pre-filter only - not the enforcement point, so it's fine that this read can
         // race with another tick. Real enforcement happens per-provider below.
-        const check = await assertMailboxCanSend(mailbox.teamId, mailbox.id);
+        const check = await assertMailboxCanSend(mailbox.teamId, mailbox.id, "warmup");
         if (!check.ok) continue;
 
         const seed = await pickEligibleSeedMailbox();
@@ -133,7 +134,7 @@ export async function sendWarmupSeedTraffic(limit = 25) {
         // the slot here ourselves before attempting the send (see OPEN-105).
         const isGmail = mailbox.provider === "GOOGLE_WORKSPACE";
         if (!isGmail) {
-            const reservation = await reserveMailboxSend(mailbox.teamId, mailbox.id);
+            const reservation = await reserveMailboxSend(mailbox.teamId, mailbox.id, "warmup");
             if (!reservation.ok) continue;
         }
 
@@ -158,7 +159,7 @@ export async function sendWarmupSeedTraffic(limit = 25) {
             const delayMinutes = 5 + Math.floor(Math.random() * 115);
             await JobQueue.enqueue(
                 "warmup_seed_reply",
-                { seedMailboxId: seed.id, toEmail: mailbox.email, subject: `Re: ${template.subject}` },
+                { seedMailboxId: seed.id, mailboxId: mailbox.id, teamId: mailbox.teamId, toEmail: mailbox.email, subject: `Re: ${template.subject}` },
                 { processAt: new Date(Date.now() + delayMinutes * 60000) },
             );
         }
@@ -167,7 +168,7 @@ export async function sendWarmupSeedTraffic(limit = 25) {
     return { sent };
 }
 
-export async function sendWarmupSeedReply(payload: { seedMailboxId?: string; toEmail?: string; subject?: string }) {
+export async function sendWarmupSeedReply(payload: { seedMailboxId?: string; mailboxId?: string; teamId?: string; toEmail?: string; subject?: string }) {
     if (!payload.seedMailboxId || !payload.toEmail) {
         throw new Error("warmup_seed_reply payload is missing seedMailboxId/toEmail");
     }
@@ -176,6 +177,15 @@ export async function sendWarmupSeedReply(payload: { seedMailboxId?: string; toE
         return { skipped: true, reason: "seed_mailbox_unavailable" };
     }
 
+    if (payload.mailboxId && payload.teamId) {
+        const target = await prisma.connectedMailbox.findFirst({
+            where: { id: payload.mailboxId, teamId: payload.teamId, status: "CONNECTED", email: payload.toEmail },
+            include: { team: { select: { sendSafety: true } } },
+        });
+        if (!target || mailboxSendingHold(target.metadata, target.team?.sendSafety, "warmup")) {
+            return { skipped: true, reason: "target_sending_held" };
+        }
+    }
     const password = await decryptSeedSecret(seed.encryptedPassword as unknown as EncryptedSecret);
     const result = await sendViaSMTP(
         { host: seed.host, port: seed.port, secure: seed.secure, user: seed.user, password, fromName: seed.fromName, fromEmail: seed.email },

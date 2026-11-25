@@ -128,7 +128,7 @@ async function createAggregateEvent(input: {
     mailboxId?: string | null;
     leadId?: string | null;
     campaignId?: string | null;
-    type: "OPEN" | "CLICK" | "UNSUBSCRIBE";
+    type: "OPEN" | "CLICK";
     provider: string;
     providerMessageId: string;
     payload?: Record<string, unknown>;
@@ -280,50 +280,78 @@ export async function recordEmailClick(input: { token: string; headers: Headers 
     return { allowed: true as const, destinationUrl: destination.toString() };
 }
 
-export async function recordEmailUnsubscribe(input: { token: string; headers: Headers }) {
-    const email = await resolveEmailByTrackingToken(input.token, true);
-    const teamId = email?.campaign?.teamId;
-    const recipientEmail = email?.lead?.email?.trim().toLowerCase();
-    if (!email || !teamId || !recipientEmail) return { recorded: false };
-
-    const metadata = requestMetadata(input.headers);
-    const rateLimit = await checkRateLimit(
-        `${input.token}:${metadata.ipHash}`,
-        { windowMs: 60_000, maxRequests: 10 },
-        "email-unsubscribe-tracking"
-    );
-    if (!rateLimit.allowed) return { recorded: false, rateLimited: true };
-
-    await (prisma as any).email.updateMany({
-        where: { id: email.id },
-        data: { unsubscribedAt: new Date(), status: "unsubscribed" },
-    });
-    await (prisma as any).suppressionEntry.upsert({
-        where: { teamId_email: { teamId, email: recipientEmail } },
-        create: {
-            teamId,
-            email: recipientEmail,
-            reason: "UNSUBSCRIBE",
-            source: "LINK",
-            leadId: email.leadId,
-        },
-        update: {
-            reason: "UNSUBSCRIBE",
-            source: "LINK",
-            leadId: email.leadId,
+export async function registerStandaloneUnsubscribe(input: { teamId: string; leadId?: string; token: string; recipient: string }) {
+    await prisma.emailEvent.create({
+        data: {
+            teamId: input.teamId, leadId: input.leadId ?? null, type: "UNSUBSCRIBE_TOKEN",
+            provider: "UNSUBSCRIBE_LINK", providerMessageId: input.token,
+            payload: { recipient: input.recipient.trim().toLowerCase() },
         },
     });
-    await createAggregateEvent({
-        teamId,
-        emailId: email.id,
-        mailboxId: email.mailboxId,
-        leadId: email.leadId,
-        campaignId: email.campaignId,
-        type: "UNSUBSCRIBE",
-        provider: "UNSUBSCRIBE_LINK",
-        providerMessageId: `unsubscribe:${email.id}`,
-        payload: metadata,
-    });
+}
 
-    return { recorded: true };
+export async function recordEmailUnsubscribe(token: string) {
+    if (!hasValidTokenShape(token)) return;
+    const select = {
+        id: true, leadId: true, campaignId: true, mailboxId: true,
+        campaign: { select: { teamId: true } }, lead: { select: { email: true, teamId: true } },
+    } as const;
+    const email = await prisma.email.findUnique({ where: { trackingId: token }, select })
+        ?? await prisma.email.findUnique({ where: { id: token }, select });
+    const standalone = email ? null : await prisma.emailEvent.findFirst({
+        where: { provider: "UNSUBSCRIBE_LINK", providerMessageId: token, type: "UNSUBSCRIBE_TOKEN" },
+        select: { teamId: true, leadId: true, payload: true },
+    });
+    const teamId = email?.campaign.teamId ?? standalone?.teamId;
+    const initialRecipient = standalone?.payload && typeof standalone.payload === "object" && !Array.isArray(standalone.payload)
+        ? standalone.payload["recipient"] : null;
+    const recipientEmail = email?.lead.email?.trim().toLowerCase() ?? (typeof initialRecipient === "string" ? initialRecipient : null);
+    if (!teamId || (email && email.lead.teamId !== teamId) || !recipientEmail) return;
+
+    const { SequenceService } = await import("./sequenceService");
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+        if (email) await tx.email.updateMany({
+            where: { id: email.id, unsubscribedAt: null },
+            data: { unsubscribedAt: now, status: "unsubscribed" },
+        });
+        const leadId = email?.leadId ?? standalone?.leadId ?? null;
+        await tx.suppressionEntry.upsert({
+            where: { teamId_email: { teamId, email: recipientEmail } },
+            create: { teamId, email: recipientEmail, reason: "UNSUBSCRIBE", source: "RFC8058_ONE_CLICK", leadId },
+            update: { reason: "UNSUBSCRIBE", source: "RFC8058_ONE_CLICK" },
+        });
+        const scopedLeads = leadId ? [leadId] : (await tx.lead.findMany({
+            where: { teamId, email: { equals: recipientEmail, mode: "insensitive" } }, select: { id: true },
+        })).map((lead) => lead.id);
+        await tx.lead.updateMany({
+            where: { id: { in: scopedLeads }, teamId, status: { not: "OPT_OUT" } },
+            data: { status: "OPT_OUT" },
+        });
+        for (const id of scopedLeads) await SequenceService.stopEnrollmentsForLead(teamId, id, "EXIT_UNSUBSCRIBED", now, tx);
+
+        const replies = await tx.message.findMany({
+            where: { leadId: { in: scopedLeads }, platform: "EMAIL", direction: "INBOUND" },
+            select: { id: true },
+        });
+        const replyIdByKey = new Map(replies.map(({ id }) => ["scheduled_inbox_reply:" + teamId + ":" + id, id]));
+        const waiting = await tx.job.findMany({
+            where: { teamId, type: "scheduled_inbox_reply", idempotencyKey: { in: [...replyIdByKey.keys()] }, status: { in: ["queued", "pending"] } },
+            select: { id: true, idempotencyKey: true },
+        });
+        for (const job of waiting) {
+            const id = replyIdByKey.get(job.idempotencyKey ?? "");
+            if (!id) continue;
+            await tx.job.updateMany({
+                where: { id: job.id, status: { in: ["queued", "pending"] } },
+                data: { status: "cancelled", completedAt: now, idempotencyKey: null, payload: {}, result: { cancelledReplyId: id } },
+            });
+        }
+
+        const event = {
+            teamId, emailId: email?.id ?? null, mailboxId: email?.mailboxId ?? null, leadId, campaignId: email?.campaignId ?? null,
+            type: "UNSUBSCRIBED", provider: "UNSUBSCRIBE_LINK", providerMessageId: "unsubscribe:" + (email?.id ?? token),
+        };
+        await tx.emailEvent.createMany({ data: [event], skipDuplicates: true });
+    });
 }

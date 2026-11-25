@@ -4,10 +4,10 @@ const { db, send, enqueue } = vi.hoisted(() => ({
     enqueue: vi.fn(),
     db: {
         lead: { findUnique: vi.fn() },
-        campaign: { findUnique: vi.fn() },
+        campaign: { findUnique: vi.fn(), update: vi.fn().mockResolvedValue({ consecutiveFailures: 1 }) },
         suppressionEntry: { findUnique: vi.fn() },
         connectedMailbox: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
-        email: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+        email: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn().mockResolvedValue(350) },
         campaignAttachment: { findMany: vi.fn() },
         team: { findUnique: vi.fn() },
         auditLog: { create: vi.fn() },
@@ -36,7 +36,7 @@ describe("email_sending pre-send gate", () => {
         db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam" });
         db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
         db.suppressionEntry.findUnique.mockResolvedValue(null);
-        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
+        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
         db.$executeRaw.mockResolvedValue(1);
         db.email.findFirst.mockResolvedValue(null);
         db.email.create.mockResolvedValue({ id: "e1", trackingId: "tr1" });
@@ -50,6 +50,32 @@ describe("email_sending pre-send gate", () => {
         await expect(handleEmailSending(payload)).rejects.toThrow("stop here");
         expect(send).toHaveBeenCalledTimes(1);
         expect(db.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a disconnected explicit mailbox before reserving a slot", async () => {
+        db.connectedMailbox.findFirst.mockResolvedValueOnce({ id: "m1", status: "DISCONNECTED" });
+        await expect(handleEmailSending({ ...payload, mailboxId: "m1" })).rejects.toThrow("No connected mailbox");
+        expect(db.$executeRaw).not.toHaveBeenCalled();
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("blocks an explicit mailbox on a reputation hold", async () => {
+        db.connectedMailbox.findFirst.mockResolvedValueOnce({
+            id: "m1", status: "CONNECTED", metadata: { reputation: { sendingHold: { reason: "complaints" } } },
+        });
+        await expect(handleEmailSending({ ...payload, mailboxId: "m1" })).resolves.toEqual({ skipped: true, reason: "MAILBOX_REPUTATION_HOLD" });
+        expect(db.$executeRaw).not.toHaveBeenCalled();
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it("reports GROWTH_CAP when the atomic slot claim is at the growth limit", async () => {
+        const mailbox = { id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 200, isWarmingUp: false, warmupDay: 4, provider: "GOOGLE_WORKSPACE" };
+        db.connectedMailbox.findFirst.mockResolvedValueOnce(mailbox);
+        db.connectedMailbox.findUnique.mockResolvedValueOnce({ ...mailbox, sentTodayDate: new Date(), sentToday: 30 });
+        db.email.count.mockResolvedValueOnce(140);
+        db.$executeRaw.mockResolvedValueOnce(0);
+        await expect(handleEmailSending(payload)).resolves.toEqual({ skipped: true, reason: "GROWTH_CAP" });
+        expect(send).not.toHaveBeenCalled();
     });
 
     it("in hold mode stops a failing email before anything is created or sent, and gives the daily slot back", async () => {
@@ -124,7 +150,7 @@ describe("email_sending recipient send window", () => {
         db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam", location: "Pune, India" });
         db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
         db.suppressionEntry.findUnique.mockResolvedValue(null);
-        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
+        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
         db.$executeRaw.mockResolvedValue(1);
         db.email.findFirst.mockResolvedValue(null);
         db.email.create.mockResolvedValue({ id: "e1", trackingId: "tr1" });
@@ -196,7 +222,7 @@ describe("email_sending DPDP send gate", () => {
         db.lead.findUnique.mockResolvedValue({ id: "l1", teamId: "t1", email: "sam@acme.example", fullName: "Sam", lawfulBasis: "NONE", sourceUrl: null, publishedBySubject: false });
         db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
         db.suppressionEntry.findUnique.mockResolvedValue(null);
-        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
+        db.connectedMailbox.findFirst.mockResolvedValue({ id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE" });
         db.$executeRaw.mockResolvedValue(1);
         db.email.findFirst.mockResolvedValue(null);
         db.email.create.mockResolvedValue({ id: "e1", trackingId: "tr1" });

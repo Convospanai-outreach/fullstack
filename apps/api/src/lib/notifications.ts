@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Resend } from "resend";
+import { captureException } from "@/lib/sentry";
 
 // Initialize Resend if API key is present
 const resend = process.env["RESEND_API_KEY"] ? new Resend(process.env["RESEND_API_KEY"]) : null;
@@ -10,7 +11,10 @@ export type NotificationType = "CAMPAIGN" | "LEAD" | "SYSTEM" | "BILLING";
 export const SYSTEM_EMAIL_FROM = "CraftMyFunnel <contact.us@craftmyfunnel.live>";
 
 export class NotificationDispatcher {
-    static async send(userId: string, type: NotificationType, title: string, message: string, meta?: any) {
+    static async send(
+        userId: string, type: NotificationType, title: string, message: string, meta?: any,
+        alert?: { href: string; action: string; key: string },
+    ) {
         try {
             // 1. Fetch User and Preferences
             // Only fetch what we need: email and the settings relation (and its sub-relation)
@@ -35,7 +39,7 @@ export class NotificationDispatcher {
             const inAppEnabled = prefs ? prefs.inAppGlobal : true;
 
             // 2. In-App Notification
-            if (inAppEnabled) {
+            if (inAppEnabled || alert) {
                 await prisma.notification.create({
                     data: {
                         userId,
@@ -47,6 +51,19 @@ export class NotificationDispatcher {
             }
 
             // 3. Email Notification
+            if (alert && emailEnabled && user.email) {
+                const escape = (text: string) => text.replace(/[&<>"']/g, (c) => "&#" + c.charCodeAt(0) + ";");
+                if (!resend) {
+                    captureException(new Error("Mailbox reputation alert: system sender is unavailable"));
+                    return;
+                }
+                const result = await resend.emails.send({
+                    from: SYSTEM_EMAIL_FROM, to: user.email, subject: title,
+                    html: "<p>" + escape(message) + "</p><p><a href=\x22" + escape(alert.href) + "\x22>" + escape(alert.action) + "</a></p>",
+                }, { idempotencyKey: alert.key + ":" + userId });
+                if (result.error) captureException(new Error("Mailbox reputation alert: system email was rejected"));
+                return;
+            }
             if (emailEnabled && user.email && resend) {
                 // Check granular permissions
                 let shouldSendEmail = true;
@@ -64,7 +81,8 @@ export class NotificationDispatcher {
             }
 
         } catch (error) {
-            console.error("Notification Dispatch Error:", error);
+            if (alert) captureException(new Error("Mailbox reputation alert: dispatch failed"));
+            else console.error("Notification Dispatch Error:", error);
         }
     }
 }

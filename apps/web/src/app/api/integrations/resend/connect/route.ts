@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jsonObject } from "@/lib/email/mailboxReputationHold";
 import { Resend } from "resend";
 import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
@@ -65,6 +66,9 @@ export async function POST(req: NextRequest) {
     // Reply capture is per-tenant: each team brings its own Resend account, verifies its own
     // inbound-receiving domain, and pastes back its own webhook signing secret from its Resend
     // dashboard — CraftMyFunnel only relays events for the domain/secret this team registered.
+    const existing = trimmedInboundDomain ? await prisma.connectedMailbox.findUnique({
+      where: { teamId_email: { teamId, email: fromEmail } }, select: { metadata: true },
+    }) : null;
     const mailbox = await prisma.connectedMailbox.upsert({
       where: { teamId_email: { teamId, email: fromEmail } },
       create: {
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
         encryptedAccessToken: encryptedKey as any,
         ...(encryptedWebhookSecret ? { encryptedRefreshToken: encryptedWebhookSecret as any } : {}),
         displayName,
-        ...(trimmedInboundDomain ? { metadata: { inboundDomain: trimmedInboundDomain } } : {}),
+        ...(trimmedInboundDomain ? { metadata: { ...jsonObject(existing?.metadata), inboundDomain: trimmedInboundDomain } } : {}),
         updatedAt: new Date(),
       },
     });

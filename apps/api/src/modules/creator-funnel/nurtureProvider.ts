@@ -1,5 +1,6 @@
 import type { NurtureOwner } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { mailboxSendingHold } from "@/modules/overseer/mailboxReputationHold";
 
 // Seam between creator-funnel logic and whichever system sends marketing nurture. Today every
 // team uses CMf sequences; Mautic journeys slot in behind the same interface once Mautic is live.
@@ -73,9 +74,12 @@ export class CmfSequenceProvider implements NurtureProvider {
         const mailbox = sequence.senderMailboxIds.length
             ? await prisma.connectedMailbox.findFirst({
                   where: { id: { in: sequence.senderMailboxIds }, teamId: lead.teamId, status: "CONNECTED" },
-                  select: { id: true },
+                  select: { id: true, metadata: true, team: { select: { sendSafety: true } } },
               })
             : null;
+        if (mailboxSendingHold(mailbox?.metadata, mailbox?.team?.sendSafety)) {
+            throw new Error("The sequence's sender has a sending hold.");
+        }
         const now = new Date();
         await prisma.sequenceEnrollment.createMany({
             data: [{
