@@ -1,4 +1,8 @@
-import { vi, describe, it, expect, beforeEach, afterEach, afterAll, Mock } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach, afterAll, Mock, beforeAll } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 import crypto from "crypto";
 import {
     decryptMailboxSecret,
@@ -1998,9 +2002,36 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
             id: "mailbox-1", status: "CONNECTED", email: "sender@example.test",
             isWarmingUp: false, dailyLimit: 200, warmupDay: 4, sentToday: 30, sentTodayDate: today,
+            metadata: { reputation: { state: "OPEN" } },
         });
         await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toEqual({ ok: false, reason: "GROWTH_CAP" });
         expect(prisma.connectedMailbox.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps the full daily limit for a post-warmup mailbox with no open incident", async () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
+            id: "mailbox-1", status: "CONNECTED", email: "sender@example.test",
+            isWarmingUp: false, dailyLimit: 200, warmupDay: 4, sentToday: 30, sentTodayDate: today,
+        });
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+        await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: true });
+        expect(prisma.email.count).not.toHaveBeenCalled();
+    });
+
+    it("does not cap or hold a mailbox when the guard flag is off, even with a stale incident", async () => {
+        vi.unstubAllEnvs();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({
+            id: "mailbox-1", status: "CONNECTED", email: "sender@example.test",
+            isWarmingUp: false, dailyLimit: 200, warmupDay: 4, sentToday: 30, sentTodayDate: today,
+            metadata: { reputation: { state: "HELD", sendingHold: { since: "2026-01-01T00:00:00Z", reason: "complaint", blocksReplies: false } } },
+        });
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+        await expect(reserveMailboxSend("team-1", "mailbox-1")).resolves.toMatchObject({ ok: true });
+        expect(prisma.email.count).not.toHaveBeenCalled();
     });
 
     it("enforces the throttle again in the atomic slot claim", async () => {

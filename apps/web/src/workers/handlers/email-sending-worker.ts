@@ -10,7 +10,7 @@ import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTra
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { accountReplyHoldUntil } from "@/lib/accountReplyCooldown";
-import { jsonObject, mailboxSendingHold } from "@/lib/email/mailboxReputationHold";
+import { jsonObject, mailboxReputationGuardEnabled, mailboxReputationIncidentOpen, mailboxSendingHold } from "@/lib/email/mailboxReputationHold";
 import { mailboxSendLimit } from "../../../../../packages/db/mailboxQuota";
 
 function stripHtmlTags(input: string): string {
@@ -144,7 +144,7 @@ export async function handleEmailSending(payload: JobPayload) {
   // its full dailyLimit.
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const { limit: effectiveLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), mailbox, todayStart);
+  const { limit: effectiveLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), mailbox, todayStart, mailboxReputationIncidentOpen(mailbox.metadata));
   const minDelaySeconds = mailbox.minDelaySeconds ?? 180;
 
   const updatedCount = await prisma.$executeRaw`
@@ -153,7 +153,7 @@ export async function handleEmailSending(payload: JobPayload) {
         "sentTodayDate" = ${todayStart},
         "lastSentAt" = NOW()
     WHERE id = ${mailbox.id} AND "teamId" = ${resolvedMailboxTeamId} AND status = 'CONNECTED'
-      AND "metadata"#>>'{reputation,sendingHold,reason}' IS NULL
+      AND (NOT ${mailboxReputationGuardEnabled()}::boolean OR "metadata"#>>'{reputation,sendingHold,reason}' IS NULL)
       AND NOT EXISTS (
         SELECT 1 FROM "Team" WHERE id = ${resolvedMailboxTeamId}
         AND "sendSafety"#>>'{reputation,sendingHold,reason}' IS NOT NULL

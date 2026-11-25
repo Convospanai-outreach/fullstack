@@ -1,4 +1,8 @@
-import { describe, expect, it, vi, beforeEach, beforeAll } from "vitest";
+import { describe, expect, it, vi, beforeEach, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 const mockDb: any = vi.hoisted(() => ({
     connectedMailbox: { findMany: vi.fn(), findFirst: vi.fn() },

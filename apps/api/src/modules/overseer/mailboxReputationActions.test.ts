@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 import { actOnMailboxReputation, KEEP_SENDING_TEXT, progressMailboxSwitches, registrableDomain } from "./mailboxReputationActions";
 
 const { db, dns, notify } = vi.hoisted(() => {

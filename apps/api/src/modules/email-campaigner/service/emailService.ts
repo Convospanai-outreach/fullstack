@@ -6,8 +6,8 @@
  */
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { mailboxSendingHold } from "@/modules/overseer/mailboxReputationHold";
-import { ensureLegacySmtpMailbox, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
+import { mailboxReputationGuardEnabled, mailboxSendingHold } from "@/modules/overseer/mailboxReputationHold";
+import { ensureLegacySmtpMailbox, getSmtpConfig, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
 import {
     isSuppressed,
     selectMailboxForSend,
@@ -161,21 +161,31 @@ class EmailService {
         attachments?: EmailAttachment[];
     }): Promise<EmailSendResult> {
         if (!input.teamId) return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
-        let mailbox: Awaited<ReturnType<typeof ensureLegacySmtpMailbox>>;
+        // Guard off: the pre-guard path. The team's SMTP config is used as it is, with no converted
+        // mailbox, no 50/day limit and no minimum delay. Only the unsubscribe headers are added.
+        let mailbox: Awaited<ReturnType<typeof ensureLegacySmtpMailbox>> = null;
+        let config: Awaited<ReturnType<typeof getSmtpConfig>>;
         try {
-            mailbox = await ensureLegacySmtpMailbox(input.teamId);
+            if (mailboxReputationGuardEnabled()) {
+                mailbox = await ensureLegacySmtpMailbox(input.teamId);
+                config = mailbox?.config ?? null;
+            } else {
+                config = await getSmtpConfig(input.teamId);
+            }
         } catch {
             console.error("[EmailService] SMTP_CONFIG_UNAVAILABLE.");
             return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
         }
-        if (!mailbox) return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
-        const hold = mailboxSendingHold(mailbox.metadata);
-        if (hold) return { success: false, error: hold };
-        if (mailbox.status !== "CONNECTED") return { success: false, error: "SMTP_MAILBOX_DISCONNECTED" };
-        const { reserveMailboxSend, releaseMailboxSend } = await import("./googleMailboxService");
-        const slot = await reserveMailboxSend(input.teamId, mailbox.id);
-        if (!slot.ok) return { success: false, error: slot.reason };
-        const result = await sendViaSMTP(mailbox.config, {
+        if (!config) return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        if (mailbox) {
+            const hold = mailboxSendingHold(mailbox.metadata);
+            if (hold) return { success: false, error: hold };
+            if (mailbox.status !== "CONNECTED") return { success: false, error: "SMTP_MAILBOX_DISCONNECTED" };
+            const { reserveMailboxSend } = await import("./googleMailboxService");
+            const slot = await reserveMailboxSend(input.teamId, mailbox.id);
+            if (!slot.ok) return { success: false, error: slot.reason };
+        }
+        const result = await sendViaSMTP(config, {
             to: input.to,
             subject: input.subject,
             html: input.body,
@@ -183,7 +193,10 @@ class EmailService {
             ...(input.attachments?.length ? { attachments: input.attachments } : {}),
         });
         if (!result.success) {
-            await releaseMailboxSend(input.teamId, mailbox.id);
+            if (mailbox) {
+                const { releaseMailboxSend } = await import("./googleMailboxService");
+                await releaseMailboxSend(input.teamId, mailbox.id);
+            }
             return { success: false, error: "SMTP_SEND_FAILED" };
         }
 
@@ -193,7 +206,7 @@ class EmailService {
             body: input.body,
             trackingId: input.trackingId,
             deliveryProvider: "SMTP",
-            mailboxId: mailbox.id,
+            ...(mailbox ? { mailboxId: mailbox.id } : {}),
             providerId: result.messageId,
         });
         return {
@@ -318,7 +331,8 @@ class EmailService {
                           where: { id: metadata.mailboxId, teamId, status: "CONNECTED" },
                       })
                     : await selectMailboxForSend(teamId, metadata?.userId);
-                const hold = mailboxSendingHold(mailbox?.metadata, teamComms?.sendSafety);
+                const purpose = metadata?.transactional ? "transactional" as const : "outreach" as const;
+                const hold = mailboxSendingHold(mailbox?.metadata, teamComms?.sendSafety, purpose);
                 if (hold) return { success: false, error: hold };
                 if (mailbox?.provider === "RESEND") {
                     resendOutcome = await sendViaResendMailbox({
@@ -327,6 +341,7 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
                         trackingId,
                         unsubscribeUrl,
                         attachments,
@@ -339,6 +354,7 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
                         ...(unsubscribeHeaders ? { headers: unsubscribeHeaders } : {}),
                         attachments,
                     });
@@ -349,6 +365,7 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
                         unsubscribeUrl,
                         attachments,
                     });

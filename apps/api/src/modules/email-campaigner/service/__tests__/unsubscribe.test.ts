@@ -97,6 +97,14 @@ describe("one-click unsubscribe", () => {
         }));
     });
 
+    it("keeps rate limiting repeated hits on one token and still answers 200", async () => {
+        const id = "rate-limited-token";
+        for (let i = 0; i < 10; i++) expect((await post(id)).status).toBe(200);
+        prisma.$transaction.mockClear();
+        expect((await post(id)).status).toBe(200);
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it("returns a retryable response when persistence fails", async () => {
         prisma.$transaction.mockRejectedValueOnce(new Error("database offline"));
         const error = vi.spyOn(console, "error").mockImplementation(() => undefined);

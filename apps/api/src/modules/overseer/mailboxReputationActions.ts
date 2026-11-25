@@ -9,7 +9,7 @@ import {
     DAY_MS, REPUTATION_NUDGE, evaluateMailboxReputation, fixUrl, lockReputation, onMailboxReputationChanged, reputationState,
     updateReputation, writeReputationAudit, type MailboxReputationState, type ReputationClient,
 } from "./mailboxReputation";
-import { jsonObject, mailboxSendingHold } from "./mailboxReputationHold";
+import { jsonObject, mailboxReputationGuardEnabled, mailboxSendingHold } from "./mailboxReputationHold";
 
 export const KEEP_SENDING_TEXT = "KEEP SENDING";
 const PSL_URL = "https://publicsuffix.org/list/public_suffix_list.dat";
@@ -306,6 +306,7 @@ async function progressSwitch(mailbox: ConnectedMailbox, now: Date) {
 }
 
 export async function progressMailboxSwitches(now = new Date()) {
+    if (!mailboxReputationGuardEnabled()) return;
     const mailboxes = await prisma.connectedMailbox.findMany({ where: { status: "CONNECTED" } });
     for (const mailbox of mailboxes) {
         try {

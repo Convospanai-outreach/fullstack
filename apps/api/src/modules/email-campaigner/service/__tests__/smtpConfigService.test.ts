@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 const TEST_ENCRYPTION_KEY = "a".repeat(64); // 32-byte hex key required by aes-256-gcm
 

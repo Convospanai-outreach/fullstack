@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, Mock, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 import { emailService } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";

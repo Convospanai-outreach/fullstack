@@ -6,7 +6,7 @@ import { decryptCredential, type EncryptedCredential } from "@/lib/security/cred
 import { captureException } from "@/lib/sentry";
 import { classifyRecipientProvider, type RecipientProvider } from "@/modules/email-campaigner/service/resendFeedback";
 import { DOMAIN_NUDGE_TYPE, notifyOwners } from "./domainWatch";
-import { jsonObject } from "./mailboxReputationHold";
+import { jsonObject, mailboxReputationGuardEnabled } from "./mailboxReputationHold";
 import {
     assessMailboxReputation, lookupSpamhausDbl, type DomainReputation, type ProviderCounts,
     type ReputationCounts, type ReputationLevel, type ReputationSignal,
@@ -246,6 +246,7 @@ function nextAlert(state: State, level: ReputationLevel, now: Date) {
 export async function onMailboxReputationChanged(_teamId: string, _mailboxId: string, _level: ReputationLevel): Promise<void> {}
 
 export async function evaluateMailboxReputation(teamId: string, mailboxId: string, now = new Date(), mode: "daily" | "webhook" | "manual" = "manual", blocklists?: Map<string, ReturnType<typeof lookupSpamhausDbl>>) {
+    if (!mailboxReputationGuardEnabled()) return null;
     const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId, status: "CONNECTED" } });
     if (!mailbox) return null;
     const prior = reputationState(mailbox.metadata);
@@ -339,6 +340,7 @@ export async function evaluateMailboxReputation(teamId: string, mailboxId: strin
 }
 
 export async function requestMailboxReputationCheck(teamId: string, mailboxId: string, now = new Date()) {
+    if (!mailboxReputationGuardEnabled()) return;
     const evaluated = await evaluateMailboxReputation(teamId, mailboxId, now, "webhook");
     if (evaluated) return;
     const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId, status: "CONNECTED" }, select: { metadata: true } });
@@ -352,6 +354,7 @@ export async function requestMailboxReputationCheck(teamId: string, mailboxId: s
 }
 
 export async function runMailboxReputationWatch(now = new Date()) {
+    if (!mailboxReputationGuardEnabled()) return 0;
     const mailboxes = await prisma.connectedMailbox.findMany({ where: { status: "CONNECTED" }, select: { id: true, teamId: true } });
     const blocklists = new Map<string, ReturnType<typeof lookupSpamhausDbl>>();
     let checked = 0;

@@ -5,7 +5,7 @@ import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
 import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 import type { EmailAttachment } from "./emailAttachment";
 import { classifyRecipientProvider } from "./resendFeedback";
-import { mailboxSendingHold, type SendPurpose } from "@/modules/overseer/mailboxReputationHold";
+import { mailboxReputationIncidentOpen, mailboxSendingHold, type SendPurpose } from "@/modules/overseer/mailboxReputationHold";
 import { mailboxSendLimit } from "../../../../../../packages/db/mailboxQuota";
 
 const db = prisma;
@@ -699,7 +699,7 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string, purp
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const now = new Date();
-    const { limit: warmupLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), { ...mailbox, id: mailboxId }, today);
+    const { limit: warmupLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), { ...mailbox, id: mailboxId }, today, mailboxReputationIncidentOpen(mailbox.metadata));
     const sentToday = mailbox.sentTodayDate && mailbox.sentTodayDate >= today ? mailbox.sentToday : 0;
     if (growthLimited && sentToday >= warmupLimit) return { ok: false as const, reason: "GROWTH_CAP" };
 

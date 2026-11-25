@@ -2,7 +2,7 @@
 import { Prisma } from "@prisma/client";
 import { decryptCredential, encryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import type { SmtpConfig } from "@/lib/email/smtpClient";
-import { jsonObject } from "@/modules/overseer/mailboxReputationHold";
+import { jsonObject, mailboxReputationGuardEnabled } from "@/modules/overseer/mailboxReputationHold";
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 const ENCRYPTION_KEY = process.env["ENCRYPTION_KEY"] || "";
@@ -250,9 +250,13 @@ export async function sendViaSmtpMailbox(input: {
         return { success: false, error: "SMTP_MAILBOX_PRE_DISPATCH_FAILED", fallbackAllowed: true };
     }
 
+    // Guard off: a connected SMTP mailbox is sent through as before, with no reservation, limit or delay.
+    const guarded = mailboxReputationGuardEnabled();
     const { reserveMailboxSend, releaseMailboxSend } = await import("./googleMailboxService");
-    const gate = await reserveMailboxSend(input.teamId, mailbox.id, input.purpose);
-    if (!gate.ok) return { success: false, error: gate.reason, fallbackAllowed: false };
+    if (guarded) {
+        const gate = await reserveMailboxSend(input.teamId, mailbox.id, input.purpose);
+        if (!gate.ok) return { success: false, error: gate.reason, fallbackAllowed: false };
+    }
 
     const { sendViaSMTP } = await import("@/lib/email/smtpClient");
     const result = await sendViaSMTP(
@@ -275,7 +279,7 @@ export async function sendViaSmtpMailbox(input: {
     );
 
     if (!result.success) {
-        await releaseMailboxSend(input.teamId, mailbox.id);
+        if (guarded) await releaseMailboxSend(input.teamId, mailbox.id);
         return { success: false, error: "SMTP_MAILBOX_SEND_FAILED", fallbackAllowed: true };
     }
 

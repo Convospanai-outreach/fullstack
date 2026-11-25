@@ -32,6 +32,7 @@ const failing = { ...payload, body: "<p>Act now, a risk-free offer.</p>" };
 
 describe("email_sending pre-send gate", () => {
     beforeEach(() => {
+        vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true");
         vi.clearAllMocks();
         db.lead.findUnique.mockResolvedValue({ id: "l1", email: "sam@acme.example", fullName: "Sam" });
         db.campaign.findUnique.mockResolvedValue({ id: "c1", name: "Launch", teamId: "t1", variants: [] });
@@ -59,6 +60,17 @@ describe("email_sending pre-send gate", () => {
         expect(send).not.toHaveBeenCalled();
     });
 
+    it("ignores a stored reputation hold while the guard flag is off", async () => {
+        vi.unstubAllEnvs();
+        db.connectedMailbox.findFirst.mockResolvedValueOnce({
+            id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 50, isWarmingUp: false, warmupDay: 0, provider: "GOOGLE_WORKSPACE",
+            metadata: { reputation: { sendingHold: { reason: "complaints" } } },
+        });
+        // It gets past the hold and reaches the (mocked) send, which throws.
+        await expect(handleEmailSending({ ...payload, mailboxId: "m1" })).rejects.toThrow("stop here");
+        expect(send).toHaveBeenCalled();
+    });
+
     it("blocks an explicit mailbox on a reputation hold", async () => {
         db.connectedMailbox.findFirst.mockResolvedValueOnce({
             id: "m1", status: "CONNECTED", metadata: { reputation: { sendingHold: { reason: "complaints" } } },
@@ -69,7 +81,7 @@ describe("email_sending pre-send gate", () => {
     });
 
     it("reports GROWTH_CAP when the atomic slot claim is at the growth limit", async () => {
-        const mailbox = { id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 200, isWarmingUp: false, warmupDay: 4, provider: "GOOGLE_WORKSPACE" };
+        const mailbox = { id: "m1", status: "CONNECTED", email: "me@x.test", dailyLimit: 200, isWarmingUp: false, warmupDay: 4, provider: "GOOGLE_WORKSPACE", metadata: { reputation: { state: "OPEN" } } };
         db.connectedMailbox.findFirst.mockResolvedValueOnce(mailbox);
         db.connectedMailbox.findUnique.mockResolvedValueOnce({ ...mailbox, sentTodayDate: new Date(), sentToday: 30 });
         db.email.count.mockResolvedValueOnce(140);

@@ -292,6 +292,9 @@ export async function registerStandaloneUnsubscribe(input: { teamId: string; lea
 
 export async function recordEmailUnsubscribe(token: string) {
     if (!hasValidTokenShape(token)) return;
+    // Keyed on the token alone: web-forwarded requests all arrive from the web server, so an IP key would not separate callers.
+    const rateLimit = await checkRateLimit(token, { windowMs: 60_000, maxRequests: 10 }, "email-unsubscribe-tracking");
+    if (!rateLimit.allowed) return;
     const select = {
         id: true, leadId: true, campaignId: true, mailboxId: true,
         campaign: { select: { teamId: true } }, lead: { select: { email: true, teamId: true } },

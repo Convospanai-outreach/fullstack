@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, Mock, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 import { DEFAULT_EMAIL_FOOTER_TEXT, emailService, resolveEmailFooterText } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { ensureLegacySmtpMailbox, sendViaSmtpMailbox } from "../smtpConfigService";
+import { ensureLegacySmtpMailbox, getSmtpConfig, sendViaSmtpMailbox } from "../smtpConfigService";
 import { isSuppressed, reserveMailboxSend, selectMailboxForSend, sendViaGmailMailbox } from "../googleMailboxService";
 import { sendViaResendMailbox } from "../resendMailboxService";
 
@@ -19,7 +23,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/email/smtpClient", () => ({ sendViaSMTP: vi.fn() }));
-vi.mock("../smtpConfigService", () => ({ ensureLegacySmtpMailbox: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
+vi.mock("../smtpConfigService", () => ({ ensureLegacySmtpMailbox: vi.fn(), getSmtpConfig: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
 vi.mock("../googleMailboxService", () => ({
     isSuppressed: vi.fn(),
     selectMailboxForSend: vi.fn(),
@@ -74,6 +78,17 @@ describe("emailService Gmail fallback policy", () => {
         (ensureLegacySmtpMailbox as Mock).mockResolvedValue({ id: "legacy-smtp", status: "CONNECTED", config: smtpConfig });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+    });
+
+    it("sends through the pre-guard SMTP path, with no mailbox hold or reservation, while the guard flag is off", async () => {
+        vi.unstubAllEnvs();
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toMatchObject({ success: true, deliveryProvider: "SMTP" });
+
+        expect(ensureLegacySmtpMailbox).not.toHaveBeenCalled();
+        expect(sendViaSMTP).toHaveBeenCalledTimes(1);
     });
 
     it("persists a successful Gmail delivery and never loads SMTP", async () => {
