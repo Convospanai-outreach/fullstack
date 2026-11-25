@@ -10,6 +10,13 @@ export async function GET(req: NextRequest) {
         if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const url = new URL(req.url);
+        const replyId = url.searchParams.get("replyId");
+        if (replyId !== null) {
+            if (!replyId || replyId.length > 100) return NextResponse.json({ error: "Invalid reply" }, { status: 400 });
+            const { getInboxReply } = await import("@/modules/inbox/actionInboxService");
+            const reply = await getInboxReply(teamId, replyId);
+            return reply ? NextResponse.json({ reply }) : NextResponse.json({ error: "Reply not found" }, { status: 404 });
+        }
         const page = Math.max(1, Number.parseInt(url.searchParams.get("page") || "1", 10) || 1);
         const limit = Math.min(50, Math.max(1, Number.parseInt(url.searchParams.get("limit") || "20", 10) || 20));
 

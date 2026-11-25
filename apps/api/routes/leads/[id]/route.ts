@@ -5,6 +5,7 @@ import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { getInstagramSourceForLead } from "@/modules/creator-funnel/leadSource";
+import { tryNormalizeDomain } from "@/lib/crm/domain";
 import { linkedInForStorage } from "@/lib/crm/linkedin";
 import { consentChannels } from "@/modules/governance/consentChannels";
 import { recordCaptureConsent } from "@/modules/governance/captureConsent";
@@ -110,6 +111,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         }
 
         if (typeof safeData.linkedIn === "string") safeData.linkedIn = linkedInForStorage(safeData.linkedIn);
+
+        if (typeof safeData.domain === "string") {
+            const domain = tryNormalizeDomain(safeData.domain);
+            if (!domain && safeData.domain.trim()) {
+                throw new APIError("Enter a valid domain, such as example.com.", 400, "VALIDATION_ERROR");
+            }
+            safeData.domain = domain;
+        }
 
         if (Object.keys(safeData).length === 0) {
             throw new APIError("No valid fields supplied for update", 400, "VALIDATION_ERROR");

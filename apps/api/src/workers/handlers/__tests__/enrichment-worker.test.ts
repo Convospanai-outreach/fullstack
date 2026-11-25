@@ -277,7 +277,7 @@ describe("enrichment-worker", () => {
                 .mockResolvedValueOnce({ enrichedData: null, company: "Acme" });
             (prisma.lead.update as any).mockResolvedValue({});
             (hunterService.findAndStoreEmail as any).mockResolvedValue({
-                email: "jane@acme.example", domain: "Acme.Example", phoneNumber: "+1 555 0100",
+                email: "jane@acme.example", domain: "HTTPS://WWW.Acme.Example.:443/about", phoneNumber: "+1 555 0100",
             });
 
             await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
@@ -299,7 +299,7 @@ describe("enrichment-worker", () => {
                 linkedIn: null,
                 email: null,
                 company: "Acme",
-                domain: "Gmail.com",
+                domain: "Yahoo.co.in",
             });
             (prisma.lead.update as any).mockResolvedValue({});
             (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: null });

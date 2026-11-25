@@ -1,8 +1,5 @@
 import { prisma } from "@/lib/db";
-import { tryNormalizeDomain } from "@/lib/crm/domain";
-
-// Company domains only. An address on a shared mail service is not an account identifier.
-const sharedDomains = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "proton.me", "aol.com"]);
+import { isSharedMailDomain, tryNormalizeDomain } from "@/lib/crm/domain";
 
 export function accountReplyCooldownHours(settings: unknown): number {
     const hours = (settings as { accountReplyCooldownHours?: unknown } | null)?.accountReplyCooldownHours;
@@ -13,17 +10,22 @@ export async function accountReplyHoldUntil(input: { teamId: string; leadId: str
     const hours = accountReplyCooldownHours(input.settings);
     if (!hours) return null;
     const domain = tryNormalizeDomain(input.domain);
-    if (!domain || sharedDomains.has(domain)) return null;
+    if (!domain || isSharedMailDomain(domain)) return null;
     const now = input.now ?? new Date();
     const duration = hours * 3_600_000;
-    const reply = await prisma.message.findFirst({
-        where: {
-            direction: "INBOUND", platform: "EMAIL",
-            createdAt: { gt: new Date(now.getTime() - duration), lte: now },
-            lead: { teamId: input.teamId, domain: { equals: domain, mode: "insensitive" }, id: { not: input.leadId } },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-    });
+    // Normalize legacy values at lookup as well as at write time. Keep this in sync with crm/domain.ts.
+    const [reply] = await prisma.$queryRaw<{ createdAt: Date }[]>`
+        SELECT message."createdAt"
+        FROM "Message" AS message
+        JOIN "Lead" AS lead ON lead.id = message."leadId"
+        WHERE lead."teamId" = ${input.teamId} AND lead.id <> ${input.leadId}
+          AND message.direction = 'INBOUND' AND message.platform = 'EMAIL'
+          AND message."createdAt" > ${new Date(now.getTime() - duration)} AND message."createdAt" <= ${now}
+          AND regexp_replace(regexp_replace(regexp_replace(
+              substring(regexp_replace(lower(regexp_replace(lead.domain, '^[[:space:]]+|[[:space:]]+$', '', 'g')),
+                  '^[a-z][a-z0-9+.-]*://', '') from '^[^/?#]*'), ':[0-9]+$', ''),
+              '^www[.]', ''), '[.]$', '') = ${domain}
+        ORDER BY message."createdAt" DESC
+        LIMIT 1`;
     return reply ? new Date(reply.createdAt.getTime() + duration) : null;
 }

@@ -5,12 +5,26 @@
 
 const DOMAIN_PATTERN = /^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/;
 
+// A shared mailbox provider's domain says nothing about the lead's company.
+export const WEBMAIL_DOMAINS: ReadonlySet<string> = new Set([
+    "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "outlook.com", "hotmail.com", "live.com",
+    "msn.com", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "zoho.com", "gmx.com",
+    "rediffmail.com", "yandex.com", "mail.com", "pm.me", "gmx.net", "gmx.de", "yandex.ru",
+    "fastmail.com", "hey.com", "mac.com", "qq.com", "163.com", "126.com",
+]);
+
+const REGIONAL_WEBMAIL_DOMAIN = /^(?:outlook|hotmail|live|yahoo|gmail)\.(?:(?:co|com)\.)?[a-z]{2}$/;
+
+export function isSharedMailDomain(domain: string): boolean {
+    return WEBMAIL_DOMAINS.has(domain) || REGIONAL_WEBMAIL_DOMAIN.test(domain);
+}
+
 function normalize(value: string): string {
     let v = value.trim().toLowerCase();
     // Strip a URL protocol/path/query if present (common in "website" CSV columns,
     // e.g. "https://acme.example/about?x=1") - domain matching only cares about the host.
     v = v.replace(/^[a-z][a-z0-9+.-]*:\/\//, "");
-    v = v.split(/[/?#]/)[0];
+    v = v.split(/[/?#]/)[0].replace(/:[0-9]+$/, "");
     v = v.replace(/^www\./, "");
     return v.replace(/\.$/, "");
 }

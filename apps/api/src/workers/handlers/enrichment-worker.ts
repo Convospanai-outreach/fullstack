@@ -6,14 +6,7 @@ import { deductCredits, refundCredits } from "@/lib/credits";
 import { logger, logWorker } from "@/lib/logger";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { linkedInHandle } from "@/lib/crm/linkedin";
-import { tryNormalizeDomain } from "@/lib/crm/domain";
-
-// Free-mail providers: an address here says nothing about the lead's company.
-const WEBMAIL_DOMAINS = new Set([
-    "gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "outlook.com", "hotmail.com", "live.com",
-    "msn.com", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "zoho.com", "gmx.com",
-    "rediffmail.com", "yandex.com", "mail.com",
-]);
+import { isSharedMailDomain, tryNormalizeDomain } from "@/lib/crm/domain";
 // The name the extension capture uses when the profile's name wasn't readable.
 const PLACEHOLDER_NAME = "Unknown LinkedIn Lead";
 
@@ -96,7 +89,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
         const handle = linkedInHandle(lead.linkedIn);
         const knownName = lead.fullName && lead.fullName !== PLACEHOLDER_NAME ? lead.fullName : "";
         const leadDomain = tryNormalizeDomain(lead.domain);
-        const ownDomain = leadDomain && !WEBMAIL_DOMAINS.has(leadDomain) ? leadDomain : undefined;
+        const ownDomain = leadDomain && !isSharedMailDomain(leadDomain) ? leadDomain : undefined;
         if (!lead.email && (handle || (knownName && (ownDomain || lead.company)))) {
             try {
                 const nameParts = knownName.split(" ");
@@ -150,7 +143,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                     // Lead.domain that's empty, webmail or invalid, so the org chart can group the
                     // lead with its account.
                     const foundDomain = tryNormalizeDomain(result.domain) ?? tryNormalizeDomain(result.email?.split("@")[1]);
-                    if (!ownDomain && foundDomain && !WEBMAIL_DOMAINS.has(foundDomain)) {
+                    if (!ownDomain && foundDomain && !isSharedMailDomain(foundDomain)) {
                         hunterDomainPromotion = foundDomain;
                     }
                 }

@@ -120,6 +120,49 @@ describe("Action Inbox: Instagram and Facebook conversations", () => {
         expect(toast.success).toHaveBeenCalledWith("Reply sent");
     });
 
+    it("opens a linked reply outside the inbox page", async () => {
+        const older = igReply({ id: "old-reply", leadId: "older-lead", handle: "@linked.person" });
+        serve(igReply());
+        const fallback = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+            url === "/api/proxy/inbox?replyId=old-reply" ? json(200, { reply: older }) : fallback(url, init));
+        search.value = "reply=old-reply";
+        await render();
+
+        expect(document.querySelector("h3")?.textContent).toBe("@linked.person");
+        expect(fetchMock.mock.calls.some(([url]) => url === "/api/proxy/inbox/thread/older-lead")).toBe(true);
+    });
+
+    it.each([
+        ["succeeded", "Scheduled reply sent"],
+        ["dead_lettered", "Scheduled reply failed"],
+        ["cancelled", "Scheduled reply cancelled"],
+        ["skipped", "Scheduled reply skipped"],
+    ])("shows terminal scheduled status %s and refreshes a sent thread", async (status, label) => {
+        const reply = igReply({ platform: "EMAIL", leadName: "Email recipient" });
+        serve(reply);
+        const fallback = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+            url === "/api/proxy/inbox/replies/msg-ig/reply"
+                ? json(200, { scheduled: { status, sendAt: reply.createdAt } })
+                : fallback(url, init));
+        await render();
+
+        expect(document.body.textContent).toContain(label);
+        if (status === "succeeded") {
+            await vi.waitFor(() => expect(fetchMock.mock.calls.filter(([url]) =>
+                url === "/api/proxy/inbox/thread/lead-1").length).toBeGreaterThan(1));
+        }
+    });
+
+    it("offers scheduling only when the original Resend mailbox is eligible", async () => {
+        serve(igReply({ platform: "EMAIL", canScheduleReply: false }));
+        await render();
+
+        expect(document.querySelector('[aria-label="Reply timing"]')).toBeNull();
+        expect(byText("Send reply")).toBeDefined();
+    });
+
     it("counts Instagram's limit in bytes and blocks sending past 1,000", async () => {
         serve(igReply());
         await render();
