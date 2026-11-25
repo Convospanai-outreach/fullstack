@@ -5,13 +5,16 @@ const mockDb: any = vi.hoisted(() => ({
     overseerNudge: { findMany: vi.fn(), count: vi.fn() },
     meeting: { findMany: vi.fn(), count: vi.fn() },
     lead: { findFirst: vi.fn(), update: vi.fn() },
-    email: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
+    email: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
+    job: { findFirst: vi.fn() },
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     replyTracker: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
+vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: vi.fn() } }));
+vi.mock("@/lib/security/credentialVault", () => ({ encryptCredential: vi.fn() }));
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
     isSuppressed: vi.fn(),
     recordSuppression: vi.fn(),
@@ -41,6 +44,7 @@ import {
     markReplyOutcome,
     markReplyRead,
     sendReply,
+    scheduleInboxReply,
     toSnippet,
 } from "../actionInboxService";
 import { isSuppressed, recordSuppression, sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
@@ -50,13 +54,16 @@ import { guardrailService } from "@/modules/governance/service/guardrailService"
 import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { advanceLeadAfterMeetingScheduled, advanceLeadToLost } from "@/lib/crm/leadStageTransitions";
 import { sendSocialReply } from "@/modules/creator-funnel/socialInbox";
+import { JobQueue } from "@/lib/queue";
+import { encryptCredential } from "@/lib/security/credentialVault";
 
 function inboundReply(overrides: any = {}) {
     return {
         id: "msg-1",
         leadId: "lead-1",
         platform: "EMAIL",
-        lead: { email: "lead@example.test" },
+        createdAt: new Date("2026-11-25T10:00:00Z"),
+        lead: { email: "lead@example.test", status: "REPLIED", replyOutcome: null },
         emailEvent: { email: { id: "email-1", subject: "Quick question", campaignId: "campaign-1", mailboxId: "mailbox-1" } },
         ...overrides,
     };
@@ -247,6 +254,36 @@ describe("sendReply", () => {
 
     const send = (content = "Tuesday works.\nTalk then") =>
         sendReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content });
+
+    it("stops an approved scheduled reply when the thread has a newer message", async () => {
+        mockDb.message.findFirst.mockResolvedValueOnce(inboundReply()).mockResolvedValueOnce({ id: "newer" });
+        mockDb.connectedMailbox.findFirst.mockResolvedValue({ id: "mailbox-1", provider: "RESEND" });
+        await expect(sendReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", scheduledJobId: "job-1" }))
+            .rejects.toMatchObject({ code: "THREAD_CHANGED" });
+        expect(sendViaResendMailbox).not.toHaveBeenCalled();
+    });
+
+    it("reuses the job id across a scheduled reply's provider and database writes", async () => {
+        mockDb.message.findFirst.mockResolvedValueOnce(inboundReply()).mockResolvedValueOnce(null);
+        mockDb.connectedMailbox.findFirst.mockResolvedValue({ id: "mailbox-1", provider: "RESEND" });
+        await sendReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", scheduledJobId: "job-1" });
+        expect(sendViaResendMailbox).toHaveBeenCalledWith(expect.objectContaining({ trackingId: "job-1", idempotencyKey: "inbox_reply_job-1" }));
+        expect(mockDb.email.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ idempotencyKey: "inbox_reply_job-1" }) }));
+    });
+
+    it("queues the approved reply encrypted and does not dispatch it before its scheduled time", async () => {
+        const sendAt = new Date("2026-11-25T12:00:00Z");
+        const encrypted = { v: 1, cipher: "ciphertext", iv: "iv", tag: "tag" };
+        vi.mocked(encryptCredential).mockResolvedValue(encrypted);
+        vi.mocked(JobQueue.enqueue).mockResolvedValue({ status: "queued", processAt: sendAt } as Awaited<ReturnType<typeof JobQueue.enqueue>>);
+        const result = await scheduleInboxReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", sendAt });
+
+        expect(result).toEqual({ scheduled: true, sendAt, status: "queued" });
+        expect(encryptCredential).toHaveBeenCalledWith(JSON.stringify({ content: "Approved", recipient: "lead@example.test" }));
+        expect(JobQueue.enqueue).toHaveBeenCalledWith("scheduled_inbox_reply", { teamId: "team-a", userId: "user-1", messageId: "msg-1", approvedReply: encrypted },
+            expect.objectContaining({ processAt: sendAt, idempotencyKey: "scheduled_inbox_reply:team-a:msg-1" }));
+        expect(sendViaResendMailbox).not.toHaveBeenCalled();
+    });
 
     it("404s for a reply outside the caller's team and sends nothing", async () => {
         mockDb.message.findFirst.mockResolvedValue(null);

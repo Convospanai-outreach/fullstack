@@ -74,6 +74,17 @@ describe("POST /webhooks/resend - email.opened idempotency", () => {
         mockScoreAndPersist.mockResolvedValue(undefined);
     });
 
+    it.each([["email.delivered", "DELIVERED"], ["email.delivery_delayed", "DELIVERY_DELAYED"], ["email.failed", "DELIVERY_FAILED"]])(
+        "records signed %s events against the outbound email", async (type, storedType) => {
+            mockPrisma.emailEvent.create.mockResolvedValue({ id: "event" });
+            const response = await POST(request({ type, data: { email_id: "provider-1" } }));
+            expect(response.status).toBe(200);
+            expect(mockPrisma.emailEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+                teamId: "team-1", emailId: "email-1", provider: "RESEND", type: storedType, providerMessageId: "provider-1",
+            }) });
+        },
+    );
+
     it("claims the open and advances the lead on first delivery", async () => {
         mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
 

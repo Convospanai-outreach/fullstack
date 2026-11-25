@@ -28,6 +28,7 @@ type DeliverabilityStats = {
     complaintRate: number;
     sentCount: number;
     windowDays: number;
+    resendDelivery?: { sent: number; delivered: number; delayed: number; failed: number; unconfirmed: number };
     domains: DomainHealthEntry[];
 };
 
@@ -58,6 +59,9 @@ export default function DomainHealthPage() {
     const [stats, setStats] = useState<DeliverabilityStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [cooldown, setCooldown] = useState<{ hours: number; canEdit: boolean } | null>(null);
+    const [savingCooldown, setSavingCooldown] = useState(false);
+    const [cooldownError, setCooldownError] = useState("");
 
     useEffect(() => {
         let cancelled = false;
@@ -77,6 +81,30 @@ export default function DomainHealthPage() {
         return () => { cancelled = true; };
     }, []);
 
+    useEffect(() => {
+        const controller = new AbortController();
+        fetch(`${API_BASE}/settings/account-reply-cooldown`, { signal: controller.signal })
+            .then(async (response) => { if (response.ok) setCooldown(await response.json()); })
+            .catch(() => {});
+        return () => controller.abort();
+    }, []);
+
+    async function saveCooldown(hours: number) {
+        setSavingCooldown(true);
+        setCooldownError("");
+        try {
+            const response = await fetch(`${API_BASE}/settings/account-reply-cooldown`, {
+                method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hours }),
+            });
+            if (!response.ok) throw new Error("Could not save the account reply cooldown.");
+            setCooldown((current) => current ? { ...current, hours } : current);
+        } catch {
+            setCooldownError("Could not save the account reply cooldown.");
+        } finally {
+            setSavingCooldown(false);
+        }
+    }
+
     const activeDomains = stats?.domains.filter((d) => d.active) || [];
     const retiredDomains = stats?.domains.filter((d) => !d.active) || [];
 
@@ -95,6 +123,18 @@ export default function DomainHealthPage() {
 
             {loading && !error && <p className="text-sm text-muted-foreground">Loading...</p>}
 
+            {cooldown && (
+                <GlassCard className="p-6 space-y-2">
+                    <label htmlFor="account-reply-cooldown" className="block text-sm font-bold text-foreground">Account reply cooldown</label>
+                    <p className="text-xs text-muted-foreground">Pause scheduled outreach to other contacts at the same company when someone replies. Contacts need a company domain on their record.</p>
+                    <select id="account-reply-cooldown" value={cooldown.hours} disabled={!cooldown.canEdit || savingCooldown}
+                        onChange={(event) => void saveCooldown(Number(event.target.value))} className="rounded border border-border bg-background p-2 text-sm">
+                        <option value={0}>Off</option><option value={24}>24 hours</option><option value={48}>48 hours</option><option value={72}>72 hours</option>
+                    </select>
+                    {cooldownError && <p role="alert" className="text-xs text-destructive">{cooldownError}</p>}
+                </GlassCard>
+            )}
+
             {!loading && !error && stats && (
                 <>
                     <GlassCard className="p-6 flex items-center justify-between">
@@ -108,6 +148,22 @@ export default function DomainHealthPage() {
                             <p>Last {stats.windowDays} days · {stats.sentCount} sent</p>
                         </div>
                     </GlassCard>
+
+                    {stats.resendDelivery && stats.resendDelivery.sent > 0 && (
+                        <GlassCard className="p-6 space-y-3">
+                            <h3 className="text-sm font-bold text-foreground">Resend delivery in the last {stats.windowDays} days</h3>
+                            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+                                {[
+                                    ["Submitted", stats.resendDelivery.sent], ["Delivered to mail server", stats.resendDelivery.delivered],
+                                    ["Delayed", stats.resendDelivery.delayed], ["Failed or bounced", stats.resendDelivery.failed],
+                                    ["Unconfirmed", stats.resendDelivery.unconfirmed],
+                                ].map(([label, value]) => (
+                                    <div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="font-semibold">{value}</dd></div>
+                                ))}
+                            </dl>
+                            <p className="text-xs text-muted-foreground">These are Resend webhook results. Inbox folder placement requires a separate test.</p>
+                        </GlassCard>
+                    )}
 
                     <GlassCard className="p-6 space-y-4">
                         <div className="flex items-center justify-between gap-3">

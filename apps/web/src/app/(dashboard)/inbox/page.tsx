@@ -136,7 +136,15 @@ function AllClear() {
 
 function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => void }) {
     const { data: thread, error, mutate } = useSWR<ThreadResponse>(getBrowserApiUrl(`/inbox/thread/${reply.leadId}`), fetcher);
+    const scheduledPath = `/inbox/replies/${reply.id}/reply`;
+    const { data: scheduledState, mutate: refreshSchedule } = useSWR<{ scheduled: { status: string; sendAt: string } | null }>(
+        reply.platform === "EMAIL" ? getBrowserApiUrl(scheduledPath) : null, fetcher, { refreshInterval: 30_000 },
+    );
+    const scheduled = scheduledState?.scheduled;
+    const queued = scheduled?.status === "queued" || scheduled?.status === "pending";
+    const dispatching = scheduled?.status === "running" || scheduled?.status === "processing";
     const [draft, setDraft] = useState("");
+    const [scheduleInHours, setScheduleInHours] = useState(0);
     const [sending, setSending] = useState(false);
     const [marking, setMarking] = useState<string | null>(null);
     const [openedAt] = useState(() => Date.now());
@@ -149,15 +157,29 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
         if (!draft.trim()) return;
         setSending(true);
         try {
-            await postJson(`/inbox/replies/${reply.id}/reply`, { content: draft });
+            const result = await postJson(scheduledPath, { content: draft, ...(reply.platform === "EMAIL" && scheduleInHours ? { scheduleInHours } : {}) });
             setDraft("");
-            toast.success("Reply sent");
+            setScheduleInHours(0);
+            toast.success(result?.scheduled ? "Reply scheduled" : "Reply sent");
+            if (result?.scheduled) void refreshSchedule({ scheduled: result });
             mutate();
             onChanged();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to send reply");
         } finally {
             setSending(false);
+        }
+    };
+
+    const cancelReply = async () => {
+        try {
+            const response = await fetch(getBrowserApiUrl(scheduledPath), { method: "DELETE" });
+            if (!response.ok) throw new Error("The reply could not be cancelled.");
+            await refreshSchedule({ scheduled: null });
+            toast.success("Scheduled reply cancelled");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not cancel the reply");
+            void refreshSchedule();
         }
     };
 
@@ -278,10 +300,22 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                             maxLength={2200}
                             rows={4}
                         />
-                        <div className="flex justify-end">
-                            <Button onClick={sendReply} disabled={sending || !draft.trim()}>
+                        {scheduled && (queued || dispatching || scheduled.status === "dead_lettered" || scheduled.status === "skipped") && (
+                            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <span>{queued ? `Scheduled for ${format(new Date(scheduled.sendAt), "d MMM, h:mm a")}` : dispatching ? "Sending scheduled reply…" : "Scheduled reply needs review"}</span>
+                                {queued && <Button variant="outline" size="sm" onClick={cancelReply}>Cancel scheduled reply</Button>}
+                            </div>
+                        )}
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <select aria-label="Reply timing" value={scheduleInHours} disabled={queued || dispatching || sending} onChange={(event) => setScheduleInHours(Number(event.target.value))}
+                                className="rounded border border-border bg-background px-2 text-sm">
+                                <option value={0}>Send now</option>
+                                <option value={1}>In 1 hour (Resend)</option>
+                                <option value={24}>In 24 hours (Resend)</option>
+                            </select>
+                            <Button onClick={sendReply} disabled={sending || !draft.trim() || queued || dispatching}>
                                 <Send className="w-4 h-4 mr-2" />
-                                {sending ? "Sending..." : "Send reply"}
+                                {sending ? "Saving..." : scheduleInHours ? "Approve and schedule" : "Send reply"}
                             </Button>
                         </div>
                     </>

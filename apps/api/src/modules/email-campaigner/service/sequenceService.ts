@@ -578,6 +578,14 @@ export class SequenceService {
         });
 
         if (!result.success) {
+            if (result.error === "ACCOUNT_REPLY_COOLDOWN" && result.retryAt) {
+                await client.sequenceStepRun.update({ where: { id: run.id }, data: {
+                    status: "SCHEDULED", scheduledAt: result.retryAt, attemptCount: { decrement: 1 },
+                    errorCode: safetyReviewed || approved ? run.errorCode : "ACCOUNT_REPLY_COOLDOWN",
+                    errorMessage: safetyReviewed || approved ? run.errorMessage : "Another contact at this account replied recently.",
+                } });
+                return { runId: run.id, status: "SCHEDULED", reason: "account_reply_cooldown", retryAt: result.retryAt };
+            }
             // Once attempts have exhausted the idempotency-safe window, stop retrying even
             // if the error itself looks transient - retrying further risks a genuine
             // duplicate send against the same (now stale) idempotency key.

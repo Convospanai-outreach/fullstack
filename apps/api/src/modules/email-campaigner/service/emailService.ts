@@ -19,12 +19,14 @@ import { checkSendGate } from "@/modules/governance/lawfulBasis";
 import type { EmailAttachment } from "./emailAttachment";
 import { firstTouchNoticeEnabled, needsFirstTouchNotice, resolveFirstTouchNotice, type FirstTouchNotice } from "@/modules/governance/firstTouchNotice";
 import * as crypto from "crypto";
+import { accountReplyHoldUntil } from "@/lib/accountReplyCooldown";
 
 export type EmailSendResult = {
     success: boolean;
     providerId?: string;
     deliveryProvider?: "GMAIL_API" | "SMTP" | "RESEND";
     error?: string;
+    retryAt?: Date;
 };
 
 // Every send needs a signed-off closing line - a team's own custom text if they've
@@ -220,12 +222,14 @@ class EmailService {
             return { success: false, error: "RECIPIENT_SUPPRESSED" };
         }
         let leadSource: string | null = null;
+        let leadDomain: string | null | undefined;
         if (metadata?.leadId) {
             const lead = await prisma.lead.findUnique({
                 where: { id: metadata.leadId },
-                select: { status: true, teamId: true, source: true },
+                select: { status: true, teamId: true, source: true, domain: true },
             });
             leadSource = lead?.source ?? null;
+            leadDomain = lead?.domain;
             if (teamId && lead && lead.teamId !== teamId) {
                 return { success: false, error: "LEAD_TEAM_MISMATCH" };
             }
@@ -254,6 +258,10 @@ class EmailService {
         const teamComms = teamId
             ? await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, mailingAddress: true, branding: true, sendSafety: true } })
             : null;
+        if (teamId && metadata?.leadId && metadata.campaignId) {
+            const retryAt = await accountReplyHoldUntil({ teamId, leadId: metadata.leadId, domain: leadDomain, settings: teamComms?.sendSafety });
+            if (retryAt) return { success: false, error: "ACCOUNT_REPLY_COOLDOWN", retryAt };
+        }
         const mailingAddress = teamComms?.mailingAddress;
         const footerText = resolveEmailFooterText(teamComms?.branding);
 

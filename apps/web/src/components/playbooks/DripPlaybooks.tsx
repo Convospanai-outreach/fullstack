@@ -65,6 +65,7 @@ function PlaybookDialog({ playbook, hasBookingLink, onClose }: { playbook: DripP
     const [assetUrl, setAssetUrl] = useState("")
     const [assetLabel, setAssetLabel] = useState("")
     const [bookingUrl, setBookingUrl] = useState("")
+    const [replyFollowUp, setReplyFollowUp] = useState(false)
     const [busy, setBusy] = useState(false)
     const [campaignId, setCampaignId] = useState<string | null>(null)
     const [on, setOn] = useState(false)
@@ -95,6 +96,7 @@ function PlaybookDialog({ playbook, hasBookingLink, onClose }: { playbook: DripP
                 assetLabel: assetLabel.trim() || undefined,
                 bookingUrl: bookingUrl.trim() || undefined,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                ...(replyFollowUp ? { replyFollowUp: true } : {}),
             })
             setCampaignId(json.campaignId)
         } catch (e) {
@@ -131,6 +133,10 @@ function PlaybookDialog({ playbook, hasBookingLink, onClose }: { playbook: DripP
                         <p className="text-sm text-muted-foreground">
                             We write {playbook.schedule.length} emails from your website and ideal customer profile and save them as a draft. Nothing is sent yet.
                         </p>
+                        <label className="flex items-start gap-2 text-sm text-foreground">
+                            <input type="checkbox" checked={replyFollowUp} onChange={(e) => setReplyFollowUp(e.target.checked)} />
+                            Create follow-up tasks for interest, questions and out-of-office replies
+                        </label>
                         {wantsAsset && (
                             <>
                                 <div className={field}>

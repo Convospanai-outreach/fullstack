@@ -14,6 +14,7 @@ const bodySchema = z.object({
     assetLabel: z.string().trim().max(60).optional(),
     bookingUrl: z.string().trim().max(500).optional(),
     timezone: z.string().trim().max(60).optional(),
+    replyFollowUp: z.boolean().optional(),
 });
 
 // Writes a drip playbook's emails for this team and saves them as a draft. Nothing is enrolled or sent.
