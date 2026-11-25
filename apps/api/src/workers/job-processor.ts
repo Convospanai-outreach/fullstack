@@ -32,12 +32,46 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             const { evaluateMailboxReputation } = await import("@/modules/overseer/mailboxReputation");
             return { checked: Boolean(await evaluateMailboxReputation(teamId, mailboxId, new Date(), "webhook")) };
         }
+        case "reply_subsequence_inbound": {
+            const messageId = asString(payload.messageId);
+            if (!messageId) throw new NonRetryableJobError("Invalid inbound follow-up trigger");
+            const whatsApp = payload.source === "whatsapp" ? await prisma.whatsAppMessage.findFirst({
+                where: { id: messageId, direction: "INBOUND" }, select: { id: true, leadId: true, body: true },
+            }) : null;
+            const message = payload.source === "whatsapp" ? (whatsApp ? { ...whatsApp, content: whatsApp.body } : null)
+                : await prisma.message.findFirst({ where: { id: messageId, direction: "INBOUND" },
+                    select: { id: true, leadId: true, content: true } });
+            if (message) {
+                const { reactToInboundReply } = await import("@/modules/inbox/replySubsequenceService");
+                await reactToInboundReply(message);
+            }
+            return { checked: true };
+        }
+        case "reply_subsequence_notice": {
+            const teamId = asString(payload.teamId), leadId = asString(payload.leadId), runId = asString(payload.runId);
+            if (!teamId || !leadId || !runId || !Number.isInteger(payload.step) || !Number.isInteger(payload.revision)) {
+                throw new NonRetryableJobError("Invalid follow-up notice");
+            }
+            const { sendReplySubsequenceNotice } = await import("@/modules/inbox/replySubsequenceService");
+            await sendReplySubsequenceNotice({ teamId, leadId, runId, step: payload.step, revision: payload.revision });
+            return { checked: true };
+        }
         case "scheduled_inbox_reply": {
+            if (payload.replySubsequence !== undefined) {
+                const { runReplySubsequenceStep } = await import("@/modules/inbox/replySubsequenceWorker");
+                return runReplySubsequenceStep(payload, claim);
+            }
             const job = await prisma.job.findUnique({ where: { id: claim.jobId }, select: { teamId: true, expiresAt: true } });
             const userId = asString(payload.userId);
             const messageId = asString(payload.messageId);
             if (!job?.teamId || job.teamId !== payload.teamId || !userId || !messageId || !job.expiresAt) {
                 throw new NonRetryableJobError("Invalid scheduled inbox reply");
+            }
+            const { resolveReplyFlowSettings } = await import("@/lib/replyFlowSettings");
+            const team = await prisma.team.findUnique({ where: { id: job.teamId }, select: { sendSafety: true } });
+            const settings = resolveReplyFlowSettings(team?.sendSafety);
+            if (!settings.scheduledReplies || (payload.delayHours !== undefined && !settings.delayChoices.includes(payload.delayHours))) {
+                return { skipped: "scheduled_replies_disabled" };
             }
             if (job.expiresAt.getTime() <= Date.now()) return { skipped: "expired" };
             const member = await prisma.teamMember.findFirst({ where: { teamId: job.teamId, userId, status: "active" }, select: { id: true } });
@@ -383,6 +417,8 @@ export const worker = {
         // Completion persistence is intentionally separate from business work.
         // A completed handler must never be requeued merely because final state
         // persistence failed; version-fenced watchdog recovery handles that claim.
+        if (job.type === "scheduled_inbox_reply" && payload.replySubsequence !== undefined
+            && (result as { replySubsequenceDeferred?: boolean } | undefined)?.replySubsequenceDeferred) return result;
         await JobQueue.complete(claim.jobId, claim.version, result || {});
         return result;
     },

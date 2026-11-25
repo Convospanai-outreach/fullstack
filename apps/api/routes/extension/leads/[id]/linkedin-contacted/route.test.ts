@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockValidateExtensionAuth = vi.fn();
 const mockMarkDone = vi.fn();
 
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("../../../_lib/auth", () => ({
     validateExtensionAuth: mockValidateExtensionAuth
 }));

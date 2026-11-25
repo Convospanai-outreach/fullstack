@@ -60,9 +60,6 @@ export default function DomainHealthPage() {
     const [loading, setLoading] = useState(true);
     const [mailboxHealth, setMailboxHealth] = useState<Array<{ id: string; email: string; reputation: { level?: string; checkedAt?: string; sendingHold?: unknown } }>>([]);
     const [error, setError] = useState<string | null>(null);
-    const [cooldown, setCooldown] = useState<{ hours: number; canEdit: boolean } | null>(null);
-    const [savingCooldown, setSavingCooldown] = useState(false);
-    const [cooldownError, setCooldownError] = useState("");
 
     useEffect(() => {
         let cancelled = false;
@@ -84,35 +81,11 @@ export default function DomainHealthPage() {
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch(`${API_BASE}/settings/account-reply-cooldown`, { signal: controller.signal })
-            .then(async (response) => { if (response.ok) setCooldown(await response.json()); })
-            .catch(() => {});
-        return () => controller.abort();
-    }, []);
-
-    useEffect(() => {
-        const controller = new AbortController();
         fetch(API_BASE + "/settings/mailbox-reputation", { signal: controller.signal })
             .then(async (response) => { if (response.ok) setMailboxHealth((await response.json()).mailboxes); })
             .catch(() => {});
         return () => controller.abort();
     }, []);
-
-    async function saveCooldown(hours: number) {
-        setSavingCooldown(true);
-        setCooldownError("");
-        try {
-            const response = await fetch(`${API_BASE}/settings/account-reply-cooldown`, {
-                method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hours }),
-            });
-            if (!response.ok) throw new Error("Could not save the account reply cooldown.");
-            setCooldown((current) => current ? { ...current, hours } : current);
-        } catch {
-            setCooldownError("Could not save the account reply cooldown.");
-        } finally {
-            setSavingCooldown(false);
-        }
-    }
 
     const activeDomains = stats?.domains.filter((d) => d.active) || [];
     const retiredDomains = stats?.domains.filter((d) => !d.active) || [];
@@ -143,17 +116,7 @@ export default function DomainHealthPage() {
                 </div>)}
             </GlassCard>
 
-            {cooldown && (
-                <GlassCard className="p-6 space-y-2">
-                    <label htmlFor="account-reply-cooldown" className="block text-sm font-bold text-foreground">Account reply cooldown</label>
-                    <p className="text-xs text-muted-foreground">Pause scheduled outreach to other contacts at the same company when someone replies. Contacts need a company domain on their record.</p>
-                    <select id="account-reply-cooldown" value={cooldown.hours} disabled={!cooldown.canEdit || savingCooldown}
-                        onChange={(event) => void saveCooldown(Number(event.target.value))} className="rounded border border-border bg-background p-2 text-sm">
-                        <option value={0}>Off</option><option value={24}>24 hours</option><option value={48}>48 hours</option><option value={72}>72 hours</option>
-                    </select>
-                    {cooldownError && <p role="alert" className="text-xs text-destructive">{cooldownError}</p>}
-                </GlassCard>
-            )}
+            <p className="text-sm text-muted-foreground">Manage account reply cooldown in <Link href="/settings/replies" className="text-primary underline">Replies &amp; Follow-ups</Link>.</p>
 
             {!loading && !error && stats && (
                 <>

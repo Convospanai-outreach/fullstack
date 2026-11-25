@@ -69,6 +69,8 @@ export type JobType =
     | "reply_classification"
     | "scheduled_inbox_reply"
     | "mailbox_reputation_check"
+    | "reply_subsequence_inbound"
+    | "reply_subsequence_notice"
     | "whatsapp_reply_classification";
 
 export interface JobPayload {
@@ -119,15 +121,19 @@ export class JobQueue {
             policy?: Record<string, any> | null;
             auditContext?: Record<string, any> | null;
             correlationId?: string | null;
+            client?: Pick<Parameters<Parameters<typeof prisma.$transaction>[0]>[0], "job">;
         } = {}
     ): Promise<Job> {
+        // Transaction callers lock the logical job key before enqueue. PostgreSQL cannot
+        // recover from a rejected write by refetching inside that same transaction.
+        const client = options.client ?? prisma;
         if (options.requireIdempotency && !options.idempotencyKey) {
             throw new Error("Idempotency key required for this job type");
         }
 
         // If idempotencyKey is provided, check for existing job
         if (options.idempotencyKey) {
-            const existingJob = await prisma.job.findUnique({
+            const existingJob = await client.job.findUnique({
                 where: { idempotencyKey: options.idempotencyKey }
             });
             if (existingJob) return existingJob;
@@ -171,9 +177,9 @@ export class JobQueue {
         }
 
         try {
-            return await prisma.job.create({ data });
+            return await client.job.create({ data });
         } catch (error: any) {
-            if (error?.code === "P2002" && options.idempotencyKey) {
+            if (error?.code === "P2002" && options.idempotencyKey && !options.client) {
                 const target = error.meta?.target;
                 const targetFields = Array.isArray(target)
                     ? target.filter((value): value is string => typeof value === "string")
@@ -185,7 +191,7 @@ export class JobQueue {
                     return normalized.includes("idempotencykey");
                 });
                 if (isIdempotencyConflict) {
-                    const existingJob = await prisma.job.findUnique({
+                    const existingJob = await client.job.findUnique({
                         where: { idempotencyKey: options.idempotencyKey }
                     });
                     if (existingJob) return existingJob;
@@ -308,7 +314,7 @@ export class JobQueue {
     static async defer(
         jobId: string,
         claimVersion: number,
-        options: { processAt: Date; reason: "MAILBOX_LEASE_CONTENDED" | "MAILBOX_REPUTATION_HOLD" | "TEAM_SENDING_HOLD" | "GROWTH_CAP" }
+        options: { processAt: Date; reason: "MAILBOX_LEASE_CONTENDED" | "MAILBOX_REPUTATION_HOLD" | "TEAM_SENDING_HOLD" | "GROWTH_CAP" | "REPLY_SUBSEQUENCE_HELD" }
     ) {
         const deferred = await prisma.job.updateMany({
             where: {

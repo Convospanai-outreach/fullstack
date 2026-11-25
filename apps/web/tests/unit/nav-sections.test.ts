@@ -12,6 +12,11 @@ const settingsHrefs = SETTINGS_GROUPS.flatMap((group) => group.links.map((link) 
 const tabHrefs = NAV_SECTIONS.flatMap((section) => section.tabs.map((tab) => tab.href));
 
 describe("navigation sections", () => {
+    it("includes Replies and Follow-ups in Settings navigation", () => {
+        expect(settingsHrefs).toContain("/settings/replies");
+        expect(pageExists("/settings/replies")).toBe(true);
+    });
+
     it("keeps the member sidebar at 8 entries or fewer (sections + Settings)", () => {
         expect(NAV_SECTIONS.length + 1).toBeLessThanOrEqual(8);
     });

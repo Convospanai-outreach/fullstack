@@ -8,6 +8,7 @@ const { mockPrisma, mockCheckRateLimit } = vi.hoisted(() => ({
     mockCheckRateLimit: vi.fn(),
 }));
 
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: mockCheckRateLimit }));
 

@@ -26,6 +26,8 @@ export async function PATCH(
         if (!parsed.ok) return parsed.response;
         const { status, dealValue } = parsed.data;
         const updated = await PipelineService.moveLead(ctx.teamId, leadId, status, dealValue);
+        const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+        await onLeadHumanAction(ctx.teamId, leadId, ctx.userId ?? null, "manual_pipeline_change");
         return NextResponse.json({ success: true, data: updated });
     } catch (e: any) {
         if (e instanceof PipelineRequestError) return NextResponse.json({ error: e.message }, { status: e.status });

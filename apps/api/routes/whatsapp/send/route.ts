@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
                 throw new Error(`Template Violation: ${templateCheck.reason}`);
             }
 
+            const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+            await onLeadHumanAction(teamId, leadId, userId, "manual_reply");
             // Step 3: Send via the team's own WABA credentials.
             const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false, phone, wabaConfig);
             

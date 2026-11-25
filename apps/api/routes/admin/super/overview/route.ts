@@ -248,7 +248,7 @@ export async function GET(req: Request) {
             }),
             prisma.job.groupBy({
                 by: ["status"],
-                where: { createdAt: { gte: startDate } },
+                where: { type: { not: "reply_subsequence_plan" }, createdAt: { gte: startDate } },
                 _count: { _all: true },
             }),
             prisma.job.findMany({

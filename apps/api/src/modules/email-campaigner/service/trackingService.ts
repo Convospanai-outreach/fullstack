@@ -313,6 +313,7 @@ export async function recordEmailUnsubscribe(token: string) {
 
     const { SequenceService } = await import("./sequenceService");
     const now = new Date();
+    let unsubscribedLeadIds: string[] = [];
     await prisma.$transaction(async (tx) => {
         if (email) await tx.email.updateMany({
             where: { id: email.id, unsubscribedAt: null },
@@ -331,6 +332,7 @@ export async function recordEmailUnsubscribe(token: string) {
             where: { id: { in: scopedLeads }, teamId, status: { not: "OPT_OUT" } },
             data: { status: "OPT_OUT" },
         });
+        unsubscribedLeadIds = scopedLeads;
         for (const id of scopedLeads) await SequenceService.stopEnrollmentsForLead(teamId, id, "EXIT_UNSUBSCRIBED", now, tx);
 
         const replies = await tx.message.findMany({
@@ -357,4 +359,6 @@ export async function recordEmailUnsubscribe(token: string) {
         };
         await tx.emailEvent.createMany({ data: [event], skipDuplicates: true });
     });
+    const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+    for (const leadId of unsubscribedLeadIds) await onLeadHumanAction(teamId, leadId, null, "unsubscribe");
 }

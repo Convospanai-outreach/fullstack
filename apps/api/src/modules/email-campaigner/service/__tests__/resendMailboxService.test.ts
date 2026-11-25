@@ -218,6 +218,17 @@ describe("sendViaResendMailbox", () => {
         expect((result as any).fallbackAllowed).toBe(false);
     });
 
+    it("propagates the throttle code and time without contacting Resend", async () => {
+        const until = new Date("2026-11-25T15:00:00Z");
+        (reserveMailboxSend as Mock).mockResolvedValue({ ok: false, reason: "Mailbox temporarily throttled.", code: "THROTTLED", until });
+        const result = await sendViaResendMailbox({
+            teamId: "team-1", mailboxId: "resend-mailbox-1", to: "lead@example.test",
+            subject: "Subject", html: "<p>Body</p>", trackingId: "track-1",
+        });
+        expect(result).toMatchObject({ success: false, code: "THROTTLED", until, fallbackAllowed: false });
+        expect(mockResendSend).not.toHaveBeenCalled();
+    });
+
     it("blocks sending and fallback when the mailbox's send-slot reservation is denied", async () => {
         (reserveMailboxSend as Mock).mockResolvedValue({ ok: false, reason: "Daily send limit reached." });
 

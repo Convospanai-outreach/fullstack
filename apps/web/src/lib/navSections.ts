@@ -96,6 +96,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
             { label: "AI agent", href: "/settings/agent" },
             { label: "Features", href: "/settings/features" },
             { label: "Domain health", href: "/settings/domain-health" },
+            { label: "Replies & Follow-ups", href: "/settings/replies" },
         ],
     },
     {

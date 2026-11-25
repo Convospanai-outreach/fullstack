@@ -124,6 +124,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             throw new APIError("No valid fields supplied for update", 400, "VALIDATION_ERROR");
         }
 
+        const actionFields = ["status", "email", "company", "domain", "fullName", "linkedIn"] as const;
+        if (actionFields.some(field => field in safeData && safeData[field] !== existingLead[field])) {
+            const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+            await onLeadHumanAction(teamId, id, userId, "manual_status_change");
+        }
         const updateResult = await prisma.lead.updateMany({
             where: { id, teamId },
             data: safeData

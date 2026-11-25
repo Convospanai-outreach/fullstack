@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const { sendReply, scheduleInboxReply } = await import("@/modules/inbox/actionInboxService");
         if (parsed.data.scheduleInHours) {
             const result = await scheduleInboxReply({ teamId, userId, messageId: id, content: parsed.data.content,
-                sendAt: new Date(Date.now() + parsed.data.scheduleInHours * 3_600_000) });
+                delayHours: parsed.data.scheduleInHours, sendAt: new Date(Date.now() + parsed.data.scheduleInHours * 3_600_000) });
             return NextResponse.json(result, { status: 202 });
         }
         const message = await sendReply({ teamId, userId, messageId: id, content: parsed.data.content });

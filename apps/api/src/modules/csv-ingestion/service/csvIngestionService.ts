@@ -166,7 +166,13 @@ class CSVIngestionService {
                         ? recordCaptureConsent({ leadId, userId: consent?.userId ?? null, method: "WEB_FORM", channel: "EMAIL", ...rowConsent })
                         : Promise.resolve(false);
 
-                    if (existing) await recordRowConsent(existing.id);
+                    if (existing) {
+                        await recordRowConsent(existing.id);
+                        if (teamId && (!existing.email || campaignId)) {
+                            const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+                            await onLeadHumanAction(teamId, existing.id, consent?.userId ?? null, "csv_update");
+                        }
+                    }
 
                     if (existing && !existing.email) {
                         const filledDomain = existing.domain || domain || undefined;

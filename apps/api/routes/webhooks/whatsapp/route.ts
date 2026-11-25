@@ -168,6 +168,10 @@ export async function POST(req: NextRequest) {
                         data: { leadId: lead.id, body: text, direction: "INBOUND", status: "received" },
                     });
 
+                    if (stored?.id) {
+                        const { updateFollowUpForInbound } = await import("@/modules/inbox/inboundReplyNotifier");
+                        await updateFollowUpForInbound({ id: stored.id, leadId: lead.id, content: text }, "whatsapp");
+                    }
                     if (OPT_OUT_KEYWORDS.has(text.trim().toLowerCase())) {
                         try {
                             await ConsentService.revokeConsent(lead.id, undefined, "WhatsApp inbound opt-out keyword", "WHATSAPP");

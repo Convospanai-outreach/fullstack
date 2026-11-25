@@ -9,6 +9,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 }));
 
 const { recordCaptureConsent } = vi.hoisted(() => ({ recordCaptureConsent: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/modules/governance/captureConsent", () => ({ recordCaptureConsent }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/modules/whatsapp/ConsentService", () => ({

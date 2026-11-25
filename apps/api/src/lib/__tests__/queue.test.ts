@@ -246,6 +246,16 @@ describe("JobQueue.enqueue", () => {
         expect(prisma.job.create).toHaveBeenCalled();
     });
 
+    it("does not refetch a conflicting job in an aborted transaction", async () => {
+        const conflict = Object.assign(new Error("Unique job key"), { code: "P2002", meta: { target: ["idempotencyKey"] } });
+        const findUnique = vi.fn().mockResolvedValue(null);
+        const create = vi.fn().mockRejectedValue(conflict);
+        await expect(JobQueue.enqueue("scheduled_inbox_reply", {}, {
+            idempotencyKey: "reply-step-key", client: { job: { findUnique, create } } as never,
+        })).rejects.toBe(conflict);
+        expect(findUnique).toHaveBeenCalledTimes(1);
+    });
+
     it("rethrows P2002 targeting another unique field", async () => {
         (prisma.job.findUnique as Mock).mockResolvedValueOnce(null);
         const p2002Error = new Error("Unique constraint failed");
@@ -574,6 +584,8 @@ describe("JobQueue.resetStaleJobs", () => {
 
         const where = (prisma.job.findMany as Mock).mock.calls[0][0].where;
         expect(where.status).toEqual({ in: [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING] });
+        expect(where.status.in).not.toContain("reply_subsequence_state");
+        expect(where.status.in).not.toContain("reply_subsequence_retired");
         expect(where.status.in).not.toEqual(expect.arrayContaining(["queued", "completed", "failed", "cancelled"]));
         expect(where.OR).toEqual([
             { heartbeatAt: { lte: expect.any(Date) } },

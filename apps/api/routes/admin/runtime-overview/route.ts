@@ -163,7 +163,7 @@ export async function GET(req: Request) {
             prisma.email.count({ where: { clickedAt: { gte: startDate } } }),
             prisma.job.groupBy({
                 by: ["status"],
-                where: { createdAt: { gte: startDate } },
+                where: { type: { not: "reply_subsequence_plan" }, createdAt: { gte: startDate } },
                 _count: { status: true },
             }),
             prisma.systemEvent.groupBy({

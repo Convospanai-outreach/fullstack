@@ -81,6 +81,10 @@ export class ComplianceGuard {
         if (leadId) {
             // Find all leads with the same email or linkedIn in other campaigns and mark them DNC too
             const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            if (lead?.teamId) {
+                const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+                await onLeadHumanAction(lead.teamId, leadId, null, "dnc");
+            }
             if (lead?.email) {
                 // Campaign sends check the suppression list, so an opt-out has to be on it too.
                 const email = lead.email.toLowerCase();

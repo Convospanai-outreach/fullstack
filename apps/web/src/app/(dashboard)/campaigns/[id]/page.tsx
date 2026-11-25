@@ -19,6 +19,7 @@ import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
 import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
+import { ReplySubsequenceSettings } from "@/components/playbooks/ReplySubsequenceSettings";
 import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
 import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
 import { CampaignApprovalGate } from "@/components/campaigns/CampaignApprovalGate";
@@ -425,6 +426,7 @@ export default function CampaignDetailPage({
                         <>
                             <div className="lg:col-span-2 space-y-6">
                                 <CampaignWorkflowRail campaignId={campaignId} />
+                                {campaign.aiConfig?.dripPlaybook?.kind && <ReplySubsequenceSettings campaignId={campaignId} />}
                                 <CampaignApprovalGate campaignId={campaignId} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>

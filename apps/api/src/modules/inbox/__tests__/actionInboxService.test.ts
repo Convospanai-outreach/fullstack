@@ -7,7 +7,7 @@ const mockDb: any = vi.hoisted(() => ({
     meeting: { findMany: vi.fn(), count: vi.fn() },
     lead: { findFirst: vi.fn(), update: vi.fn() },
     email: { findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn() },
-    job: { findFirst: vi.fn() },
+    job: { findFirst: vi.fn(), findUnique: vi.fn().mockResolvedValue(null) },
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     replyTracker: { findMany: vi.fn() },

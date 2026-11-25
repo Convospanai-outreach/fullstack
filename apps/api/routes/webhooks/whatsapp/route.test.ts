@@ -16,6 +16,7 @@ const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent, mockRecordWind
     mockEnqueueClassification: vi.fn(),
 }));
 
+vi.mock("@/modules/inbox/inboundReplyNotifier", () => ({ updateFollowUpForInbound: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterReply: mockAdvanceLeadAfterReply }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));

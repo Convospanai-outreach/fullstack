@@ -252,6 +252,10 @@ export async function POST(req: NextRequest) {
             if (error?.code !== "P2025") throw error;
           });
         }
+        if (event.data?.bounce?.type === "Permanent") {
+          const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+          await onLeadHumanAction(teamId, email.leadId, null, "hard_bounce");
+        }
         await recordEmailEvent("BOUNCED");
         if (event.data?.bounce?.type === "Permanent") await checkMailboxReputation();
         break;
@@ -269,6 +273,8 @@ export async function POST(req: NextRequest) {
             if (error?.code !== "P2025") throw error;
           });
         }
+        const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+        await onLeadHumanAction(teamId, email.leadId, null, "spam_complaint");
         await recordEmailEvent("COMPLAINED");
         await checkMailboxReputation();
         break;
@@ -289,6 +295,11 @@ export async function POST(req: NextRequest) {
 
         const body = await fetchReceivedEmailBody(mailbox, inboundEmailId);
         if (!body) {
+          // Hold approved follow-ups as soon as the signed event proves a new reply exists.
+          const { pauseReplySubsequence } = await import("@/modules/inbox/replySubsequenceService");
+          await pauseReplySubsequence({ teamId, leadId: email.leadId }, "body_missing").catch(() => {
+            console.error("[ResendWebhook] Could not pause follow-ups for an unreadable reply");
+          });
           // Acknowledging or creating the event here would prevent a later delivery from recovering the body.
           return NextResponse.json({ error: "Could not retrieve the Resend reply body" }, { status: 500 });
         }

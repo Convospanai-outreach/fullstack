@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST, GET } from "./route";
 
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/auth", () => ({
     getCurrentContextFromRequest: vi.fn(),
 }));
