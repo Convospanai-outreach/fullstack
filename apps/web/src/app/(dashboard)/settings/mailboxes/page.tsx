@@ -1054,6 +1054,9 @@ export default function MailboxesSettingsPage() {
                                         <p className="text-[11px] text-muted-foreground leading-relaxed">
                                             Resend doesn't have an inbox, so detecting a prospect's reply requires your own dedicated receiving domain. In <strong>your own</strong> Resend dashboard: (1) verify a subdomain you control for receiving (e.g. <code>reply.yourdomain.com</code>) and add the MX record Resend gives you — never reuse a domain you also send real mail from; (2) create a webhook for the <code>email.received</code> event pointed at <code>{process.env["NEXT_PUBLIC_RUNTIME_API_URL"] || "https://api.craftmyfunnel.live"}/webhooks/resend</code>; (3) paste that webhook's signing secret below. Until both fields are filled in, replies to this mailbox won't be detected.
                                         </p>
+                                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                            For Domain Health reporting, also subscribe this webhook to <code>email.delivered</code>, <code>email.delivery_delayed</code>, <code>email.failed</code>, <code>email.bounced</code> and <code>email.complained</code>.
+                                        </p>
                                         <div>
                                             <label className="block text-muted-foreground text-xs mb-1">Your Verified Inbound Domain</label>
                                             <input type="text" placeholder="reply.yourdomain.com" value={resendInboundDomain} onChange={(e) => setResendInboundDomain(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />

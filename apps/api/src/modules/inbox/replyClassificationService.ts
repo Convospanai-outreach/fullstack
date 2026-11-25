@@ -11,6 +11,29 @@ import { getDripPlaybook } from "@/modules/playbooks/dripPlaybooks";
 // judged DNC opts the lead out (see replyOptOut; its failure fails the job so it is retried).
 
 const MAX_CLASSIFIED_CHARS = 4000;
+const REPLY_FOLLOW_UP = {
+    INTERESTED: { title: "Follow up with an interested contact", delayDays: 0, priority: "HIGH" },
+    QUESTION: { title: "Review and answer a contact's question", delayDays: 0, priority: "HIGH" },
+    OOO: { title: "Review an out-of-office reply", delayDays: 3, priority: "MEDIUM" },
+} as const;
+
+async function scheduleReplyFollowUp(input: { teamId: string; leadId: string; messageId: string; ownerId: string; receivedAt: Date; classification: string; confidence: number }) {
+    const action = REPLY_FOLLOW_UP[input.classification as keyof typeof REPLY_FOLLOW_UP];
+    if (!action || !(input.confidence >= 0.7)) return;
+    const owner = await prisma.teamMember.findFirst({ where: { teamId: input.teamId, userId: input.ownerId, status: "active" }, select: { id: true } });
+    if (!owner) return;
+    const id = `reply-follow-up:${input.messageId}`;
+    await prisma.task.upsert({
+        where: { id },
+        update: {},
+        create: {
+            id, teamId: input.teamId, leadId: input.leadId, userId: input.ownerId,
+            title: action.title, priority: action.priority,
+            description: `Review this reply in the Action Inbox: /inbox?reply=${encodeURIComponent(input.messageId)}`,
+            dueDate: new Date(input.receivedAt.getTime() + action.delayDays * 86_400_000),
+        },
+    });
+}
 
 type InboundReply = { id: string; leadId: string };
 
@@ -40,15 +63,28 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
         select: {
             id: true,
             leadId: true,
+            createdAt: true,
             content: true,
             lead: { select: { email: true } },
             emailEvent: { select: {
                 teamId: true,
-                email: { select: { subject: true, campaign: { select: { teamId: true, aiConfig: true } } } },
+                email: { select: { subject: true, campaign: { select: { teamId: true, ownerId: true, aiConfig: true } } } },
             } },
         },
     });
     if (!message) return { skipped: "not_found" as const };
+
+    const campaign = message.emailEvent?.email?.campaign;
+    const config = campaign?.aiConfig as { dripPlaybook?: { kind?: unknown; replyFollowUp?: unknown } } | null | undefined;
+    const kind = config?.dripPlaybook?.kind;
+    const playbook = message.emailEvent?.teamId === teamId && campaign?.teamId === teamId && typeof kind === "string"
+        ? getDripPlaybook(kind)
+        : undefined;
+    const followUp = async (classification: string, confidence: number) => {
+        if (!playbook || config?.dripPlaybook?.replyFollowUp !== true || !campaign?.ownerId) return;
+        await scheduleReplyFollowUp({ teamId, leadId: message.leadId, messageId: message.id, ownerId: campaign.ownerId,
+            receivedAt: message.createdAt, classification, confidence });
+    };
 
     const existing = await prisma.replyTracker.findFirst({
         where: { emailId: message.id, lead: { teamId } },
@@ -58,16 +94,11 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
         // A retry after the reply was stored but the promotion or opt-out failed: both are idempotent, so try again.
         await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: existing.aiClassification, confidence: existing.aiConfidence, channel: "EMAIL" });
         await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: existing.aiClassification, confidence: existing.aiConfidence });
+        await followUp(existing.aiClassification, existing.aiConfidence);
         return { skipped: "already_classified" as const };
     }
 
     const { ReplyAnalyzerAgent } = await import("@/lib/ai/agents/ReplyAnalyzerAgent");
-    const campaign = message.emailEvent?.email?.campaign;
-    const config = campaign?.aiConfig as { dripPlaybook?: { kind?: unknown } } | null | undefined;
-    const kind = config?.dripPlaybook?.kind;
-    const playbook = message.emailEvent?.teamId === teamId && campaign?.teamId === teamId && typeof kind === "string"
-        ? getDripPlaybook(kind)
-        : undefined;
     const result = await ReplyAnalyzerAgent.analyzeAndTrack(
         message.emailEvent?.email?.subject ?? "",
         toPlainText(message.content).slice(0, MAX_CLASSIFIED_CHARS),
@@ -79,6 +110,7 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
     );
     await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: result.classification, confidence: result.confidence, channel: "EMAIL" });
     await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: result.classification, confidence: result.confidence });
+    await followUp(result.classification, result.confidence);
     return { classification: result.classification };
 }
 

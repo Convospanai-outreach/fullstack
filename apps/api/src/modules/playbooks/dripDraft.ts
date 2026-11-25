@@ -120,7 +120,7 @@ async function defaultWriter(teamId: string): Promise<DripWriter> {
 }
 
 export async function createDripDraft(
-    input: { teamId: string; userId: string | null; kind: string; icpId?: string | null; links?: DripLinks; timezone?: string },
+    input: { teamId: string; userId: string | null; kind: string; icpId?: string | null; links?: DripLinks; timezone?: string; replyFollowUp?: boolean },
     write?: DripWriter,
 ): Promise<{ campaignId: string; sequenceId: string; emails: number }> {
     const playbook = getDripPlaybook(input.kind);
@@ -162,6 +162,7 @@ export async function createDripDraft(
                         version: 1,
                         trigger: playbook.trigger.kind,
                         exits: playbook.exits,
+                        ...(input.replyFollowUp ? { replyFollowUp: true } : {}),
                         links: { assetUrl: links.assetUrl ?? null, bookingUrl: links.bookingUrl ?? null },
                     },
                 },

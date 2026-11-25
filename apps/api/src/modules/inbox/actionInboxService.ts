@@ -228,7 +228,8 @@ async function findTeamReply(teamId: string, messageId: string) {
             id: true,
             leadId: true,
             platform: true,
-            lead: { select: { email: true } },
+            createdAt: true,
+            lead: { select: { email: true, status: true, replyOutcome: true } },
             emailEvent: {
                 select: {
                     email: { select: { id: true, subject: true, campaignId: true, mailboxId: true } },
@@ -244,9 +245,10 @@ async function findTeamReply(teamId: string, messageId: string) {
 // send function. Deliberately not emailService.sendEmail: that refuses leads whose status
 // is "replied" (exactly the state here), injects tracking/unsubscribe links, and falls back
 // to another mailbox or the legacy SMTP config, which would break "reply from the same mailbox".
-export async function sendReply(input: { teamId: string; userId: string; messageId: string; content: string }) {
+export async function sendReply(input: { teamId: string; userId: string; messageId: string; content: string; scheduledJobId?: string; expectedRecipient?: string }) {
     const { teamId, userId, messageId, content } = input;
     const reply = await findTeamReply(teamId, messageId);
+    if (input.scheduledJobId && reply.platform !== "EMAIL") throw new APIError("The scheduled reply requires an email thread", 409, "REPLY_PLATFORM_CHANGED");
     if (isSocialPlatform(reply.platform)) {
         return sendSocialReply({ teamId, userId, leadId: reply.leadId, replyMessageId: reply.id, platform: reply.platform, content });
     }
@@ -255,6 +257,9 @@ export async function sendReply(input: { teamId: string; userId: string; message
     }
     const to = reply.lead.email;
     if (!to) throw new APIError("Lead has no email address", 400, "LEAD_EMAIL_MISSING");
+    if (input.expectedRecipient && to.trim().toLowerCase() !== input.expectedRecipient) {
+        throw new APIError("The recipient address changed after approval", 409, "RECIPIENT_CHANGED");
+    }
 
     const { isSuppressed, sendViaGmailMailbox } = await import("@/modules/email-campaigner/service/googleMailboxService");
     if (await isSuppressed(teamId, to)) {
@@ -286,16 +291,40 @@ export async function sendReply(input: { teamId: string; userId: string; message
         throw new APIError("The mailbox that sent the original email is not connected", 409, "MAILBOX_UNAVAILABLE");
     }
 
+    const scheduledKey = input.scheduledJobId ? `${INBOX_REPLY_KEY_PREFIX}${input.scheduledJobId}` : null;
+    if (scheduledKey) {
+        const priorSend = await prisma.email.findUnique({ where: { idempotencyKey: scheduledKey }, select: { id: true } });
+        if (priorSend) return { alreadySent: true };
+        if (mailbox.provider !== "RESEND" || !reply.emailEvent?.email?.mailboxId) {
+            throw new APIError("The original Resend mailbox is required", 409, "MAILBOX_UNAVAILABLE");
+        }
+        if (["opt_out", "unsubscribed", "do_not_contact", "dnc", "bounced", "lost", "closed_lost", "stopped"].includes(reply.lead.status.toLowerCase())
+            || ["not_interested", "wrong_person", "meeting_booked"].includes(reply.lead.replyOutcome ?? "")) {
+            throw new APIError("The lead's current status blocks this scheduled reply", 409, "REPLY_BLOCKED");
+        }
+        const newer = await prisma.message.findFirst({ where: {
+            id: { not: reply.id }, leadId: reply.leadId, platform: "EMAIL", createdAt: { gte: reply.createdAt },
+            direction: { in: ["INBOUND", "OUTBOUND"] }, NOT: { status: "draft" },
+        }, select: { id: true } });
+        if (newer) throw new APIError("A newer message is in this thread. Review it before replying.", 409, "THREAD_CHANGED");
+    } else if (mailbox.provider === "RESEND") {
+        const scheduled = await scheduledInboxReplyStatus(teamId, messageId);
+        if (scheduled && ["queued", "pending", "running", "processing"].includes(scheduled.status)) {
+            throw new APIError("Cancel the scheduled reply before sending manually", 409, "REPLY_ALREADY_SCHEDULED");
+        }
+    }
+
     const subject = /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`;
     const html = escapeHtml(content).replace(/\r?\n/g, "<br>");
-    const trackingId = crypto.randomUUID();
+    const trackingId = input.scheduledJobId || crypto.randomUUID();
 
     let outcome:
         | { success: true; messageId?: string; threadId?: string; deliveryProvider: "RESEND" | "SMTP" | "GMAIL_API" }
         | { success: false; error: string };
     if (mailbox.provider === "RESEND") {
         const { sendViaResendMailbox } = await import("@/modules/email-campaigner/service/resendMailboxService");
-        outcome = await sendViaResendMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, trackingId });
+        outcome = await sendViaResendMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, trackingId,
+            ...(scheduledKey ? { idempotencyKey: scheduledKey } : {}) });
     } else if (mailbox.provider === "SMTP") {
         const { sendViaSmtpMailbox } = await import("@/modules/email-campaigner/service/smtpConfigService");
         outcome = await sendViaSmtpMailbox({ teamId, mailboxId: mailbox.id, to, subject, html });
@@ -336,6 +365,44 @@ export async function sendReply(input: { teamId: string; userId: string; message
     });
     await prisma.message.update({ where: { id: reply.id }, data: { isRead: true } });
     return message;
+}
+
+export async function scheduleInboxReply(input: { teamId: string; userId: string; messageId: string; content: string; sendAt: Date }) {
+    const reply = await findTeamReply(input.teamId, input.messageId);
+    const mailboxId = reply.emailEvent?.email?.mailboxId;
+    const mailbox = mailboxId ? await prisma.connectedMailbox.findFirst({ where: {
+        id: mailboxId, teamId: input.teamId, status: "CONNECTED", provider: "RESEND",
+    }, select: { id: true } }) : null;
+    if (reply.platform !== "EMAIL" || !mailbox || !reply.lead.email) {
+        throw new APIError("Scheduling requires a reply from a connected Resend mailbox", 409, "MAILBOX_UNAVAILABLE");
+    }
+    const { JobQueue } = await import("@/lib/queue");
+    const { encryptCredential } = await import("@/lib/security/credentialVault");
+    const approvedReply = await encryptCredential(JSON.stringify({ content: input.content, recipient: reply.lead.email.trim().toLowerCase() }));
+    const job = await JobQueue.enqueue("scheduled_inbox_reply", {
+        teamId: input.teamId, userId: input.userId, messageId: input.messageId, approvedReply,
+    }, {
+        teamId: input.teamId, processAt: input.sendAt, expiresAt: new Date(input.sendAt.getTime() + 12 * 3_600_000),
+        idempotencyKey: `scheduled_inbox_reply:${input.teamId}:${input.messageId}`,
+    });
+    if (!["queued", "pending", "running", "processing"].includes(job.status)) {
+        throw new APIError("This reply has already had a scheduled send. Check the Inbox before sending again.", 409, "REPLY_ALREADY_SCHEDULED");
+    }
+    return { scheduled: true, sendAt: job.processAt, status: job.status };
+}
+
+export async function scheduledInboxReplyStatus(teamId: string, messageId: string) {
+    const job = await prisma.job.findFirst({ where: { teamId, type: "scheduled_inbox_reply", idempotencyKey: `scheduled_inbox_reply:${teamId}:${messageId}` },
+        select: { processAt: true, status: true, result: true } });
+    const skipped = (job?.result as { skipped?: string } | null)?.skipped;
+    return job ? { sendAt: job.processAt, status: skipped ? "skipped" : job.status } : null;
+}
+
+export async function cancelScheduledInboxReply(teamId: string, messageId: string) {
+    const cancelled = await prisma.job.updateMany({ where: {
+        teamId, type: "scheduled_inbox_reply", idempotencyKey: `scheduled_inbox_reply:${teamId}:${messageId}`, status: { in: ["queued", "pending"] },
+    }, data: { status: "cancelled", completedAt: new Date(), idempotencyKey: null, payload: {} } });
+    if (!cancelled.count) throw new APIError("The scheduled reply is no longer waiting to send", 409, "REPLY_NOT_QUEUED");
 }
 
 // Stops the lead's sequences for every outcome, not only interested/meeting_booked: a

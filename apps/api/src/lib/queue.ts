@@ -67,6 +67,7 @@ export type JobType =
     | "invoice_pdf_render"
     | "playbook_generate"
     | "reply_classification"
+    | "scheduled_inbox_reply"
     | "whatsapp_reply_classification";
 
 export interface JobPayload {

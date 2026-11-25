@@ -193,6 +193,15 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      case "email.delivered":
+        await recordEmailEvent("DELIVERED");
+        break;
+      case "email.delivery_delayed":
+        await recordEmailEvent("DELIVERY_DELAYED");
+        break;
+      case "email.failed":
+        await recordEmailEvent("DELIVERY_FAILED");
+        break;
       case "email.opened": {
         // Webhook providers redeliver at-least-once. The updateMany guard makes the claim
         // atomic, so only the delivery that flips the flag proceeds (OPEN-107). The claim,

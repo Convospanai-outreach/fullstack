@@ -6,7 +6,8 @@ const { mockDb, mockEnqueue, mockAnalyze, mockPromote, mockOptOut } = vi.hoisted
         message: { findFirst: vi.fn(), count: vi.fn() },
         replyTracker: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
         job: { findUnique: vi.fn() },
-        teamMember: { findMany: vi.fn() },
+        teamMember: { findMany: vi.fn(), findFirst: vi.fn() },
+        task: { upsert: vi.fn() },
         emailEvent: { findUnique: vi.fn() },
     },
     mockEnqueue: vi.fn(),
@@ -100,6 +101,22 @@ describe("classifyInboundReply", () => {
         lead: { email: "asha@acme.test" },
         emailEvent: { email: { subject: "Re: hello" } },
     };
+
+    it("creates a due task for an opted-in playbook when a confident out-of-office classification is retried", async () => {
+        mockDb.message.findFirst.mockResolvedValue({ ...message, createdAt: new Date("2026-11-25T10:00:00Z"),
+            emailEvent: { teamId: "team-a", email: { subject: "Re: hello", campaign: {
+                teamId: "team-a", ownerId: "owner", aiConfig: { dripPlaybook: { kind: "proposalFollowUp", replyFollowUp: true } },
+            } } },
+        });
+        mockDb.replyTracker.findFirst.mockResolvedValue({ aiClassification: "OOO", aiConfidence: 0.85 });
+        mockDb.teamMember.findFirst.mockResolvedValue({ id: "member" });
+        await classifyInboundReply("team-a", "msg-1");
+        expect(mockDb.task.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "reply-follow-up:msg-1" }, update: {},
+            create: expect.objectContaining({ userId: "owner", teamId: "team-a", dueDate: new Date("2026-11-28T10:00:00Z") }),
+        }));
+        expect(mockAnalyze).not.toHaveBeenCalled();
+    });
 
     it("classifies a team's inbound reply, passing the team and message id through", async () => {
         mockDb.message.findFirst.mockResolvedValue(message);

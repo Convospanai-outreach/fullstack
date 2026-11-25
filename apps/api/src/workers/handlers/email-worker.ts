@@ -152,6 +152,16 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
         emailContent.body,
         metadata
     );
+    if (result?.error === "ACCOUNT_REPLY_COOLDOWN" && result.retryAt) {
+        if (approvedMessageId && resolvedTeamId) {
+            await settleMessageApproval(approvedMessageId, resolvedTeamId, "NEEDS_ATTENTION", "Another contact at this account replied recently. Review after the account cooldown.");
+        } else if (resolvedTeamId) {
+            const { JobQueue } = await import("@/lib/queue");
+            await JobQueue.enqueue("email_sending", payload, { teamId: resolvedTeamId, processAt: result.retryAt,
+                idempotencyKey: `email_sending_account_hold_${leadId}_${campaignId}_${result.retryAt.getTime()}` });
+        }
+        return { leadId, campaignId, sent: false, held: "account_reply_cooldown", retryAt: result.retryAt };
+    }
     if (approvedMessageId && resolvedTeamId) {
         const delivered = (result as { success?: boolean } | undefined)?.success !== false;
         await settleMessageApproval(approvedMessageId, resolvedTeamId, delivered ? "SENT" : "NEEDS_ATTENTION", delivered ? undefined : "The provider did not accept the email.");

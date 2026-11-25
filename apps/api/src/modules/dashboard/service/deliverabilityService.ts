@@ -25,6 +25,7 @@ export type DomainHealthEntry = {
 export type DeliverabilityStats = {
     windowDays: number;
     sentCount: number;
+    resendDelivery: { sent: number; delivered: number; delayed: number; failed: number; unconfirmed: number };
     bounceRate: number;
     complaintRate: number;
     openRate: number;
@@ -130,7 +131,12 @@ async function checkAndRecordDomain(teamId: string, domain: string, active: bool
 export async function getDeliverabilityStats(teamId: string): Promise<DeliverabilityStats> {
     const windowStart = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const [sentCount, bouncedCount, openedCount, unsubscribedCount, complaintCount, mailboxes, team] = await Promise.all([
+    const resendCohort = { campaign: { teamId }, createdAt: { gte: windowStart }, deliveryProvider: "RESEND" };
+    const eventOf = (types: string[]) => ({ teamId, provider: "RESEND", type: { in: types } });
+    const delivered = eventOf(["DELIVERED"]);
+    const failed = eventOf(["DELIVERY_FAILED", "BOUNCED"]);
+    const delayed = eventOf(["DELIVERY_DELAYED"]);
+    const [sentCount, bouncedCount, openedCount, unsubscribedCount, complaintCount, mailboxes, team, resendSent, resendDelivered, resendDelayed, resendFailed] = await Promise.all([
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart } } }),
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, bouncedAt: { not: null } } }),
         prisma.email.count({ where: { campaign: { teamId }, createdAt: { gte: windowStart }, openedAt: { not: null } } }),
@@ -138,6 +144,10 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
         prisma.emailEvent.count({ where: { teamId, createdAt: { gte: windowStart }, type: "COMPLAINED" } }),
         prisma.connectedMailbox.findMany({ where: { teamId, status: "CONNECTED" }, select: { email: true, provider: true, metadata: true } }),
         prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }),
+        prisma.email.count({ where: resendCohort }),
+        prisma.email.count({ where: { ...resendCohort, events: { some: delivered, none: failed } } }),
+        prisma.email.count({ where: { ...resendCohort, events: { some: delayed, none: eventOf(["DELIVERED", "DELIVERY_FAILED", "BOUNCED"]) } } }),
+        prisma.email.count({ where: { ...resendCohort, events: { some: failed } } }),
     ]);
 
     const bounceRate = rate(bouncedCount, sentCount);
@@ -224,6 +234,8 @@ export async function getDeliverabilityStats(teamId: string): Promise<Deliverabi
     return {
         windowDays: WINDOW_DAYS,
         sentCount,
+        resendDelivery: { sent: resendSent, delivered: resendDelivered, delayed: resendDelayed,
+            failed: resendFailed, unconfirmed: Math.max(0, resendSent - resendDelivered - resendDelayed - resendFailed) },
         bounceRate,
         complaintRate,
         openRate,

@@ -25,6 +25,25 @@ function asString(value: unknown): string | undefined {
 
 async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim) {
     switch (jobType) {
+        case "scheduled_inbox_reply": {
+            const job = await prisma.job.findUnique({ where: { id: claim.jobId }, select: { teamId: true, expiresAt: true } });
+            const userId = asString(payload.userId);
+            const messageId = asString(payload.messageId);
+            if (!job?.teamId || job.teamId !== payload.teamId || !userId || !messageId || !job.expiresAt) {
+                throw new NonRetryableJobError("Invalid scheduled inbox reply");
+            }
+            if (job.expiresAt.getTime() <= Date.now()) return { skipped: "expired" };
+            const member = await prisma.teamMember.findFirst({ where: { teamId: job.teamId, userId, status: "active" }, select: { id: true } });
+            if (!member) return { skipped: "sender_no_longer_on_team" };
+            const { decryptCredential } = await import("@/lib/security/credentialVault");
+            const approvedReply = JSON.parse(await decryptCredential(payload.approvedReply) ?? "null") as { content?: unknown; recipient?: unknown } | null;
+            const content = asString(approvedReply?.content);
+            const expectedRecipient = asString(approvedReply?.recipient);
+            if (!content || content.length > 2200 || !expectedRecipient) throw new NonRetryableJobError("Invalid approved reply content");
+            const { sendReply } = await import("@/modules/inbox/actionInboxService");
+            await sendReply({ teamId: job.teamId, userId, messageId, content, scheduledJobId: claim.jobId, expectedRecipient });
+            return { sent: true };
+        }
         case "campaign_execution": {
             const campaignId = asString(payload.campaignId);
             if (!campaignId) {

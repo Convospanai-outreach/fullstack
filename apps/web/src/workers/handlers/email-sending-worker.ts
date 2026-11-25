@@ -9,6 +9,7 @@ import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/un
 import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
+import { accountReplyHoldUntil } from "@/lib/accountReplyCooldown";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -67,6 +68,19 @@ export async function handleEmailSending(payload: JobPayload) {
   try {
     const windowTeamId = (teamId || campaign.teamId) as string;
     const team = await prisma.team.findUnique({ where: { id: windowTeamId }, select: { sendSafety: true } });
+    try {
+      const retryAt = await accountReplyHoldUntil({ teamId: windowTeamId, leadId, domain: lead.domain, settings: team?.sendSafety });
+      if (retryAt) {
+        const { JobQueue } = await import("@/lib/queue");
+        await JobQueue.enqueue("email_sending", payload, { processAt: retryAt, teamId: windowTeamId,
+          idempotencyKey: `email_sending_account_hold_${leadId}_${campaignId}_${retryAt.getTime()}` });
+        return { skipped: true, reason: "account_reply_cooldown", retryAt: retryAt.toISOString() };
+      }
+    } catch (error) {
+      if ((error as { code?: string })?.code === "P2002") return { skipped: true, reason: "account_reply_cooldown" };
+      enqueueFailure = error;
+      throw error;
+    }
     const rawWindow = team?.sendSafety && typeof team.sendSafety === "object" ? (team.sendSafety as Record<string, unknown>)["sendWindow"] : null;
     const sendWindow = resolveSendWindow(rawWindow);
     if (sendWindow.enabled) {
