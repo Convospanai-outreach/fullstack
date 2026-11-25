@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const mockDb: any = vi.hoisted(() => ({
-    message: { findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn(), create: vi.fn() },
+    $transaction: vi.fn(),
+    message: { upsert: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn(), create: vi.fn() },
     overseerNudge: { findMany: vi.fn(), count: vi.fn() },
     meeting: { findMany: vi.fn(), count: vi.fn() },
     lead: { findFirst: vi.fn(), update: vi.fn() },
@@ -39,12 +40,14 @@ vi.mock("@/lib/crm/leadStageTransitions", () => ({
 
 import {
     getInbox,
+    getInboxReply,
     getThread,
     markReplyDoNotContact,
     markReplyOutcome,
     markReplyRead,
     sendReply,
     scheduleInboxReply,
+    scheduledInboxReplyStatus,
     toSnippet,
 } from "../actionInboxService";
 import { isSuppressed, recordSuppression, sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
@@ -114,6 +117,14 @@ describe("getInbox", () => {
             confidence: 0.95, reasoning: "asked to stop", suggestedReply: null,
         });
         expect(inbox.replies.items[1]!.suggestion).toBeNull();
+    });
+
+    it("only loads older linked replies through the caller's inbound team scope", async () => {
+        mockDb.message.findFirst.mockResolvedValueOnce(null);
+        await expect(getInboxReply("team-a", "foreign-reply")).resolves.toBeNull();
+        expect(mockDb.message.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "foreign-reply", direction: "INBOUND", lead: { teamId: "team-a" } },
+        }));
     });
 
     it("scopes every list to the caller's team and paginates replies newest-first", async () => {
@@ -245,6 +256,10 @@ describe("sendReply", () => {
         mockDb.connectedMailbox.findFirst.mockResolvedValue({ id: "mailbox-1", provider: "GOOGLE_WORKSPACE" });
         mockDb.user.findUnique.mockResolvedValue({ name: "Rep" });
         mockDb.message.create.mockResolvedValue({ id: "outbound-1" });
+        mockDb.email.findUnique.mockResolvedValue(null);
+        mockDb.email.findFirst.mockReset().mockResolvedValue(null);
+        mockDb.email.create.mockResolvedValue({ createdAt: new Date("2026-11-25T11:00:00Z") });
+        mockDb.$transaction.mockImplementation((fn: (tx: typeof mockDb) => unknown) => fn(mockDb));
         (isSuppressed as any).mockResolvedValue(false);
         (guardrailService.evaluate as any).mockResolvedValue({ isSafe: true, violations: [] });
         (sendViaGmailMailbox as any).mockResolvedValue({ success: true, deliveryProvider: "GMAIL_API", messageId: "<gm-1>", threadId: "thread-9", mailboxId: "mailbox-1" });
@@ -261,6 +276,54 @@ describe("sendReply", () => {
         await expect(sendReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", scheduledJobId: "job-1" }))
             .rejects.toMatchObject({ code: "THREAD_CHANGED" });
         expect(sendViaResendMailbox).not.toHaveBeenCalled();
+    });
+
+    it("stops a scheduled reply when the newer campaign send exists only as an Email", async () => {
+        mockDb.message.findFirst.mockResolvedValueOnce(inboundReply()).mockResolvedValueOnce(null);
+        mockDb.connectedMailbox.findFirst.mockResolvedValue({ id: "mailbox-1", provider: "RESEND" });
+        mockDb.email.findFirst.mockResolvedValueOnce({ id: "campaign-send" });
+
+        await expect(sendReply({ teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", scheduledJobId: "job-1" }))
+            .rejects.toMatchObject({ code: "THREAD_CHANGED" });
+        expect(mockDb.email.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
+            leadId: "lead-1", campaign: { teamId: "team-a" },
+            AND: [
+                { OR: [{ idempotencyKey: null }, { idempotencyKey: { not: "inbox_reply_job-1" } }] },
+                { OR: [{ trackingId: null }, { trackingId: { not: "job-1" } }] },
+            ],
+            OR: expect.arrayContaining([{ events: { some: { type: "SENT", createdAt: { gte: inboundReply().createdAt } } } }]),
+        }) }));
+        expect(sendViaResendMailbox).not.toHaveBeenCalled();
+    });
+
+    it("repairs a persisted scheduled send after the read update fails, without resending", async () => {
+        mockDb.message.findFirst.mockResolvedValueOnce(inboundReply()).mockResolvedValueOnce(null);
+        mockDb.connectedMailbox.findFirst.mockResolvedValue({ id: "mailbox-1", provider: "RESEND" });
+        mockDb.message.update.mockRejectedValueOnce(new Error("database write failed")).mockResolvedValueOnce({});
+        const input = { teamId: "team-a", userId: "user-1", messageId: "msg-1", content: "Approved", scheduledJobId: "job-1" };
+
+        await expect(sendReply(input)).rejects.toThrow("database write failed");
+        mockDb.email.findUnique.mockResolvedValueOnce({ createdAt: new Date("2026-11-25T11:00:00Z") });
+        mockDb.message.findFirst.mockResolvedValueOnce(inboundReply()).mockResolvedValueOnce(null);
+
+        await expect(sendReply(input)).resolves.toEqual({ alreadySent: true });
+        expect(sendViaResendMailbox).toHaveBeenCalledTimes(1);
+        expect(mockDb.message.upsert).toHaveBeenLastCalledWith(expect.objectContaining({
+            where: { id: "inbox_reply_job-1" },
+            create: expect.objectContaining({ direction: "OUTBOUND", content: "Approved" }),
+        }));
+        expect(mockDb.message.update).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns the latest cancelled schedule after its send key is cleared", async () => {
+        const processAt = new Date("2026-11-25T12:00:00Z");
+        mockDb.job.findFirst.mockResolvedValueOnce({ status: "cancelled", processAt, result: null });
+        await expect(scheduledInboxReplyStatus("team-a", "msg-1")).resolves.toEqual({ status: "cancelled", sendAt: processAt });
+        expect(mockDb.job.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ OR: expect.arrayContaining([
+                { status: "cancelled", result: { path: ["cancelledReplyId"], equals: "msg-1" } },
+            ]) }),
+        }));
     });
 
     it("reuses the job id across a scheduled reply's provider and database writes", async () => {

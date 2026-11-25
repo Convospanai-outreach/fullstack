@@ -99,7 +99,10 @@ describe("PATCH /leads/[id]", () => {
             .mockResolvedValueOnce({ id: "lead-1", company: "New Co", domain: "new.example" });
         mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
 
-        await PATCH(patchRequest({ company: "New Co", domain: "new.example" }), { params: Promise.resolve({ id: "lead-1" }) });
+        await PATCH(patchRequest({ company: "New Co", domain: " HTTPS://WWW.New.Example.:443/about " }), { params: Promise.resolve({ id: "lead-1" }) });
+        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ domain: "new.example" }),
+        }));
 
         expect(mockRecordLeadDataSources).toHaveBeenCalledWith(
             expect.arrayContaining([

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -21,6 +21,7 @@ interface InboxReply {
     id: string;
     leadId: string;
     leadName: string | null;
+    canScheduleReply?: boolean;
     company: string | null;
     email: string | null;
     outcome: string | null;
@@ -143,8 +144,18 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
     const scheduled = scheduledState?.scheduled;
     const queued = scheduled?.status === "queued" || scheduled?.status === "pending";
     const dispatching = scheduled?.status === "running" || scheduled?.status === "processing";
+    const terminalScheduleLabel = scheduled?.status === "succeeded" ? "Scheduled reply sent"
+        : scheduled?.status === "dead_lettered" ? "Scheduled reply failed. Review the thread before trying again."
+        : scheduled?.status === "cancelled" ? "Scheduled reply cancelled"
+        : scheduled?.status === "skipped" ? "Scheduled reply skipped. Review the thread before sending."
+        : null;
+
+    useEffect(() => {
+        if (scheduled?.status === "succeeded") void mutate();
+    }, [mutate, scheduled?.status]);
     const [draft, setDraft] = useState("");
-    const [scheduleInHours, setScheduleInHours] = useState(0);
+    const [requestedDelay, setScheduleInHours] = useState(0);
+    const scheduleInHours = reply.canScheduleReply ? requestedDelay : 0;
     const [sending, setSending] = useState(false);
     const [marking, setMarking] = useState<string | null>(null);
     const [openedAt] = useState(() => Date.now());
@@ -175,7 +186,7 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
         try {
             const response = await fetch(getBrowserApiUrl(scheduledPath), { method: "DELETE" });
             if (!response.ok) throw new Error("The reply could not be cancelled.");
-            await refreshSchedule({ scheduled: null });
+            await refreshSchedule();
             toast.success("Scheduled reply cancelled");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Could not cancel the reply");
@@ -300,19 +311,19 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                             maxLength={2200}
                             rows={4}
                         />
-                        {scheduled && (queued || dispatching || scheduled.status === "dead_lettered" || scheduled.status === "skipped") && (
+                        {scheduled && (queued || dispatching || terminalScheduleLabel) && (
                             <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                <span>{queued ? `Scheduled for ${format(new Date(scheduled.sendAt), "d MMM, h:mm a")}` : dispatching ? "Sending scheduled reply…" : "Scheduled reply needs review"}</span>
+                                <span>{queued ? `Scheduled for ${format(new Date(scheduled.sendAt), "d MMM, h:mm a")}` : dispatching ? "Sending scheduled reply…" : terminalScheduleLabel}</span>
                                 {queued && <Button variant="outline" size="sm" onClick={cancelReply}>Cancel scheduled reply</Button>}
                             </div>
                         )}
                         <div className="flex flex-wrap justify-end gap-2">
-                            <select aria-label="Reply timing" value={scheduleInHours} disabled={queued || dispatching || sending} onChange={(event) => setScheduleInHours(Number(event.target.value))}
+                            {reply.canScheduleReply && <select aria-label="Reply timing" value={scheduleInHours} disabled={queued || dispatching || sending} onChange={(event) => setScheduleInHours(Number(event.target.value))}
                                 className="rounded border border-border bg-background px-2 text-sm">
                                 <option value={0}>Send now</option>
                                 <option value={1}>In 1 hour (Resend)</option>
                                 <option value={24}>In 24 hours (Resend)</option>
-                            </select>
+                            </select>}
                             <Button onClick={sendReply} disabled={sending || !draft.trim() || queued || dispatching}>
                                 <Send className="w-4 h-4 mr-2" />
                                 {sending ? "Saving..." : scheduleInHours ? "Approve and schedule" : "Send reply"}
@@ -360,6 +371,7 @@ export default function InboxPage() {
     const replyParam = searchParams?.get("reply") ?? null;
     const setTab = (next: Tab) => router.replace(next === "replies" ? "/inbox" : `/inbox?tab=${next}`);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const openedReplyLink = useRef<string | null>(null);
     const [olderReplies, setOlderReplies] = useState<InboxReply[]>([]);
     const [loadingMore, setLoadingMore] = useState(false);
     const { data, error, mutate } = useSWR<InboxResponse>(getBrowserApiUrl(`/inbox?page=1&limit=${PAGE_SIZE}`), fetcher);
@@ -372,39 +384,50 @@ export default function InboxPage() {
     };
 
     const firstPage = data?.replies.items ?? [];
-    const replies = [...firstPage, ...olderReplies.filter((r) => !firstPage.some((f) => f.id === r.id))];
+    const pagedReplies = [...firstPage, ...olderReplies.filter((r) => !firstPage.some((f) => f.id === r.id))];
+    const linkedPageReply = pagedReplies.find((reply) => reply.id === replyParam);
+    const { data: linkedData, error: linkedError, mutate: mutateLinkedReply } = useSWR<{ reply: InboxReply }>(
+        tab === "replies" && replyParam && !linkedPageReply
+            ? getBrowserApiUrl(`/inbox?replyId=${encodeURIComponent(replyParam)}`) : null,
+        fetcher,
+    );
+    const linkedReply = linkedPageReply ?? linkedData?.reply;
+    const replies = linkedData?.reply && !linkedPageReply ? [linkedData.reply, ...pagedReplies] : pagedReplies;
     const selected = replies.find((r) => r.id === selectedId) ?? null;
-    const hasMore = !!data && replies.length < data.replies.total;
+    const hasMore = !!data && pagedReplies.length < data.replies.total;
 
     const refresh = () => {
         setOlderReplies([]);
         mutate();
+        void mutateLinkedReply();
     };
 
-    const selectReply = async (reply: InboxReply) => {
+    const selectReply = useCallback(async (reply: InboxReply) => {
         setSelectedId(reply.id);
         if (reply.isRead) return;
         try {
             await postJson(`/inbox/replies/${reply.id}/read`);
             setOlderReplies((current) => current.map((r) => (r.id === reply.id ? { ...r, isRead: true } : r)));
             mutate();
+            void mutateLinkedReply((current) => current?.reply.id === reply.id
+                ? { reply: { ...current.reply, isRead: true } } : current, { revalidate: false });
         } catch {
             // Non-critical: the reply stays bold until the next refresh.
         }
-    };
+    }, [mutate, mutateLinkedReply]);
 
-    // Open the deep-linked reply once the first page loads (it's recent, so it's on page 1).
     useEffect(() => {
-        if (!replyParam || selectedId) return;
-        const target = data?.replies.items.find((r) => r.id === replyParam);
-        if (target) void selectReply(target);
-    }, [data, replyParam]);
+        if (!replyParam) { openedReplyLink.current = null; return; }
+        if (tab !== "replies" || linkedReply?.id !== replyParam || openedReplyLink.current === replyParam) return;
+        openedReplyLink.current = replyParam;
+        void selectReply(linkedReply);
+    }, [tab, replyParam, linkedReply, selectReply]);
 
     const loadMore = async () => {
         if (!data) return;
         setLoadingMore(true);
         try {
-            const page = Math.floor(replies.length / PAGE_SIZE) + 1;
+            const page = Math.floor(pagedReplies.length / PAGE_SIZE) + 1;
             const next: InboxResponse = await fetcher(getBrowserApiUrl(`/inbox?page=${page}&limit=${PAGE_SIZE}`));
             setOlderReplies((current) => [...current, ...next.replies.items]);
         } catch {
@@ -439,9 +462,12 @@ export default function InboxPage() {
             {tab === "replies" && error && (
                 <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t load your inbox: {error.message}</GlassCard>
             )}
-            {tab === "replies" && !data && !error && <div className="text-muted-foreground">Loading inbox...</div>}
+            {tab === "replies" && linkedError && !linkedReply && (
+                <GlassCard className="p-6 text-sm text-destructive">Couldn&apos;t open the linked reply: {linkedError.message}</GlassCard>
+            )}
+            {tab === "replies" && !data && !error && !linkedReply && <div className="text-muted-foreground">Loading inbox...</div>}
 
-            {data && tab === "replies" && (
+            {(data || linkedReply) && tab === "replies" && (
                 replies.length === 0 ? (
                     <AllClear />
                 ) : (

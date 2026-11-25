@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { APIError } from "@/lib/apiResponse";
 import { localDayRange } from "./localDay";
@@ -58,6 +59,52 @@ const SOCIAL_PLATFORMS = ["INSTAGRAM", "FACEBOOK"] as const;
 const isSocialPlatform = (platform: string): platform is (typeof SOCIAL_PLATFORMS)[number] =>
     (SOCIAL_PLATFORMS as readonly string[]).includes(platform);
 
+const inboxReplySelect = {
+    id: true, leadId: true, content: true, platform: true, isRead: true, sentimentScore: true, createdAt: true,
+    lead: { select: {
+        fullName: true, company: true, email: true, replyOutcome: true,
+        socialContacts: { orderBy: { lastInboundAt: "desc" }, take: 1, select: { handle: true, lastInboundAt: true } },
+    } },
+    emailEvent: { select: { email: { select: {
+        subject: true, mailbox: { select: { teamId: true, status: true, provider: true } },
+        campaign: { select: { name: true } },
+        sequenceStepRuns: { take: 1, select: { enrollment: { select: { sequence: { select: { name: true } } } } } },
+    } } } },
+} as const satisfies Prisma.MessageSelect;
+
+function mapInboxReply(teamId: string, reply: Prisma.MessageGetPayload<{ select: typeof inboxReplySelect }>, suggestion?: ReplySuggestion) {
+    const email = reply.emailEvent?.email;
+    const social = isSocialPlatform(reply.platform) ? reply.lead.socialContacts[0] : undefined;
+    return {
+        id: reply.id,
+        leadId: reply.leadId,
+        leadName: reply.lead.fullName,
+        company: reply.lead.company,
+        email: reply.lead.email,
+        outcome: reply.lead.replyOutcome,
+        platform: reply.platform,
+        canScheduleReply: reply.platform === "EMAIL" && Boolean(reply.lead.email) && email?.mailbox?.teamId === teamId
+            && email.mailbox.status === "CONNECTED" && email.mailbox.provider === "RESEND",
+        subject: email?.subject ?? null,
+        campaignName: email?.campaign?.name ?? null,
+        sequenceName: email?.sequenceStepRuns[0]?.enrollment?.sequence?.name ?? null,
+        snippet: toSnippet(reply.content),
+        handle: social?.handle ?? null,
+        replyWindowEndsAt: social?.lastInboundAt ? new Date(social.lastInboundAt.getTime() + REPLY_WINDOW_MS) : null,
+        isRead: reply.isRead,
+        sentimentScore: reply.sentimentScore,
+        createdAt: reply.createdAt,
+        suggestion: suggestion ?? null,
+    };
+}
+
+export async function getInboxReply(teamId: string, id: string) {
+    const reply = await prisma.message.findFirst({ where: { id, ...inboundReplyWhere(teamId) }, select: inboxReplySelect });
+    if (!reply) return null;
+    const suggestions = await getSuggestionsForReplies(teamId, [id]).catch(() => new Map<string, ReplySuggestion>());
+    return mapInboxReply(teamId, reply, suggestions.get(id));
+}
+
 export async function getInboxCounts(teamId: string, now = new Date()) {
     const today = localDayRange(now);
     const [unreadReplies, openNudges, meetingsToday] = await Promise.all([
@@ -76,38 +123,7 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
             orderBy: { createdAt: "desc" },
             skip: (page - 1) * limit,
             take: limit,
-            select: {
-                id: true,
-                leadId: true,
-                content: true,
-                platform: true,
-                isRead: true,
-                sentimentScore: true,
-                createdAt: true,
-                lead: {
-                    select: {
-                        fullName: true,
-                        company: true,
-                        email: true,
-                        replyOutcome: true,
-                        socialContacts: { orderBy: { lastInboundAt: "desc" }, take: 1, select: { handle: true, lastInboundAt: true } },
-                    },
-                },
-                emailEvent: {
-                    select: {
-                        email: {
-                            select: {
-                                subject: true,
-                                campaign: { select: { name: true } },
-                                sequenceStepRuns: {
-                                    take: 1,
-                                    select: { enrollment: { select: { sequence: { select: { name: true } } } } },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            select: inboxReplySelect,
         }),
         prisma.message.count({ where: inboundReplyWhere(teamId) }),
         prisma.overseerNudge.findMany({
@@ -137,29 +153,7 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
 
     return {
         replies: {
-            items: replies.map((reply) => {
-                const email = reply.emailEvent?.email;
-                const social = isSocialPlatform(reply.platform) ? reply.lead.socialContacts[0] : undefined;
-                return {
-                    id: reply.id,
-                    leadId: reply.leadId,
-                    leadName: reply.lead.fullName,
-                    company: reply.lead.company,
-                    email: reply.lead.email,
-                    outcome: reply.lead.replyOutcome,
-                    platform: reply.platform,
-                    subject: email?.subject ?? null,
-                    campaignName: email?.campaign?.name ?? null,
-                    sequenceName: email?.sequenceStepRuns[0]?.enrollment?.sequence?.name ?? null,
-                    snippet: toSnippet(reply.content),
-                    handle: social?.handle ?? null,
-                    replyWindowEndsAt: social?.lastInboundAt ? new Date(social.lastInboundAt.getTime() + REPLY_WINDOW_MS) : null,
-                    isRead: reply.isRead,
-                    sentimentScore: reply.sentimentScore,
-                    createdAt: reply.createdAt,
-                    suggestion: suggestions.get(reply.id) ?? null,
-                };
-            }),
+            items: replies.map((reply) => mapInboxReply(teamId, reply, suggestions.get(reply.id))),
             page,
             limit,
             total: totalReplies,
@@ -241,6 +235,33 @@ async function findTeamReply(teamId: string, messageId: string) {
     return message;
 }
 
+async function recordScheduledReply(
+    input: { key: string; leadId: string; userId: string; messageId: string; content: string; sentAt: Date },
+    repairing = false,
+) {
+    return prisma.$transaction(async (tx) => {
+        // Older scheduled sends wrote outbound messages without a deterministic ID.
+        const legacy = repairing ? await tx.message.findFirst({
+            where: {
+                leadId: input.leadId, direction: "OUTBOUND", platform: "EMAIL", status: "sent",
+                content: input.content, createdAt: { gte: input.sentAt, lte: new Date(input.sentAt.getTime() + 60_000) },
+            },
+            select: { id: true },
+        }) : null;
+        const user = legacy ? null : await tx.user.findUnique({ where: { id: input.userId }, select: { name: true } });
+        const message = legacy ?? await tx.message.upsert({
+            where: { id: input.key },
+            update: {},
+            create: {
+                id: input.key, leadId: input.leadId, content: input.content, createdAt: input.sentAt,
+                direction: "OUTBOUND", platform: "EMAIL", sender: user?.name || "Me", status: "sent", isRead: true,
+            },
+        });
+        await tx.message.update({ where: { id: input.messageId }, data: { isRead: true } });
+        return message;
+    });
+}
+
 // Sends through the mailbox that sent the original outbound email, via that provider's own
 // send function. Deliberately not emailService.sendEmail: that refuses leads whose status
 // is "replied" (exactly the state here), injects tracking/unsubscribe links, and falls back
@@ -255,6 +276,20 @@ export async function sendReply(input: { teamId: string; userId: string; message
     if (reply.platform !== "EMAIL") {
         throw new APIError("Only email replies can be answered from the inbox", 400, "UNSUPPORTED_PLATFORM");
     }
+    const scheduledKey = input.scheduledJobId ? INBOX_REPLY_KEY_PREFIX + input.scheduledJobId : null;
+    if (scheduledKey) {
+        const priorSend = await prisma.email.findUnique({
+            where: { idempotencyKey: scheduledKey, leadId: reply.leadId, campaign: { teamId } },
+            select: { createdAt: true },
+        });
+        if (priorSend) {
+            await recordScheduledReply({
+                key: scheduledKey, leadId: reply.leadId, userId, messageId: reply.id, content, sentAt: priorSend.createdAt,
+            }, true);
+            return { alreadySent: true };
+        }
+    }
+
     const to = reply.lead.email;
     if (!to) throw new APIError("Lead has no email address", 400, "LEAD_EMAIL_MISSING");
     if (input.expectedRecipient && to.trim().toLowerCase() !== input.expectedRecipient) {
@@ -291,10 +326,7 @@ export async function sendReply(input: { teamId: string; userId: string; message
         throw new APIError("The mailbox that sent the original email is not connected", 409, "MAILBOX_UNAVAILABLE");
     }
 
-    const scheduledKey = input.scheduledJobId ? `${INBOX_REPLY_KEY_PREFIX}${input.scheduledJobId}` : null;
-    if (scheduledKey) {
-        const priorSend = await prisma.email.findUnique({ where: { idempotencyKey: scheduledKey }, select: { id: true } });
-        if (priorSend) return { alreadySent: true };
+    if (scheduledKey && input.scheduledJobId) {
         if (mailbox.provider !== "RESEND" || !reply.emailEvent?.email?.mailboxId) {
             throw new APIError("The original Resend mailbox is required", 409, "MAILBOX_UNAVAILABLE");
         }
@@ -306,7 +338,21 @@ export async function sendReply(input: { teamId: string; userId: string; message
             id: { not: reply.id }, leadId: reply.leadId, platform: "EMAIL", createdAt: { gte: reply.createdAt },
             direction: { in: ["INBOUND", "OUTBOUND"] }, NOT: { status: "draft" },
         }, select: { id: true } });
-        if (newer) throw new APIError("A newer message is in this thread. Review it before replying.", 409, "THREAD_CHANGED");
+        const newerEmail = newer ? null : await prisma.email.findFirst({
+            where: {
+                leadId: reply.leadId, campaign: { teamId },
+                AND: [
+                    { OR: [{ idempotencyKey: null }, { idempotencyKey: { not: scheduledKey } }] },
+                    { OR: [{ trackingId: null }, { trackingId: { not: input.scheduledJobId } }] },
+                ],
+                OR: [
+                    { createdAt: { gte: reply.createdAt }, status: { in: ["sent", "delivered", "opened", "clicked", "replied", "bounced", "complained", "unsubscribed"] } },
+                    { events: { some: { type: "SENT", createdAt: { gte: reply.createdAt } } } },
+                ],
+            },
+            select: { id: true },
+        });
+        if (newer || newerEmail) throw new APIError("A newer message is in this thread. Review it before replying.", 409, "THREAD_CHANGED");
     } else if (mailbox.provider === "RESEND") {
         const scheduled = await scheduledInboxReplyStatus(teamId, messageId);
         if (scheduled && ["queued", "pending", "running", "processing"].includes(scheduled.status)) {
@@ -335,7 +381,7 @@ export async function sendReply(input: { teamId: string; userId: string; message
 
     // An Email row is what the reply-sync paths match the lead's next answer against
     // (IMAP by providerId, Gmail by threadId, Resend by trackingId), so persist one.
-    await prisma.email.create({
+    const sentEmail = await prisma.email.create({
         data: {
             leadId: reply.leadId,
             campaignId: original.campaignId,
@@ -350,6 +396,12 @@ export async function sendReply(input: { teamId: string; userId: string; message
             ...(outcome.threadId ? { threadId: outcome.threadId } : {}),
         },
     });
+
+    if (scheduledKey) {
+        return recordScheduledReply({
+            key: scheduledKey, leadId: reply.leadId, userId, messageId: reply.id, content, sentAt: sentEmail.createdAt,
+        });
+    }
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     const message = await prisma.message.create({
@@ -392,8 +444,14 @@ export async function scheduleInboxReply(input: { teamId: string; userId: string
 }
 
 export async function scheduledInboxReplyStatus(teamId: string, messageId: string) {
-    const job = await prisma.job.findFirst({ where: { teamId, type: "scheduled_inbox_reply", idempotencyKey: `scheduled_inbox_reply:${teamId}:${messageId}` },
-        select: { processAt: true, status: true, result: true } });
+    const job = await prisma.job.findFirst({
+        where: { teamId, type: "scheduled_inbox_reply", OR: [
+            { idempotencyKey: `scheduled_inbox_reply:${teamId}:${messageId}` },
+            { status: "cancelled", result: { path: ["cancelledReplyId"], equals: messageId } },
+        ] },
+        orderBy: { createdAt: "desc" },
+        select: { processAt: true, status: true, result: true },
+    });
     const skipped = (job?.result as { skipped?: string } | null)?.skipped;
     return job ? { sendAt: job.processAt, status: skipped ? "skipped" : job.status } : null;
 }
@@ -401,7 +459,7 @@ export async function scheduledInboxReplyStatus(teamId: string, messageId: strin
 export async function cancelScheduledInboxReply(teamId: string, messageId: string) {
     const cancelled = await prisma.job.updateMany({ where: {
         teamId, type: "scheduled_inbox_reply", idempotencyKey: `scheduled_inbox_reply:${teamId}:${messageId}`, status: { in: ["queued", "pending"] },
-    }, data: { status: "cancelled", completedAt: new Date(), idempotencyKey: null, payload: {} } });
+    }, data: { status: "cancelled", completedAt: new Date(), idempotencyKey: null, payload: {}, result: { cancelledReplyId: messageId } } });
     if (!cancelled.count) throw new APIError("The scheduled reply is no longer waiting to send", 409, "REPLY_NOT_QUEUED");
 }
 

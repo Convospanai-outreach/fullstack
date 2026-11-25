@@ -62,7 +62,7 @@ describe("csvIngestionService.processCSV - domain capture", () => {
         mockPrisma.lead.findFirst.mockResolvedValue(null);
         mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
 
-        const csv = "email,fullName,website\nlead@example.com,Test Lead,https://acme.example\n";
+        const csv = "email,fullName,website\nlead@example.com,Test Lead, HTTPS://WWW.Acme.Example.:443/about \n";
         await csvIngestionService.processCSV(csv, "team-a");
 
         expect(mockPrisma.lead.create).toHaveBeenCalledWith({
