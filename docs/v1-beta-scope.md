@@ -1,5 +1,7 @@
 # CraftMyFunnel V1 Beta Scope
 
+> Superseded 2026-11-16 by `docs/product/PRD.md` (owner decision: multichannel for all users). Kept as history.
+
 ## Goal
 
 Launch the smallest stable version of CraftMyFunnel as an email-first outreach workspace.
