@@ -21,8 +21,11 @@ export async function configureResendCloudflareDns(input: {
     const domains = [{ name: senderDomain, capability: "sending" as const }];
     const receiving = inboundDomain ? [{ name: inboundDomain, capability: "receiving" as const }] : [];
 
-    const cloudflare = async <T>(path: string, body?: DnsRecord & { ttl: number }): Promise<T> => {
-        const response = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}${path}`, {
+    const cloudflare = async <T>(path: "" | "/dns_records", search?: URLSearchParams, body?: DnsRecord & { ttl: number }): Promise<T> => {
+        // Fixed origin; the zone ID is validated above and encoded again here, and the query is passed as structured parameters.
+        const url = new URL(`https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(zoneId)}${path}`);
+        if (search) url.search = search.toString();
+        const response = await fetch(url.toString(), {
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             method: body ? "POST" : "GET",
             ...(body ? { body: JSON.stringify(body) } : {}),
@@ -72,14 +75,14 @@ export async function configureResendCloudflareDns(input: {
             if (record.type === "MX" && "priority" in record) desired.priority = record.priority;
             if (record.type === "CNAME") desired.proxied = false;
             const query = new URLSearchParams({ "name.exact": fqdn, per_page: "100" });
-            const current = await cloudflare<DnsRecord[]>(`/dns_records?${query}`);
+            const current = await cloudflare<DnsRecord[]>("/dns_records", query);
             const sameType = current.filter((entry) => hostname(entry.name) === fqdn && entry.type === desired.type);
             const matches = (entry: DnsRecord) => (desired.type !== "MX" || entry.priority === desired.priority) && (desired.proxied !== false || !entry.proxied)
                 && (desired.type === "TXT" ? entry.content.replace(/^"|"$/g, "") === desired.content.replace(/^"|"$/g, "") : hostname(entry.content) === hostname(desired.content));
             if (sameType.some((entry) => !matches(entry))) throw new MailDnsSetupError(`A different ${desired.type} record already exists at ${fqdn}. Review it in Cloudflare and try again.`);
             if (!sameType.some(matches)) planned.push(desired);
         }
-        for (const record of planned) await cloudflare("/dns_records", { ...record, ttl: 1 });
+        for (const record of planned) await cloudflare("/dns_records", undefined, { ...record, ttl: 1 });
 
         const ready = !planned.length && providerRecords.every((record) => record.status === "verified");
         if (!ready && (planned.length || domain.status !== "pending")) {
