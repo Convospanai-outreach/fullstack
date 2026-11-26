@@ -4,7 +4,7 @@ export const metadata: Metadata = {
     title: "Contact Sales & Engineering Support | CraftMyFunnel",
     description: "Get in touch with the CraftMyFunnel team for B2B outbound consultations, custom vertical playbooks, enterprise integrations, and platform support.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/contact",
+        canonical: "/contact",
     },
     openGraph: {
         title: "Contact CraftMyFunnel | B2B Outbound Platform Support",

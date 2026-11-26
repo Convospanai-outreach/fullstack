@@ -5,7 +5,7 @@ export const metadata = {
     title: "About CraftMyFunnel | Governed B2B Outreach",
     description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/about",
+        canonical: "/about",
     },
     openGraph: {
         title: "About CraftMyFunnel | Governed B2B Outreach",

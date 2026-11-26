@@ -8,7 +8,7 @@ export const metadata = {
   description:
     "CraftMyFunnel AI turns live buyer signals into governed outreach, structured human follow-up, sovereign processing, and qualified revenue.",
   alternates: {
-    canonical: "https://craftmyfunnel.live",
+    canonical: "/",
   },
 };
 

@@ -1,4 +1,11 @@
 import { ProsePage } from "@/components/marketing/site/kit";
+
+export const metadata = {
+  title: "Privacy Policy | CraftMyFunnel",
+  description: "How CraftMyFunnel collects, uses, and protects personal data, and how to exercise your privacy rights.",
+  alternates: { canonical: "/privacy" },
+};
+
 export default function PrivacyPolicyPage() {
   return (
     <ProsePage eyebrow="Legal" title="Privacy Policy" updated="August 11, 2026">

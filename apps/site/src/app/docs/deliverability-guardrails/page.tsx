@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     title: "Email Deliverability & Compliance Guardrails | CraftMyFunnel Docs",
     description: "Technical guide on CraftMyFunnel's deliverability architecture: RFC 5322 Message-ID sync, RFC 8058 one-click unsubscribe, and automatic bounce circuit breakers.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/docs/deliverability-guardrails",
+        canonical: "/docs/deliverability-guardrails",
     },
     openGraph: {
         title: "Email Deliverability & Compliance Architecture Guide",

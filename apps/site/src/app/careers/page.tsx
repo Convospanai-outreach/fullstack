@@ -5,7 +5,7 @@ import { Page, PageHero, Section, Cards, CtaBand } from "@/components/marketing/
 export const metadata: Metadata = {
     title: "Careers | CraftMyFunnel",
     description: "Open positions at CraftMyFunnel.",
-    alternates: { canonical: "https://craftmyfunnel.live/careers" },
+    alternates: { canonical: "/careers" },
 };
 
 export default function CareersPage() {

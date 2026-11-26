@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     title: "Documentation & Knowledge Hub | CraftMyFunnel",
     description: "Technical guides, system architecture, deliverability guardrails, and API specifications for CraftMyFunnel's governed B2B outreach platform.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/docs",
+        canonical: "/docs",
     },
     openGraph: {
         title: "CraftMyFunnel Documentation & Technical Knowledge Hub",

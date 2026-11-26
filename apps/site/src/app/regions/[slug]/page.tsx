@@ -11,7 +11,7 @@ export function generateStaticParams() { return REGIONS.map(({ slug }) => ({ slu
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = regionBySlug((await params).slug);
   if (!r) return {};
-  return { title: `${r.name} | CraftMyFunnel`, description: r.lead, alternates: { canonical: `https://craftmyfunnel.live/regions/${r.slug}` } };
+  return { title: `${r.name} | CraftMyFunnel`, description: r.lead, alternates: { canonical: `/regions/${r.slug}` } };
 }
 
 export default async function RegionPage({ params }: Props) {

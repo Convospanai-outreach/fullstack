@@ -4,7 +4,7 @@ export const metadata: Metadata = {
     title: "REST API & Webhooks Specification | CraftMyFunnel Docs",
     description: "Public developer API reference for programmatically creating leads, managing workflows, triggering knowledge searches, and listening to webhook events.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/docs/api",
+        canonical: "/docs/api",
     },
     openGraph: {
         title: "CraftMyFunnel Developer REST API & Webhooks Specification",

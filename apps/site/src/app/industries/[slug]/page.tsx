@@ -13,7 +13,7 @@ export function generateStaticParams() { return INDUSTRIES.map(({ slug }) => ({ 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const i = industryBySlug((await params).slug);
   if (!i) return {};
-  return { title: `${i.name} | CraftMyFunnel`, description: i.lead, alternates: { canonical: `https://craftmyfunnel.live/industries/${i.slug}` } };
+  return { title: `${i.name} | CraftMyFunnel`, description: i.lead, alternates: { canonical: `/industries/${i.slug}` } };
 }
 
 export default async function IndustryPage({ params }: Props) {

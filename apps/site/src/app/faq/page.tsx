@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     title: "FAQ & Governed Pipeline Architecture | CraftMyFunnel",
     description: "Frequently asked questions for B2B operators running governed outbound workflows, buyer intent signals, and human-in-the-loop approval queues.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/faq",
+        canonical: "/faq",
     },
     openGraph: {
         title: "CraftMyFunnel FAQ & Governed Pipeline Architecture",

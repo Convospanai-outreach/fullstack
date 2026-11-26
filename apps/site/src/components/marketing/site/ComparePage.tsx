@@ -6,7 +6,7 @@ import { comparisonBySlug } from "@/lib/marketing/compare";
 export function compareMetadata(slug: string): Metadata {
   const c = comparisonBySlug(slug);
   const title = `CraftMyFunnel vs ${c.name} | CraftMyFunnel`;
-  return { title, description: c.summary, alternates: { canonical: `https://craftmyfunnel.live/vs/${slug}` }, openGraph: { title, description: c.summary, url: `https://craftmyfunnel.live/vs/${slug}` } };
+  return { title, description: c.summary, alternates: { canonical: `/vs/${slug}` }, openGraph: { title, description: c.summary, url: `https://craftmyfunnel.live/vs/${slug}` } };
 }
 
 export function ComparePage({ slug }: { slug: string }) {

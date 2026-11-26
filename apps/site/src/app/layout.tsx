@@ -23,7 +23,7 @@ export const metadata = {
   creator: "CraftMyFunnel",
   publisher: "CraftMyFunnel",
   alternates: {
-    canonical: "https://craftmyfunnel.live",
+    canonical: "/",
   },
   icons: {
     icon: [

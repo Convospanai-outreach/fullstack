@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     title: "MCP Server for AI Agents | CraftMyFunnel Docs",
     description: "Connect Claude, ChatGPT or any MCP client to your CraftMyFunnel workspace. Tools, permissions, review-before-write behavior and data handling.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/docs/mcp",
+        canonical: "/docs/mcp",
     },
 };
 

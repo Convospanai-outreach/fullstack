@@ -3,6 +3,7 @@ import { ProsePage } from "@/components/marketing/site/kit";
 export const metadata = {
   title: "Security | CraftMyFunnel",
   description: "How CraftMyFunnel protects connected accounts, credentials, and application data.",
+  alternates: { canonical: "/security" },
 };
 
 export default function SecurityPage() {

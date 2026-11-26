@@ -5,7 +5,7 @@ export const metadata: Metadata = {
     title: "Pricing & Plans | CraftMyFunnel",
     description: "Transparent pricing for managed growth execution, campaign operations, and pipeline tracking across Pilot, Growth Autopilot, and Enterprise / Partner tiers.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/pricing",
+        canonical: "/pricing",
     },
     openGraph: {
         title: "CraftMyFunnel Pricing & Plans",

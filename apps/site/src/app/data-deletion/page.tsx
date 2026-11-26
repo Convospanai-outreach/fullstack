@@ -2,6 +2,7 @@ import { ProsePage } from "@/components/marketing/site/kit";
 export const metadata = {
   title: "Data Deletion Request | CraftMyFunnel",
   description: "How to request deletion of your data from CraftMyFunnel.",
+  alternates: { canonical: "/data-deletion" },
 };
 
 export default function DataDeletionPage() {

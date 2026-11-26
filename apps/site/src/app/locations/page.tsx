@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Regional Outbound Sales Hubs & Local Coverage | CraftMyFunnel',
   description: 'Explore CraftMyFunnel regional B2B outbound hubs across 10 commercial corridors. Governed AI sales outreach tailored for local enterprise clusters.',
   alternates: {
-    canonical: 'https://craftmyfunnel.live/locations',
+    canonical: '/locations',
   },
   openGraph: {
     title: 'Regional Outbound Sales Hubs | CraftMyFunnel',

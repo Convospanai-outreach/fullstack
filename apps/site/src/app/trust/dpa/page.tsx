@@ -4,6 +4,7 @@ import { PRIVACY_CONTACT_EMAIL } from "@/lib/trust";
 export const metadata = {
   title: "Data Processing Agreement (template) | CraftMyFunnel",
   description: "Template data processing agreement for customers who use CraftMyFunnel to process personal data.",
+  alternates: { canonical: "/trust/dpa" },
 };
 
 const clauses: { heading: string; text: string }[] = [

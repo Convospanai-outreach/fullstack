@@ -10,7 +10,11 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const job = getJobBySlug((await params).slug);
     return job
-        ? { title: `${job.title} | Careers | CraftMyFunnel`, alternates: { canonical: `https://craftmyfunnel.live/careers/${job.slug}` } }
+        ? {
+            title: `${job.title} | Careers | CraftMyFunnel`,
+            description: `Apply for the ${job.title} role${job.location ? " in " + job.location : ""} at CraftMyFunnel.`,
+            alternates: { canonical: `/careers/${job.slug}` },
+        }
         : { title: "Careers | CraftMyFunnel" };
 }
 

@@ -5,7 +5,7 @@ import { COMPARISONS } from "@/lib/marketing/compare";
 export const metadata: Metadata = {
   title: "Compare CraftMyFunnel | Apollo, Instantly, Lemlist",
   description: "How CraftMyFunnel compares with Apollo.io, Instantly and Lemlist, and when each tool is the better pick.",
-  alternates: { canonical: "https://craftmyfunnel.live/vs" },
+  alternates: { canonical: "/vs" },
 };
 
 export default function ComparePage() {

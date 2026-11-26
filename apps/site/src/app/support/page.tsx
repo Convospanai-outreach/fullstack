@@ -3,6 +3,7 @@ import { ProsePage } from "@/components/marketing/site/kit";
 export const metadata = {
   title: "Support | CraftMyFunnel",
   description: "Get help with Google Workspace setup, Gmail OAuth, domain readiness, billing, and technical issues.",
+  alternates: { canonical: "/support" },
 };
 
 export default function SupportPage() {

@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import fs from "fs";
 import path from "path";
 import { CITIES_MATRIX } from "@/lib/locations";
+import { getJobs } from "@/lib/careers";
+import { INDUSTRIES } from "@/lib/marketing/industries";
 
 function getBaseUrl() {
     return (process.env["NEXT_PUBLIC_SITE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
@@ -106,42 +108,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: "weekly",
             priority: 0.9,
         },
-        {
-            url: `${baseUrl}/industries/cybersecurity`,
+        ...INDUSTRIES.map(({ slug }) => ({
+            url: `${baseUrl}/industries/${slug}`,
             lastModified,
-            changeFrequency: "weekly",
+            changeFrequency: "weekly" as const,
             priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/industries/managed-it-cloud`,
-            lastModified,
-            changeFrequency: "weekly",
-            priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/industries/sap-erp`,
-            lastModified,
-            changeFrequency: "weekly",
-            priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/industries/gcc-services`,
-            lastModified,
-            changeFrequency: "weekly",
-            priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/industries/staffing`,
-            lastModified,
-            changeFrequency: "weekly",
-            priority: 0.8,
-        },
-        {
-            url: `${baseUrl}/industries/dpdp-consulting`,
-            lastModified,
-            changeFrequency: "weekly",
-            priority: 0.8,
-        },
+        })),
         {
             url: `${baseUrl}/regions/india`,
             lastModified,
@@ -203,6 +175,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.8,
         },
         {
+            url: `${baseUrl}/docs/mcp`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
             url: `${baseUrl}/docs/api`,
             lastModified,
             changeFrequency: "weekly",
@@ -238,6 +216,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
             changeFrequency: "monthly",
             priority: 0.8,
         },
+        {
+            url: `${baseUrl}/careers`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.7,
+        },
+        ...getJobs().map(({ slug }) => ({
+            url: `${baseUrl}/careers/${slug}`,
+            lastModified,
+            changeFrequency: "weekly" as const,
+            priority: 0.6,
+        })),
         {
             url: `${baseUrl}/contact`,
             lastModified,
@@ -276,6 +266,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
         {
             url: `${baseUrl}/data-deletion`,
+            lastModified,
+            changeFrequency: "monthly",
+            priority: 0.5,
+        },
+        {
+            url: `${baseUrl}/trust/dpa`,
+            lastModified,
+            changeFrequency: "monthly",
+            priority: 0.5,
+        },
+        {
+            url: `${baseUrl}/trust/subprocessors`,
             lastModified,
             changeFrequency: "monthly",
             priority: 0.5,

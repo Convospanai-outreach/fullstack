@@ -7,7 +7,7 @@ import { INDUSTRIES } from "@/lib/marketing/industries";
 export function productMetadata(slug: string): Metadata {
   const p = productBySlug(slug);
   const url = `https://craftmyfunnel.live/products/${p.slug}`;
-  return { title: p.metaTitle, description: p.metaDescription, alternates: { canonical: url }, openGraph: { title: p.metaTitle, description: p.metaDescription, url, images: [{ url: "/images/og-branded.png", width: 1200, height: 630, alt: p.name }] } };
+  return { title: p.metaTitle, description: p.metaDescription, alternates: { canonical: `/products/${p.slug}` }, openGraph: { title: p.metaTitle, description: p.metaDescription, url, images: [{ url: "/images/og-branded.png", width: 1200, height: 630, alt: p.name }] } };
 }
 
 export function ProductPage({ slug }: { slug: string }) {

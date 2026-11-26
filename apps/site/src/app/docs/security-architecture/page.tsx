@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     title: "Security, Outbox & Blind Indexing Architecture | CraftMyFunnel Docs",
     description: "Technical deep-dive on CraftMyFunnel's enterprise multi-tenant isolation, Transactional Outbox pattern, and deterministic HMAC-SHA256 blind indexing for encrypted PII.",
     alternates: {
-        canonical: "https://craftmyfunnel.live/docs/security-architecture",
+        canonical: "/docs/security-architecture",
     },
     openGraph: {
         title: "Security, Outbox & Blind Indexing Architecture",

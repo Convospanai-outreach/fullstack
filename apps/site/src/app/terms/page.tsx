@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Terms & Conditions | CraftMyFunnel",
   description:
     "Read the Terms & Conditions for using CraftMyFunnel, an AI-powered outreach, lead management, workflow automation, and revenue orchestration platform.",
+  alternates: { canonical: "/terms" },
 };
 
 const sections = [

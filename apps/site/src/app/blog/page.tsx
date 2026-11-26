@@ -11,6 +11,7 @@ export const metadata: Metadata = {
     description: 'Learn how to leverage AI agents, LLMs, and automation for outreach, pipeline generation, and scaling your business.',
     type: 'website',
   },
+  alternates: { canonical: "/blog" },
 };
 
 export default function BlogIndex() {

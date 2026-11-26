@@ -6,7 +6,7 @@ import { REGIONS } from "@/lib/marketing/regions";
 export const metadata: Metadata = {
   title: "Industries | CraftMyFunnel",
   description: "Where governed, signal-led outreach pays off first: cybersecurity, MSPs and SAP partners in the US and EU; GCC services, staffing and DPDP consulting in India.",
-  alternates: { canonical: "https://craftmyfunnel.live/industries" },
+  alternates: { canonical: "/industries" },
 };
 
 export default function IndustriesPage() {

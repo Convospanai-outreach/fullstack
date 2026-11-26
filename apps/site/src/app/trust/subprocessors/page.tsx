@@ -4,6 +4,7 @@ import { PRIVACY_CONTACT_EMAIL } from "@/lib/trust";
 export const metadata = {
   title: "Sub-processors | CraftMyFunnel",
   description: "The third-party services that process customer data on behalf of CraftMyFunnel.",
+  alternates: { canonical: "/trust/subprocessors" },
 };
 
 // Each row is a service the code calls today (checked against apps/api and apps/web).

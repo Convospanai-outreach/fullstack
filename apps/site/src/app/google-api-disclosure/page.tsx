@@ -2,6 +2,7 @@ import { ProsePage } from "@/components/marketing/site/kit";
 export const metadata = {
   title: "Google API Disclosure | CraftMyFunnel",
   description: "CraftMyFunnel's use of Google API Services and Limited Use policy compliance.",
+  alternates: { canonical: "/google-api-disclosure" },
 };
 
 export default function GoogleApiDisclosurePage() {
