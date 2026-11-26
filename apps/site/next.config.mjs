@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { withSentryConfig } from '@sentry/nextjs';
 import { APP_URL } from './config/appUrl.mjs';
 import { appRewriteSources } from './config/appRewrites.mjs';
+import { appPaths } from './config/appPaths.mjs';
 import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -72,12 +73,6 @@ const config = {
             ['/use-cases/training', '/industries'],
             ['/use-cases/regions/:region', '/regions/:region'],
             ['/funnel', '/'],
-        ];
-        const appPaths = [
-            '/login/:path*', '/signup', '/forgot-password', '/magic-link', '/verify-email',
-            '/accept-invite', '/client-login', '/agent-login', '/complete-profile', '/onboarding',
-            '/setup', '/dashboard/:path*', '/checkout/:path*', '/credits', '/extension/:path*',
-            '/client/:path*', '/superadmin/:path*', '/p/:path*', '/mcp/connect', '/cms/:path*',
         ];
         return [
             {
