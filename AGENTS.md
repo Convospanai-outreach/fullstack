@@ -175,3 +175,31 @@ Consolidation model:
 
 - Product Manager Agent removes duplicates, prioritizes by business impact, and divides work into Must fix before launch, Should fix soon, and Good to have.
 - Developer-ready tasks should include owner: Codex Builder, Security, UX, QA, or Performance.
+
+## UI Build Tasks (components, layout, routes)
+
+The file limits above are for positioning, copy and UI-label changes only. For a UI build
+task (new or reworked components, page layout, a read-only route that feeds them):
+
+- List every file you will touch in the plan before editing.
+- More than 8 files needs explicit approval first.
+- Still no new dependencies, no schema change, no refactor outside the task.
+- Do not remove, rename or change the behaviour of anything in `docs/product/FEATURE_INVENTORY.md`.
+
+## Reference Docs (read the ones your task touches)
+
+- `GEMINI.md` - ground rules, evidence standard, product map (§8), fragile areas (§12), channel status (§14). Applies to every agent.
+- `AGENT_RULES.md` - Docker, Windows npm temp/cache, install and Prisma CI rules.
+- `docs/product/PRD.md` - product requirements, current state per area, priorities, decisions.
+- `docs/product/FEATURE_INVENTORY.md` - what must not change without approval.
+- `docs/product/GLOSSARY.md` - one name per thing in UI and docs.
+- `docs/product/DATA_SOURCES.md` - where each Home number comes from, and what is not tracked yet.
+- `docs/product/ONBOARDING.md` - the 15 setup steps and their fixed behaviour.
+- `docs/product/BENCHMARKS.md` - measured baselines and approved targets.
+- `docs/design/DESIGN_SYSTEM.md` - tokens, type, components, states, and what is broken in the token pipeline.
+- `docs/BRAND_VOICE_GUIDELINES.md` - voice and tone.
+
+When a change makes one of these docs untrue, update the doc in the same PR.
+
+`OPEN_ITEMS.md` is very large (about 790 KB). Search it or read it in ranges; do not load
+it whole. The ledger duty in `GEMINI.md` §11 still applies.
