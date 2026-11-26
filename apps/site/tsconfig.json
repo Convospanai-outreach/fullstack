@@ -41,7 +41,7 @@
         "name": "next"
       }
     ],
-    "types": []
+    "types": ["node"]
   },
   "include": [
     "src",

@@ -90,7 +90,7 @@ describe("home step images", () => {
 describe("CMS config for step images", () => {
     it("offers separate desktop and mobile uploads that cannot point off-site", () => {
         const config = buildDecapConfig("https://example.com");
-        expect(config).toContain("media_folder: apps/web/public/uploads");
+        expect(config).toContain("media_folder: apps/site/public/uploads");
         expect(config).toContain("public_folder: /uploads");
         expect(config).toMatch(/name: desktop, widget: image, required: false, choose_url: false/);
         expect(config).toMatch(/name: mobile, widget: image, required: false, choose_url: false/);
