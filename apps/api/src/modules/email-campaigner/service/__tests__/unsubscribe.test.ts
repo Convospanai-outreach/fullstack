@@ -53,6 +53,12 @@ describe("one-click unsubscribe", () => {
         prisma.email.findUnique.mockResolvedValue(email);
     });
 
+    it("still answers 200 and keeps the suppression when cancelling the follow-up plan fails", async () => {
+        onLeadHumanAction.mockRejectedValueOnce(new Error("plan store unavailable"));
+        expect((await post()).status).toBe(200);
+        expect(tx.suppressionEntry.upsert).toHaveBeenCalled();
+    });
+
     it("allows anonymous POST and records suppression, sequence exit and scheduled-reply cancellation together", async () => {
         expect(isPublicRoutePath("/email/unsubscribe/[trackingId]")).toBe(true);
         expect((await post()).status).toBe(200);

@@ -10,6 +10,7 @@ import {
 import { internalErrorMessage } from "@/lib/internalError";
 import { resendFeedbackPayload } from "@/modules/email-campaigner/service/resendFeedback";
 import type { EmailBouncedEvent, EmailFailedEvent } from "resend";
+import { captureException } from "@/lib/sentry";
 
 // Moved here from apps/web (which sleeps on Render's free tier, delaying webhook
 // delivery/retries) so this always-on apps/api service receives Resend's webhooks
@@ -254,7 +255,9 @@ export async function POST(req: NextRequest) {
         }
         if (event.data?.bounce?.type === "Permanent") {
           const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
-          await onLeadHumanAction(teamId, email.leadId, null, "hard_bounce");
+          // Best-effort: the opt-out is already recorded and the follow-up worker re-checks suppression before every step,
+          // so a failure to cancel the plan is reported instead of failing this request.
+          try { await onLeadHumanAction(teamId, email.leadId, null, "hard_bounce"); } catch (error) { captureException(error); }
         }
         await recordEmailEvent("BOUNCED");
         if (event.data?.bounce?.type === "Permanent") await checkMailboxReputation();
@@ -274,7 +277,9 @@ export async function POST(req: NextRequest) {
           });
         }
         const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
-        await onLeadHumanAction(teamId, email.leadId, null, "spam_complaint");
+        // Best-effort: the opt-out is already recorded and the follow-up worker re-checks suppression before every step,
+        // so a failure to cancel the plan is reported instead of failing this request.
+        try { await onLeadHumanAction(teamId, email.leadId, null, "spam_complaint"); } catch (error) { captureException(error); }
         await recordEmailEvent("COMPLAINED");
         await checkMailboxReputation();
         break;

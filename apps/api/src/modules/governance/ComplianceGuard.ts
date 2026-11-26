@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { classifyReply } from "@/lib/ai/jev";
 import { readOptOut, type InboundClass } from "@/lib/optOutReader";
+import { captureException } from "@/lib/sentry";
 
 export class ComplianceGuard {
 
@@ -83,7 +84,9 @@ export class ComplianceGuard {
             const lead = await prisma.lead.findUnique({ where: { id: leadId } });
             if (lead?.teamId) {
                 const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
-                await onLeadHumanAction(lead.teamId, leadId, null, "dnc");
+                // Best-effort: the opt-out is already recorded and the follow-up worker re-checks suppression before every step,
+                // so a failure to cancel the plan is reported instead of failing this request.
+                try { await onLeadHumanAction(lead.teamId, leadId, null, "dnc"); } catch (error) { captureException(error); }
             }
             if (lead?.email) {
                 // Campaign sends check the suppression list, so an opt-out has to be on it too.

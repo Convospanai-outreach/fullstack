@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { captureException } from "@/lib/sentry";
 
 const TRACKING_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,200}$/;
 const EVENT_BUCKET_MS = 60 * 60 * 1000;
@@ -360,5 +361,9 @@ export async function recordEmailUnsubscribe(token: string) {
         await tx.emailEvent.createMany({ data: [event], skipDuplicates: true });
     });
     const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
-    for (const leadId of unsubscribedLeadIds) await onLeadHumanAction(teamId, leadId, null, "unsubscribe");
+    // Best-effort: the opt-out is already recorded and the follow-up worker re-checks suppression before every step,
+    // so a failure to cancel the plan is reported instead of failing this request.
+    for (const leadId of unsubscribedLeadIds) {
+        try { await onLeadHumanAction(teamId, leadId, null, "unsubscribe"); } catch (error) { captureException(error); }
+    }
 }

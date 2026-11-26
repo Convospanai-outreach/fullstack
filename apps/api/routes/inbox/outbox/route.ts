@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleAPIError } from "@/lib/apiResponse";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { decryptCredential, type EncryptedCredential } from "@/lib/security/credentialVault";
 import { decodeReplyPlan, REPLY_PLAN_TYPE } from "@/modules/inbox/replySubsequenceStore";
 
@@ -9,6 +10,9 @@ export async function GET(req: NextRequest) {
     try {
         const { teamId, userId } = await getCurrentContextFromRequest(req);
         if (!teamId || !userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.MEMBER)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
         const jobs = await prisma.job.findMany({
             where: { teamId, type: "scheduled_inbox_reply", OR: [
                 { status: { in: ["queued", "running", "pending", "processing"] } },
