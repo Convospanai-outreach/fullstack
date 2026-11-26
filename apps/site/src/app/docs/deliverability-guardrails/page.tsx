@@ -104,6 +104,21 @@ export default function DeliverabilityDocPage() {
                         </div>
                     </div>
 
+                    <section className="space-y-4">
+                        <h2 className="text-2xl font-bold">Mailbox Reputation Guard</h2>
+                        <p>
+                            The optional guard is off by default. Operators can set <code>MAILBOX_REPUTATION_GUARD=true</code> to enable automatic
+                            reputation checks, incident alerts and holds, campaign pauses, sender replacement, and activity-based warmup.
+                            The volume growth cap applies only during an open warning or critical incident.
+                            Replacement mailboxes need healthy reputation and a green inbox placement check before sending resumes.
+                        </p>
+                        <p>
+                            One-click unsubscribe, delivery feedback, manual team holds, and inbox placement checks remain active in both modes.
+                            Activity-based warmup uses real sends to advance and lowers the sending cap after 14 days idle.
+                            Seed inboxes are configured by operators, and seed exchange is off by default.
+                        </p>
+                    </section>
+
                     {/* Section 2 */}
                     <div className="space-y-4">
                         <h2 className="text-2xl font-bold text-[#1A1414]">2. RFC 8058 One-Click Unsubscribe Compliance</h2>
@@ -111,11 +126,11 @@ export default function DeliverabilityDocPage() {
                             To comply with Google and Yahoo 2024+ sender guidelines, every marketing and cold outreach email dispatched through CraftMyFunnel includes compliant one-click unsubscribe headers:
                         </p>
                         <div className="p-4 rounded-xl bg-white border border-[#1A1414]/10 space-y-2 text-xs font-mono text-[#1A1414]/75">
-                            <div>List-Unsubscribe: &lt;https://craftmyfunnel.live/api/unsubscribe?token=...&gt;</div>
+                            <div>List-Unsubscribe: &lt;https://app.example.com/api/email/unsubscribe/…&gt;</div>
                             <div>List-Unsubscribe-Post: List-Unsubscribe=One-Click</div>
                         </div>
                         <p className="text-sm text-[#1A1414]/65">
-                            When a recipient clicks unsubscribe in Gmail or Apple Mail, the webhook instantly marks the lead as <code className="text-red-300 font-mono">UNSUBSCRIBED</code>, immediately halting all active sequence runs across all workspaces.
+                            A one-click request immediately suppresses the recipient for the sending workspace, exits their active sequences, and cancels queued replies. The link uses the app host configured for email tracking.
                         </p>
                     </div>
 
@@ -128,20 +143,21 @@ export default function DeliverabilityDocPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                             <div className="p-4 rounded-xl bg-white border border-[#1A1414]/10 space-y-1">
                                 <div className="text-xs font-bold text-[#1A1414]/65 uppercase">Warning Threshold</div>
-                                <div className="text-xl font-bold text-yellow-400">2.5% Bounce</div>
-                                <p className="text-xs text-[#1A1414]/55">Alerts workspace admin to re-verify prospect email lists.</p>
+                                <div className="text-xl font-bold text-yellow-400">2% bounce</div>
+                                <p className="text-xs text-[#1A1414]/55">Alerts the workspace after at least 30 sends in seven days.</p>
                             </div>
                             <div className="p-4 rounded-xl bg-white border border-[#1A1414]/10 space-y-1">
                                 <div className="text-xs font-bold text-[#1A1414]/65 uppercase">Circuit Breaker</div>
-                                <div className="text-xl font-bold text-red-400">5.0% Bounce</div>
-                                <p className="text-xs text-[#1A1414]/55">Automatically pauses all active sends on affected mailbox.</p>
+                                <div className="text-xl font-bold text-red-400">4% hard bounce</div>
+                                <p className="text-xs text-[#1A1414]/55">Holds outreach after at least 50 sends in seven days. Complaints and domain failures can also trigger a hold.</p>
                             </div>
                             <div className="p-4 rounded-xl bg-white border border-[#1A1414]/10 space-y-1">
                                 <div className="text-xs font-bold text-[#1A1414]/65 uppercase">Daily Mailbox Cap</div>
-                                <div className="text-xl font-bold text-blue-400">30–50 Emails</div>
-                                <p className="text-xs text-[#1A1414]/55">Enforces human sending velocity with randomized intervals.</p>
+                                <div className="text-xl font-bold text-blue-400">Mailbox limits</div>
+                                <p className="text-xs text-[#1A1414]/55">Warmup, recent volume, and the configured delay set the sending pace.</p>
                             </div>
                         </div>
+                        <p className="text-sm text-muted-foreground">Teams send through their own mailboxes. Dedicated IPs and IP pools are configured with the sending provider, such as Resend’s dedicated IP option.</p>
                     </div>
                 </div>
 
