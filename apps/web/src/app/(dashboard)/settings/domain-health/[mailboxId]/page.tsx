@@ -9,9 +9,10 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 type Counts = { sent: number; bounced: number; complained: number; delayed: number; failed: number };
-type Mailbox = { id: string; email: string; status: string; isWarmingUp: boolean; warmupDay: number; warmupTargetDays: number };
+type Mailbox = { id: string; email: string; status: string; isWarmingUp: boolean; warmupDay: number; warmupTargetDays: number; placementLevel?: "green" | "amber" | "red" };
 type Detail = {
     canEdit: boolean;
+    guardEnabled: boolean;
     mailbox: Mailbox & { reputation: {
         level?: string; state?: string; switchedAt?: string; sendingHold?: { since: string; reason: string };
         mailboxCounts?: Counts; teamCounts?: Counts; domainCounts?: Counts; providerCounts?: Record<string, Counts>;
@@ -81,7 +82,7 @@ export default function MailboxReputationPage() {
 
     return <div className="max-w-4xl space-y-6">
         <Link href="/settings/domain-health" className="text-sm text-primary underline">Domain Health</Link>
-        <SectionHeader title={data?.mailbox.email ?? "Mailbox health"} subtitle={reputation?.level ? "Reputation " + reputation.level.toLowerCase() : "Reputation check pending"} />
+        <SectionHeader title={data?.mailbox.email ?? "Mailbox health"} subtitle={data && !data.guardEnabled ? "Automatic reputation guard is off" : reputation?.level ? "Reputation " + reputation.level.toLowerCase() : "Reputation check pending"} />
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {!data && !error && <p className="text-sm text-muted-foreground">Loading mailbox health…</p>}
         {data && reputation && <>
@@ -110,6 +111,7 @@ export default function MailboxReputationPage() {
                     <li>Mailbox {candidate?.email ?? "selected"}</li>
                     <li>DNS {replacement.dns ? Object.entries(replacement.dns).map(([record, ok]) => record.toUpperCase() + (ok ? " passed" : " needs attention")).join(", ") : "check pending"}</li>
                     <li>Warmup {candidate?.isWarmingUp ? "day " + candidate.warmupDay + " of " + candidate.warmupTargetDays + ". Estimated ready " + formatDate(new Date(Date.now() + remaining * 86_400_000).toISOString()) : "ramp complete or awaiting a health check"}</li>
+                    <li>Inbox placement {candidate?.placementLevel === "green" ? "passed" : "needs a green result"} · <Link href="/settings/mailboxes" className="text-primary underline">Run a placement check</Link></li>
                     {replacement.readyAt && <li>Switch {reputation.switchedAt ? "completed" : "scheduled"} for {formatDate(replacement.readyAt)}</li>}
                 </ol>}
                 {data.canEdit ? <div className="flex flex-wrap items-end gap-3">
@@ -135,7 +137,7 @@ export default function MailboxReputationPage() {
                     </>}
                     {canResume && <Button disabled={busy} onClick={() => void act("resume")}>Resume at a low volume</Button>}
                     {canDisconnect && <Button variant="outline" disabled={busy} onClick={() => void act("disconnect")}>Disconnect old mailbox</Button>}
-                </div> : <p className="text-sm text-muted-foreground">Team admins can change these settings.</p>}
+                </div> : <p className="text-sm text-muted-foreground">{data.guardEnabled ? "Team admins can change these settings." : "Replacement and corrective actions are unavailable while the guard is off."}</p>}
             </GlassCard>
             <GlassCard className="space-y-2 p-5">
                 <h2 className="text-base font-semibold">Recent checks</h2>

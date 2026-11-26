@@ -44,6 +44,7 @@ interface ConnectedMailbox {
     assignedUserId?: string | null;
     warmupDay?: number;
     warmupTargetDays?: number;
+    warmupActivity?: { holdReason: string | null; realSendsOnly: boolean };
     bounceCount?: number;
     replyCount?: number;
     openCount?: number;
@@ -53,6 +54,13 @@ interface ConnectedMailbox {
     tokenExpiresAt?: string | null;
     metadata?: ConnectedMailboxMetadata | null;
 }
+
+const warmupHoldLabels: Record<string, string> = {
+    low_volume: "Held because of low volume",
+    bounces: "Held because of bounces",
+    complaints: "Held because of complaints",
+    awaiting_health: "Waiting for a healthy reputation check",
+};
 
 export default function MailboxesSettingsPage() {
     const [mailboxes, setMailboxes] = useState<ConnectedMailbox[]>([]);
@@ -701,9 +709,22 @@ export default function MailboxesSettingsPage() {
                                         {/* Warmup Status */}
                                         <div className="bg-muted rounded-lg p-2.5 border border-border">
                                             <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Warmup State</span>
-                                            <span className="text-foreground font-medium truncate block mt-0.5">
+                                            {mb.warmupActivity ? <>
+                                                <span className="text-foreground font-medium block mt-0.5">
+                                                    {mb.isWarmingUp
+                                                        ? "Warming, day " + (mb.warmupDay ?? 0) + " of " + (mb.warmupTargetDays || 30)
+                                                            + ". Today's cap " + Math.min(mb.dailyLimit, 5 + 5 * (mb.warmupDay ?? 0))
+                                                        : "Warm"}
+                                                </span>
+                                                {mb.isWarmingUp && mb.warmupActivity.holdReason && <p className="text-muted-foreground mt-1">
+                                                    {warmupHoldLabels[mb.warmupActivity.holdReason]}
+                                                </p>}
+                                                {mb.isWarmingUp && mb.warmupActivity.realSendsOnly && <p className="text-muted-foreground mt-1">
+                                                    Warmup uses your real sends only.
+                                                </p>}
+                                            </> : <span className="text-foreground font-medium block mt-0.5">
                                                 {mb.isWarmingUp ? `Ramp day ${mb.warmupDay || 0}/${mb.warmupTargetDays || 30}` : "Ramp off"}
-                                            </span>
+                                            </span>}
                                         </div>
 
                                         {/* History Cursor */}

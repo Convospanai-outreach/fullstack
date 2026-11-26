@@ -271,6 +271,7 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             return handleEmailDraftBatchPoll(payload);
 
         case "warmup_seed_reply": {
+            if (process.env["WARMUP_SEED_EXCHANGE"] !== "on") return { skipped: true, reason: "seed_exchange_disabled" };
             const { sendWarmupSeedReply } = await import("@/modules/email-campaigner/service/warmupSeedService");
             return sendWarmupSeedReply(payload);
         }

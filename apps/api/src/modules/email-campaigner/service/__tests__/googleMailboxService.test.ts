@@ -2046,7 +2046,8 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         }));
     });
 
-    it("advances warmup status for connected warming mailboxes", async () => {
+    it("advances the calendar warmup for connected warming mailboxes while the guard is off", async () => {
+        vi.stubEnv("MAILBOX_REPUTATION_GUARD", undefined);
         (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 2 });
         await expect(advanceMailboxWarmup()).resolves.toEqual({ count: 2 });
         expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({

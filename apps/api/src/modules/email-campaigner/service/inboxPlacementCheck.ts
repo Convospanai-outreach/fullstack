@@ -72,7 +72,9 @@ export function withStuckCheckFailed(state: PlacementState | null, now = new Dat
 // The verdict a campaign start sees: amber (never blocking) when no check has run or the last one is stale.
 export function effectivePlacementVerdict(state: PlacementState | null, now = new Date()): PlacementVerdict {
     if (!state || state.status !== "done" || !state.checkedAt) return placementVerdict([], null, now);
-    const verdict = placementVerdict(state.results as PlacementInboxResult[], new Date(state.checkedAt), now);
+    const checkedAt = new Date(state.checkedAt);
+    if (!Number.isFinite(checkedAt.getTime())) return placementVerdict([], null, now);
+    const verdict = placementVerdict(state.results as PlacementInboxResult[], checkedAt, now);
     if (verdict.level === "red" && state.override) {
         return { level: "amber", reasons: [`An admin accepted this result on ${state.override.at.slice(0, 10)}.`, ...verdict.reasons] };
     }
@@ -192,7 +194,8 @@ async function renderHtml(teamId: string, body: string, token: string, trackingI
     const { emailService, resolveEmailFooterText } = await import("./emailService");
     const team = await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true, branding: true } });
     const resolved = resolveMessageTokens(body, {}, { useSuggestedFallbacks: true, html: true }).text;
-    const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
+    const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] || process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"]
+        || (process.env.NODE_ENV === "production" ? "https://craftmyfunnel.live" : undefined);
     // The same footer, unsubscribe line and link wrapping a real campaign send gets, so the check measures what
     // recipients receive. addTrackingLinks is private to EmailService; bracket access is TypeScript's escape hatch.
     const unsubscribeUrl = publicBaseUrl ? `${publicBaseUrl.replace(/\/$/, "")}/api/email/unsubscribe/${trackingId}` : undefined;

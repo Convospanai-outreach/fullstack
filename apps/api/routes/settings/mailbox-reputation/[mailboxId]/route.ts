@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: Context) {
         if (!await checkTeamPermission(userId, teamId, TeamRole.VIEWER)) throw new APIError("Team access required", 403, "FORBIDDEN");
         const { mailboxId } = await context.params;
         const [data, canEdit] = await Promise.all([getMailboxReputation(teamId, mailboxId), checkTeamPermission(userId, teamId, TeamRole.ADMIN)]);
-        return NextResponse.json({ ...data, canEdit });
+        return NextResponse.json({ ...data, canEdit: canEdit && data.guardEnabled });
     } catch (error) {
         return handleAPIError(error);
     }
