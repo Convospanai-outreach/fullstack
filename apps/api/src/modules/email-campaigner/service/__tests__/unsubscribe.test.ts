@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../../../../routes/email/unsubscribe/[trackingId]/route";
 import { isPublicRoutePath } from "@/lib/publicRoutes";
-import { clearAllRateLimits } from "@/lib/rateLimit";
 
 const { tx, prisma } = vi.hoisted(() => {
     const tx = {
@@ -25,6 +24,15 @@ const { tx, prisma } = vi.hoisted(() => {
     return { prisma, tx };
 });
 vi.mock("@/lib/db", () => ({ prisma }));
+// The real limiter is Redis-backed in CI and its counters outlive a test run, so use a local counter with the same 10-per-window rule.
+const hits = new Map<string, number>();
+vi.mock("@/lib/rateLimit", () => ({
+    checkRateLimit: vi.fn(async (id: string, config: { maxRequests: number }) => {
+        const count = (hits.get(id) ?? 0) + 1;
+        hits.set(id, count);
+        return { allowed: count <= config.maxRequests, remaining: 0, resetTime: Date.now() };
+    }),
+}));
 
 const token = "tracking-example";
 const email = { id: "sent", leadId: "lead", mailboxId: "mailbox", campaignId: "campaign", campaign: { teamId: "team" }, lead: { teamId: "team", email: "Recipient@example.test" } };
@@ -37,9 +45,8 @@ function post(id = token) {
 }
 
 describe("one-click unsubscribe", () => {
-    beforeEach(async () => {
-        // The limiter can be Redis-backed and outlive a test run, so start each test with empty counters.
-        await clearAllRateLimits();
+    beforeEach(() => {
+        hits.clear();
         vi.clearAllMocks();
         prisma.email.findUnique.mockResolvedValue(email);
     });
