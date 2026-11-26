@@ -36,10 +36,26 @@ type InboundReply = {
     leadId: string;
     sentimentScore?: number | null;
     emailEventId?: string | null;
+    platform?: string;
+    content?: string;
     createdAt: Date;
 };
 
+export async function updateFollowUpForInbound(message: { id: string; leadId: string; content?: string }, source: "message" | "whatsapp") {
+    try {
+        const { reactToInboundReply } = await import("./replySubsequenceService");
+        await reactToInboundReply(message);
+    } catch (error) {
+        const { captureException } = await import("@/lib/sentry");
+        captureException(error);
+        const { JobQueue } = await import("@/lib/queue");
+        await JobQueue.enqueue("reply_subsequence_inbound", { messageId: message.id, source },
+            { idempotencyKey: "reply_subsequence_inbound:" + source + ":" + message.id }).catch(captureException);
+    }
+}
+
 export async function onInboundReply(message: InboundReply, { classify = true } = {}) {
+    if (message.platform) await updateFollowUpForInbound(message, "message");
     // Queue the AI reply suggestion first: it is independent of the alert's sentiment/dedupe
     // early returns. It swallows its own errors.
     // Run side by side so a slow enqueue never delays the alert.

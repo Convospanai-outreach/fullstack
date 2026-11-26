@@ -102,7 +102,9 @@ export async function getInboxReply(teamId: string, id: string) {
     const reply = await prisma.message.findFirst({ where: { id, ...inboundReplyWhere(teamId) }, select: inboxReplySelect });
     if (!reply) return null;
     const suggestions = await getSuggestionsForReplies(teamId, [id]).catch(() => new Map<string, ReplySuggestion>());
-    return mapInboxReply(teamId, reply, suggestions.get(id));
+    const { getReplyDecisionLeads } = await import("./replySubsequenceStore");
+    const decisions = await getReplyDecisionLeads(teamId, [reply.leadId]).catch(() => new Set<string>());
+    return { ...mapInboxReply(teamId, reply, suggestions.get(id)), followUpNeedsDecision: decisions.has(reply.leadId) };
 }
 
 export async function getInboxCounts(teamId: string, now = new Date()) {
@@ -151,9 +153,11 @@ export async function getInbox(teamId: string, options: { page: number; limit: n
         () => new Map<string, ReplySuggestion>()
     );
 
+    const { getReplyDecisionLeads } = await import("./replySubsequenceStore");
+    const decisions = await getReplyDecisionLeads(teamId, replies.map(reply => reply.leadId)).catch(() => new Set<string>());
     return {
         replies: {
-            items: replies.map((reply) => mapInboxReply(teamId, reply, suggestions.get(reply.id))),
+            items: replies.map((reply) => ({ ...mapInboxReply(teamId, reply, suggestions.get(reply.id)), followUpNeedsDecision: decisions.has(reply.leadId) })),
             page,
             limit,
             total: totalReplies,
@@ -266,11 +270,19 @@ async function recordScheduledReply(
 // send function. Deliberately not emailService.sendEmail: that refuses leads whose status
 // is "replied" (exactly the state here), injects tracking/unsubscribe links, and falls back
 // to another mailbox or the legacy SMTP config, which would break "reply from the same mailbox".
-export async function sendReply(input: { teamId: string; userId: string; messageId: string; content: string; scheduledJobId?: string; expectedRecipient?: string }) {
+export class ReplyStepMailboxHoldError extends APIError {
+    constructor(code: string, readonly until: Date | null) {
+        super("The mailbox is temporarily at its sending limit.", 409, code);
+    }
+}
+
+export async function sendReply(input: { teamId: string; userId: string; messageId: string; content: string; scheduledJobId?: string; expectedRecipient?: string; subsequence?: { mailboxId: string; earlierJobIds: string[]; beforeProvider: () => Promise<void> } }) {
     const { teamId, userId, messageId, content } = input;
     const reply = await findTeamReply(teamId, messageId);
     if (input.scheduledJobId && reply.platform !== "EMAIL") throw new APIError("The scheduled reply requires an email thread", 409, "REPLY_PLATFORM_CHANGED");
     if (isSocialPlatform(reply.platform)) {
+        const { onLeadHumanAction } = await import("./replySubsequenceService");
+        await onLeadHumanAction(teamId, reply.leadId, userId, "manual_reply");
         return sendSocialReply({ teamId, userId, leadId: reply.leadId, replyMessageId: reply.id, platform: reply.platform, content });
     }
     if (reply.platform !== "EMAIL") {
@@ -327,23 +339,25 @@ export async function sendReply(input: { teamId: string; userId: string; message
     }
 
     if (scheduledKey && input.scheduledJobId) {
-        if (mailbox.provider !== "RESEND" || !reply.emailEvent?.email?.mailboxId) {
+        if (mailbox.provider !== "RESEND" || !reply.emailEvent?.email?.mailboxId || (input.subsequence && input.subsequence.mailboxId !== mailbox.id)) {
             throw new APIError("The original Resend mailbox is required", 409, "MAILBOX_UNAVAILABLE");
         }
         if (["opt_out", "unsubscribed", "do_not_contact", "dnc", "bounced", "lost", "closed_lost", "stopped"].includes(reply.lead.status.toLowerCase())
             || ["not_interested", "wrong_person", "meeting_booked"].includes(reply.lead.replyOutcome ?? "")) {
             throw new APIError("The lead's current status blocks this scheduled reply", 409, "REPLY_BLOCKED");
         }
+        const earlierJobIds = input.subsequence?.earlierJobIds ?? [];
+        const earlierReplyKeys = earlierJobIds.map(id => INBOX_REPLY_KEY_PREFIX + id);
         const newer = await prisma.message.findFirst({ where: {
-            id: { not: reply.id }, leadId: reply.leadId, platform: "EMAIL", createdAt: { gte: reply.createdAt },
+            id: earlierReplyKeys.length ? { notIn: [reply.id, ...earlierReplyKeys] } : { not: reply.id }, leadId: reply.leadId, ...(input.subsequence ? {} : { platform: "EMAIL" }), createdAt: { gte: reply.createdAt },
             direction: { in: ["INBOUND", "OUTBOUND"] }, NOT: { status: "draft" },
         }, select: { id: true } });
         const newerEmail = newer ? null : await prisma.email.findFirst({
             where: {
                 leadId: reply.leadId, campaign: { teamId },
                 AND: [
-                    { OR: [{ idempotencyKey: null }, { idempotencyKey: { not: scheduledKey } }] },
-                    { OR: [{ trackingId: null }, { trackingId: { not: input.scheduledJobId } }] },
+                    { OR: [{ idempotencyKey: null }, { idempotencyKey: earlierReplyKeys.length ? { notIn: [scheduledKey, ...earlierReplyKeys] } : { not: scheduledKey } }] },
+                    { OR: [{ trackingId: null }, { trackingId: earlierJobIds.length ? { notIn: [input.scheduledJobId, ...earlierJobIds] } : { not: input.scheduledJobId } }] },
                 ],
                 OR: [
                     { createdAt: { gte: reply.createdAt }, status: { in: ["sent", "delivered", "opened", "clicked", "replied", "bounced", "complained", "unsubscribed"] } },
@@ -365,24 +379,34 @@ export async function sendReply(input: { teamId: string; userId: string; message
     const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
     if (hold) throw new APIError("This mailbox is held. Review its Domain Health before sending a reply.", 409, hold);
 
+    if (!input.scheduledJobId) {
+        const { onLeadHumanAction } = await import("./replySubsequenceService");
+        await onLeadHumanAction(teamId, reply.leadId, userId, "manual_reply");
+    }
     const subject = /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`;
     const html = escapeHtml(content).replace(/\r?\n/g, "<br>");
     const trackingId = input.scheduledJobId || crypto.randomUUID();
 
     let outcome:
         | { success: true; messageId?: string; threadId?: string; deliveryProvider: "RESEND" | "SMTP" | "GMAIL_API" }
-        | { success: false; error: string };
+        | { success: false; error: string; code?: string; until?: Date | null };
     if (mailbox.provider === "RESEND") {
         const { sendViaResendMailbox } = await import("@/modules/email-campaigner/service/resendMailboxService");
         outcome = await sendViaResendMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, trackingId, purpose,
-            ...(scheduledKey ? { idempotencyKey: scheduledKey } : {}) });
+            ...(scheduledKey ? { idempotencyKey: scheduledKey } : {}),
+            ...(input.subsequence ? { beforeProvider: input.subsequence.beforeProvider } : {}) });
     } else if (mailbox.provider === "SMTP") {
         const { sendViaSmtpMailbox } = await import("@/modules/email-campaigner/service/smtpConfigService");
         outcome = await sendViaSmtpMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, purpose });
     } else {
         outcome = await sendViaGmailMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, purpose });
     }
-    if (!outcome.success) throw new APIError("Failed to send reply", 502, outcome.error);
+    if (!outcome.success) {
+        if (input.subsequence && (outcome.code === "DAILY_LIMIT" || outcome.code === "THROTTLED")) {
+            throw new ReplyStepMailboxHoldError(outcome.code, outcome.until ?? null);
+        }
+        throw new APIError("Failed to send reply", 502, (input.subsequence && outcome.code) || outcome.error);
+    }
 
     // An Email row is what the reply-sync paths match the lead's next answer against
     // (IMAP by providerId, Gmail by threadId, Resend by trackingId), so persist one.
@@ -424,8 +448,23 @@ export async function sendReply(input: { teamId: string; userId: string; message
     return message;
 }
 
-export async function scheduleInboxReply(input: { teamId: string; userId: string; messageId: string; content: string; sendAt: Date }) {
+export async function scheduleInboxReply(input: { teamId: string; userId: string; messageId: string; content: string; sendAt: Date; delayHours?: 1 | 24 }) {
+    if (input.delayHours !== undefined) {
+        const { resolveReplyFlowSettings } = await import("@/lib/replyFlowSettings");
+        const team = await prisma.team.findUnique({ where: { id: input.teamId }, select: { sendSafety: true } });
+        const settings = resolveReplyFlowSettings(team?.sendSafety);
+        if (!settings.scheduledReplies || !settings.delayChoices.includes(input.delayHours)) {
+            throw new APIError("This reply timing is disabled in Settings.", 409, "SCHEDULE_DISABLED");
+        }
+    }
     const reply = await findTeamReply(input.teamId, input.messageId);
+    if (input.delayHours !== undefined) {
+        const { readReplyPlan } = await import("./replySubsequenceStore");
+        const plan = await readReplyPlan({ teamId: input.teamId, leadId: reply.leadId });
+        if (plan?.status === "active") {
+            throw new APIError("Schedule this follow-up from the active plan.", 409, "FOLLOW_UP_PLAN_ACTIVE");
+        }
+    }
     const mailboxId = reply.emailEvent?.email?.mailboxId;
     const mailbox = mailboxId ? await prisma.connectedMailbox.findFirst({ where: {
         id: mailboxId, teamId: input.teamId, status: "CONNECTED", provider: "RESEND",
@@ -438,6 +477,7 @@ export async function scheduleInboxReply(input: { teamId: string; userId: string
     const approvedReply = await encryptCredential(JSON.stringify({ content: input.content, recipient: reply.lead.email.trim().toLowerCase() }));
     const job = await JobQueue.enqueue("scheduled_inbox_reply", {
         teamId: input.teamId, userId: input.userId, messageId: input.messageId, approvedReply,
+        ...(input.delayHours === undefined ? {} : { delayHours: input.delayHours }),
     }, {
         teamId: input.teamId, processAt: input.sendAt, expiresAt: new Date(input.sendAt.getTime() + 12 * 3_600_000),
         idempotencyKey: `scheduled_inbox_reply:${input.teamId}:${input.messageId}`,
@@ -470,10 +510,14 @@ export async function cancelScheduledInboxReply(teamId: string, messageId: strin
 
 // Stops the lead's sequences for every outcome, not only interested/meeting_booked: a
 // not_interested or wrong_person lead must not keep getting follow-ups either.
-export async function markReplyOutcome(teamId: string, messageId: string, outcome: ReplyOutcome) {
+export async function markReplyOutcome(teamId: string, messageId: string, outcome: ReplyOutcome, actorId?: string) {
     const reply = await findTeamReply(teamId, messageId);
     const leadId = reply.leadId;
 
+    if (actorId && outcome !== "interested") {
+        const { onLeadHumanAction } = await import("./replySubsequenceService");
+        await onLeadHumanAction(teamId, leadId, actorId, "manual_outcome");
+    }
     await prisma.lead.update({ where: { id: leadId }, data: { replyOutcome: outcome } });
 
     const transitions = await import("@/lib/crm/leadStageTransitions");
@@ -498,6 +542,6 @@ export async function markReplyDoNotContact(teamId: string, messageId: string, u
     const { recordSuppression } = await import("@/modules/email-campaigner/service/googleMailboxService");
     await recordSuppression({ teamId, email, reason: "UNSUBSCRIBE", source: "INBOX", leadId: reply.leadId, createdBy: userId });
 
-    const result = await markReplyOutcome(teamId, messageId, "not_interested");
+    const result = await markReplyOutcome(teamId, messageId, "not_interested", userId);
     return { ...result, suppressed: true };
 }

@@ -33,6 +33,7 @@ vi.mock("@/lib/crm/leadStageTransitions", () => ({
 vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
     leadScoringService: { scoreAndPersist: mockScoreAndPersist },
 }));
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ pauseReplySubsequence: vi.fn().mockResolvedValue(undefined), onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/modules/inbox/inboundReplyNotifier", () => ({ onInboundReply: vi.fn() }));
 vi.mock("resend", () => ({
     Resend: vi.fn(function Resend() {

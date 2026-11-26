@@ -146,6 +146,15 @@ describe("runRetentionSweep", () => {
             ]);
         });
 
+        it("keeps active and retired reply plan rows regardless of age", async () => {
+            mockPrisma.job = fakeTable([
+                { id: "plan-active", type: "reply_subsequence_plan", status: "reply_subsequence_state", completedAt: daysAgo(120) },
+                { id: "plan-retired", type: "reply_subsequence_plan", status: "reply_subsequence_retired", completedAt: daysAgo(120) },
+            ]);
+            await runRetentionSweep(NOW);
+            expect(mockPrisma.job.ids()).toEqual(["plan-active", "plan-retired"]);
+        });
+
         it("deletes only RELAYED OutboxEvents; PENDING, PROCESSING and FAILED survive", async () => {
             await runRetentionSweep(NOW);
 
