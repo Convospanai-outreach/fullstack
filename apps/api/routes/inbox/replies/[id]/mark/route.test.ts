@@ -35,7 +35,7 @@ describe("POST /inbox/replies/:id/mark", () => {
         const response = await post({ outcome: "interested" });
 
         expect(response.status).toBe(200);
-        expect(markReplyOutcome).toHaveBeenCalledWith("team-a", "msg-1", "interested");
+        expect(markReplyOutcome).toHaveBeenCalledWith("team-a", "msg-1", "interested", "user-1");
         expect(markFirstPositiveReply).toHaveBeenCalledWith("team-a", "user-1", "interested");
     });
 });

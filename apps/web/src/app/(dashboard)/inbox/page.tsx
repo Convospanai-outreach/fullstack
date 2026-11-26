@@ -16,12 +16,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import ApprovalsPage from "../approvals/page";
 import { HeldEmails, type HeldEmail } from "@/components/inbox/HeldEmails";
+import { FollowUpPlan, ReplyOutbox } from "@/components/inbox/FollowUpPlan";
 
 interface InboxReply {
     id: string;
     leadId: string;
     leadName: string | null;
     canScheduleReply?: boolean;
+    followUpNeedsDecision?: boolean;
     company: string | null;
     email: string | null;
     outcome: string | null;
@@ -66,7 +68,8 @@ interface ThreadResponse {
     messages: { id: string; direction: string; sender: string | null; text: string; createdAt: string }[];
 }
 
-type Tab = "replies" | "approvals" | "held";
+type Tab = "replies" | "approvals" | "held" | "outbox";
+type ReplySettings = { scheduledReplies: boolean; delayChoices: number[]; followUpPlans: boolean };
 
 const PAGE_SIZE = 20;
 
@@ -135,7 +138,7 @@ function AllClear() {
     );
 }
 
-function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => void }) {
+function ThreadPane({ reply, onChanged, replySettings }: { reply: InboxReply; onChanged: () => void; replySettings: ReplySettings | undefined }) {
     const { data: thread, error, mutate } = useSWR<ThreadResponse>(getBrowserApiUrl(`/inbox/thread/${reply.leadId}`), fetcher);
     const scheduledPath = `/inbox/replies/${reply.id}/reply`;
     const { data: scheduledState, mutate: refreshSchedule } = useSWR<{ scheduled: { status: string; sendAt: string } | null }>(
@@ -155,7 +158,9 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
     }, [mutate, scheduled?.status]);
     const [draft, setDraft] = useState("");
     const [requestedDelay, setScheduleInHours] = useState(0);
-    const scheduleInHours = reply.canScheduleReply ? requestedDelay : 0;
+    const canScheduleReply = reply.canScheduleReply && (replySettings?.scheduledReplies ?? true);
+    const allowedDelays = replySettings?.delayChoices ?? [1, 24];
+    const scheduleInHours = canScheduleReply && allowedDelays.includes(requestedDelay) ? requestedDelay : 0;
     const [sending, setSending] = useState(false);
     const [marking, setMarking] = useState<string | null>(null);
     const [openedAt] = useState(() => Date.now());
@@ -318,11 +323,10 @@ function ThreadPane({ reply, onChanged }: { reply: InboxReply; onChanged: () => 
                             </div>
                         )}
                         <div className="flex flex-wrap justify-end gap-2">
-                            {reply.canScheduleReply && <select aria-label="Reply timing" value={scheduleInHours} disabled={queued || dispatching || sending} onChange={(event) => setScheduleInHours(Number(event.target.value))}
+                            {canScheduleReply && <select aria-label="Reply timing" value={scheduleInHours} disabled={queued || dispatching || sending} onChange={(event) => setScheduleInHours(Number(event.target.value))}
                                 className="rounded border border-border bg-background px-2 text-sm">
                                 <option value={0}>Send now</option>
-                                <option value={1}>In 1 hour (Resend)</option>
-                                <option value={24}>In 24 hours (Resend)</option>
+                                {allowedDelays.map(delay => <option key={delay} value={delay}>In {delay} {delay === 1 ? "hour" : "hours"} (Resend)</option>)}
                             </select>}
                             <Button onClick={sendReply} disabled={sending || !draft.trim() || queued || dispatching}>
                                 <Send className="w-4 h-4 mr-2" />
@@ -367,7 +371,7 @@ export default function InboxPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tabParam = searchParams?.get("tab");
-    const tab: Tab = tabParam === "approvals" ? "approvals" : tabParam === "held" ? "held" : "replies";
+    const tab: Tab = tabParam === "approvals" || tabParam === "held" || tabParam === "outbox" ? tabParam : "replies";
     const replyParam = searchParams?.get("reply") ?? null;
     const setTab = (next: Tab) => router.replace(next === "replies" ? "/inbox" : `/inbox?tab=${next}`);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -375,6 +379,7 @@ export default function InboxPage() {
     const [olderReplies, setOlderReplies] = useState<InboxReply[]>([]);
     const [loadingMore, setLoadingMore] = useState(false);
     const { data, error, mutate } = useSWR<InboxResponse>(getBrowserApiUrl(`/inbox?page=1&limit=${PAGE_SIZE}`), fetcher);
+    const { data: replyFlow } = useSWR<{ settings: ReplySettings }>(getBrowserApiUrl("/settings/replies"), fetcher);
     const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher);
     const { data: held, error: heldError, mutate: refreshHeld } = useSWR<{ items: HeldEmail[]; total?: number }>(getBrowserApiUrl("/inbox/held-emails"), fetcher);
     const heldAction = (action: "approve" | "retry") => async (runId: string) => {
@@ -447,10 +452,15 @@ export default function InboxPage() {
                 <TabsList>
                     <TabsTrigger value="replies">Replies ({counts?.unreadReplies ?? 0})</TabsTrigger>
                     <TabsTrigger value="approvals">Approvals ({approvals?.requests?.length ?? 0})</TabsTrigger>
+                    <TabsTrigger value="outbox">Outbox</TabsTrigger>
                     <TabsTrigger value="held">Held emails{held ? ` (${held.total ?? held.items.length})` : ""}</TabsTrigger>
                 </TabsList>
             </Tabs>
 
+            {replyFlow?.settings.followUpPlans === false && (
+                <p role="status" className="rounded border border-border bg-muted p-3 text-sm">Follow-up plans are off in <Link href="/settings/replies" className="text-primary underline">Replies &amp; Follow-ups</Link>.</p>
+            )}
+            {tab === "outbox" && <ReplyOutbox />}
             {tab === "approvals" && <ApprovalsPage />}
 
             {tab === "held" && heldError && (
@@ -491,6 +501,7 @@ export default function InboxPage() {
                                                         {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
                                                     </span>
                                                 </div>
+                                                {reply.followUpNeedsDecision && <Badge variant="outline">Needs your decision</Badge>}
                                                 {(SOCIAL_LABEL[reply.platform] || reply.company) && (
                                                     <p className="truncate text-xs text-muted-foreground">
                                                         {[SOCIAL_LABEL[reply.platform], reply.company].filter(Boolean).join(" · ")}
@@ -514,7 +525,10 @@ export default function InboxPage() {
                         </GlassCard>
 
                         {selected ? (
-                            <ThreadPane key={selected.id} reply={selected} onChanged={refresh} />
+                            <div key={selected.id} className="space-y-4">
+                                {selected.platform === "EMAIL" && <FollowUpPlan replyId={selected.id} enabled={replyFlow?.settings.followUpPlans === true} />}
+                                <ThreadPane reply={selected} onChanged={refresh} replySettings={replyFlow?.settings} />
+                            </div>
                         ) : (
                             <GlassCard className="flex min-h-[520px] items-center justify-center p-8 text-sm text-muted-foreground">
                                 Select a reply to read the conversation and respond.

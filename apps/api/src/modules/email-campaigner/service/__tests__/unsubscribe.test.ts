@@ -24,6 +24,8 @@ const { tx, prisma } = vi.hoisted(() => {
     return { prisma, tx };
 });
 vi.mock("@/lib/db", () => ({ prisma }));
+const { onLeadHumanAction } = vi.hoisted(() => ({ onLeadHumanAction: vi.fn() }));
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction }));
 // The real limiter is Redis-backed in CI and its counters outlive a test run, so use a local counter with the same 10-per-window rule.
 const hits = new Map<string, number>();
 vi.mock("@/lib/rateLimit", () => ({
@@ -51,10 +53,17 @@ describe("one-click unsubscribe", () => {
         prisma.email.findUnique.mockResolvedValue(email);
     });
 
+    it("still answers 200 and keeps the suppression when cancelling the follow-up plan fails", async () => {
+        onLeadHumanAction.mockRejectedValueOnce(new Error("plan store unavailable"));
+        expect((await post()).status).toBe(200);
+        expect(tx.suppressionEntry.upsert).toHaveBeenCalled();
+    });
+
     it("allows anonymous POST and records suppression, sequence exit and scheduled-reply cancellation together", async () => {
         expect(isPublicRoutePath("/email/unsubscribe/[trackingId]")).toBe(true);
         expect((await post()).status).toBe(200);
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+        expect(onLeadHumanAction).toHaveBeenCalledWith("team", "lead", null, "unsubscribe");
         expect(tx.suppressionEntry.upsert).toHaveBeenCalledWith(expect.objectContaining({
             where: { teamId_email: { teamId: "team", email: "recipient@example.test" } },
             create: expect.objectContaining({ reason: "UNSUBSCRIBE" }),

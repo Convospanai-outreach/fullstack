@@ -11,6 +11,7 @@ const { mockPrisma, mockGetCurrentContext, mockAuthorizeRole, mockRecordLeadData
     mockGetInstagramSourceForLead: vi.fn(),
 }));
 
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/permissions", () => ({

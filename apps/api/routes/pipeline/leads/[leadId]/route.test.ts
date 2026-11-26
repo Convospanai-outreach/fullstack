@@ -8,6 +8,7 @@ const { mockMoveLead, mockGetCurrentContext, MockPipelineRequestError } = vi.hoi
     },
 }));
 
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/modules/analytics/service/PipelineService", () => ({
     PIPELINE_STAGES: ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"],

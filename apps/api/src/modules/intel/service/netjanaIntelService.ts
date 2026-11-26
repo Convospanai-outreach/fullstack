@@ -489,6 +489,10 @@ export async function applyNetjanaEnrichmentToLead(
     const currentNetjana = toRecord(currentEnrichedData.netjana);
     const existingIntentScore = typeof lead.intentScore === "number" ? lead.intentScore : 0;
     const isHotSignal = shouldQueueNetjanaFollowup(signal);
+    if (isHotSignal && lead.teamId && lead.pipelineState !== "HOT") {
+        const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+        await onLeadHumanAction(lead.teamId, lead.id, null, "buyer_signal");
+    }
 
     await prisma.lead.update({
         where: { id: lead.id },

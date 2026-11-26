@@ -31,6 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             notes: sanitizeText(body.notes, 4000)
         });
 
+        const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+        await onLeadHumanAction(teamScope.teamId, id, auth.user.id, "manual_reply");
         return NextResponse.json(result);
     } catch (error) {
         const message = error instanceof Error ? error.message : "Internal error";

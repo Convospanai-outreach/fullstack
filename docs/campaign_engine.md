@@ -47,6 +47,10 @@ Sequences are represented as a **Directed Acyclic Graph (DAG)**.
 
 ---
 
+## Reply follow-up plans
+
+Enable **Follow-up plans** in **Settings → Replies & Follow-ups**, then opt in on a drip playbook’s campaign. Choose up to four steps. A person reviews the text, recipient and timing before each step is scheduled. In the Inbox, the **Follow-up plan** panel shows the reason for any hold and provides controls to edit, reschedule, skip, pause, cancel or take over. The **Outbox** shows upcoming and recent sends. New replies, uncertain classifications and changed threads require a fresh review. The Inbox shows the latest plan for a lead. Starting a new run replaces the Inbox plan, while previous run history remains in AuditLog.
+
 ## Workflow Node Types
 
 Each node in the DAG represents an action or logic condition.

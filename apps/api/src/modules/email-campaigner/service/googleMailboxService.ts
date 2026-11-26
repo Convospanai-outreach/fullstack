@@ -643,7 +643,7 @@ export async function assertMailboxCanSend(teamId: string, mailboxId: string, pu
         where: { id: mailboxId, teamId }, include: { team: { select: { sendSafety: true } } },
     });
     if (!mailbox || mailbox.status !== "CONNECTED") {
-        return { ok: false, reason: "Mailbox is not connected." };
+        return { ok: false as const, code: "MAILBOX_UNAVAILABLE" as const, reason: "Mailbox is not connected." };
     }
     const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
     if (hold) return { ok: false, reason: hold };
@@ -657,17 +657,17 @@ export async function assertMailboxCanSend(teamId: string, mailboxId: string, pu
         : mailbox.dailyLimit;
 
     if (sentToday >= warmupLimit) {
-        return { ok: false, reason: `Daily send limit reached for ${mailbox.email}.` };
+        return { ok: false as const, code: "DAILY_LIMIT" as const, until: null, reason: `Daily send limit reached for ${mailbox.email}.` };
     }
 
     if (mailbox.lastSentAt) {
         const nextAllowedAt = new Date(mailbox.lastSentAt.getTime() + mailbox.minDelaySeconds * 1000);
         if (nextAllowedAt > new Date()) {
-            return { ok: false, reason: `Mailbox throttle active until ${nextAllowedAt.toISOString()}.` };
+            return { ok: false as const, code: "THROTTLED" as const, until: nextAllowedAt, reason: `Mailbox throttle active until ${nextAllowedAt.toISOString()}.` };
         }
     }
 
-    return { ok: true, mailbox };
+    return { ok: true as const, mailbox };
 }
 
 export async function markMailboxSend(teamId: string, mailboxId: string) {
@@ -697,14 +697,14 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string, purp
         where: { id: mailboxId, teamId }, include: { team: { select: { sendSafety: true } } },
     });
     if (!mailbox || mailbox.status !== "CONNECTED") {
-        return { ok: false as const, reason: "Mailbox is not connected." };
+        return { ok: false as const, code: "MAILBOX_UNAVAILABLE" as const, reason: "Mailbox is not connected." };
     }
     const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
     if (hold) return { ok: false as const, reason: hold };
     if (mailbox.lastSentAt) {
         const nextAllowedAt = new Date(mailbox.lastSentAt.getTime() + mailbox.minDelaySeconds * 1000);
         if (nextAllowedAt > new Date()) {
-            return { ok: false as const, reason: `Mailbox throttle active until ${nextAllowedAt.toISOString()}.` };
+            return { ok: false as const, code: "THROTTLED" as const, until: nextAllowedAt, reason: `Mailbox throttle active until ${nextAllowedAt.toISOString()}.` };
         }
     }
 
@@ -748,9 +748,9 @@ export async function reserveMailboxSend(teamId: string, mailboxId: string, purp
     if (!current.ok && current.reason) return { ok: false as const, reason: current.reason };
     const latest = current.mailbox;
     if (growthLimited && latest?.sentTodayDate && latest.sentTodayDate >= today && latest.sentToday >= warmupLimit) {
-        return { ok: false as const, reason: "GROWTH_CAP" };
+        return { ok: false as const, code: "DAILY_LIMIT" as const, until: null, reason: "GROWTH_CAP" };
     }
-    return { ok: false as const, reason: `Daily send limit reached for ${mailbox.email}.` };
+    return { ok: false as const, code: "DAILY_LIMIT" as const, until: null, reason: `Daily send limit reached for ${mailbox.email}.` };
 }
 
 export async function releaseMailboxSend(teamId: string, mailboxId: string) {

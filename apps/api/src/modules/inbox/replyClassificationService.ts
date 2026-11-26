@@ -68,7 +68,7 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
             lead: { select: { email: true } },
             emailEvent: { select: {
                 teamId: true,
-                email: { select: { subject: true, campaign: { select: { teamId: true, ownerId: true, aiConfig: true } } } },
+                email: { select: { subject: true, mailboxId: true, campaignId: true, campaign: { select: { teamId: true, ownerId: true, aiConfig: true } } } },
             } },
         },
     });
@@ -80,7 +80,15 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
     const playbook = message.emailEvent?.teamId === teamId && campaign?.teamId === teamId && typeof kind === "string"
         ? getDripPlaybook(kind)
         : undefined;
-    const followUp = async (classification: string, confidence: number) => {
+    const followUp = async (classification: string, confidence: number, draftResponse?: string | null) => {
+        const email = message.emailEvent?.email;
+        if (playbook && campaign && email?.mailboxId) {
+            const { seedReplySubsequence, reactToReplyClassification } = await import("./replySubsequenceService");
+            await reactToReplyClassification({ teamId, leadId: message.leadId }, message.id, classification, confidence);
+            if (await seedReplySubsequence({ teamId, leadId: message.leadId, messageId: message.id, receivedAt: message.createdAt,
+                campaignId: email.campaignId, mailboxId: email.mailboxId, ownerId: campaign.ownerId,
+                aiConfig: campaign.aiConfig, classification, confidence, ...(draftResponse ? { draftResponse } : {}) })) return;
+        }
         if (!playbook || config?.dripPlaybook?.replyFollowUp !== true || !campaign?.ownerId) return;
         await scheduleReplyFollowUp({ teamId, leadId: message.leadId, messageId: message.id, ownerId: campaign.ownerId,
             receivedAt: message.createdAt, classification, confidence });
@@ -88,13 +96,13 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
 
     const existing = await prisma.replyTracker.findFirst({
         where: { emailId: message.id, lead: { teamId } },
-        select: { id: true, aiClassification: true, aiConfidence: true },
+        select: { id: true, aiClassification: true, aiConfidence: true, replyDraft: true },
     });
     if (existing) {
         // A retry after the reply was stored but the promotion or opt-out failed: both are idempotent, so try again.
         await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: existing.aiClassification, confidence: existing.aiConfidence, channel: "EMAIL" });
         await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: existing.aiClassification, confidence: existing.aiConfidence });
-        await followUp(existing.aiClassification, existing.aiConfidence);
+        await followUp(existing.aiClassification, existing.aiConfidence, existing.replyDraft);
         return { skipped: "already_classified" as const };
     }
 
@@ -110,7 +118,7 @@ export async function classifyInboundReply(teamId: string, messageId: string) {
     );
     await enforceOptOutOnJudgedReply({ leadId: message.leadId, classification: result.classification, confidence: result.confidence, channel: "EMAIL" });
     await promoteLeadOnJudgedReply({ leadId: message.leadId, teamId, classification: result.classification, confidence: result.confidence });
-    await followUp(result.classification, result.confidence);
+    await followUp(result.classification, result.confidence, result.draftResponse);
     return { classification: result.classification };
 }
 
@@ -137,9 +145,13 @@ export async function classifyInboundReplyOrFlag(teamId: string, messageId: stri
 async function flagUnreadableReply(teamId: string, messageId: string) {
     const message = await prisma.message.findFirst({
         where: { id: messageId, direction: "INBOUND", lead: { teamId } },
-        select: { id: true, leadId: true, content: true, lead: { select: { email: true } }, emailEvent: { select: { email: { select: { subject: true } } } } },
+        select: { id: true, leadId: true, content: true, platform: true, lead: { select: { email: true } }, emailEvent: { select: { email: { select: { subject: true } } } } },
     });
     if (!message) return;
+    if (message.platform === "EMAIL") {
+        const { reactToReplyClassification } = await import("./replySubsequenceService");
+        await reactToReplyClassification({ teamId, leadId: message.leadId }, message.id, "UNSURE", 0);
+    }
     const existing = await prisma.replyTracker.findFirst({ where: { emailId: message.id, lead: { teamId } }, select: { id: true } });
     if (existing) return;
     await prisma.replyTracker.create({

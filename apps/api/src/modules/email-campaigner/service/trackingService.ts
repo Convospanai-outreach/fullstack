@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { captureException } from "@/lib/sentry";
 
 const TRACKING_TOKEN_PATTERN = /^[A-Za-z0-9._~-]{8,200}$/;
 const EVENT_BUCKET_MS = 60 * 60 * 1000;
@@ -313,6 +314,7 @@ export async function recordEmailUnsubscribe(token: string) {
 
     const { SequenceService } = await import("./sequenceService");
     const now = new Date();
+    let unsubscribedLeadIds: string[] = [];
     await prisma.$transaction(async (tx) => {
         if (email) await tx.email.updateMany({
             where: { id: email.id, unsubscribedAt: null },
@@ -331,6 +333,7 @@ export async function recordEmailUnsubscribe(token: string) {
             where: { id: { in: scopedLeads }, teamId, status: { not: "OPT_OUT" } },
             data: { status: "OPT_OUT" },
         });
+        unsubscribedLeadIds = scopedLeads;
         for (const id of scopedLeads) await SequenceService.stopEnrollmentsForLead(teamId, id, "EXIT_UNSUBSCRIBED", now, tx);
 
         const replies = await tx.message.findMany({
@@ -357,4 +360,10 @@ export async function recordEmailUnsubscribe(token: string) {
         };
         await tx.emailEvent.createMany({ data: [event], skipDuplicates: true });
     });
+    const { onLeadHumanAction } = await import("@/modules/inbox/replySubsequenceService");
+    // Best-effort: the opt-out is already recorded and the follow-up worker re-checks suppression before every step,
+    // so a failure to cancel the plan is reported instead of failing this request.
+    for (const leadId of unsubscribedLeadIds) {
+        try { await onLeadHumanAction(teamId, leadId, null, "unsubscribe"); } catch (error) { captureException(error); }
+    }
 }

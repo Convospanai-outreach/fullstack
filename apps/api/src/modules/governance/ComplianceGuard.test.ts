@@ -9,6 +9,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     },
 }));
 const { classifyReply } = vi.hoisted(() => ({ classifyReply: vi.fn() }));
+vi.mock("@/modules/inbox/replySubsequenceService", () => ({ onLeadHumanAction: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/ai/jev", () => ({ classifyReply }));
 vi.mock("@/lib/ai/SovereignFirewall", () => ({

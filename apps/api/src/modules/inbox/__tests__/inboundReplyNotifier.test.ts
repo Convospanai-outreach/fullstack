@@ -7,11 +7,17 @@ const mockDb: any = vi.hoisted(() => ({
     emailEvent: { findUnique: vi.fn() },
 }));
 
+vi.mock("../replySubsequenceService", () => ({ reactToInboundReply: vi.fn() }));
+vi.mock("@/lib/queue", () => ({ JobQueue: { enqueue: vi.fn().mockResolvedValue(undefined) } }));
+vi.mock("@/lib/sentry", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 vi.mock("@/lib/notifications", () => ({ NotificationDispatcher: { send: vi.fn() } }));
 vi.mock("../slackAlert", async (importOriginal) => ({ ...(await importOriginal<object>()), sendSlackAlerts: vi.fn() }));
 
-import { onInboundReply, onMeetingCreated } from "../inboundReplyNotifier";
+import { captureException } from "@/lib/sentry";
+import { JobQueue } from "@/lib/queue";
+import { reactToInboundReply } from "../replySubsequenceService";
+import { onInboundReply, onMeetingCreated, updateFollowUpForInbound } from "../inboundReplyNotifier";
 import { NotificationDispatcher } from "@/lib/notifications";
 import { sendSlackAlerts } from "../slackAlert";
 
@@ -25,6 +31,15 @@ describe("onInboundReply", () => {
         mockDb.message.count.mockResolvedValue(0);
         mockDb.teamMember.findMany.mockResolvedValue([{ userId: "user-1" }, { userId: "user-2" }]);
         mockDb.emailEvent.findUnique.mockResolvedValue({ mailbox: { assignedUserId: null } });
+    });
+
+    it("reports a failed pause and queues one deterministic cross-channel retry", async () => {
+        const error = new Error("Plan update failed");
+        vi.mocked(reactToInboundReply).mockRejectedValueOnce(error);
+        await updateFollowUpForInbound({ id: "whats-a", leadId: "lead-1" }, "whatsapp");
+        expect(captureException).toHaveBeenCalledWith(error);
+        expect(JobQueue.enqueue).toHaveBeenCalledWith("reply_subsequence_inbound", { messageId: "whats-a", source: "whatsapp" },
+            { idempotencyKey: "reply_subsequence_inbound:whatsapp:whats-a" });
     });
 
     it("alerts the whole team when the receiving mailbox has no assigned rep, keeping lead data out of the email body", async () => {

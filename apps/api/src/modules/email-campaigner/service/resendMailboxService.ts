@@ -12,7 +12,7 @@ import type { SendPurpose } from "@/modules/overseer/mailboxReputationHold";
 
 export type ResendSendOutcome =
     | { success: true; deliveryProvider: "RESEND"; messageId: string; mailboxId: string }
-    | { success: false; error: string; fallbackAllowed: boolean };
+    | { success: false; error: string; fallbackAllowed: boolean; code?: string; until?: Date | null };
 
 // Resend's own retry guidance (https://resend.com/docs/knowledge-base/what-if-my-email-fails-to-send):
 // 429 (rate_limit_exceeded) and 500 (internal_server_error) are transient - retry with
@@ -50,6 +50,7 @@ export async function sendViaResendMailbox(input: {
     // real email to the recipient - Resend dedupes on this for 24h. See
     // https://resend.com/docs/api-reference/emails/send-email#idempotent-requests
     idempotencyKey?: string;
+    beforeProvider?: () => Promise<void>;
 }): Promise<ResendSendOutcome> {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
@@ -63,8 +64,18 @@ export async function sendViaResendMailbox(input: {
     // call — same race-avoidance reason as sendViaGmailMailbox (see OPEN-105). Released
     // below on any failure path.
     const reservation = await reserveMailboxSend(input.teamId, mailbox.id, input.purpose);
-    if (!reservation.ok) return { success: false, error: reservation.reason, fallbackAllowed: false };
+    if (!reservation.ok) return { success: false, error: reservation.reason, fallbackAllowed: false,
+        ...("code" in reservation && reservation.code ? { code: reservation.code } : {}),
+        ...("until" in reservation ? { until: reservation.until } : {}) };
 
+    if (input.beforeProvider) {
+        try {
+            await input.beforeProvider();
+        } catch (error) {
+            await releaseMailboxSend(input.teamId, mailbox.id);
+            throw error;
+        }
+    }
     const fromName = mailbox.displayName || mailbox.email;
     const inboundDomain = (mailbox.metadata as any)?.inboundDomain as string | undefined;
     // Reply capture uses the same reply+<trackingId>@<inboundDomain> convention as
