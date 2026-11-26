@@ -261,7 +261,11 @@ export class WorkerManager {
             });
         }
 
-        if (now - this.lastWarmupSeedTick >= this.warmupSeedInterval) {
+        // The seed exchange sends from customer mailboxes to platform seed inboxes and auto-replies from them.
+        // Synthetic engagement like this can get a domain permanently listed on Validity's Heatwave blocklist,
+        // so it only runs when an operator sets WARMUP_SEED_EXCHANGE=on. Inbox placement checks
+        // (inboxPlacementCheck.ts) use their own PLACEMENT inboxes and do not need it.
+        if (process.env["WARMUP_SEED_EXCHANGE"] === "on" && now - this.lastWarmupSeedTick >= this.warmupSeedInterval) {
             this.lastWarmupSeedTick = now;
             await this.runSweep("WarmupSeed", async () => {
                 console.log("[Worker] Sending warmup seed traffic...");

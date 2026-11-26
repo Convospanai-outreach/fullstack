@@ -265,6 +265,23 @@ describe("WorkerManager maintenance tick", () => {
         await loop;
     });
 
+    it("does not run the seed warmup exchange unless WARMUP_SEED_EXCHANGE is on", async () => {
+        const { sendWarmupSeedTraffic } = await import("@/modules/email-campaigner/service/warmupSeedService");
+        const previous = process.env["WARMUP_SEED_EXCHANGE"];
+        try {
+            delete process.env["WARMUP_SEED_EXCHANGE"];
+            await (new WorkerManager() as any).handleMaintenanceTick();
+            expect(sendWarmupSeedTraffic).not.toHaveBeenCalled();
+
+            process.env["WARMUP_SEED_EXCHANGE"] = "on";
+            await (new WorkerManager() as any).handleMaintenanceTick();
+            expect(sendWarmupSeedTraffic).toHaveBeenCalledTimes(1);
+        } finally {
+            if (previous === undefined) delete process.env["WARMUP_SEED_EXCHANGE"];
+            else process.env["WARMUP_SEED_EXCHANGE"] = previous;
+        }
+    });
+
     it("runs the retention sweep on the maintenance tick, at most once per day", async () => {
         const manager = new WorkerManager();
 
