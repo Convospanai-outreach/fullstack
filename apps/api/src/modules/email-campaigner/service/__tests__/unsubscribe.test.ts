@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../../../../routes/email/unsubscribe/[trackingId]/route";
 import { isPublicRoutePath } from "@/lib/publicRoutes";
+import { clearAllRateLimits } from "@/lib/rateLimit";
 
 const { tx, prisma } = vi.hoisted(() => {
     const tx = {
@@ -36,7 +37,9 @@ function post(id = token) {
 }
 
 describe("one-click unsubscribe", () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+        // The limiter can be Redis-backed and outlive a test run, so start each test with empty counters.
+        await clearAllRateLimits();
         vi.clearAllMocks();
         prisma.email.findUnique.mockResolvedValue(email);
     });

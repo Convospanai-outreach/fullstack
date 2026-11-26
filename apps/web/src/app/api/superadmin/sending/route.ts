@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
 import { getSuperAdminActor } from "@/lib/superadmin/actor";
 import { clientIp } from "@/lib/clientIp";
 import { mailboxSendingHold } from "@/lib/email/mailboxReputationHold";
@@ -9,6 +8,7 @@ type Stats = { teamId: string; sent: number; bounced: number; complained: number
 
 export async function GET() {
     if (!await getSuperAdminActor()) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const { prisma } = await import("@/lib/db");
     const since = new Date(Date.now() - 7 * 86_400_000);
     const [teams, stats, incidents] = await Promise.all([
         prisma.team.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, sendSafety: true } }),
@@ -52,6 +52,7 @@ export async function PUT(request: Request) {
     if (!actor) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     const parsed = input.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "A team, hold state and reason are required" }, { status: 400 });
+    const { prisma } = await import("@/lib/db");
     const { teamId, held, reason } = parsed.data;
     const now = new Date();
     const result = await prisma.$transaction(async (tx) => {
