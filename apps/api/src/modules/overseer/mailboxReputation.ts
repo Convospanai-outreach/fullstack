@@ -51,11 +51,17 @@ export function reputationState(metadata: unknown) {
     return jsonObject(jsonObject(metadata)["reputation"]) as State;
 }
 
-export async function updateReputation(client: Client, mailbox: Pick<ConnectedMailbox, "id" | "metadata">, state: State) {
-    await client.connectedMailbox.update({
-        where: { id: mailbox.id },
-        data: { metadata: { ...jsonObject(mailbox.metadata), reputation: { ...reputationState(mailbox.metadata), ...state } } as Prisma.InputJsonObject },
-    });
+export async function updateReputation(client: Client, mailbox: Pick<ConnectedMailbox, "id" | "teamId">, state: State) {
+    const patch = JSON.stringify(state);
+    await client.$executeRaw`
+        UPDATE "ConnectedMailbox"
+        SET "metadata" = jsonb_set(
+                CASE WHEN jsonb_typeof("metadata") = 'object' THEN "metadata" ELSE '{}'::jsonb END,
+                '{reputation}',
+                CASE WHEN jsonb_typeof("metadata"->'reputation') = 'object'
+                    THEN "metadata"->'reputation' ELSE '{}'::jsonb END || ${patch}::jsonb, true),
+            "updatedAt" = now()
+        WHERE "id" = ${mailbox.id} AND "teamId" = ${mailbox.teamId}`;
 }
 
 export async function lockReputation(client: Client, teamId: string) {

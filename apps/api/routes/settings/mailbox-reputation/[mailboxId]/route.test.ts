@@ -21,15 +21,21 @@ describe("mailbox reputation settings access", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         context.mockResolvedValue({ userId: "rep", teamId: "team" });
-        get.mockResolvedValue({ mailbox: { id: "sender" } });
+        get.mockResolvedValue({ mailbox: { id: "sender" }, guardEnabled: true });
         act.mockResolvedValue({ mailbox: { id: "sender" } });
     });
 
     it("lets a member view reputation but denies corrective actions", async () => {
         permission.mockImplementation(async (_user, _team, role) => role === "viewer");
-        expect(await (await GET(request(), params)).json()).toEqual({ mailbox: { id: "sender" }, canEdit: false });
+        expect(await (await GET(request(), params)).json()).toEqual({ mailbox: { id: "sender" }, guardEnabled: true, canEdit: false });
         expect((await POST(request({ action: "resume" }), params)).status).toBe(403);
         expect(act).not.toHaveBeenCalled();
+    });
+
+    it("shows the disabled guard as read-only even to admins", async () => {
+        permission.mockResolvedValue(true);
+        get.mockResolvedValue({ mailbox: { id: "sender" }, guardEnabled: false });
+        expect(await (await GET(request(), params)).json()).toMatchObject({ guardEnabled: false, canEdit: false });
     });
 
     it("scopes an authorized change to the session team and actor", async () => {

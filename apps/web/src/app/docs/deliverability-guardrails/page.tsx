@@ -104,6 +104,21 @@ export default function DeliverabilityDocPage() {
                         </div>
                     </div>
 
+                    <section className="space-y-4">
+                        <h2 className="text-2xl font-bold">Mailbox Reputation Guard</h2>
+                        <p>
+                            The optional guard is off by default. Operators can set <code>MAILBOX_REPUTATION_GUARD=true</code> to enable automatic
+                            reputation checks, incident alerts and holds, campaign pauses, sender replacement, and activity-based warmup.
+                            The volume growth cap applies only during an open warning or critical incident.
+                            Replacement mailboxes need healthy reputation and a green inbox placement check before sending resumes.
+                        </p>
+                        <p>
+                            One-click unsubscribe, delivery feedback, manual team holds, and inbox placement checks remain active in both modes.
+                            Activity-based warmup uses real sends to advance and lowers the sending cap after 14 days idle.
+                            Seed inboxes are configured by operators, and seed exchange is off by default.
+                        </p>
+                    </section>
+
                     {/* Section 2 */}
                     <div className="space-y-4">
                         <h2 className="text-2xl font-bold text-[#1A1414]">2. RFC 8058 One-Click Unsubscribe Compliance</h2>

@@ -5,7 +5,8 @@ import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
 import { onInboundReply } from "@/modules/inbox/inboundReplyNotifier";
 import type { EmailAttachment } from "./emailAttachment";
 import { classifyRecipientProvider } from "./resendFeedback";
-import { mailboxReputationIncidentOpen, mailboxSendingHold, type SendPurpose } from "@/modules/overseer/mailboxReputationHold";
+import { mailboxReputationGuardEnabled, mailboxReputationIncidentOpen, mailboxSendingHold, type SendPurpose } from "@/modules/overseer/mailboxReputationHold";
+import { advanceActivityBasedWarmup, readWarmupState } from "./mailboxActivityWarmup";
 import { mailboxSendLimit } from "../../../../../../packages/db/mailboxQuota";
 
 const db = prisma;
@@ -530,7 +531,7 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
 }
 
 export async function listConnectedMailboxes(teamId: string) {
-    return prisma.connectedMailbox.findMany({
+    const mailboxes = await prisma.connectedMailbox.findMany({
         where: { teamId },
         select: {
             id: true,
@@ -559,6 +560,17 @@ export async function listConnectedMailboxes(teamId: string) {
         },
         orderBy: { createdAt: "desc" },
     });
+    if (!mailboxReputationGuardEnabled()) return mailboxes;
+    const supportsSeeds = (provider: string) => provider === "GOOGLE_WORKSPACE" || provider === "SMTP";
+    const hasSeedPool = process.env["WARMUP_SEED_EXCHANGE"] === "on" && mailboxes.some((mailbox) => supportsSeeds(mailbox.provider))
+        && !!await prisma.warmupSeedMailbox.findFirst({ where: { status: "ACTIVE" }, select: { id: true } });
+    return mailboxes.map((mailbox) => ({
+        ...mailbox,
+        warmupActivity: {
+            holdReason: readWarmupState(mailbox.metadata).holdReason ?? null,
+            realSendsOnly: !supportsSeeds(mailbox.provider) || !hasSeedPool,
+        },
+    }));
 }
 
 // Client-editable controls only - notably excludes teamId/id (ownership must
@@ -2059,8 +2071,9 @@ export async function handleGooglePubSubNotification(message: GooglePubSubMessag
     }
 }
 
-export async function advanceMailboxWarmup() {
-    const today = new Date();
+export async function advanceMailboxWarmup(now = new Date()) {
+    if (mailboxReputationGuardEnabled()) return advanceActivityBasedWarmup(now);
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
     return prisma.connectedMailbox.updateMany({
         where: {

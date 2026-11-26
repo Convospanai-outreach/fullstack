@@ -12,6 +12,7 @@ import { exportService } from "@/modules/data-export/service/exportService";
 import { crmService } from "@/modules/crm-integration/service/crmService";
 import { webhookService } from "@/modules/webhooks/service/webhookService";
 import { EventStore } from "@/modules/learning/EventStore";
+import { sendWarmupSeedReply } from "@/modules/email-campaigner/service/warmupSeedService";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -52,6 +53,8 @@ vi.mock("@/lib/workflowService", () => ({
         processNode: vi.fn(),
     },
 }));
+
+vi.mock("@/modules/email-campaigner/service/warmupSeedService", () => ({ sendWarmupSeedReply: vi.fn() }));
 
 vi.mock("@/modules/creator-funnel/checkoutHooks", () => ({ onOrderCaptured: vi.fn() }));
 
@@ -95,6 +98,20 @@ vi.mock("@/modules/learning/EventStore", () => ({
 describe("job-processor", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it("skips already queued seed replies when seed exchange is disabled", async () => {
+        vi.stubEnv("WARMUP_SEED_EXCHANGE", undefined);
+        try {
+            (prisma.job.findFirst as Mock).mockResolvedValueOnce({
+                id: "seed-reply", status: "running", version: 2, type: "warmup_seed_reply", payload: {},
+            });
+            await expect(worker.performJob({ jobId: "seed-reply", version: 2 }))
+                .resolves.toEqual({ skipped: true, reason: "seed_exchange_disabled" });
+            expect(sendWarmupSeedReply).not.toHaveBeenCalled();
+        } finally {
+            vi.unstubAllEnvs();
+        }
     });
 
     it("should dispatch INBOX_SYNC job to handleGmailHistorySync and complete successfully", async () => {

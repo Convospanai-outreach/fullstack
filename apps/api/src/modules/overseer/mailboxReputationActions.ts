@@ -4,6 +4,7 @@ import { APIError } from "@/lib/apiResponse";
 import { prisma } from "@/lib/db";
 import { captureException } from "@/lib/sentry";
 import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "@/modules/email-campaigner/service/domainAuthService";
+import { effectivePlacementVerdict, readPlacementState } from "@/modules/email-campaigner/service/inboxPlacementCheck";
 import { DOMAIN_NUDGE_TYPE, notifyOwners } from "./domainWatch";
 import {
     DAY_MS, REPUTATION_NUDGE, evaluateMailboxReputation, fixUrl, lockReputation, onMailboxReputationChanged, reputationState,
@@ -88,7 +89,12 @@ export async function listMailboxReputation(teamId: string) {
         where: { teamId }, orderBy: { email: "asc" },
         select: { id: true, email: true, status: true, provider: true, metadata: true, isWarmingUp: true, warmupDay: true, warmupTargetDays: true },
     });
-    return mailboxes.map(({ metadata, ...mailbox }) => ({ ...mailbox, reputation: reputationState(metadata) }));
+    const guardEnabled = mailboxReputationGuardEnabled();
+    return mailboxes.map(({ metadata, ...mailbox }) => ({
+        ...mailbox,
+        reputation: guardEnabled ? reputationState(metadata) : {},
+        ...(guardEnabled ? { placementLevel: effectivePlacementVerdict(readPlacementState(metadata)).level } : {}),
+    }));
 }
 
 export async function getMailboxReputation(teamId: string, mailboxId: string) {
@@ -102,7 +108,7 @@ export async function getMailboxReputation(teamId: string, mailboxId: string) {
         }),
     ]);
     const candidates = mailboxes.filter((item) => item.id !== mailboxId && item.status === "CONNECTED" && !item.reputation.sendingHold);
-    return { mailbox, history, campaigns, candidates };
+    return { mailbox, history, campaigns, candidates, guardEnabled: mailboxReputationGuardEnabled() };
 }
 
 export async function setDefaultSender(client: ReputationClient, teamId: string, mailboxId: string | null) {
@@ -166,6 +172,7 @@ type Action =
     | { action: "recheck" | "delay" | "resume" | "disconnect" };
 
 export async function actOnMailboxReputation(teamId: string, mailboxId: string, userId: string, action: Action, now = new Date()) {
+    if (!mailboxReputationGuardEnabled()) throw new APIError("The mailbox reputation guard is off.", 409, "REPUTATION_GUARD_DISABLED");
     const old = await mailboxFor(prisma, teamId, mailboxId);
     const replacement = action.action === "switch" ? await mailboxFor(prisma, teamId, action.replacementId) : null;
     if (replacement) await assertReplacement(old, replacement);
@@ -247,17 +254,15 @@ async function progressSwitch(mailbox: ConnectedMailbox, now: Date) {
         const current = reputationState(old.metadata);
         const plan = current.replacement;
         if (!plan || current.switchedAt || plan.id !== replacement.id || plan.checkedAt !== replacement.checkedAt || plan.readyAt !== replacement.readyAt) return null;
+        await tx.$queryRaw`SELECT "id" FROM "ConnectedMailbox" WHERE "id" = ${next.id} AND "teamId" = ${mailbox.teamId} FOR UPDATE`;
         const candidate = await mailboxFor(tx, mailbox.teamId, next.id);
         if (candidate.email !== next.email) return null;
         const latest = await tx.mailboxHealthSnapshot.findFirst({ where: { teamId: old.teamId, mailboxId: next.id }, orderBy: { checkedAt: "desc" }, select: { status: true, checkedAt: true } });
         const open = await tx.overseerNudge.findFirst({ where: { teamId: old.teamId, stage: next.id, nudgeType: REPUTATION_NUDGE, status: "OPEN" }, select: { id: true } });
         const checkedAt = now.toISOString();
         const update = { ...plan, dns, checkedAt };
-        let warming = candidate.isWarmingUp;
-        if (dnsOk(dns) && warming && candidate.warmupDay >= candidate.warmupTargetDays) {
-            await tx.connectedMailbox.update({ where: { id: candidate.id }, data: { isWarmingUp: false } });
-            warming = false;
-        }
+        const warmed = !candidate.isWarmingUp && candidate.warmupDay >= candidate.warmupTargetDays;
+        const placementReady = effectivePlacementVerdict(readPlacementState(candidate.metadata), now).level === "green";
         const newIncident = latest && latest.status !== "OK" && (!plan.awaitingFreshHealthAfter || latest.checkedAt > new Date(plan.awaitingFreshHealthAfter));
         if (newIncident) {
             const retry = { ...update, readyAt: undefined, awaitingFreshHealthAfter: latest.checkedAt.toISOString() };
@@ -267,16 +272,16 @@ async function progressSwitch(mailbox: ConnectedMailbox, now: Date) {
         }
         const hasFreshHealth = latest?.status === "OK" && latest.checkedAt >= new Date(now.getTime() - DAY_MS * 2) &&
             (!plan.awaitingFreshHealthAfter || latest.checkedAt > new Date(plan.awaitingFreshHealthAfter));
-        if (!dnsOk(dns) || warming || !hasFreshHealth || open || mailboxSendingHold(candidate.metadata)) {
+        if (!dnsOk(dns) || !warmed || !hasFreshHealth || !placementReady || open || mailboxSendingHold(candidate.metadata)) {
             const stage = dnsOk(dns) ? "WARMING" : "SWITCH_PENDING";
             await updateReputation(tx, old, { state: stage, replacement: { ...update, readyAt: undefined } });
-            if (current.state !== stage) await writeReputationAudit(tx, old.teamId, old.id, stage, "Waiting for replacement DNS and warmup requirements");
+            if (current.state !== stage) await writeReputationAudit(tx, old.teamId, old.id, stage, "Waiting for replacement DNS, warmup, reputation and placement checks");
             return null;
         }
         if (!plan.readyAt) {
             const readyAt = new Date(now.getTime() + DAY_MS).toISOString();
             await updateReputation(tx, old, { state: "SWITCH_SCHEDULED", replacement: { ...update, readyAt } });
-            await writeReputationAudit(tx, old.teamId, old.id, "SWITCH_SCHEDULED", "Replacement passed DNS, warmup and reputation checks");
+            await writeReputationAudit(tx, old.teamId, old.id, "SWITCH_SCHEDULED", "Replacement passed DNS, warmup, reputation and placement checks");
             return { kind: "scheduled" as const, when: readyAt };
         }
         if (!due) {
