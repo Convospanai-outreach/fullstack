@@ -7,9 +7,11 @@ export function serializeRequestForLog(request: {
     ip?: string;
     socket?: { remotePort?: number };
 }) {
+    const path = request.url?.split("?")[0];
+    const url = path?.replace(/^(\/(?:api\/)?email\/unsubscribe\/)[^/]+/, "$1[redacted]");
     return {
         method: request.method,
-        url: request.url?.split("?")[0],
+        url,
         host: request.host,
         remoteAddress: request.ip,
         remotePort: request.socket?.remotePort,

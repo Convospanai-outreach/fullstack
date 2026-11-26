@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { recordEmailUnsubscribe } from "@/modules/email-campaigner/service/trackingService";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
     // RFC 8058 Compliance: GET renders static HTML confirmation UI, 0 DB mutations
@@ -25,31 +25,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
     return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
+    const { trackingId } = await params;
     try {
-        const { trackingId } = await params;
-        
-        if (!/^[a-zA-Z0-9\-_]+$/.test(trackingId)) {
-            return new NextResponse("Invalid tracking ID", { status: 400 });
-        }
-        
-        const { recordEmailUnsubscribe } = await import("@/modules/email-campaigner/service/trackingService");
-        await recordEmailUnsubscribe({ token: trackingId, headers: req.headers });
-
-        const email = await prisma.email.findFirst({
-            where: { OR: [{ id: trackingId }, { trackingId }] },
-            select: { leadId: true },
-        });
-
-        if (email?.leadId) {
-            await prisma.lead.update({
-                where: { id: email.leadId },
-                data: { status: "OPT_OUT" },
-            }).catch(() => undefined);
-        }
-    } catch {
+        await recordEmailUnsubscribe(trackingId);
         return new NextResponse("Unsubscribe request recorded.", { status: 200 });
+    } catch {
+        console.error("[EmailUnsubscribe] Could not process request.");
+        return new NextResponse("Could not process unsubscribe request. Please retry.", { status: 503 });
     }
-
-    return new NextResponse("Unsubscribe request recorded.", { status: 200 });
 }

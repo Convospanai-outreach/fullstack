@@ -319,7 +319,7 @@ export async function sendReply(input: { teamId: string; userId: string; message
     const mailbox = original?.mailboxId
         ? await prisma.connectedMailbox.findFirst({
               where: { id: original.mailboxId, teamId, status: "CONNECTED" },
-              select: { id: true, provider: true },
+              select: { id: true, provider: true, metadata: true, team: { select: { sendSafety: true } } },
           })
         : null;
     if (!original || !mailbox) {
@@ -360,6 +360,11 @@ export async function sendReply(input: { teamId: string; userId: string; message
         }
     }
 
+    const { mailboxSendingHold } = await import("@/modules/overseer/mailboxReputationHold");
+    const purpose = input.scheduledJobId ? "scheduled_reply" : "conversation_reply";
+    const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety, purpose);
+    if (hold) throw new APIError("This mailbox is held. Review its Domain Health before sending a reply.", 409, hold);
+
     const subject = /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`;
     const html = escapeHtml(content).replace(/\r?\n/g, "<br>");
     const trackingId = input.scheduledJobId || crypto.randomUUID();
@@ -369,13 +374,13 @@ export async function sendReply(input: { teamId: string; userId: string; message
         | { success: false; error: string };
     if (mailbox.provider === "RESEND") {
         const { sendViaResendMailbox } = await import("@/modules/email-campaigner/service/resendMailboxService");
-        outcome = await sendViaResendMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, trackingId,
+        outcome = await sendViaResendMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, trackingId, purpose,
             ...(scheduledKey ? { idempotencyKey: scheduledKey } : {}) });
     } else if (mailbox.provider === "SMTP") {
         const { sendViaSmtpMailbox } = await import("@/modules/email-campaigner/service/smtpConfigService");
-        outcome = await sendViaSmtpMailbox({ teamId, mailboxId: mailbox.id, to, subject, html });
+        outcome = await sendViaSmtpMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, purpose });
     } else {
-        outcome = await sendViaGmailMailbox({ teamId, mailboxId: mailbox.id, to, subject, html });
+        outcome = await sendViaGmailMailbox({ teamId, mailboxId: mailbox.id, to, subject, html, purpose });
     }
     if (!outcome.success) throw new APIError("Failed to send reply", 502, outcome.error);
 

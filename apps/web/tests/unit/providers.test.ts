@@ -113,6 +113,34 @@ describe("MailProvider Architecture & Provider Implementations", () => {
       });
       expect(result.ok).toBe(false);
     });
+
+    it("sends standard one-click unsubscribe headers and the footer in MIME", async () => {
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const send = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+      vi.stubGlobal("fetch", send);
+      try {
+        await provider.send({
+          email: "sender@example.test",
+          encryptedAccessToken: await encryptCredential("test-fixture"),
+          tokenExpiresAt: new Date(Date.now() + 300_000),
+        }, {
+          from: "sender@example.test", to: "lead@example.test", subject: "Test",
+          text: "Test", html: '<a href="https://app.example.test/unsubscribe">Unsubscribe</a>',
+          headers: {
+            "List-Unsubscribe": "<https://app.example.test/unsubscribe>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        });
+        const request = send.mock.calls[0]?.[1];
+        expect(request.headers["Content-Type"]).toBe("text/plain");
+        const message = Buffer.from(request.body, "base64").toString();
+        expect(message).toContain("List-Unsubscribe: <https://app.example.test/unsubscribe>");
+        expect(message).toContain("List-Unsubscribe-Post: List-Unsubscribe=One-Click");
+        expect(message).toContain("Unsubscribe</a>");
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   describe("ResendProvider Verification & Send", () => {

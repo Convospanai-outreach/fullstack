@@ -4,6 +4,7 @@ import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { internalErrorMessage } from "@/lib/internalError";
+import { jsonObject } from "@/lib/email/mailboxReputationHold";
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,11 +51,14 @@ export async function POST(req: NextRequest) {
     const { prisma } = await import("@/lib/db");
     // Reconnecting without a selector keeps the one saved before.
     const existing = await prisma.connectedMailbox.findUnique({ where: { teamId_email: { teamId, email: smtpConfig.fromEmail } }, select: { metadata: true } });
-    const savedSelector = (existing?.metadata as { dkimSelector?: unknown } | null)?.dkimSelector;
+    const savedMetadata = jsonObject(existing?.metadata);
+    const savedSelector = savedMetadata["dkimSelector"];
     const selectorToKeep = dkimSelector || (typeof savedSelector === "string" ? savedSelector : "");
 
     // 2. Encrypt SMTP password via credentialVault.ts
     const encryptedPassword = await encryptCredential(password);
+    const savedLogin = savedMetadata["legacyTeamSmtp"] === true || savedMetadata["smtpLoginStored"] === true;
+    const encryptedLogin = savedLogin ? await encryptCredential(smtpConfig.user) : null;
 
     // 3. Upsert ConnectedMailbox with provider: 'SMTP'
     const mailbox = await prisma.connectedMailbox.upsert({
@@ -80,7 +84,10 @@ export async function POST(req: NextRequest) {
         status: "CONNECTED",
         encryptedAccessToken: encryptedPassword as any,
         displayName: smtpConfig.fromName,
+        ...(encryptedLogin ? { encryptedRefreshToken: encryptedLogin } : {}),
         metadata: {
+          ...savedMetadata,
+          ...(savedLogin ? { legacyTeamSmtp: false, smtpLoginStored: true } : {}),
           host: smtpConfig.host,
           port: smtpConfig.port,
           secure: smtpConfig.secure,

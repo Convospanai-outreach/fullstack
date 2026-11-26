@@ -104,23 +104,25 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
         async function load() {
             setLoading(true);
             try {
-                const [sequenceRes, mailboxesRes] = await Promise.all([
+                const [sequenceRes, mailboxesRes, defaultRes] = await Promise.all([
                     fetch(getBrowserApiUrl(`/campaigns/${campaignId}/sequence`), { cache: "no-store" }),
                     fetch(getBrowserApiUrl("/integrations/google/mailboxes"), { cache: "no-store" }),
+                    fetch(getBrowserApiUrl("/settings/default-sender"), { cache: "no-store" }).catch(() => null),
                 ]);
 
                 if (!sequenceRes.ok) throw new Error("Failed to load sequence");
                 const sequenceData = await sequenceRes.json();
                 const mailboxesData = mailboxesRes.ok ? await mailboxesRes.json() : { mailboxes: [] };
 
+                const defaults = defaultRes?.ok ? await defaultRes.json() : null;
                 if (cancelled) return;
 
                 const loadedSteps: SequenceStepFromApi[] = sequenceData.steps || [];
                 setSteps(loadedSteps.map(toItem));
-                setSenderMailboxIds(sequenceData.sequence?.senderMailboxIds || []);
+                setSenderMailboxIds(sequenceData.sequence?.senderMailboxIds ?? (defaults?.mailboxId ? [defaults.mailboxId] : []));
                 setTimezone(sequenceData.sequence?.timezone || "UTC");
                 setLinkedinLocked(Boolean(sequenceData.linkedinLocked));
-                setMailboxes(Array.isArray(mailboxesData.mailboxes) ? mailboxesData.mailboxes : []);
+                setMailboxes(Array.isArray(mailboxesData.mailboxes) ? mailboxesData.mailboxes.filter((mailbox: SequenceMailbox) => !defaults || defaults.choices?.some((choice: { id: string }) => choice.id === mailbox.id)) : []);
             } catch (error: any) {
                 if (!cancelled) toast.error(error?.message || "Failed to load sequence");
             } finally {

@@ -13,7 +13,8 @@ export class GoogleWorkspaceProvider implements MailProvider {
 
   async send(mailbox: any, input: SendEmailInput): Promise<SendEmailResult> {
     const replyTo = input.headers?.["Reply-To"];
-    const trackingId = input.headers?.["X-Tracking-ID"];
+    const unsubscribe = input.headers?.["List-Unsubscribe"];
+    const oneClick = input.headers?.["List-Unsubscribe-Post"];
     const sendInput = {
       teamId: String(mailbox.teamId),
       mailboxId: String(mailbox.id),
@@ -21,7 +22,9 @@ export class GoogleWorkspaceProvider implements MailProvider {
       subject: input.subject,
       html: input.html,
       ...(replyTo ? { replyTo } : {}),
-      ...(trackingId ? { trackingId } : {}),
+      ...(unsubscribe && oneClick ? {
+        unsubscribeHeaders: { "List-Unsubscribe": unsubscribe, "List-Unsubscribe-Post": oneClick },
+      } : {}),
     };
 
     const result = await sendViaGmailMailbox(sendInput);

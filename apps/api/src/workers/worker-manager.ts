@@ -52,6 +52,8 @@ export class WorkerManager {
     private overseerInterval: number = parseInt(process.env['OVERSEER_TICK_INTERVAL_MS'] || '1800000'); // 30 minutes
     private lastDomainWatchTick: number = 0;
     private domainWatchInterval: number = 24 * 60 * 60 * 1000; // daily
+    private lastMailboxReputationTick = 0;
+    private lastMailboxSwitchTick = 0;
     private lastCampaignHealthTick: number = 0;
     private campaignHealthInterval: number = 24 * 60 * 60 * 1000; // daily
     private lastSilentSunsetTick: number = 0;
@@ -332,6 +334,23 @@ export class WorkerManager {
                 if (result.alarms > 0) {
                     console.log(`[Worker] DomainWatch raised ${result.alarms} alarm(s) across ${result.domainsChecked} sending domain(s).`);
                 }
+            });
+        }
+
+        if (now - this.lastMailboxReputationTick >= this.domainWatchInterval) {
+            this.lastMailboxReputationTick = now;
+            await this.runSweep("MailboxReputation", async () => {
+                const { runMailboxReputationWatch } = await import("@/modules/overseer/mailboxReputation");
+                const checked = await runMailboxReputationWatch();
+                if (checked) console.log("[Worker] Mailbox reputation evaluated " + checked + " mailbox(es).");
+            });
+        }
+
+        if (now - this.lastMailboxSwitchTick >= 5 * 60_000) {
+            this.lastMailboxSwitchTick = now;
+            await this.runSweep("MailboxSwitch", async () => {
+                const { progressMailboxSwitches } = await import("@/modules/overseer/mailboxReputationActions");
+                await progressMailboxSwitches();
             });
         }
 

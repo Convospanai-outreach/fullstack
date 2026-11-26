@@ -386,6 +386,7 @@ describe("sendReply", () => {
             to: "lead@example.test",
             subject: "Re: Quick question",
             html: "&lt;b&gt;Tuesday&lt;/b&gt; works.<br>Talk then",
+            purpose: "conversation_reply",
         });
         expect(mockDb.email.create).toHaveBeenCalledWith({
             data: expect.objectContaining({

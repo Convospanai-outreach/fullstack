@@ -15,6 +15,7 @@ export interface SendMailOptions {
     subject: string;
     html: string;
     replyTo?: string;
+    headers?: Record<string, string>;
     attachments?: { filename: string; mimeType: string; content: string }[];
 }
 
@@ -61,6 +62,7 @@ export async function sendViaSMTP(
             subject: options.subject,
             html: options.html,
             replyTo: options.replyTo,
+            headers: options.headers,
             ...(options.attachments?.length
                 ? {
                       attachments: options.attachments.map((a) => ({

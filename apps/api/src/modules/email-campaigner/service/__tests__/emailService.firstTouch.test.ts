@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, Mock, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 import { emailService } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig } from "../smtpConfigService";
+import { ensureLegacySmtpMailbox } from "../smtpConfigService";
 import { isSuppressed, selectMailboxForSend } from "../googleMailboxService";
 
 const { mockPrisma } = vi.hoisted(() => ({
@@ -18,10 +22,12 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/email/smtpClient", () => ({ sendViaSMTP: vi.fn() }));
-vi.mock("../smtpConfigService", () => ({ getSmtpConfig: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
+vi.mock("../smtpConfigService", () => ({ ensureLegacySmtpMailbox: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
 vi.mock("../googleMailboxService", () => ({
     isSuppressed: vi.fn(),
     selectMailboxForSend: vi.fn(),
+    reserveMailboxSend: vi.fn().mockResolvedValue({ ok: true }),
+    releaseMailboxSend: vi.fn(),
     sendViaGmailMailbox: vi.fn(),
     signTrackedUrl: vi.fn(() => "sig"),
 }));
@@ -40,7 +46,10 @@ describe("emailService - first-touch notice for leads without form consent (DPDP
         (isSuppressed as Mock).mockResolvedValue(false);
         (selectMailboxForSend as Mock).mockResolvedValue(null);
         (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
-        (getSmtpConfig as Mock).mockResolvedValue({ host: "h", port: 587, secure: false, user: "u", password: "p", fromName: "S", fromEmail: "s@example.test" });
+        (ensureLegacySmtpMailbox as Mock).mockResolvedValue({
+            id: "legacy-smtp", status: "CONNECTED",
+            config: { host: "h", port: 587, secure: false, user: "u", password: "p", fromName: "S", fromEmail: "s@example.test" },
+        });
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "m1" });
         (prisma.email.create as Mock).mockResolvedValue({ id: "e1" });
         (prisma.email.count as Mock).mockResolvedValue(0);

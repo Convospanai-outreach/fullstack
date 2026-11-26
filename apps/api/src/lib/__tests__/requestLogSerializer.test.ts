@@ -21,6 +21,11 @@ describe("serializeRequestForLog", () => {
         expect(JSON.stringify(logged)).not.toContain("secret-token");
     });
 
+    it("redacts the bearer token in an unsubscribe path", () => {
+        expect(serializeRequestForLog({ method: "POST", url: "/email/unsubscribe/one-click-fixture" }).url)
+            .toBe("/email/unsubscribe/[redacted]");
+    });
+
     it("leaves a path with no query string alone", () => {
         expect(serializeRequestForLog({ method: "POST", url: "/leads" }).url).toBe("/leads");
     });

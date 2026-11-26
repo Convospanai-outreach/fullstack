@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, beforeAll, afterAll, afterEach } from "vitest";
+
+// These tests cover the guarded behavior, which is off unless the flag is set.
+beforeEach(() => { vi.stubEnv("MAILBOX_REPUTATION_GUARD", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 const TEST_ENCRYPTION_KEY = "a".repeat(64); // 32-byte hex key required by aes-256-gcm
 
@@ -10,25 +14,40 @@ vi.mock("@/lib/db", () => ({
         },
         connectedMailbox: {
             findFirst: vi.fn(),
+            findFirstOrThrow: vi.fn(),
+            findMany: vi.fn().mockResolvedValue([]),
+            createMany: vi.fn(),
+            update: vi.fn(),
         },
+        auditLog: { create: vi.fn() },
+        $queryRaw: vi.fn(),
+        $transaction: vi.fn(),
     },
 }));
 
 vi.mock("@/lib/security/credentialVault", () => ({
     decryptCredential: vi.fn(),
+    encryptCredential: vi.fn().mockResolvedValue({ v: 1, cipher: "fixture-cipher", iv: "fixture-iv", tag: "fixture-tag" }),
 }));
 
 vi.mock("@/lib/email/smtpClient", () => ({
     sendViaSMTP: vi.fn(),
 }));
 
+const { reserve, release } = vi.hoisted(() => ({
+    reserve: vi.fn().mockResolvedValue({ ok: true }), release: vi.fn(),
+}));
+vi.mock("../googleMailboxService", () => ({ reserveMailboxSend: reserve, releaseMailboxSend: release }));
+
 import { prisma } from "@/lib/db";
-import { decryptCredential } from "@/lib/security/credentialVault";
+import { decryptCredential, encryptCredential } from "@/lib/security/credentialVault";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 
 describe("smtpConfigService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(prisma.$transaction).mockImplementation((work) => typeof work === "function" ? work(prisma as never) : Promise.resolve([]) as never);
+        vi.mocked(prisma.connectedMailbox.findMany).mockResolvedValue([]);
         // ENCRYPTION_KEY is read once at module load time, so it must be stubbed
         // before the module's first dynamic import below (module caching then
         // keeps this same value for the rest of the suite).
@@ -202,6 +221,18 @@ describe("smtpConfigService", () => {
             });
         });
 
+        it("never attempts SMTP or a fallback when reservation detects a sending hold", async () => {
+            vi.mocked(prisma.connectedMailbox.findFirst).mockResolvedValue({
+                id: "mailbox-1", email: "sender@example.test", metadata: { host: "smtp.example.test" },
+            } as never);
+            vi.mocked(decryptCredential).mockResolvedValue("test-fixture");
+            reserve.mockResolvedValueOnce({ ok: false, reason: "MAILBOX_REPUTATION_HOLD" });
+            const { sendViaSmtpMailbox } = await import("../smtpConfigService");
+            await expect(sendViaSmtpMailbox({ teamId: "team-1", mailboxId: "mailbox-1", to: "recipient@example.test", subject: "Hi", html: "Hi" }))
+                .resolves.toEqual({ success: false, error: "MAILBOX_REPUTATION_HOLD", fallbackAllowed: false });
+            expect(sendViaSMTP).not.toHaveBeenCalled();
+        });
+
         it("returns a fallback-allowed failure when the mailbox's own SMTP send fails", async () => {
             (prisma.connectedMailbox.findFirst as any).mockResolvedValue({
                 id: "mailbox-1",
@@ -223,6 +254,48 @@ describe("smtpConfigService", () => {
             });
 
             expect(result).toEqual({ success: false, error: "SMTP_MAILBOX_SEND_FAILED", fallbackAllowed: true });
+        });
+    });
+
+    describe("automatic legacy SMTP mailbox conversion", () => {
+        const legacy = {
+            fromEmail: "Outreach@Example.test", fromName: "Outreach", user: "smtp-login",
+            password: "fixture-value", host: "smtp.example.test", port: 587, secure: false,
+        };
+
+        it("creates one quota-bearing mailbox and encrypts the original login and password", async () => {
+            vi.mocked(prisma.team.findUnique).mockResolvedValue({ aiConfig: { smtpConfig: legacy } } as never);
+            vi.mocked(prisma.connectedMailbox.findFirst).mockResolvedValue(null);
+            vi.mocked(prisma.connectedMailbox.findFirstOrThrow).mockResolvedValue({ id: "migrated", status: "CONNECTED", metadata: {} } as never);
+            vi.mocked(prisma.connectedMailbox.createMany).mockResolvedValue({ count: 1 });
+            const { ensureLegacySmtpMailbox } = await import("../smtpConfigService");
+
+            await expect(ensureLegacySmtpMailbox("team")).resolves.toMatchObject({ id: "migrated", status: "CONNECTED" });
+            expect(encryptCredential).toHaveBeenCalledWith("smtp-login");
+            expect(encryptCredential).toHaveBeenCalledWith("fixture-value");
+            expect(prisma.connectedMailbox.createMany).toHaveBeenCalledWith({
+                data: [expect.objectContaining({
+                    teamId: "team", email: "outreach@example.test", provider: "SMTP", dailyLimit: 50, minDelaySeconds: 180,
+                    encryptedAccessToken: expect.objectContaining({ v: 1 }), encryptedRefreshToken: expect.objectContaining({ v: 1 }),
+                    metadata: { legacyTeamSmtp: true, host: "smtp.example.test", port: 587, secure: false },
+                })],
+                skipDuplicates: true,
+            });
+            expect(prisma.auditLog.create).toHaveBeenCalledOnce();
+
+            vi.mocked(prisma.connectedMailbox.findFirst).mockResolvedValue({ id: "migrated", status: "CONNECTED", metadata: {} } as never);
+            await ensureLegacySmtpMailbox("team");
+            expect(prisma.connectedMailbox.createMany).toHaveBeenCalledTimes(1);
+        });
+
+        it("disables and clears a linked mailbox when its legacy config is removed", async () => {
+            vi.mocked(prisma.team.findUnique).mockResolvedValue({ aiConfig: { smtpConfig: legacy } } as never);
+            vi.mocked(prisma.connectedMailbox.findMany).mockResolvedValue([{ id: "migrated", email: "outreach@example.test", metadata: { legacyTeamSmtp: true } }] as never);
+            const { deleteSmtpConfig } = await import("../smtpConfigService");
+            await deleteSmtpConfig("team");
+            expect(prisma.connectedMailbox.update).toHaveBeenCalledWith({
+                where: { id: "migrated" }, data: expect.objectContaining({ status: "DISCONNECTED" }),
+            });
         });
     });
 

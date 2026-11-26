@@ -10,6 +10,8 @@ import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTra
 import { ALWAYS_HOLD_CODES, preSendCheck, resolveSendSafety } from "@/lib/preSendCheck";
 import { nextSendTime, resolveRecipientTimeZone, resolveSendWindow } from "@/lib/sendWindow";
 import { accountReplyHoldUntil } from "@/lib/accountReplyCooldown";
+import { jsonObject, mailboxReputationGuardEnabled, mailboxReputationIncidentOpen, mailboxSendingHold } from "@/lib/email/mailboxReputationHold";
+import { mailboxSendLimit } from "../../../../../packages/db/mailboxQuota";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -38,17 +40,20 @@ export async function handleEmailSending(payload: JobPayload) {
     where: { id: campaignId },
     include: { variants: true },
   });
-  if (!campaign) throw new Error(`Campaign ${campaignId} not found`);
+  if (!campaign) throw new Error("Campaign " + campaignId + " not found");
+  if (campaign.status === "paused" && typeof jsonObject(campaign.aiConfig)["reputationPauseMailboxId"] === "string") {
+    return { skipped: true, reason: "MAILBOX_REPUTATION_HOLD" };
+  }
 
-  // 2. Check suppression list
-  if (teamId) {
-    const suppressed = await prisma.suppressionEntry.findUnique({
-      where: { teamId_email: { teamId, email: lead.email } },
-    });
-    if (suppressed) {
-      logger.warn("[email_sending] Lead on suppression list, skipping", { leadId, email: lead.email });
-      return { skipped: true, reason: "suppressed" };
-    }
+  const resolvedTeamId = teamId || campaign.teamId;
+  if (!resolvedTeamId || (campaign.teamId && campaign.teamId !== resolvedTeamId) || (lead.teamId && lead.teamId !== resolvedTeamId)) {
+    throw new Error("Email send requires matching team ownership");
+  }
+  const suppressionKey = { teamId_email: { teamId: resolvedTeamId, email: lead.email.trim().toLowerCase() } };
+  const doesNotSend = (status?: string | null) => ["opt_out", "dnc", "do_not_contact", "unsubscribed", "bounced"].includes((status ?? "").toLowerCase());
+  if (doesNotSend(lead.status) || await prisma.suppressionEntry.findUnique({ where: suppressionKey })) {
+    logger.warn("[email_sending] Lead on suppression list, skipping", { leadId });
+    return { skipped: true, reason: "suppressed" };
   }
 
   // 2a. DPDP send gate (team setting sendSafety.DPDP_SEND_GATE, off by default): consent or a proven public source.
@@ -113,15 +118,24 @@ export async function handleEmailSending(payload: JobPayload) {
 
   // 3. Find active connected mailbox for team
   const resolvedMailboxTeamId = (teamId || campaign.teamId) as string;
-  const mailbox = mailboxId
-    ? await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId: resolvedMailboxTeamId } })
+  const campaignSender = jsonObject(campaign.aiConfig)["senderMailboxId"];
+  const senderId = mailboxId || (typeof campaignSender === "string" ? campaignSender : undefined);
+  const mailbox = senderId
+    ? await prisma.connectedMailbox.findFirst({
+        where: { id: senderId, teamId: resolvedMailboxTeamId, status: "CONNECTED" },
+        include: { team: { select: { sendSafety: true } } },
+      })
     : await prisma.connectedMailbox.findFirst({
         where: { teamId: resolvedMailboxTeamId, status: "CONNECTED" },
+        include: { team: { select: { sendSafety: true } } },
       });
 
-  if (!mailbox) {
+  if (mailbox?.status !== "CONNECTED") {
     throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
   }
+
+  const hold = mailboxSendingHold(mailbox.metadata, mailbox.team?.sendSafety);
+  if (hold) return { skipped: true, reason: hold };
 
   // 3. Atomic conditional SQL UPDATE guaranteeing 100% race-free concurrency enforcement.
   // Mirrors googleMailboxService.ts's assertMailboxCanSend/bumpMailboxCounters on apps/api:
@@ -130,9 +144,7 @@ export async function handleEmailSending(payload: JobPayload) {
   // its full dailyLimit.
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const effectiveLimit = mailbox.isWarmingUp
-    ? Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5)
-    : mailbox.dailyLimit;
+  const { limit: effectiveLimit, growthLimited } = await mailboxSendLimit((where) => prisma.email.count({ where }), mailbox, todayStart, mailboxReputationIncidentOpen(mailbox.metadata));
   const minDelaySeconds = mailbox.minDelaySeconds ?? 180;
 
   const updatedCount = await prisma.$executeRaw`
@@ -140,15 +152,25 @@ export async function handleEmailSending(payload: JobPayload) {
     SET "sentToday" = CASE WHEN "sentTodayDate" IS NULL OR "sentTodayDate" < ${todayStart} THEN 1 ELSE "sentToday" + 1 END,
         "sentTodayDate" = ${todayStart},
         "lastSentAt" = NOW()
-    WHERE id = ${mailbox.id}
+    WHERE id = ${mailbox.id} AND "teamId" = ${resolvedMailboxTeamId} AND status = 'CONNECTED'
+      AND (NOT ${mailboxReputationGuardEnabled()}::boolean OR "metadata"#>>'{reputation,sendingHold,reason}' IS NULL)
+      AND NOT EXISTS (
+        SELECT 1 FROM "Team" WHERE id = ${resolvedMailboxTeamId}
+        AND "sendSafety"#>>'{reputation,sendingHold,reason}' IS NOT NULL
+      )
       AND (CASE WHEN "sentTodayDate" IS NULL OR "sentTodayDate" < ${todayStart} THEN 0 ELSE "sentToday" END) < ${effectiveLimit}
       AND ("lastSentAt" IS NULL OR "lastSentAt" <= NOW() - make_interval(secs => ${minDelaySeconds}))
   `;
 
   if (Number(updatedCount) === 0) {
-    const fresh = await prisma.connectedMailbox.findUnique({ where: { id: mailbox.id } });
+    const fresh = await prisma.connectedMailbox.findUnique({
+      where: { id: mailbox.id }, include: { team: { select: { sendSafety: true } } },
+    });
+    const freshHold = mailboxSendingHold(fresh?.metadata, fresh?.team?.sendSafety);
+    if (freshHold) return { skipped: true, reason: freshHold };
     const freshSentToday = fresh?.sentTodayDate && fresh.sentTodayDate >= todayStart ? fresh.sentToday : 0;
     if (fresh && freshSentToday >= effectiveLimit) {
+      if (growthLimited) return { skipped: true, reason: "GROWTH_CAP" };
       const limitLabel = mailbox.isWarmingUp ? `${freshSentToday}/${effectiveLimit} warmup limit` : `${freshSentToday}/${effectiveLimit}`;
       throw new Error(`Mailbox daily sending limit reached (${limitLabel}). Try again tomorrow.`);
     }
@@ -251,11 +273,6 @@ export async function handleEmailSending(payload: JobPayload) {
         },
       });
 
-  const resolvedTeamId = teamId || campaign.teamId;
-  if (!resolvedTeamId) {
-    throw new Error(`No teamId available for campaign ${campaignId}`);
-  }
-
   const attachments = await prisma.campaignAttachment.findMany({
     where: { campaignId },
     select: { filename: true, mimeType: true, content: true },
@@ -280,9 +297,23 @@ export async function handleEmailSending(payload: JobPayload) {
     postalAddress
   );
 
+  const [freshMailbox, freshLead, suppressed] = await Promise.all([
+    prisma.connectedMailbox.findFirst({
+      where: { id: mailbox.id, teamId: resolvedTeamId, status: "CONNECTED" },
+      include: { team: { select: { sendSafety: true } } },
+    }),
+    prisma.lead.findUnique({ where: { id: leadId }, select: { email: true, status: true } }),
+    prisma.suppressionEntry.findUnique({ where: suppressionKey }),
+  ]);
+  const lateHold = mailboxSendingHold(freshMailbox?.metadata, freshMailbox?.team?.sendSafety);
+  if (lateHold || !freshMailbox || freshMailbox.provider !== mailbox.provider || !freshLead || freshLead.email !== lead.email || doesNotSend(freshLead.status) || suppressed) {
+    await prisma.$executeRaw`UPDATE "ConnectedMailbox" SET "sentToday" = GREATEST("sentToday" - 1, 0) WHERE id = ${mailbox.id} AND "sentTodayDate" = ${todayStart}`;
+    return { skipped: true, reason: lateHold || (!freshMailbox ? "MAILBOX_DISCONNECTED" : "recipient_or_mailbox_changed") };
+  }
+
   let sendResult: any = null;
   try {
-    sendResult = await provider.send(mailbox, {
+    sendResult = await provider.send(freshMailbox, {
       to: lead.email,
       from: mailbox.email,
       subject,

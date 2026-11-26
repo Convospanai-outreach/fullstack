@@ -8,6 +8,8 @@ import {
   advanceLeadAfterReply,
 } from "@/lib/crm/leadStageTransitions";
 import { internalErrorMessage } from "@/lib/internalError";
+import { resendFeedbackPayload } from "@/modules/email-campaigner/service/resendFeedback";
+import type { EmailBouncedEvent, EmailFailedEvent } from "resend";
 
 // Moved here from apps/web (which sleeps on Render's free tier, delaying webhook
 // delivery/retries) so this always-on apps/api service receives Resend's webhooks
@@ -25,7 +27,8 @@ interface ResendWebhookEvent {
     from?: string;
     subject?: string;
     click?: { link?: string };
-    bounce?: { type?: string };
+    bounce?: Partial<EmailBouncedEvent["data"]["bounce"]>;
+    failed?: Partial<EmailFailedEvent["data"]["failed"]>;
   };
 }
 
@@ -172,6 +175,12 @@ export async function POST(req: NextRequest) {
   const { prisma } = await import("@/lib/db");
   const advanceParams = { leadId: email.leadId, teamId, campaignId: email.campaignId, emailId: email.id };
 
+  const recipient = event.type === "email.received" ? event.data?.from : event.data?.to?.[0];
+  const payload = await resendFeedbackPayload(event.data, recipient, event.type);
+  const checkMailboxReputation = async () => {
+    const { requestMailboxReputationCheck } = await import("@/modules/overseer/mailboxReputation");
+    await requestMailboxReputationCheck(teamId, mailbox.id);
+  };
   const emailEventData = (type: string) => ({
     teamId,
     emailId: email.id,
@@ -181,7 +190,7 @@ export async function POST(req: NextRequest) {
     type,
     provider: "RESEND",
     providerMessageId: event.data?.email_id || null,
-    payload: event.data as any,
+    payload,
   });
 
   // EmailEvent is unique per (team, provider, provider message id, type), so a redelivery's
@@ -244,6 +253,7 @@ export async function POST(req: NextRequest) {
           });
         }
         await recordEmailEvent("BOUNCED");
+        if (event.data?.bounce?.type === "Permanent") await checkMailboxReputation();
         break;
       }
       case "email.complained": {
@@ -260,6 +270,7 @@ export async function POST(req: NextRequest) {
           });
         }
         await recordEmailEvent("COMPLAINED");
+        await checkMailboxReputation();
         break;
       }
       case "email.received": {

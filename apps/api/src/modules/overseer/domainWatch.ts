@@ -28,16 +28,20 @@ export function failingRecords(signals: Signals): string[] {
     return RECORD_NAMES.filter(([key]) => !signals[key]).map(([, name]) => name);
 }
 
-async function notifyOwners(teamId: string, title: string, message: string) {
+export async function notifyOwners(
+    teamId: string, title: string, message: string,
+    options?: { additionalUserIds?: string[]; href: string; action: string; key: string },
+) {
     const members = await prisma.teamMember.findMany({
         where: { teamId, status: "active", role: { in: ["owner", "OWNER", "admin", "ADMIN"] }, userId: { not: null } },
         select: { userId: true, role: true },
     });
     const owners = members.filter((m) => m.role.toLowerCase() === "owner");
-    const targets = owners.length > 0 ? owners : members;
+    const targets = options || owners.length === 0 ? members : owners;
+    const userIds = new Set([...targets.flatMap((member) => member.userId ?? []), ...(options?.additionalUserIds ?? [])]);
     const { NotificationDispatcher } = await import("@/lib/notifications");
-    for (const member of targets) {
-        await NotificationDispatcher.send(member.userId as string, "SYSTEM", title, message, { teamId });
+    for (const userId of userIds) {
+        await NotificationDispatcher.send(userId, "SYSTEM", title, message, { teamId, ...(options ? { href: options.href } : {}) }, options);
     }
 }
 

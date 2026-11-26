@@ -28,6 +28,7 @@ const PUBLIC_ROUTE_PREFIXES = [
     // Plan pricing for the public /pricing marketing page - visitors see
     // real prices before signing up, no team-specific data returned.
     "/billing/plans",
+    "/email/unsubscribe",
     // Chrome extension routes enforce their own Bearer sync-token check
     // (validateExtensionAuth) - the extension has no
     // NextAuth cookie or Clerk-signed internal header to pass this gate.

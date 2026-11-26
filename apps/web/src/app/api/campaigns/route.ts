@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createCampaignSchema } from "@/lib/validation/schemas";
+import { mailboxSendingHold } from "@/lib/email/mailboxReputationHold";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 import { internalErrorMessage } from "@/lib/internalError";
@@ -83,7 +84,15 @@ export async function POST(req: Request) {
         if (!strategyInput.ok) {
             return NextResponse.json({ error: strategyInput.error }, { status: 400 });
         }
-        const aiConfig = applyStrategyInput(null, strategyInput.value);
+        const senderMailboxId = typeof body.senderMailboxId === "string" ? body.senderMailboxId : undefined;
+        if (senderMailboxId) {
+            const sender = await prisma.connectedMailbox.findFirst({ where: { id: senderMailboxId, teamId, status: "CONNECTED" }, select: { metadata: true } });
+            if (!sender || mailboxSendingHold(sender.metadata)) {
+                return NextResponse.json({ error: "Choose a connected mailbox without a sending hold" }, { status: 409 });
+            }
+        }
+        const strategy = applyStrategyInput(null, strategyInput.value);
+        const aiConfig = senderMailboxId ? { ...(strategy ?? {}), senderMailboxId } : strategy;
         const icp = await prisma.iCP.findFirst({ where: { id: icpId, teamId } });
         if (!icp) {
             return NextResponse.json({ error: "ICP not found for this team" }, { status: 400 });

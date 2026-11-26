@@ -219,6 +219,7 @@ export class SequenceService {
                 ...(options.teamId ? { teamId: options.teamId } : {}),
                 status: { in: RUN_DUE_STATUSES },
                 scheduledAt: { lte: now },
+                enrollment: { sequence: { status: { not: "PAUSED" } } },
             },
             orderBy: [{ scheduledAt: "asc" }, { createdAt: "asc" }],
             take: limit,
@@ -257,6 +258,13 @@ export class SequenceService {
             return { runId: run.id, status: "FAILED", errorCode: "VALIDATION_ERROR" };
         }
 
+        if (run.enrollment?.sequence?.status === "PAUSED") {
+            await client.sequenceStepRun.updateMany({
+                where: { id: run.id, status: "RUNNING" },
+                data: { status: "SCHEDULED", startedAt: null, scheduledAt: now },
+            });
+            return { runId: run.id, status: "PAUSED" };
+        }
         const lead = run.enrollment?.lead || await client.lead.findUnique({ where: { id: run.leadId } });
         const reason = exitReason(lead);
         if (reason) {
@@ -323,6 +331,7 @@ export class SequenceService {
                 ...(options.teamId ? { teamId: options.teamId } : {}),
                 status: "ACTIVE",
                 nextRunAt: { lte: options.now },
+                sequence: { status: { not: "PAUSED" } },
             },
             include: {
                 lead: true,
@@ -578,6 +587,14 @@ export class SequenceService {
         });
 
         if (!result.success) {
+            if (result.error === "GROWTH_CAP" || result.error === "MAILBOX_REPUTATION_HOLD" || result.error === "TEAM_SENDING_HOLD") {
+                const retryAt = new Date(now.getTime() + 30 * 60_000);
+                if (result.error === "GROWTH_CAP") retryAt.setHours(24, 0, 0, 0);
+                await client.sequenceStepRun.update({ where: { id: run.id }, data: {
+                    status: "RETRY_SCHEDULED", scheduledAt: retryAt, attemptCount: { decrement: 1 },
+                } });
+                return { runId: run.id, status: "RETRY_SCHEDULED", reason: result.error, retryAt };
+            }
             if (result.error === "ACCOUNT_REPLY_COOLDOWN" && result.retryAt) {
                 await client.sequenceStepRun.update({ where: { id: run.id }, data: {
                     status: "SCHEDULED", scheduledAt: result.retryAt, attemptCount: { decrement: 1 },
@@ -912,8 +929,10 @@ export class SequenceService {
     // outcome in the Action Inbox. exitReason(lead) can't be relied on there: an outcome
     // like LOST moves the lead off the "replied" status that was stopping it, and
     // pre-created runs only re-check exitReason before sending.
-    static async stopEnrollmentsForLead(teamId: string, leadId: string, errorCode: string, now = new Date()) {
-        const client = db();
+    static async stopEnrollmentsForLead(
+        teamId: string, leadId: string, errorCode: string, now = new Date(),
+        client: Pick<SequencePrisma, "sequenceEnrollment" | "sequenceStepRun"> = db(),
+    ) {
         const stopped = await client.sequenceEnrollment.updateMany({
             where: { teamId, leadId, status: { in: ["ACTIVE", "SCHEDULING", "MANUAL_REVIEW"] } },
             data: { status: "EXITED", completedAt: now, cancelledAt: now, nextRunAt: null, exitReason: errorCode.replace(/^EXIT_/, "").toLowerCase() },
