@@ -25,7 +25,15 @@ vi.mock("@/lib/campaignService", () => ({
     },
 }));
 
+vi.mock("@/lib/campaigns/sendingChannel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/lib/campaigns/sendingChannel")>()),
+    hasSendingChannel: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("@/lib/campaigns/placementGate", () => ({ checkPlacementGate: vi.fn().mockResolvedValue({ allowed: true }) }));
+
 import { getCurrentContext } from "@/lib/auth";
+import { checkPlacementGate } from "@/lib/campaigns/placementGate";
 import { prisma } from "@/lib/db";
 import { CampaignService } from "@/lib/campaignService";
 
@@ -55,6 +63,16 @@ describe("PATCH /api/campaigns/[id]", () => {
             "team-a"
         );
         expect(response.status).toBe(200);
+    });
+
+    it("does not start the campaign when a mailbox has a red inbox placement result", async () => {
+        (checkPlacementGate as any).mockResolvedValueOnce({ allowed: false, status: 409, body: { error: "spam", code: "PLACEMENT_RED", mailboxes: [] } });
+
+        const response = await PATCH(patchRequest({ action: "start" }), { params: Promise.resolve({ id: "campaign-1" }) });
+
+        expect(response.status).toBe(409);
+        expect(checkPlacementGate).toHaveBeenCalledWith("team-a", "campaign-1");
+        expect(CampaignService.startCampaign).not.toHaveBeenCalled();
     });
 
     it("returns 404 for a campaign that doesn't belong to the caller's team", async () => {

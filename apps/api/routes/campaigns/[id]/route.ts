@@ -1,4 +1,5 @@
 import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
+import { checkPlacementGate } from "@/lib/campaigns/placementGate";
 import { NextResponse } from "next/server";
 import { CampaignService } from "@/lib/campaignService";
 import { prisma } from "@/lib/db";
@@ -76,6 +77,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             if (!(await hasSendingChannel(teamId))) {
                 return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
             }
+            const placement = await checkPlacementGate(teamId, id);
+            if (!placement.allowed) return NextResponse.json(placement.body, { status: placement.status });
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);

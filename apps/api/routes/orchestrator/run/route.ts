@@ -5,6 +5,7 @@ import { JobQueue } from "@/lib/queue";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { findApprovedCampaignStartId } from "@/lib/governance/campaignStartApproval";
 import { hasSendingChannel, NO_SENDING_CHANNEL_BODY } from "@/lib/campaigns/sendingChannel";
+import { checkPlacementGate } from "@/lib/campaigns/placementGate";
 import { audit } from "@/lib/governance/audit";
 import { checkLimits } from "@/lib/governance/limits";
 
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
   if (!(await hasSendingChannel(teamId))) {
     return NextResponse.json(NO_SENDING_CHANNEL_BODY, { status: 409 });
   }
+
+  const placement = await checkPlacementGate(teamId, campaignId);
+  if (!placement.allowed) return NextResponse.json(placement.body, { status: placement.status });
 
   // GOVERNANCE CHECKS
   try {

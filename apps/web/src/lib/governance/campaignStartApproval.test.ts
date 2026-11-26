@@ -13,6 +13,8 @@ const { mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 const { mockBreakerState } = vi.hoisted(() => ({ mockBreakerState: vi.fn() }));
 vi.mock("@/modules/governance/breakerState", () => ({ getBreakerState: mockBreakerState }));
+const { mockPlacementGate } = vi.hoisted(() => ({ mockPlacementGate: vi.fn() }));
+vi.mock("@/lib/campaigns/placementGate", () => ({ checkPlacementGate: mockPlacementGate }));
 
 import { checkCampaignStartApproval, isBlockedSelfApproval } from "./campaignStartApproval";
 
@@ -27,6 +29,7 @@ describe("checkCampaignStartApproval", () => {
         mockBreakerState.mockResolvedValue("CLOSED");
         mockPrisma.$executeRaw.mockResolvedValue(1);
         mockPrisma.$transaction.mockImplementation(async (fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma));
+        mockPlacementGate.mockResolvedValue({ allowed: true });
     });
 
     it("takes a per-campaign lock before looking for an existing request, so two starts cannot both file one", async () => {
@@ -38,6 +41,16 @@ describe("checkCampaignStartApproval", () => {
         await checkCampaignStartApproval(args);
 
         expect(order).toEqual(["lock", "find", "create"]);
+    });
+
+    it("refuses the start on a red inbox placement result before filing any approval request", async () => {
+        const blocked = { allowed: false, status: 409, body: { error: "spam", code: "PLACEMENT_RED", mailboxes: [{ id: "m1", email: "a@acme.test" }] } };
+        mockPlacementGate.mockResolvedValue(blocked);
+
+        await expect(checkCampaignStartApproval(args)).resolves.toEqual(blocked);
+        expect(mockPlacementGate).toHaveBeenCalledWith("team-1", "campaign-1");
+        expect(mockPrisma.organizationPolicy.findUnique).not.toHaveBeenCalled();
+        expect(mockPrisma.approvalRequest.create).not.toHaveBeenCalled();
     });
 
     it("allows the start when the team has no policy row", async () => {

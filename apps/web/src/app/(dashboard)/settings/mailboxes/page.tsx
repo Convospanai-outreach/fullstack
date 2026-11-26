@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import InboxPlacementCard from "@/components/mailboxes/InboxPlacementCard";
 
 interface ConnectedMailboxMetadata {
     gmailWatchExpirationAt?: string | null;
@@ -726,6 +727,8 @@ export default function MailboxesSettingsPage() {
                                             </span>
                                         )}
                                     </div>
+
+                                    {mb.status === "CONNECTED" && <InboxPlacementCard mailboxId={mb.id} />}
 
                                     {/* Error Banner if any */}
                                     {hasError && (
