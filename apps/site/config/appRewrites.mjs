@@ -8,4 +8,6 @@ export const appRewriteSources = [
     '/.well-known/agent-skills/index.json', '/.well-known/agent-skills/:skill/SKILL.md',
     '/.well-known/http-message-signatures-directory', '/.well-known/microsoft-identity-association.json',
     '/api/track/open/:trackingId', '/api/track/click/:trackingKey', '/api/email/unsubscribe/:trackingId',
+    // Anything else under /api (installed browser extensions, old webhook URLs). The site has no API routes of its own.
+    '/api/:path*',
 ];

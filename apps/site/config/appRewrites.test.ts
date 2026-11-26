@@ -15,4 +15,10 @@ describe("appRewriteSources", () => {
     it("keeps the form and discovery endpoints", () => {
         expect(appRewriteSources).toEqual(expect.arrayContaining(["/api/contact", "/api/careers/apply", "/.well-known/api-catalog"]));
     });
+
+    // Installed browser extensions call the public domain's /api/extension/* routes and cannot be
+    // updated at once. The site has no API of its own, so every other /api path goes to the app.
+    it("forwards any other /api path to the app", () => {
+        expect(appRewriteSources).toContain("/api/:path*");
+    });
 });
