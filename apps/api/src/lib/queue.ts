@@ -67,6 +67,7 @@ export type JobType =
     | "invoice_pdf_render"
     | "playbook_generate"
     | "reply_classification"
+    | "inbox_placement_check"
     | "scheduled_inbox_reply"
     | "mailbox_reputation_check"
     | "whatsapp_reply_classification";

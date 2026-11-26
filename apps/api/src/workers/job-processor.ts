@@ -51,6 +51,10 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
             await sendReply({ teamId: job.teamId, userId, messageId, content, scheduledJobId: claim.jobId, expectedRecipient });
             return { sent: true };
         }
+        case "inbox_placement_check": {
+            const { runPlacementCheck } = await import("@/modules/email-campaigner/service/inboxPlacementCheck");
+            return runPlacementCheck(payload);
+        }
         case "campaign_execution": {
             const campaignId = asString(payload.campaignId);
             if (!campaignId) {

@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/db";
 import { computeAutoDenyAt, resolveApprovalTier } from "@/modules/governance/approvalPolicy";
 import { getBreakerState } from "@/modules/governance/breakerState";
+import { checkPlacementGate, type PlacementGate } from "@/lib/campaigns/placementGate";
 
 export type CampaignStartGate =
     | { allowed: true }
-    | { allowed: false; status: 202; body: { status: "pending_approval"; approvalId: string; message: string } };
+    | { allowed: false; status: 202; body: { status: "pending_approval"; approvalId: string; message: string } }
+    | Extract<PlacementGate, { allowed: false }>;
 
 const ACTION_TYPE = "CAMPAIGN_START";
 const PENDING_MESSAGE = "This team requires approval before a campaign starts. An approval request is waiting for an admin; start the campaign again once it is approved.";
@@ -27,6 +29,10 @@ export async function checkCampaignStartApproval({
     userId: string;
     campaignId: string;
 }): Promise<CampaignStartGate> {
+    // A fresh red inbox placement result blocks every start path before any approval request is filed.
+    const placement = await checkPlacementGate(teamId, campaignId);
+    if (!placement.allowed) return placement;
+
     const policy = await prisma.organizationPolicy.findUnique({
         where: { organizationId: teamId },
         select: { requiresApprovalForCampaign: true },

@@ -33,6 +33,7 @@ import { Telemetry } from "@/lib/analytics/telemetry";
 import RedisCard, { redisNotice, type RedisStatus } from "./RedisCard";
 import SystemTiles, { type SystemHealth } from "./SystemTiles";
 import FeaturesTab from "./FeaturesTab";
+import PlacementInboxesTab from "./PlacementInboxesTab";
 import ServerErrorsTab from "./ServerErrorsTab";
 import EnquiriesTab from "./EnquiriesTab";
 import ApplicationsTab from "./ApplicationsTab";
@@ -281,7 +282,7 @@ const ADMIN_TOOLS = [
   { href: "/admin/audit", label: "Audit trail" },
 ];
 
-type TabType = "activity" | "usage" | "billing" | "api" | "health" | "serverErrors" | "enquiries" | "applications" | "features" | "auditLog" | "sending";
+type TabType = "activity" | "usage" | "billing" | "api" | "health" | "serverErrors" | "enquiries" | "applications" | "features" | "auditLog" | "sending" | "placement";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
@@ -621,6 +622,12 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 label="Features & Teams"
               />
               <TabButton active={activeTab === "sending"} onClick={() => setActiveTab("sending")} icon={Layers} label="Sending" />
+              <TabButton
+                active={activeTab === "placement"}
+                onClick={() => setActiveTab("placement")}
+                icon={Inbox}
+                label="Placement Test Inboxes"
+              />
               <TabButton
                 active={activeTab === "auditLog"}
                 onClick={() => setActiveTab("auditLog")}
@@ -1073,6 +1080,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             {activeTab === "applications" && <ApplicationsTab onLoggedOut={onLoggedOut} />}
 
             {activeTab === "features" && <FeaturesTab teams={data.teams} onLoggedOut={onLoggedOut} />}
+            {activeTab === "placement" && <PlacementInboxesTab />}
 
             {activeTab === "sending" && <SendingTab onLoggedOut={onLoggedOut} />}
 

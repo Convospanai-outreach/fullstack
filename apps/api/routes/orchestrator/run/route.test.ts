@@ -23,6 +23,8 @@ vi.mock("@/lib/governance/guard", () => ({ enforcePolicy: mockEnforcePolicy }));
 vi.mock("@/lib/governance/limits", () => ({ checkLimits: mockCheckLimits }));
 vi.mock("@/lib/governance/audit", () => ({ audit: mockAudit }));
 vi.mock("@/lib/governance/campaignStartApproval", () => ({ findApprovedCampaignStartId: mockFindApproved }));
+const { mockPlacementGate } = vi.hoisted(() => ({ mockPlacementGate: vi.fn() }));
+vi.mock("@/lib/campaigns/placementGate", () => ({ checkPlacementGate: mockPlacementGate }));
 
 import { POST } from "./route";
 
@@ -42,6 +44,7 @@ describe("POST /orchestrator/run - governance ordering and team scoping", () => 
         mockEnqueue.mockResolvedValue({ id: "job-1" });
         mockAudit.mockResolvedValue(undefined);
         mockFindApproved.mockResolvedValue(null);
+        mockPlacementGate.mockResolvedValue({ allowed: true });
     });
 
     it("returns 401 when the caller has no session team", async () => {
@@ -62,6 +65,18 @@ describe("POST /orchestrator/run - governance ordering and team scoping", () => 
         expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({ where: { id: "campaign-foreign", teamId: "team-1" } });
         expect(mockCheckLimits).not.toHaveBeenCalled();
         expect(mockEnforcePolicy).not.toHaveBeenCalled();
+    });
+
+    it("refuses with 409 on a red inbox placement result, before any governance check or enqueue", async () => {
+        mockPlacementGate.mockResolvedValue({ allowed: false, status: 409, body: { error: "spam", code: "PLACEMENT_RED", mailboxes: [] } });
+
+        const res = await POST(postRequest({ campaignId: "campaign-1" }));
+
+        expect(res.status).toBe(409);
+        expect((await res.json()).code).toBe("PLACEMENT_RED");
+        expect(mockPlacementGate).toHaveBeenCalledWith("team-1", "campaign-1");
+        expect(mockEnforcePolicy).not.toHaveBeenCalled();
+        expect(mockEnqueue).not.toHaveBeenCalled();
     });
 
     it("does not schedule the campaign when governance rejects the request (this used to run unconditionally before any check)", async () => {
