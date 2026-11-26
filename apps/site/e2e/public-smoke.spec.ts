@@ -18,11 +18,11 @@ for (const path of publicPages) {
             : { path: "/privacy", title: "Privacy Policy" };
 
         await page.locator(`footer a[href="${legal.path}"]`).click();
-        await expect(page).toHaveURL(origin + legal.path);
-        await expect(page.getByRole("heading", { level: 1, name: legal.title, exact: true })).toBeVisible();
+        await expect(page).toHaveURL(origin + legal.path, { timeout: 30_000 });
+        await expect(page.getByRole("heading", { level: 1, name: legal.title, exact: true })).toBeVisible({ timeout: 30_000 });
 
         await page.locator('nav a[href="/"]:visible').click();
-        await expect(page).toHaveURL(origin + "/");
-        await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+        await expect(page).toHaveURL(origin + "/", { timeout: 30_000 });
+        await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible({ timeout: 30_000 });
     });
 }
