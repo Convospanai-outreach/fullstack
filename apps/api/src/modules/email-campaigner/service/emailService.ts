@@ -6,7 +6,8 @@
  */
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
+import { mailboxReputationGuardEnabled, mailboxSendingHold } from "@/modules/overseer/mailboxReputationHold";
+import { ensureLegacySmtpMailbox, getSmtpConfig, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
 import {
     isSuppressed,
     selectMailboxForSend,
@@ -52,7 +53,7 @@ function escapeHtml(value: string): string {
 }
 
 class EmailService {
-    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null, footerText?: string, firstTouch?: { teamName: string; notice: FirstTouchNotice }) {
+    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl: string | undefined, unsubscribeUrl: string | undefined, mailingAddress?: string | null, footerText?: string, firstTouch?: { teamName: string; notice: FirstTouchNotice }) {
         // First-touch notice (DPDP): who is writing, why, how to stop, whom to ask. HTML-escaped: it is team-authored text.
         const firstTouchBlock = firstTouch
             ? `<p style="font-size:13px;line-height:1.5;color:#0f172a;margin:0 0 10px 0">${escapeHtml(`This message is from ${firstTouch.teamName}. ${firstTouch.notice.text}`)} To stop receiving messages from us, reply "unsubscribe". Questions about your personal data: <a href="mailto:${escapeHtml(firstTouch.notice.privacyContactEmail)}">${escapeHtml(firstTouch.notice.privacyContactEmail)}</a>.</p>`
@@ -61,9 +62,6 @@ class EmailService {
         const addressLine = mailingAddress
             ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
             : "";
-        const unsubscribeUrl = publicBaseUrl
-            ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
-            : undefined;
         // Mandatory, prominent anti-spam footer on every send (unconditional — must NOT depend on
         // publicBaseUrl/tracking being configured): steers recipients to unsubscribe or forward
         // rather than hitting "report spam", which is what actually hurts sender reputation.
@@ -152,6 +150,7 @@ class EmailService {
         subject: string;
         body: string;
         trackingId: string;
+        headers?: Record<string, string>;
         metadata?: {
             leadId?: string;
             campaignId?: string;
@@ -161,25 +160,43 @@ class EmailService {
         };
         attachments?: EmailAttachment[];
     }): Promise<EmailSendResult> {
-        let config: any;
+        if (!input.teamId) return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        // Guard off: the pre-guard path. The team's SMTP config is used as it is, with no converted
+        // mailbox, no 50/day limit and no minimum delay. Only the unsubscribe headers are added.
+        let mailbox: Awaited<ReturnType<typeof ensureLegacySmtpMailbox>> = null;
+        let config: Awaited<ReturnType<typeof getSmtpConfig>>;
         try {
-            config = input.teamId ? await getSmtpConfig(input.teamId) : null;
+            if (mailboxReputationGuardEnabled()) {
+                mailbox = await ensureLegacySmtpMailbox(input.teamId);
+                config = mailbox?.config ?? null;
+            } else {
+                config = await getSmtpConfig(input.teamId);
+            }
         } catch {
             console.error("[EmailService] SMTP_CONFIG_UNAVAILABLE.");
             return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
         }
-
-        if (!config) {
-            return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        if (!config) return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        if (mailbox) {
+            const hold = mailboxSendingHold(mailbox.metadata);
+            if (hold) return { success: false, error: hold };
+            if (mailbox.status !== "CONNECTED") return { success: false, error: "SMTP_MAILBOX_DISCONNECTED" };
+            const { reserveMailboxSend } = await import("./googleMailboxService");
+            const slot = await reserveMailboxSend(input.teamId, mailbox.id);
+            if (!slot.ok) return { success: false, error: slot.reason };
         }
-
         const result = await sendViaSMTP(config, {
             to: input.to,
             subject: input.subject,
             html: input.body,
+            ...(input.headers ? { headers: input.headers } : {}),
             ...(input.attachments?.length ? { attachments: input.attachments } : {}),
         });
         if (!result.success) {
+            if (mailbox) {
+                const { releaseMailboxSend } = await import("./googleMailboxService");
+                await releaseMailboxSend(input.teamId, mailbox.id);
+            }
             return { success: false, error: "SMTP_SEND_FAILED" };
         }
 
@@ -189,6 +206,7 @@ class EmailService {
             body: input.body,
             trackingId: input.trackingId,
             deliveryProvider: "SMTP",
+            ...(mailbox ? { mailboxId: mailbox.id } : {}),
             providerId: result.messageId,
         });
         return {
@@ -215,6 +233,7 @@ class EmailService {
             idempotencyKey?: string;
             // Which prompt versions wrote an AI-drafted email (see copyProvenance.ts); omitted for copy a person wrote.
             copyProvenance?: unknown;
+            transactional?: boolean;
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;
@@ -233,7 +252,7 @@ class EmailService {
             if (teamId && lead && lead.teamId !== teamId) {
                 return { success: false, error: "LEAD_TEAM_MISMATCH" };
             }
-            const pausedStatuses = new Set(["replied", "stopped", "bounced", "unsubscribed", "do_not_contact"]);
+            const pausedStatuses = new Set(["replied", "stopped", "bounced", "unsubscribed", "opt_out", "dnc", "do_not_contact"]);
             if (lead?.status && pausedStatuses.has(lead.status.toLowerCase())) {
                 return { success: false, error: "LEAD_SEQUENCE_PAUSED" };
             }
@@ -254,10 +273,12 @@ class EmailService {
         }
 
         const trackingId = crypto.randomUUID();
-        const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
+        const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] || process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || (process.env.NODE_ENV === "production" ? "https://craftmyfunnel.live" : undefined);
         const teamComms = teamId
             ? await prisma.team.findUnique({ where: { id: teamId }, select: { name: true, mailingAddress: true, branding: true, sendSafety: true } })
             : null;
+        const teamHold = mailboxSendingHold(null, teamComms?.sendSafety);
+        if (teamHold) return { success: false, error: teamHold };
         if (teamId && metadata?.leadId && metadata.campaignId) {
             const retryAt = await accountReplyHoldUntil({ teamId, leadId: metadata.leadId, domain: leadDomain, settings: teamComms?.sendSafety });
             if (retryAt) return { success: false, error: "ACCOUNT_REPLY_COOLDOWN", retryAt };
@@ -275,10 +296,18 @@ class EmailService {
                 firstTouch = { teamName: teamComms?.name || "the sender", notice };
             }
         }
-        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress, footerText, firstTouch);
-        const unsubscribeUrl = publicBaseUrl
-            ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
+        const unsubscribeUrl = publicBaseUrl && !metadata?.transactional
+            ? `${publicBaseUrl.replace(/\/$/, "")}/api/email/unsubscribe/${trackingId}`
             : undefined;
+        if (unsubscribeUrl && teamId && (!metadata?.leadId || !metadata.campaignId)) {
+            const { registerStandaloneUnsubscribe } = await import("./trackingService");
+            await registerStandaloneUnsubscribe({ teamId, token: trackingId, recipient: to, ...(metadata?.leadId ? { leadId: metadata.leadId } : {}) });
+        }
+        const trackedBody = metadata?.transactional ? body : this.addTrackingLinks(body, trackingId, publicBaseUrl, unsubscribeUrl, mailingAddress, footerText, firstTouch);
+        const unsubscribeHeaders = unsubscribeUrl ? {
+            "List-Unsubscribe": "<" + unsubscribeUrl + ">",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        } : undefined;
         const attachments: EmailAttachment[] = metadata?.campaignId
             ? await prisma.campaignAttachment.findMany({
                   where: { campaignId: metadata.campaignId },
@@ -302,6 +331,9 @@ class EmailService {
                           where: { id: metadata.mailboxId, teamId, status: "CONNECTED" },
                       })
                     : await selectMailboxForSend(teamId, metadata?.userId);
+                const purpose = metadata?.transactional ? "transactional" as const : "outreach" as const;
+                const hold = mailboxSendingHold(mailbox?.metadata, teamComms?.sendSafety, purpose);
+                if (hold) return { success: false, error: hold };
                 if (mailbox?.provider === "RESEND") {
                     resendOutcome = await sendViaResendMailbox({
                         teamId,
@@ -309,6 +341,7 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
                         trackingId,
                         unsubscribeUrl,
                         attachments,
@@ -321,6 +354,8 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
+                        ...(unsubscribeHeaders ? { headers: unsubscribeHeaders } : {}),
                         attachments,
                     });
                 } else if (mailbox) {
@@ -330,6 +365,7 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        purpose,
                         unsubscribeUrl,
                         attachments,
                     });
@@ -414,6 +450,7 @@ class EmailService {
             subject,
             body: trackedBody,
             trackingId,
+            headers: unsubscribeHeaders,
             metadata,
             attachments,
         });

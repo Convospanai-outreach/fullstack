@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
             return successResponse({ draft, sent: false });
         }
 
-        const result = await emailService.sendEmail(input.clientEmail, draft.subject, draft.html, { teamId });
+        const result = await emailService.sendEmail(input.clientEmail, draft.subject, draft.html, { teamId, transactional: true });
         if (!result.success) {
             throw new APIError(result.error ?? "Failed to send ready reckoner email", 500, "EMAIL_SEND_FAILED");
         }

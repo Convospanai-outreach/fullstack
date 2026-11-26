@@ -68,6 +68,7 @@ export type JobType =
     | "playbook_generate"
     | "reply_classification"
     | "scheduled_inbox_reply"
+    | "mailbox_reputation_check"
     | "whatsapp_reply_classification";
 
 export interface JobPayload {
@@ -307,7 +308,7 @@ export class JobQueue {
     static async defer(
         jobId: string,
         claimVersion: number,
-        options: { processAt: Date; reason: "MAILBOX_LEASE_CONTENDED" }
+        options: { processAt: Date; reason: "MAILBOX_LEASE_CONTENDED" | "MAILBOX_REPUTATION_HOLD" | "TEAM_SENDING_HOLD" | "GROWTH_CAP" }
     ) {
         const deferred = await prisma.job.updateMany({
             where: {

@@ -51,6 +51,7 @@ RUN apk add --no-cache wget chromium nss freetype harfbuzz ca-certificates ttf-f
 
 COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/apps/api ./apps/api
+COPY --from=builder /repo/packages/db/mailboxQuota.ts ./packages/db/mailboxQuota.ts
 
 WORKDIR /app/apps/api
 

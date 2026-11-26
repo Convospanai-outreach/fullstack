@@ -103,7 +103,7 @@ describe("imapMailboxService", () => {
                 campaign: { teamId: "team-1" },
                 OR: [{ providerId: "<sent-message-1@craftmyfunnel.live>" }],
             },
-            select: { id: true, leadId: true, campaignId: true },
+            select: { id: true, leadId: true, campaignId: true, lead: { select: { email: true } } },
         });
         expect(mockPrisma.__tx.message.create).toHaveBeenCalledWith({
             data: expect.objectContaining({

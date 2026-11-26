@@ -269,6 +269,7 @@ export async function sendViaGmailMailbox(input: {
     html: string;
     replyTo?: string;
     trackingId?: string;
+    unsubscribeHeaders?: Record<string, string>;
 }) {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
@@ -284,17 +285,12 @@ export async function sendViaGmailMailbox(input: {
     const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
     const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
 
-    const baseUrl = process.env["PUBLIC_BASE_URL"] || "https://api.craftmyfunnel.live";
-    const trackingId = input.trackingId || crypto.randomUUID();
-    const unsubscribeUrl = `${baseUrl}/api/proxy/email/unsubscribe/${trackingId}`;
-
     const headers = [
         `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
         `To: ${to}`,
         `Subject: ${encodeMimeHeader(input.subject)}`,
         `Message-ID: ${rfcMessageId}`,
-        `List-Unsubscribe: <${unsubscribeUrl}>`,
-        `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
+        ...Object.entries(input.unsubscribeHeaders ?? {}).map(([name, value]) => name + ": " + value),
         "MIME-Version: 1.0",
         "Content-Type: text/html; charset=UTF-8",
         ...(replyTo ? [`Reply-To: ${replyTo}`] : []),

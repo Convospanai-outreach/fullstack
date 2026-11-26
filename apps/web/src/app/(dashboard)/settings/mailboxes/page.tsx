@@ -59,6 +59,8 @@ export default function MailboxesSettingsPage() {
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [defaultSender, setDefaultSender] = useState<{ mailboxId: string | null; choices: Array<{ id: string; email: string }>; canEdit: boolean } | null>(null);
+    const [savingDefault, setSavingDefault] = useState(false);
 
     // Edit Controls Modal State
     const [editingMailbox, setEditingMailbox] = useState<ConnectedMailbox | null>(null);
@@ -148,12 +150,29 @@ export default function MailboxesSettingsPage() {
             const res = await fetch(getBrowserApiUrl("/mailboxes"));
             const data = await res.json();
             setMailboxes(data.mailboxes || []);
+            const response = await fetch(getBrowserApiUrl("/settings/default-sender"));
+            if (response.ok) setDefaultSender(await response.json());
         } catch {
             setError("Failed to load connected mailboxes.");
         } finally {
             setLoading(false);
         }
     };
+
+    async function saveDefaultSender(mailboxId: string | null) {
+        setSavingDefault(true);
+        try {
+            const response = await fetch(getBrowserApiUrl("/settings/default-sender"), {
+                method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mailboxId }),
+            });
+            if (!response.ok) throw new Error("Could not update the default sender.");
+            setDefaultSender((current) => current ? { ...current, mailboxId } : current);
+        } catch {
+            setError("Could not update the default sender.");
+        } finally {
+            setSavingDefault(false);
+        }
+    }
 
     const loadTeamMembers = async () => {
         try {
@@ -517,6 +536,15 @@ export default function MailboxesSettingsPage() {
                         <button onClick={() => setError("")} className="text-xs text-destructive hover:underline">Dismiss</button>
                     </div>
                 )}
+
+                {defaultSender && <label className="mb-6 block space-y-2 rounded-xl border border-border p-4 text-sm">
+                    <span className="block font-semibold">Default sender for new campaigns</span>
+                    <select className="rounded border border-border bg-background p-2" value={defaultSender.mailboxId ?? ""}
+                        disabled={!defaultSender.canEdit || savingDefault} onChange={(event) => void saveDefaultSender(event.target.value || null)}>
+                        <option value="">Choose a sender automatically</option>
+                        {defaultSender.choices.map(({ id, email }) => <option key={id} value={id}>{email}</option>)}
+                    </select>
+                </label>}
 
                 <div className="mb-8 grid grid-cols-1 sm:grid-cols-4 gap-3">
                     {/* Connect Google */}

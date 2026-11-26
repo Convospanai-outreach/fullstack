@@ -7,6 +7,7 @@
 // this sync, so the EmailEvent @@unique([teamId, provider, providerMessageId, type])
 // constraint alone is enough to make a re-run idempotent.
 import { ImapFlow } from "imapflow";
+import { classifyRecipientProvider } from "./resendFeedback";
 import { simpleParser, type ParsedMail } from "mailparser";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
@@ -82,7 +83,7 @@ async function processParsedMessage(input: {
                     campaign: { teamId },
                     OR: providerIds.map((providerId) => ({ providerId })),
                 },
-                select: { id: true, leadId: true, campaignId: true },
+                select: { id: true, leadId: true, campaignId: true, lead: { select: { email: true } } },
             });
             if (!matchedEmail) return "ignored" as const;
 
@@ -92,6 +93,7 @@ async function processParsedMessage(input: {
             });
             if (existingEvent) return "duplicate" as const;
 
+            const recipientProvider = await classifyRecipientProvider(matchedEmail.lead?.email ?? undefined);
             const emailEvent = await tx.emailEvent.create({
                 data: {
                     teamId,
@@ -102,7 +104,7 @@ async function processParsedMessage(input: {
                     type,
                     provider: "SMTP",
                     providerMessageId,
-                    payload: { from, subject },
+                    payload: { recipientProvider },
                 },
             });
 

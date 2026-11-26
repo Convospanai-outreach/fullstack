@@ -8,6 +8,7 @@ import { Resend } from "resend";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { reserveMailboxSend, releaseMailboxSend } from "./googleMailboxService";
 import type { EmailAttachment } from "./emailAttachment";
+import type { SendPurpose } from "@/modules/overseer/mailboxReputationHold";
 
 export type ResendSendOutcome =
     | { success: true; deliveryProvider: "RESEND"; messageId: string; mailboxId: string }
@@ -42,6 +43,7 @@ export async function sendViaResendMailbox(input: {
     html: string;
     trackingId: string;
     unsubscribeUrl?: string;
+    purpose?: SendPurpose;
     attachments?: EmailAttachment[];
     // Stable across retries of the same logical send (e.g. a sequence step run's
     // id) so a transient failure that retries the same send can't double-send a
@@ -60,7 +62,7 @@ export async function sendViaResendMailbox(input: {
     // Reserve the mailbox's daily send slot atomically, right before the actual provider
     // call — same race-avoidance reason as sendViaGmailMailbox (see OPEN-105). Released
     // below on any failure path.
-    const reservation = await reserveMailboxSend(input.teamId, mailbox.id);
+    const reservation = await reserveMailboxSend(input.teamId, mailbox.id, input.purpose);
     if (!reservation.ok) return { success: false, error: reservation.reason, fallbackAllowed: false };
 
     const fromName = mailbox.displayName || mailbox.email;

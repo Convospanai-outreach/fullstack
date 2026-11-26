@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import StrategyPicker from "@/components/campaigns/StrategyPicker";
 import { useDripPlaybooks } from "@/components/playbooks/DripPlaybooks";
 import type { PreflightBrief } from "@/lib/campaigns/preflight";
@@ -25,6 +26,8 @@ export default function NewCampaignPage() {
     const searchParams = useSearchParams();
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
+    const [senderMailboxId, setSenderMailboxId] = useState("");
+    const [senders, setSenders] = useState<Array<{ id: string; email: string }>>([]);
     const [submitting, setSubmitting] = useState(false);
     const [draftGenerationMode, setDraftGenerationMode] = useState<"REALTIME" | "BATCH">("REALTIME");
     const [strategies, setStrategies] = useState<string[]>([]);
@@ -42,6 +45,18 @@ export default function NewCampaignPage() {
     // Only a business profile from the website scan makes the ranking mean anything.
     const drip = useDripPlaybooks();
     const recommended = drip.data?.hasProfile ? drip.data.playbooks.slice(0, 3) : [];
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetch(getBrowserApiUrl("/settings/default-sender"), { signal: controller.signal })
+            .then(async (response) => {
+                if (!response.ok || controller.signal.aborted) return;
+                const result = await response.json();
+                setSenders(result.choices ?? []);
+                setSenderMailboxId(result.mailboxId ?? "");
+            }).catch(() => {});
+        return () => controller.abort();
+    }, []);
 
     useEffect(() => {
         fetch("/api/proxy/icp-builder/list")
@@ -102,6 +117,7 @@ export default function NewCampaignPage() {
                 icpId,
                 draftGenerationMode,
             };
+            if (senderMailboxId) body["senderMailboxId"] = senderMailboxId;
             if (strategies.length > 0 || objective.trim()) {
                 body["strategies"] = strategies;
                 body["objective"] = objective;
@@ -167,6 +183,14 @@ export default function NewCampaignPage() {
                     </div>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                        {senders.length > 0 && <label className="block space-y-2 text-sm">
+                            <span className="block font-semibold">Sender mailbox</span>
+                            <select value={senderMailboxId} onChange={(event) => setSenderMailboxId(event.target.value)}
+                                className="w-full rounded-lg border border-input bg-background px-4 py-2.5">
+                                <option value="">Choose a sender automatically</option>
+                                {senders.map(({ id, email }) => <option key={id} value={id}>{email}</option>)}
+                            </select>
+                        </label>}
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                                 Target ICP <span className="text-destructive">*</span>

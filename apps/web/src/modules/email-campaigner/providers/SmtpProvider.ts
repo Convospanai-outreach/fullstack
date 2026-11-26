@@ -9,11 +9,13 @@ export class SmtpProvider implements MailProvider {
   private async buildConfig(mailbox: any): Promise<SmtpConfig> {
     const password = await decryptCredential(mailbox.encryptedAccessToken || mailbox.encryptedRefreshToken);
     const metadata = mailbox.metadata || {};
+    const user = metadata.legacyTeamSmtp || metadata.smtpLoginStored ? await decryptCredential(mailbox.encryptedRefreshToken) : mailbox.email;
+    if (!user) throw new MailProviderError("SMTP login unavailable. Reconnect the mailbox.", "AUTH_EXPIRED", false);
     return {
       host: metadata.host || process.env["SMTP_HOST"] || "smtp.gmail.com",
       port: Number(metadata.port || process.env["SMTP_PORT"] || 587),
       secure: metadata.secure ?? (Number(metadata.port) === 465),
-      user: mailbox.email,
+      user,
       password: password || "",
       fromName: mailbox.displayName || mailbox.email,
       fromEmail: mailbox.email,

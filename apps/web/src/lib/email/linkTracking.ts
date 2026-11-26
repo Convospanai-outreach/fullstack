@@ -1,7 +1,7 @@
 import crypto from "crypto";
 
-function getAppBaseUrl(): string {
-  return (process.env["NEXTAUTH_URL"] || process.env["APP_URL"] || "http://localhost:3000").replace(/\/$/, "");
+export function getAppBaseUrl(): string {
+  return (process.env["NEXT_PUBLIC_APP_URL"] || process.env["NEXTAUTH_URL"] || process.env["APP_URL"] || (process.env.NODE_ENV === "production" ? "https://craftmyfunnel.live" : "http://localhost:3000")).replace(/\/$/, "");
 }
 
 export function buildOpenPixelHtml(trackingId: string): string {

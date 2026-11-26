@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockEncryptCredential, mockResendApiKeysList } = vi.hoisted(() => ({
     mockPrisma: {
-        connectedMailbox: { upsert: vi.fn() },
+        connectedMailbox: { upsert: vi.fn(), findUnique: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
     mockCheckTeamPermission: vi.fn(),

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
+import { jsonObject } from "@/modules/overseer/mailboxReputationHold";
 import { aiService } from "@/lib/aiService";
 import { logger, logWorker } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
@@ -67,6 +68,9 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     // DPDP send gate (team setting, off by default). Checked before any draft is written or paid for, and a
     // blocked lead is skipped here: emailService would refuse it too, but this worker would still mark it contacted.
     const gateTeamId = campaign.teamId || teamId;
+    if (campaign.status === "paused" && typeof jsonObject(campaign.aiConfig)["reputationPauseMailboxId"] === "string") {
+        return { deferredSendingReason: "MAILBOX_REPUTATION_HOLD" };
+    }
     if (gateTeamId) {
         const gate = await checkSendGate({ leadId, teamId: gateTeamId, channel: "EMAIL" });
         if (!gate.allowed) {
@@ -139,9 +143,11 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
 
     // Send email via Email Service
     try {
-    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; idempotencyKey?: string; copyProvenance?: unknown } = { leadId, campaignId };
+    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; mailboxId?: string; idempotencyKey?: string; copyProvenance?: unknown } = { leadId, campaignId };
     if (resolvedTeamId) metadata.teamId = resolvedTeamId;
     if (campaign.ownerId) metadata.userId = campaign.ownerId;
+    const senderMailboxId = jsonObject(campaign.aiConfig)["senderMailboxId"];
+    if (typeof senderMailboxId === "string") metadata.mailboxId = senderMailboxId;
     if (copyProvenance) metadata.copyProvenance = copyProvenance;
     if (approvedMessageId) metadata.idempotencyKey = `approved_message_${approvedMessageId}`;
     else if (jobId) metadata.idempotencyKey = jobId;
@@ -152,6 +158,9 @@ export async function handleEmailSend(payload: JobPayload, jobId?: string) {
         emailContent.body,
         metadata
     );
+    if (result?.error === "MAILBOX_REPUTATION_HOLD" || result?.error === "TEAM_SENDING_HOLD" || result?.error === "GROWTH_CAP") {
+        return { deferredSendingReason: result.error };
+    }
     if (result?.error === "ACCOUNT_REPLY_COOLDOWN" && result.retryAt) {
         if (approvedMessageId && resolvedTeamId) {
             await settleMessageApproval(approvedMessageId, resolvedTeamId, "NEEDS_ATTENTION", "Another contact at this account replied recently. Review after the account cooldown.");

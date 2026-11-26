@@ -21,6 +21,8 @@ const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceL
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+const reputationCheck = vi.hoisted(() => vi.fn());
+vi.mock("@/modules/overseer/mailboxReputation", () => ({ requestMailboxReputationCheck: reputationCheck }));
 vi.mock("@/lib/webhooks/verifySvixSignature", () => ({ verifySvixSignature: mockVerifySvixSignature }));
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: mockDecryptCredential }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({
@@ -401,6 +403,7 @@ describe("POST /webhooks/resend - failed side effects are retried, not lost", ()
         const res = await POST(request({ type: "email.bounced", data: { email_id: "provider-1", to: ["Lead@Example.com"], bounce: { type: "Permanent" } } }));
 
         expect(res.status).toBe(200);
+        expect(reputationCheck).toHaveBeenCalledOnce();
         expect(mockPrisma.suppressionEntry.upsert).toHaveBeenCalledWith(expect.objectContaining({
             create: expect.objectContaining({ email: "lead@example.com", reason: "BOUNCE", source: "RESEND_WEBHOOK" }),
         }));
@@ -426,6 +429,7 @@ describe("POST /webhooks/resend - failed side effects are retried, not lost", ()
 
         mockPrisma.lead.update.mockRejectedValueOnce(Object.assign(new Error("Record not found"), { code: "P2025" }));
         expect((await POST(request(complaint))).status).toBe(200);
+        expect(reputationCheck).toHaveBeenCalledOnce();
         expect(mockPrisma.emailEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ type: "COMPLAINED" }) });
     });
 });
