@@ -1,3 +1,11 @@
+import { APP_URL } from "../../../config/appUrl.mjs";
+
+const APP_ONLY_HELP_LINKS = new Set(["/settings", "/settings/mailboxes", "/leads/import"]);
+
+export function resolveHelpActionHref(href: string) {
+    return APP_ONLY_HELP_LINKS.has(href) ? APP_URL + href : href;
+}
+
 export interface HelpAction {
     label: string;
     href: string;

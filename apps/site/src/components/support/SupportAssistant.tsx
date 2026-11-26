@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LifeBuoy, MessageSquare, Send, Sparkles, X } from "lucide-react";
-import { HELP_PROMPTS } from "@/modules/help/content";
+import { HELP_PROMPTS, resolveHelpActionHref } from "@/modules/help/content";
 
 type AssistantMatch = {
     slug: string;
@@ -206,7 +206,7 @@ export function SupportAssistant() {
                                         ) : (
                                             <Link
                                                 key={`${action.kind}-${action.href}`}
-                                                href={action.href}
+                                                href={resolveHelpActionHref(action.href)}
                                                 className="inline-flex items-center rounded-full border border-foreground/10 px-3 py-2 text-sm text-foreground transition hover:border-warning/40 hover:bg-foreground/[0.04]"
                                             >
                                                 {action.label}

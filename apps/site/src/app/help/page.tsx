@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, LifeBuoy, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { ContactSupportForm } from "@/components/support/ContactSupportForm";
-import { HELP_ARTICLES, HELP_PROMPTS, type HelpArticle } from "@/modules/help/content";
+import { HELP_ARTICLES, HELP_PROMPTS, resolveHelpActionHref, type HelpArticle } from "@/modules/help/content";
 
 type HelpResponse = {
     results: HelpArticle[];
@@ -241,7 +241,7 @@ export default function HelpPage() {
                                     {activeArticle.actions.map((action) => (
                                         <Link
                                             key={action.href}
-                                            href={action.href}
+                                            href={resolveHelpActionHref(action.href)}
                                             className="inline-flex items-center gap-2 rounded-full border border-[#1A1414]/10 px-4 py-2 text-sm text-[#1A1414] transition hover:border-amber-300/40 hover:bg-white"
                                         >
                                             {action.label}
