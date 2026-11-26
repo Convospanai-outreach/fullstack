@@ -2,7 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getJobBySlug, getJobs } from "../careers";
+import { getJobBySlug, getJobs, JOBS_DIRECTORY } from "../careers";
 
 describe("job openings", () => {
     let dir: string;
@@ -52,5 +52,12 @@ describe("job openings", () => {
 
     it("is empty when the folder is missing", () => {
         expect(getJobs(path.join(dir, "missing"))).toEqual([]);
+    });
+});
+
+describe("default jobs directory", () => {
+    // The CMS publishes openings to the site's content folder, so applications must look there too.
+    it("reads the openings the site publishes", () => {
+        expect(JOBS_DIRECTORY).toBe(path.join(process.cwd(), "..", "site", "content", "jobs"));
     });
 });

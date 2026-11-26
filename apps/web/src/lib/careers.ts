@@ -15,11 +15,12 @@ export interface Job {
 
 const SLUG = /^[a-z0-9_-]+$/i;
 
-const jobsDirectory = path.join(process.cwd(), "content/jobs");
+// The CMS saves openings with the rest of the site content, so applications read the same folder the site does.
+export const JOBS_DIRECTORY = path.join(process.cwd(), "..", "site", "content", "jobs");
 
 // Openings are written in the CMS: the description is the body. Without `open: true` a position is not
 // shown, and with no openings the careers page says so.
-export function getJobs(directory: string = jobsDirectory, options: { includeClosed?: boolean } = {}): Job[] {
+export function getJobs(directory: string = JOBS_DIRECTORY, options: { includeClosed?: boolean } = {}): Job[] {
     if (!fs.existsSync(directory)) return [];
 
     return fs
@@ -44,7 +45,7 @@ export function getJobs(directory: string = jobsDirectory, options: { includeClo
 }
 
 // Only an open position can be found, and only by a plain slug.
-export function getJobBySlug(slug: string, directory: string = jobsDirectory): Job | undefined {
+export function getJobBySlug(slug: string, directory: string = JOBS_DIRECTORY): Job | undefined {
     if (!SLUG.test(slug)) return undefined;
     return getJobs(directory).find((job) => job.slug === slug);
 }

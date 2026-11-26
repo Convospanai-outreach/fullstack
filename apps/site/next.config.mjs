@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withSentryConfig } from '@sentry/nextjs';
 import { APP_URL } from './config/appUrl.mjs';
+import { appRewriteSources } from './config/appRewrites.mjs';
 import { loadSiteRedirects, toNextRedirects } from './config/siteRedirects.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -92,14 +93,7 @@ const config = {
         );
     },
     async rewrites() {
-        return [
-            '/api/invite-requests', '/api/contact', '/api/careers/apply',
-            '/api/help/search', '/api/help/assistant', '/api/support/contact',
-            '/api/errors/client', '/api/proxy/errors/client', '/api/site-banner', '/api/proxy/billing/plans',
-            '/api/openapi.json', '/.well-known/api-catalog', '/.well-known/agent-card.json',
-            '/.well-known/agent-skills/index.json', '/.well-known/agent-skills/:skill/SKILL.md',
-            '/.well-known/http-message-signatures-directory', '/.well-known/microsoft-identity-association.json',
-        ].map(source => ({ source, destination: `${APP_URL}${source}` }));
+        return appRewriteSources.map(source => ({ source, destination: `${APP_URL}${source}` }));
     },
 };
 
