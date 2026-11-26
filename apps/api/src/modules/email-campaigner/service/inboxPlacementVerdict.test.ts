@@ -64,6 +64,8 @@ describe("inboxProviderFromHost and placementToken", () => {
         expect(inboxProviderFromHost("imap.gmail.com")).toBe("gmail");
         expect(inboxProviderFromHost("imap.mail.yahoo.com")).toBe("yahoo");
         expect(inboxProviderFromHost("imap.zoho.com")).toBe("other");
+        expect(inboxProviderFromHost("imap.fakeyahoo.com")).toBe("other");
+        expect(inboxProviderFromHost("yahoo.com.example.net")).toBe("other");
     });
 
     it("makes a single searchable word", () => {

@@ -29,8 +29,9 @@ const DAY_MS = 86_400_000;
 
 export function inboxProviderFromHost(host: string): InboxProvider {
     const h = host.trim().toLowerCase();
-    if (h === "imap.gmail.com" || h.endsWith(".gmail.com") || h === "imap.googlemail.com") return "gmail";
-    if (h.endsWith("mail.yahoo.com") || h.endsWith(".yahoo.com")) return "yahoo";
+    // Whole-label matches only, so a host like "fakeyahoo.com" is not taken for Yahoo.
+    if (h === "gmail.com" || h.endsWith(".gmail.com") || h === "googlemail.com" || h.endsWith(".googlemail.com")) return "gmail";
+    if (h === "yahoo.com" || h.endsWith(".yahoo.com")) return "yahoo";
     return "other";
 }
 
