@@ -5,8 +5,10 @@ import { PRODUCT_FLAGS, type HiddenFeatureKey } from "@/lib/productFlags";
 import { NAV_SECTIONS, SETTINGS_GROUPS, sectionForPath, visibleTabs } from "@/lib/navSections";
 
 const APP = path.resolve(__dirname, "../../src/app");
+const SITE = path.resolve(__dirname, "../../../site/src/app");
 const pageExists = (href: string) =>
-    existsSync(path.join(APP, "(dashboard)", href, "page.tsx")) || existsSync(path.join(APP, href, "page.tsx"));
+    existsSync(path.join(APP, "(dashboard)", href, "page.tsx")) || existsSync(path.join(APP, href, "page.tsx")) ||
+    (href === "/docs/api" && existsSync(path.join(SITE, href, "page.tsx")));
 
 const settingsHrefs = SETTINGS_GROUPS.flatMap((group) => group.links.map((link) => link.href));
 const tabHrefs = NAV_SECTIONS.flatMap((section) => section.tabs.map((tab) => tab.href));

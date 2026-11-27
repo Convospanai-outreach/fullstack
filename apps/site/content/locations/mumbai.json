@@ -1,0 +1,26 @@
+{
+  "slug": "mumbai",
+  "name": "Mumbai",
+  "state": "Maharashtra",
+  "stateCode": "IN-MH",
+  "placename": "Mumbai, Maharashtra, India",
+  "position": "19.0760;72.8777",
+  "icbm": "19.0760, 72.8777",
+  "latitude": "19.0760",
+  "longitude": "72.8777",
+  "corridors": [
+    "Bandra Kurla Complex (BKC)",
+    "Lower Parel",
+    "Andheri East",
+    "Powai",
+    "Navi Mumbai Mindspace"
+  ],
+  "industryFocus": [
+    "Banking, Financial Services & Insurance (BFSI)",
+    "FinTech & Capital Markets",
+    "Media & Entertainment",
+    "Enterprise Staffing & Facility Services"
+  ],
+  "summary": "High-precision meeting pipeline generation for financial institutions, conglomerates, and service firms across BKC and Lower Parel.",
+  "order": 4
+}

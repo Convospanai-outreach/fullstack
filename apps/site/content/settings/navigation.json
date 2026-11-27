@@ -1,0 +1,148 @@
+{
+  "groups": [
+    {
+      "label": "Product",
+      "items": [
+        {
+          "label": "Fluid Funnel Engine",
+          "href": "/products/fluid-funnel-engine"
+        },
+        {
+          "label": "Buyer Signals",
+          "href": "/products/buyer-signals"
+        },
+        {
+          "label": "AI Outreach",
+          "href": "/products/ai-outreach"
+        },
+        {
+          "label": "Human Layer",
+          "href": "/products/human-layer"
+        },
+        {
+          "label": "Covospan EDGE",
+          "href": "/products/covospan-edge",
+          "badge": "GDPR · DPDP"
+        }
+      ]
+    },
+    {
+      "label": "Industries",
+      "items": [
+        {
+          "label": "Cybersecurity & MSSPs",
+          "href": "/industries/cybersecurity",
+          "badge": "US · EU"
+        },
+        {
+          "label": "Managed IT & cloud",
+          "href": "/industries/managed-it-cloud",
+          "badge": "US · EU"
+        },
+        {
+          "label": "SAP & ERP partners",
+          "href": "/industries/sap-erp",
+          "badge": "Global"
+        },
+        {
+          "label": "GCC workplace services",
+          "href": "/industries/gcc-services",
+          "badge": "India"
+        },
+        {
+          "label": "Staffing & recruitment",
+          "href": "/industries/staffing",
+          "badge": "India"
+        },
+        {
+          "label": "Privacy & DPDP consulting",
+          "href": "/industries/dpdp-consulting",
+          "badge": "India"
+        },
+        {
+          "label": "All industries",
+          "href": "/industries"
+        }
+      ]
+    },
+    {
+      "label": "Markets",
+      "items": [
+        {
+          "label": "India",
+          "href": "/regions/india"
+        },
+        {
+          "label": "United States",
+          "href": "/regions/united-states"
+        },
+        {
+          "label": "Europe & UK",
+          "href": "/regions/europe"
+        },
+        {
+          "label": "UAE",
+          "href": "/regions/uae"
+        },
+        {
+          "label": "Canada",
+          "href": "/regions/canada"
+        },
+        {
+          "label": "India city hubs",
+          "href": "/locations"
+        }
+      ]
+    },
+    {
+      "label": "Company",
+      "items": [
+        {
+          "label": "About",
+          "href": "/about"
+        },
+        {
+          "label": "Compare",
+          "href": "/vs"
+        },
+        {
+          "label": "Careers",
+          "href": "/careers"
+        },
+        {
+          "label": "Security",
+          "href": "/security"
+        },
+        {
+          "label": "Contact",
+          "href": "/contact"
+        }
+      ]
+    },
+    {
+      "label": "Resources",
+      "items": [
+        {
+          "label": "Blog",
+          "href": "/blog"
+        },
+        {
+          "label": "Docs",
+          "href": "/docs"
+        },
+        {
+          "label": "Help Center",
+          "href": "/help"
+        },
+        {
+          "label": "FAQ",
+          "href": "/faq"
+        },
+        {
+          "label": "Support",
+          "href": "/support"
+        }
+      ]
+    }
+  ]
+}

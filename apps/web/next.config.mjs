@@ -122,7 +122,22 @@ const nextConfig = {
     // until verified in prod. These run before src/proxy.ts, which still enforces auth on
     // the destination.
     async redirects() {
-        return [
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
+        const marketingPaths = [
+            '/', '/about', '/blog/:path*', '/careers/:path*', '/contact', '/docs/:path*',
+            '/faq', '/help', '/industries/:path*', '/locations/:path*', '/pricing', '/privacy',
+            '/products/:path*', '/regions/:path*', '/security', '/support', '/terms',
+            '/trust/:path*', '/vs/:path*', '/data-deletion', '/google-api-disclosure',
+            '/robots.txt', '/sitemap.xml', '/manifest.webmanifest', '/llms.txt', '/llms-full.txt',
+            '/uploads/:path*',
+        ];
+        const appCheckoutReturn = {
+            source: '/pricing',
+            has: [{ type: 'query', key: 'checkout', value: 'cancelled' }],
+            destination: '/pricing/manage',
+            permanent: false,
+        };
+        const appRedirects = [
             ['/audit-logs', '/settings/audit'],
             ['/governance/audit', '/settings/audit'],
             ['/governance/guardrails', '/settings/guardrails'],
@@ -134,6 +149,8 @@ const nextConfig = {
             ['/team', '/settings/team'],
             ['/crm', '/settings/crm'],
             ['/dashboard/settings', '/settings'],
+        ];
+        const legacy = [
             // Old marketing URLs -> Industries / Regions (Nov 2026 site rework).
             ['/use-cases', '/industries'],
             ['/use-cases/cybersecurity', '/industries/cybersecurity'],
@@ -147,7 +164,13 @@ const nextConfig = {
             ['/use-cases/training', '/industries'],
             ['/use-cases/regions/:region', '/regions/:region'],
             ['/funnel', '/'],
-        ].map(([source, destination]) => ({ source, destination, permanent: false })).concat(
+        ];
+        return [
+            appCheckoutReturn,
+            ...appRedirects.map(([source, destination]) => ({ source, destination, permanent: false })),
+            ...(siteUrl ? legacy.map(([source, destination]) => ({ source, destination: siteUrl + destination, permanent: false })) : []),
+            ...(siteUrl ? marketingPaths.map(source => ({ source, destination: siteUrl + source, permanent: false })) : []),
+        ].concat(
             // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
             toNextRedirects(loadSiteRedirects())
         );

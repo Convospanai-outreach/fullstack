@@ -1,0 +1,45 @@
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-home), system-ui, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-family: var(--font-display), serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h2, h3 { font-family: inherit; }
+}
+
+/* Legible custom select & dropdown option colors globally */
+select {
+  color: hsl(var(--foreground));
+}
+
+select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+
+
+
+/* Bordeaux theme: buttons are square (cards 4px, inputs 2px). Catches raw <button className="rounded-md"> in pages. */
+button[class*="rounded-md"],
+button[class*="rounded-lg"],
+button[class*="rounded-xl"] {
+  border-radius: 0;
+}

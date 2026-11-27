@@ -1,9 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// One check for the whole product: marketing pages and dashboard pages must resolve the same global tokens.
-// Body font is Montserrat, the page paints a theme background, and no element uses a blue/violet/cyan colour.
-// Dashboard routes need the usual authenticated test session; marketing routes run without one.
-const ROUTES = ['/', '/pricing', '/industries/cybersecurity', '/dashboard', '/campaigns', '/analytics/roi'];
+// The signed-in product must resolve the shared design tokens on each dashboard route.
+const ROUTES = ['/dashboard', '/campaigns', '/analytics/roi'];
 const THEMES = ['light', 'dark'] as const;
 const WIDTHS = [1440, 390];
 const BACKGROUND = { light: 'rgb(243, 237, 228)', dark: 'rgb(26, 20, 20)' };

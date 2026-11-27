@@ -1,5 +1,7 @@
 # CraftMyFunnel Master System Architecture
 
+> Split branch (`feat/site-app-split`, 2026-11-24): a fourth deployable app, `apps/site`, owns public marketing pages, site content, and SEO. `apps/web` keeps authenticated product pages, `/p/[slug]`, CMS, and app-owned APIs. Public API calls from the site rewrite to the app, and former marketing URLs on the app redirect to the site. The deployment topology below describes current production until the split is released and verified.
+
 > 2026-11-04 boundary update: the current hosting topology is recorded in [README.md](README.md) (Render web, Oracle API/worker, Supabase, separate AWS Mautic and Cloudflare landing delivery). The optional inbound MCP endpoint lives in the API; web-owned campaign/lead operations use a signed, one-use relay to current web handlers. This adds no new deployable service. See [MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md). Older readiness snapshots below are historical, not evidence for enabling MCP.
 
 ## Purpose

@@ -19,6 +19,9 @@
     "noEmit": true,
     "baseUrl": "src",
     "paths": {
+      "@craftmyfunnel/ui/*": [
+        "../../../packages/ui/*"
+      ],
       "@/*": [
         "*"
       ]

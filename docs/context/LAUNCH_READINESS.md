@@ -1,5 +1,9 @@
 # Launch Readiness Wiki
 
+> The `feat/site-app-split` branch adds a separate `apps/site` build and route boundary. Local checks and target-branch CI, host configuration, cross-host redirects, CMS content paths, and deployment verification are required before this split is considered released. Older test counts below predate the split.
+
+The rollout order is site service, public domain cutover, separate app host, both host environment variables, then web deployment. `NEXT_PUBLIC_APP_URL` is required for the production site build; app marketing redirects require an explicit `NEXT_PUBLIC_SITE_URL`. The branch includes merged #1039 and uses Montserrat in the shared font source and browser style checks. Remote CI and deployed cookie and redirect behavior are still unverified.
+
 > 2026-11-04 MCP update: the scores and test counts below describe an earlier reassessment. They do not approve the new MCP interface. MCP stays disabled until the additive migration, both service releases, HTTPS discovery, OAuth/client verification and target-branch CI are reviewed. See [current MCP evidence and limits](../MCP_INTEGRATION.md) and [runtime findings](../MCP_RUNTIME_REVIEW.md).
 
 ## Current Launch Recommendation

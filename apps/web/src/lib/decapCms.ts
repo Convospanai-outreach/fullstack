@@ -29,13 +29,13 @@ export function buildDecapConfig(origin: string): string {
   auth_endpoint: api/cms/auth
 
 publish_mode: editorial_workflow
-media_folder: apps/web/public/uploads
+media_folder: apps/site/public/uploads
 public_folder: /uploads
 
 collections:
   - name: blog
     label: Blog posts
-    folder: apps/web/content/blog
+    folder: apps/site/content/blog
     extension: md
     format: frontmatter
     create: true
@@ -48,7 +48,7 @@ collections:
       - { label: Body, name: body, widget: markdown }
   - name: testimonials
     label: Testimonials
-    folder: apps/web/content/testimonials
+    folder: apps/site/content/testimonials
     extension: md
     format: frontmatter
     create: true
@@ -61,7 +61,7 @@ collections:
       - { label: Quote, name: body, widget: text }
   - name: locations
     label: Locations
-    folder: apps/web/content/locations
+    folder: apps/site/content/locations
     extension: json
     format: json
     create: true
@@ -83,7 +83,7 @@ collections:
       - { label: Summary, name: summary, widget: text }
   - name: jobs
     label: Job openings
-    folder: apps/web/content/jobs
+    folder: apps/site/content/jobs
     extension: md
     format: frontmatter
     create: true
@@ -101,7 +101,7 @@ collections:
     files:
       - label: Redirects
         name: redirects
-        file: apps/web/content/settings/redirects.json
+        file: apps/site/content/settings/redirects.json
         fields:
           - label: Redirects
             name: redirects
@@ -112,7 +112,7 @@ collections:
               - { label: Permanent, name: permanent, widget: boolean, default: false }
       - label: Menus
         name: navigation
-        file: apps/web/content/settings/navigation.json
+        file: apps/site/content/settings/navigation.json
         fields:
           - label: Menus
             name: groups
@@ -130,7 +130,7 @@ collections:
                   - { label: Tag, name: badge, widget: string, required: false, hint: "Optional small label such as New or Popular." }
       - label: Home page
         name: home
-        file: apps/web/content/settings/home.json
+        file: apps/site/content/settings/home.json
         fields:
           - label: Scroll story
             name: story
@@ -329,7 +329,7 @@ collections:
                   - { label: Submit button, name: cta, widget: string }
       - label: Analytics
         name: analytics
-        file: apps/web/content/settings/analytics.json
+        file: apps/site/content/settings/analytics.json
         fields:
           - { label: Google Analytics 4 measurement ID, name: ga4MeasurementId, widget: string, required: false, hint: "Looks like G-XXXXXXXXXX. Leave empty to use the default." }
   - name: faq
@@ -337,7 +337,7 @@ collections:
     files:
       - label: FAQ page
         name: faq
-        file: apps/web/content/faq/general.md
+        file: apps/site/content/faq/general.md
         fields:
           - { label: Title, name: title, widget: string }
           - { label: Description, name: description, widget: text }

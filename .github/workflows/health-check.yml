@@ -64,7 +64,7 @@ jobs:
           }
 
           probe "apps/api" "https://api.craftmyfunnel.live/health"
-          probe "apps/web" "https://craftmyfunnel.live/api/health"
+          probe "apps/web" "https://app.craftmyfunnel.live/api/health"
 
           # A severe breach is re-probed once after 20s: a cold instance is warm
           # again within that window (cold ~4.4s -> warm ~0.06s in the audit),
@@ -74,7 +74,7 @@ jobs:
             sleep 20
             severe=false
             probe "apps/api" "https://api.craftmyfunnel.live/health"
-            probe "apps/web" "https://craftmyfunnel.live/api/health"
+            probe "apps/web" "https://app.craftmyfunnel.live/api/health"
             if [[ "$severe" == "true" ]]; then
               echo "::error::Sustained severe latency (TTFB > ${LATENCY_FAIL_SECONDS}s on retry)"
               failed=true

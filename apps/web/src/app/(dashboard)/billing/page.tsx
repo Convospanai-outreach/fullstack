@@ -226,7 +226,7 @@ export default function BillingPage() {
                                     <Button
                                         variant="outline"
                                         className="w-full mt-8 border-border"
-                                        onClick={() => router.push("/pricing")}
+                                        onClick={() => router.push("/pricing/manage")}
                                     >
                                         Manage Subscription
                                     </Button>

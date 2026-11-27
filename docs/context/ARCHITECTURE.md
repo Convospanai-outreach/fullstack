@@ -1,5 +1,7 @@
 # CraftMyFunnel Architecture Wiki
 
+> Split branch (`feat/site-app-split`, 2026-11-24): `apps/site` owns public marketing and SEO. `apps/web` retains product UI, `/p/[slug]`, CMS, and app-owned APIs. The site rewrites public API requests to the app; the app redirects old marketing URLs to the site. The three-app topology below describes current production until rollout.
+
 > 2026-11-04: use the current [README topology](../../README.md) for hosting (Render web, Oracle API/worker, Supabase, AWS Mautic, Cloudflare landing delivery). Optional inbound MCP is hosted by the API; web-owned handlers remain in the web app and are called through a signed one-use relay. See [MCP_INTEGRATION.md](../MCP_INTEGRATION.md). Outbound MCP clients and the private edge runtime remain separate.
 
 ## Short Version
