@@ -135,3 +135,16 @@ describe("strategiesFromConfig", () => {
         expect(strategiesFromConfig("x")).toEqual([]);
     });
 });
+
+describe("companyResearch switch", () => {
+    it("accepts a boolean and refuses anything else", () => {
+        expect(parseStrategyInput({ companyResearch: true })).toEqual({ ok: true, value: { companyResearch: true } });
+        expect(parseStrategyInput({ companyResearch: "yes" }).ok).toBe(false);
+        expect(parseStrategyInput({})).toEqual({ ok: true, value: {} });
+    });
+    it("stores true, removes the key for false, and keeps other settings", () => {
+        expect(applyStrategyInput({ goal: "g" }, { companyResearch: true })).toEqual({ goal: "g", companyResearch: true });
+        expect(applyStrategyInput({ goal: "g", companyResearch: true }, { companyResearch: false })).toEqual({ goal: "g" });
+        expect(applyStrategyInput({ companyResearch: true }, { companyResearch: false })).toBeNull();
+    });
+});

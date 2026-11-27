@@ -23,6 +23,7 @@ import { jevScreenEnabled, screenDraft } from "./draftScreen";
 import { renderAudienceSection } from "./audienceRules";
 import { loadCopyContext, renderCopyContext, retrievalEnabled, type CopyContext } from "./copyContext";
 import { buildRubricCritiquePrompt, loadCriticRubric, readRubricVerdict } from "./rubricCritic";
+import { ANGLE_MARKER, researchCriterion } from "../research/researchMatch";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
 
@@ -235,11 +236,11 @@ export function buildCritiquePrompt(input: any, draft: any): string {
 ${input?.audience_context ? `    7. Audience: Does it mention the prospect's country, region, nationality, religion or culture when the signal does not, stereotype them, or name or hint at a personality type or profiling? (Must not.)
     ` : ""}
     8. Sounds like AI: em dashes, stock words (delve, leverage, seamless...), "not X, it's Y" reframes, filler transitions or assistant chatter. (Must not.)
-    ${aiTellsForCritic(`${draft?.subject ?? ""}\n\n${draft?.body ?? ""}`).replace(/\n/g, "\n    ")}
+    ${aiTellsForCritic(`${draft?.subject ?? ""}\n\n${draft?.body ?? ""}`).replace(/\n/g, "\n    ")}${typeof input?.campaign_brief === "string" && input.campaign_brief.includes(ANGLE_MARKER) ? `\n    9. ${researchCriterion}` : ""}
 
     ## STYLE REQUIREMENTS
     ${buildStyleGuidance(input)}
-    
+
     ## TASK
     If the email is perfect, respond ONLY with "PASS".
     If it needs improvement, explain EXACTLY why and provide a corrected version.
