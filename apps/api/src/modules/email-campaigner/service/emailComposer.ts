@@ -240,7 +240,7 @@ ${input?.audience_context ? `    7. Audience: Does it mention the prospect's cou
 
     ## STYLE REQUIREMENTS
     ${buildStyleGuidance(input)}
-
+    
     ## TASK
     If the email is perfect, respond ONLY with "PASS".
     If it needs improvement, explain EXACTLY why and provide a corrected version.
