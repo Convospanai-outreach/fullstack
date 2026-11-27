@@ -23,6 +23,7 @@ import { ReplySubsequenceSettings } from "@/components/playbooks/ReplySubsequenc
 import { CampaignWorkflowRail } from "@/components/campaigns/CampaignWorkflowRail";
 import GovernanceLogTab from "@/components/campaigns/GovernanceLogTab";
 import { CampaignApprovalGate } from "@/components/campaigns/CampaignApprovalGate";
+import { CompanyResearchSetting } from "@/components/campaigns/CompanyResearchSetting";
 import { CAMPAIGN_TABS, tabFromQuery } from "@/lib/campaigns/campaignTabs";
 
 // Removed unused Switch import
@@ -428,6 +429,7 @@ export default function CampaignDetailPage({
                                 <CampaignWorkflowRail campaignId={campaignId} />
                                 {campaign.aiConfig?.dripPlaybook?.kind && <ReplySubsequenceSettings campaignId={campaignId} />}
                                 <CampaignApprovalGate campaignId={campaignId} />
+                                <CompanyResearchSetting campaignId={campaignId} enabled={campaign.aiConfig?.companyResearch === true} leadCount={Array.isArray(campaign.leads) ? campaign.leads.length : campaign.targetCount || 0} />
                                 <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">

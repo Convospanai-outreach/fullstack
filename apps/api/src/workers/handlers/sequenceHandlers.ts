@@ -3,7 +3,8 @@ import { JobPayload } from "@/lib/queue";
 import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
-import { buildNodeASystemPrompt, composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
+import { buildNodeASystemPrompt, composeNodeA, type NodeAInput } from "@/modules/email-campaigner/service/emailComposer";
+import { composeWithResearch } from "@/modules/email-campaigner/research/composeResearched";
 import { buildAudienceContext } from "@/modules/email-campaigner/service/audienceContext";
 import { linkedinProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
@@ -264,12 +265,19 @@ export async function handleSequenceAction(payload: JobPayload) {
                     };
 
                     // 2. Compose via Autonomous Knowledge Engine
-                    const draft = await generateWithRetry(() => composeNodeA(
-                        nodeAInput,
+                    const compose = (input: NodeAInput) => generateWithRetry(() => composeNodeA(
+                        input,
                         campaign.teamId || "",
                         campaign.id,
                         lead.id
                     ));
+                    // Optional company research (campaign switch + COMPANY_RESEARCH=on); null means off.
+                    const researched = await composeWithResearch({ campaign, lead, teamId: emailApprovalTeamId || "", input: nodeAInput, compose });
+                    if (researched?.hold) {
+                        await flagNeedsAttention({ teamId: emailApprovalTeamId, leadId, channel: "EMAIL", reason: researched.hold, requesterHint: campaign.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
+                        return { ok: false, held: "needs_attention" };
+                    }
+                    const draft = researched ? researched.draft : await compose(nodeAInput);
                     if (!draft) {
                         // No stand-in copy: a generic "Checking in" email says nothing and was never reviewed.
                         await flagNeedsAttention({ teamId: emailApprovalTeamId, leadId, channel: "EMAIL", reason: "The email could not be written after 3 attempts.", requesterHint: campaign.ownerId, job: { jobType: "SEQUENCE_ACTION", jobPayload: payload } });
