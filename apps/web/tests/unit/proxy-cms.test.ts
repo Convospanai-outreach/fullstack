@@ -52,9 +52,11 @@ describe("the CMS admin and its GitHub login", () => {
 
         expect(directive(cms, "script-src")).toContain("https://unpkg.com");
         expect(directive(cms, "connect-src")).toContain("https://api.github.com");
+        expect(directive(cms, "connect-src")).toContain("blob:");
         expect(directive(cms, "img-src")).toContain("https://*.githubusercontent.com");
         expect(directive(home, "script-src")).not.toContain("unpkg.com");
         expect(directive(home, "connect-src")).not.toContain("api.github.com");
+        expect(directive(home, "connect-src")).not.toContain("blob:");
         expect(directive(home, "img-src")).not.toContain("githubusercontent.com");
     });
 });

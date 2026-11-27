@@ -530,10 +530,12 @@ async function appProxy(req: NextRequest) {
     ];
 
     // The CMS admin page loads Decap from unpkg (pinned, with an integrity hash) and talks to GitHub.
+    // Decap reads a picked image through fetch() on its blob: URL before uploading it, so blob: is
+    // needed in connect-src or every media upload fails with "Failed to fetch".
     if (cleanPath === "/cms" || cleanPath.startsWith("/cms/")) {
         cspValues[1] += " https://unpkg.com";
         cspValues[3] += " https://*.githubusercontent.com";
-        cspValues[5] += " https://api.github.com";
+        cspValues[5] += " https://api.github.com blob:";
     }
 
     // The WhatsApp page can open Meta's Embedded Signup popup, which loads Meta's SDK and talks to Meta.
