@@ -150,7 +150,7 @@ export const SCORING_STRATEGY_IDS = ["S7", "S8", "S12"] as const;
 
 export const MAX_OBJECTIVE_CHARS = 300;
 
-export type StrategyInput = { strategies?: string[]; objective?: string; preflight?: PreflightBrief };
+export type StrategyInput = { strategies?: string[]; objective?: string; preflight?: PreflightBrief; companyResearch?: boolean };
 
 // Reads the strategy fields of a create or update request. Absent fields are left out so an update
 // that does not mention them changes nothing.
@@ -170,6 +170,10 @@ export function parseStrategyInput(body: Record<string, unknown>): { ok: true; v
         if (!preflight) return { ok: false, error: "preflight must be an object of text answers" };
         value.preflight = preflight;
     }
+    if (body["companyResearch"] !== undefined) {
+        if (typeof body["companyResearch"] !== "boolean") return { ok: false, error: "companyResearch must be true or false" };
+        value.companyResearch = body["companyResearch"];
+    }
     return { ok: true, value };
 }
 
@@ -185,6 +189,10 @@ export function applyStrategyInput(existing: unknown, input: StrategyInput): Rec
     if (input.preflight !== undefined) {
         if (Object.keys(input.preflight).length > 0) base["preflight"] = input.preflight;
         else delete base["preflight"];
+    }
+    if (input.companyResearch !== undefined) {
+        if (input.companyResearch) base["companyResearch"] = true;
+        else delete base["companyResearch"];
     }
     return Object.keys(base).length > 0 ? base : null;
 }
