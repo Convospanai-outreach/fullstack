@@ -3,6 +3,7 @@ import { decryptCredential, type EncryptedCredential } from "@/lib/security/cred
 import { CONTENT_POST_ACTION, CONTENT_POST_ENTITY, PUBLISH_SCOPE, captionFor, isOwnMediaUrl } from "./contentPostService";
 import { GraphError, graphCall } from "./metaGraph";
 import { isInstagramLogin } from "./instagramLogin";
+import { appUrl } from "@/lib/appUrl";
 
 // Creator funnel publisher (phase 3b). Runs every minute from the worker tick and only ever
 // publishes APPROVED posts whose time has come, whose ApprovalRequest is APPROVED, on teams
@@ -49,7 +50,7 @@ const TICK_BUDGET_MS = 60 * 1000;
 const MAX_POSTS_PER_TICK = 5;
 const LATE_LIMIT_MS = 24 * 60 * 60 * 1000;
 const CONTAINER_TIMEOUT_MS = 10 * 60 * 1000;
-const CALENDAR_URL = "https://craftmyfunnel.live/content/calendar";
+const calendarUrl = () => appUrl("/content/calendar");
 const LINKEDIN_IMAGES_PER_PASS = 3;
 const LINKEDIN_IMAGE_WAIT_MS = 2 * 60 * 1000;
 
@@ -264,7 +265,7 @@ async function notifyAuthor(post: { teamId: string; createdById: string | null }
     try {
         const { NotificationDispatcher } = await import("@/lib/notifications");
         // Plain text only: Meta's error text stays in the calendar, where it is escaped.
-        await NotificationDispatcher.send(post.createdById, "SYSTEM", "A scheduled post didn't publish", `Open the content calendar to see what went wrong: ${CALENDAR_URL}`, { teamId: post.teamId });
+        await NotificationDispatcher.send(post.createdById, "SYSTEM", "A scheduled post didn't publish", `Open the content calendar to see what went wrong: ${calendarUrl()}`, { teamId: post.teamId });
     } catch (error) {
         console.error("[contentPublisher] failure notification failed", error instanceof Error ? error.message : error);
     }
