@@ -195,7 +195,7 @@ async function renderHtml(teamId: string, body: string, token: string, trackingI
     const team = await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true, branding: true } });
     const resolved = resolveMessageTokens(body, {}, { useSuggestedFallbacks: true, html: true }).text;
     const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] || process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"]
-        || (process.env.NODE_ENV === "production" ? "https://craftmyfunnel.live" : undefined);
+        || (process.env.NODE_ENV === "production" ? "https://app.craftmyfunnel.live" : undefined);
     // The same footer, unsubscribe line and link wrapping a real campaign send gets, so the check measures what
     // recipients receive. addTrackingLinks is private to EmailService; bracket access is TypeScript's escape hatch.
     const unsubscribeUrl = publicBaseUrl ? `${publicBaseUrl.replace(/\/$/, "")}/api/email/unsubscribe/${trackingId}` : undefined;

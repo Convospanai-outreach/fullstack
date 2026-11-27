@@ -96,12 +96,12 @@ describe("renderDigestEmail", () => {
         expect(email.html).not.toContain("<b>");
         expect(email.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
         expect(email.html).toContain("Tuesday &amp; &lt;b&gt;Wednesday&lt;/b&gt;");
-        expect(email.html).toContain('href="https://craftmyfunnel.live/inbox?reply=m1"');
-        expect(email.html).toContain('href="https://craftmyfunnel.live/leads/l1"');
-        expect(email.html).toContain('href="https://craftmyfunnel.live/inbox" style="color:#4f46e5;text-decoration:none">See all 4');
+        expect(email.html).toContain('href="https://app.craftmyfunnel.live/inbox?reply=m1"');
+        expect(email.html).toContain('href="https://app.craftmyfunnel.live/leads/l1"');
+        expect(email.html).toContain('href="https://app.craftmyfunnel.live/inbox" style="color:#4f46e5;text-decoration:none">See all 4');
         expect(email.html).toMatch(/11:00\s?am/i);
-        expect(email.text).toContain("https://craftmyfunnel.live/inbox?reply=m1");
-        expect(email.text).toContain("Open your inbox: https://craftmyfunnel.live/inbox");
+        expect(email.text).toContain("https://app.craftmyfunnel.live/inbox?reply=m1");
+        expect(email.text).toContain("Open your inbox: https://app.craftmyfunnel.live/inbox");
     });
 
     it("orders needs you, goal pace, the win, then yesterday", () => {

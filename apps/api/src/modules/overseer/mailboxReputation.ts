@@ -76,7 +76,7 @@ export function writeReputationAudit(client: Client, teamId: string, mailboxId: 
 }
 
 export function fixUrl(mailboxId: string) {
-    const base = process.env["NEXT_PUBLIC_APP_URL"] || process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || "https://craftmyfunnel.live";
+    const base = process.env["NEXT_PUBLIC_APP_URL"] || process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || "https://app.craftmyfunnel.live";
     return base.replace(/\/$/, "") + "/settings/domain-health/" + encodeURIComponent(mailboxId);
 }
 

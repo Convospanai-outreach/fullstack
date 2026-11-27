@@ -51,7 +51,7 @@ describe("onInboundReply", () => {
         expect(type).toBe("LEAD");
         expect(title).toBe("New reply from Asha <b>Rao</b>");
         expect(message).not.toContain("Asha");
-        expect(message).toContain("https://craftmyfunnel.live/inbox?reply=msg-1");
+        expect(message).toContain("https://app.craftmyfunnel.live/inbox?reply=msg-1");
     });
 
     it("pushes the same recipients to Slack with lead text escaped and an exact-thread link", async () => {
@@ -59,7 +59,7 @@ describe("onInboundReply", () => {
 
         expect(sendSlackAlerts).toHaveBeenCalledWith(
             ["user-1", "user-2"],
-            "*New reply from Asha &lt;b&gt;Rao&lt;/b&gt;*  <https://craftmyfunnel.live/inbox?reply=msg-1|Open the thread>"
+            "*New reply from Asha &lt;b&gt;Rao&lt;/b&gt;*  <https://app.craftmyfunnel.live/inbox?reply=msg-1|Open the thread>"
         );
     });
 

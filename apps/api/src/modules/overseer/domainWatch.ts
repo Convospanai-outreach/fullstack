@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { appUrl } from "@/lib/appUrl";
 import { checkDomainDeliverabilitySignals, dkimSelectorFromMetadata } from "@/modules/email-campaigner/service/domainAuthService";
 
 // Daily check of every sending domain (the domain of each connected mailbox). It remembers the last
@@ -126,7 +127,7 @@ export async function runDomainWatch(now = new Date()): Promise<{ domainsChecked
             alarms += 1;
 
             try {
-                await notifyOwners(teamId, `Sending domain ${domain} needs attention`, `${suggestion} Details: https://craftmyfunnel.live/settings/domain-health`);
+                await notifyOwners(teamId, `Sending domain ${domain} needs attention`, `${suggestion} Details: ${appUrl("/settings/domain-health")}`);
             } catch (err) {
                 logger.error("[DomainWatch] Failed to notify team owner", { teamId, domain, error: (err as Error).message });
             }

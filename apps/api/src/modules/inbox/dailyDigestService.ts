@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
+import { appBaseUrl } from "@/lib/appUrl";
 import { DEFAULT_TIMEZONE, localDate, localDayRange, localHour, localMonth } from "./localDay";
 import { collectNeedsYou, type NeedsYouType } from "./needsYouService";
 import { meetingPace } from "./meetingGoalService";
-import { INBOX_URL } from "./inboundReplyNotifier";
+import { inboxUrl } from "./inboundReplyNotifier";
 
 // Daily Action Inbox digest. The worker calls runDailyDigest() once per clock hour; it
 // only sends during the 08:00-08:59 local hour, and DigestLog's unique (userId, sentOn)
@@ -10,8 +11,7 @@ import { INBOX_URL } from "./inboundReplyNotifier";
 // Order: what needs you (top 3, deep-linked), meeting-goal pace, one win, yesterday.
 
 export const DIGEST_LOCAL_HOUR = 8;
-const APP_URL = "https://craftmyfunnel.live";
-const SETTINGS_URL = `${APP_URL}/settings/notifications`;
+
 const DIGEST_SECTIONS = 3;
 // Reply outcomes (set in the Action Inbox) that count as a win.
 const WINNING_OUTCOMES = ["interested", "meeting_booked"];
@@ -162,7 +162,7 @@ export function renderDigestEmail(data: DigestData, timeZone = DEFAULT_TIMEZONE)
 ${body}
 </td></tr>`;
     const line = (html: string) => `<p style="margin:0 0 8px;font-size:14px;line-height:1.45;color:#334155">${html}</p>`;
-    const link = (href: string, html: string) => `<a href="${escapeHtml(APP_URL + href)}" style="color:#4f46e5;text-decoration:none">${html}</a>`;
+    const link = (href: string, html: string) => `<a href="${escapeHtml(appBaseUrl() + href)}" style="color:#4f46e5;text-decoration:none">${html}</a>`;
 
     const needsYouHtml = data.needsYou
         .map((item) => {
@@ -197,10 +197,10 @@ ${winHtml}
 <p style="margin:0;font-size:14px;color:#334155">${yesterdayLine}</p>
 </td></tr>
 <tr><td style="padding:24px 0 8px">
-<a href="${INBOX_URL}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 20px;border-radius:8px">Open your inbox</a>
+<a href="${inboxUrl()}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 20px;border-radius:8px">Open your inbox</a>
 </td></tr>
 </table>
-<p style="max-width:560px;margin:12px auto 0;font-size:12px;color:#64748b">You get this because the daily digest is on. <a href="${SETTINGS_URL}" style="color:#64748b">Turn it off in notification settings</a>.</p>
+<p style="max-width:560px;margin:12px auto 0;font-size:12px;color:#64748b">You get this because the daily digest is on. <a href="${appBaseUrl()}/settings/notifications" style="color:#64748b">Turn it off in notification settings</a>.</p>
 </td></tr></table>
 </body></html>`;
 
@@ -209,7 +209,7 @@ ${winHtml}
         "",
         ...data.needsYou.flatMap((item) => [
             `${NEEDS_YOU_COPY[item.type].label} (${item.count})`,
-            ...item.top.map((entry) => `- ${entryTitle(item.type, entry)}${entry.detail ? `: ${entry.detail}` : ""} ${APP_URL}${entry.href}`),
+            ...item.top.map((entry) => `- ${entryTitle(item.type, entry)}${entry.detail ? `: ${entry.detail}` : ""} ${appBaseUrl()}${entry.href}`),
             "",
         ]),
         ...data.goals.map(goalLine),
@@ -217,7 +217,7 @@ ${winHtml}
         ...(data.win ? [`Yesterday's win: ${data.win}`, ""] : []),
         `Yesterday: ${plural(y.emailsSent, "email", "emails")} sent, ${plural(y.replies, "reply", "replies")}, ${plural(y.meetingsBooked, "meeting", "meetings")} booked`,
         "",
-        `Open your inbox: ${INBOX_URL}`,
+        `Open your inbox: ${inboxUrl()}`,
     ].join("\n");
 
     return { subject, html, text };
