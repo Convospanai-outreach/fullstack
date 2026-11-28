@@ -30,6 +30,7 @@ import { RequestContext } from "@/lib/requestContext";
 import { buildLegacyDraftPrompt } from "@/lib/ai/legacyDraftPrompt";
 import { maskForLLM, piiMaskingEnabled, PiiMaskingError } from "@/lib/ai/piiMask";
 import { buildConnectionPrompt } from "@/lib/ai/linkedinDraftPrompt";
+import { fitLinkedinText } from "@/lib/ai/linkedinLength";
 
 export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -1314,7 +1315,7 @@ export class AIService {
             taskTypeLabel: "CONNECTION_MESSAGE",
             creditDescription: "AI connection message generation"
         });
-        return clampGeneratedText(result.text, 320);
+        return fitLinkedinText(result.text, "connect");
     }
 
     async improveEmail(text: string, teamId?: string): Promise<string> {
