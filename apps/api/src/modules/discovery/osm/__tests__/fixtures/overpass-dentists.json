@@ -1,0 +1,66 @@
+{
+    "version": 0.6,
+    "generator": "Overpass API (test fixture)",
+    "elements": [
+        {
+            "type": "node",
+            "id": 101,
+            "lat": 18.52,
+            "lon": 73.85,
+            "tags": {
+                "amenity": "dentist",
+                "name": "Smile Dental Clinic",
+                "phone": "+91 20 1234 5678",
+                "website": "https://www.smiledental.example/contact",
+                "addr:street": "FC Road",
+                "addr:city": "Pune",
+                "addr:postcode": "411004",
+                "opening_hours": "Mo-Sa 10:00-19:00"
+            }
+        },
+        {
+            "type": "way",
+            "id": 202,
+            "center": { "lat": 18.53, "lon": 73.86 },
+            "tags": {
+                "amenity": "dentist",
+                "name": "Bright Teeth",
+                "contact:phone": "+91 20 9999 0000",
+                "contact:website": "brightteeth.example",
+                "contact:email": "hello@brightteeth.example"
+            }
+        },
+        {
+            "type": "node",
+            "id": 303,
+            "lat": 18.54,
+            "lon": 73.87,
+            "tags": {
+                "amenity": "dentist",
+                "name": "Smile Dental Clinic (Branch)",
+                "website": "http://smiledental.example"
+            }
+        },
+        {
+            "type": "node",
+            "id": 404,
+            "lat": 18.55,
+            "lon": 73.88,
+            "tags": {
+                "amenity": "dentist"
+            }
+        },
+        {
+            "type": "node",
+            "id": 505,
+            "lat": 18.56,
+            "lon": 73.89,
+            "tags": {
+                "amenity": "dentist",
+                "name": "No Website Dental",
+                "phone": "020 5555 1111",
+                "contact:phone": "020 5555 1111"
+            }
+        }
+    ]
+}
