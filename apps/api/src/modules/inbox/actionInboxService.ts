@@ -177,7 +177,8 @@ export async function getThread(teamId: string, leadId: string) {
 
     // Campaign/sequence sends only write Email rows (no Message), so the rep's own outbound
     // emails come from there; Message holds the inbound replies and inbox-sent replies.
-    const [messages, emails] = await Promise.all([
+    // WhatsApp messages, both ways, live in WhatsAppMessage; the lead lookup above scopes them to the team.
+    const [messages, emails, whatsapp] = await Promise.all([
         prisma.message.findMany({
             where: { leadId, status: { not: "draft" } },
             orderBy: { createdAt: "asc" },
@@ -192,6 +193,11 @@ export async function getThread(teamId: string, leadId: string) {
             orderBy: { createdAt: "asc" },
             select: { id: true, body: true, createdAt: true, mailbox: { select: { displayName: true, email: true } } },
         }),
+        prisma.whatsAppMessage.findMany({
+            where: { leadId },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, body: true, direction: true, createdAt: true },
+        }),
     ]);
 
     const timeline = [
@@ -205,6 +211,16 @@ export async function getThread(teamId: string, leadId: string) {
             sentimentScore: null,
             createdAt: email.createdAt,
             text: toPlainText(email.body),
+        })),
+        ...whatsapp.map((message) => ({
+            id: `whatsapp-${message.id}`,
+            direction: message.direction === "INBOUND" ? "INBOUND" : "OUTBOUND",
+            platform: "WHATSAPP",
+            sender: null,
+            isRead: true,
+            sentimentScore: null,
+            createdAt: message.createdAt,
+            text: message.body,
         })),
     ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 

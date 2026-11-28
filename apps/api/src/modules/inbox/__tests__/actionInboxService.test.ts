@@ -11,6 +11,7 @@ const mockDb: any = vi.hoisted(() => ({
     connectedMailbox: { findFirst: vi.fn() },
     user: { findUnique: vi.fn() },
     replyTracker: { findMany: vi.fn() },
+    whatsAppMessage: { findMany: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
@@ -216,6 +217,34 @@ describe("getThread", () => {
             ["m2", "INBOUND", null, "Thanks\nAsha"],
             ["m3", "OUTBOUND", null, "Tuesday works"],
         ]);
+    });
+
+    it("includes the lead's WhatsApp messages, both directions, in time order", async () => {
+        mockDb.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+        mockDb.message.findMany.mockResolvedValue([]);
+        mockDb.email.findMany.mockResolvedValue([
+            { id: "e1", body: "<p>Hi Asha</p>", createdAt: new Date("2026-09-28T09:00:00Z"), mailbox: null },
+        ]);
+        mockDb.whatsAppMessage.findMany.mockResolvedValueOnce([
+            { id: "w1", body: "Following up here", direction: "OUTBOUND", createdAt: new Date("2026-09-29T09:00:00Z") },
+            { id: "w2", body: "Sure, call me", direction: "INBOUND", createdAt: new Date("2026-09-29T10:00:00Z") },
+        ]);
+
+        const thread = await getThread("team-a", "lead-1");
+
+        expect(mockDb.whatsAppMessage.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { leadId: "lead-1" } }));
+        expect(thread.messages.map((m: any) => [m.id, m.direction, m.platform, m.text])).toEqual([
+            ["email-e1", "OUTBOUND", "EMAIL", "Hi Asha"],
+            ["whatsapp-w1", "OUTBOUND", "WHATSAPP", "Following up here"],
+            ["whatsapp-w2", "INBOUND", "WHATSAPP", "Sure, call me"],
+        ]);
+    });
+
+    it("reads no WhatsApp messages for a lead outside the caller's team", async () => {
+        mockDb.lead.findFirst.mockResolvedValue(null);
+
+        await expect(getThread("team-a", "lead-from-team-b")).rejects.toMatchObject({ statusCode: 404 });
+        expect(mockDb.whatsAppMessage.findMany).not.toHaveBeenCalled();
     });
 
     it("scopes sent emails to the team and skips the Email rows written by inbox replies (their Message is shown)", async () => {
