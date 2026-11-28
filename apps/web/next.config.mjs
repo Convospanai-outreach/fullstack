@@ -99,6 +99,10 @@ const nextConfig = {
                 ],
             },
             {
+                source: '/:flow(login|signup|forgot-password|magic-link|verify-email|accept-invite|client-login|agent-login|complete-profile|onboarding|setup)/:path*',
+                headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
+            },
+            {
                 source: '/images/:path*',
                 headers: [
                     {
@@ -118,9 +122,8 @@ const nextConfig = {
             },
         ];
     },
-    // One home per concept: duplicate pages redirect to the canonical one. Temporary (307)
-    // until verified in prod. These run before src/proxy.ts, which still enforces auth on
-    // the destination.
+    // Public marketing pages have moved to the site. Keep app flows temporary
+    // and resolve checkout returns before the public pricing redirect.
     async redirects() {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
         const marketingPaths = [
@@ -128,6 +131,8 @@ const nextConfig = {
             '/faq', '/help', '/industries/:path*', '/locations/:path*', '/pricing', '/privacy',
             '/products/:path*', '/regions/:path*', '/security', '/support', '/terms',
             '/trust/:path*', '/vs/:path*', '/data-deletion', '/google-api-disclosure',
+        ];
+        const siteResourcePaths = [
             '/robots.txt', '/sitemap.xml', '/manifest.webmanifest', '/llms.txt', '/llms-full.txt',
             '/uploads/:path*',
         ];
@@ -168,8 +173,9 @@ const nextConfig = {
         return [
             appCheckoutReturn,
             ...appRedirects.map(([source, destination]) => ({ source, destination, permanent: false })),
-            ...(siteUrl ? legacy.map(([source, destination]) => ({ source, destination: siteUrl + destination, permanent: false })) : []),
-            ...(siteUrl ? marketingPaths.map(source => ({ source, destination: siteUrl + source, permanent: false })) : []),
+            ...(siteUrl ? legacy.map(([source, destination]) => ({ source, destination: siteUrl + destination, permanent: true })) : []),
+            ...(siteUrl ? marketingPaths.map(source => ({ source, destination: siteUrl + source, permanent: true })) : []),
+            ...(siteUrl ? siteResourcePaths.map(source => ({ source, destination: siteUrl + source, permanent: false })) : []),
         ].concat(
             // Rules editors add in the CMS (content/settings/redirects.json); built-in ones above win.
             toNextRedirects(loadSiteRedirects())

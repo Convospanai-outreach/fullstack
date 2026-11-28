@@ -81,7 +81,7 @@ const config = {
                 destination: `${APP_URL}/pricing/manage`,
                 permanent: false,
             },
-            ...legacy.map(([source, destination]) => ({ source, destination, permanent: false })),
+            ...legacy.map(([source, destination]) => ({ source, destination, permanent: true })),
             ...appPaths.map(source => ({ source, destination: `${APP_URL}${source}`, permanent: false })),
         ].concat(
             toNextRedirects(loadSiteRedirects()),
