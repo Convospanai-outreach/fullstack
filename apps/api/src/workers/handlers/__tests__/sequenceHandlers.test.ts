@@ -296,6 +296,31 @@ describe("handleSequenceAction approval gate", () => {
         expect(gateAiMessage).toHaveBeenCalledWith(expect.objectContaining({ channel: "CONNECT", body: "Hi there" }));
     });
 
+    it("trims an over-long AI connection note to LinkedIn's 300 characters, on a word boundary, before the gate", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(aiService.generateConnectionMessage).mockResolvedValueOnce("word ".repeat(90) as any);
+        vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: false, held: "approval", approvalId: "appr-3" });
+
+        await handleSequenceAction({ ...linkedInPayload, action: "CONNECT" });
+
+        const body = vi.mocked(gateAiMessage).mock.calls.at(-1)![0].body;
+        expect(body.length).toBeLessThanOrEqual(300);
+        expect(body.endsWith("word")).toBe(true);
+    });
+
+    it("trims an over-long AI follow-up to 600 characters before the gate", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
+        vi.mocked(aiService.askAI).mockResolvedValueOnce("A sentence about your team's hiring plans. ".repeat(25) as any);
+        vi.mocked(gateAiMessage).mockResolvedValueOnce({ send: false, held: "approval", approvalId: "appr-4" });
+
+        await handleSequenceAction({ ...linkedInPayload, action: "MESSAGE" });
+
+        const body = vi.mocked(gateAiMessage).mock.calls.at(-1)![0].body;
+        expect(body.length).toBeLessThanOrEqual(600);
+        expect(body.endsWith(".")).toBe(true);
+        vi.mocked(aiService.askAI).mockReset();
+    });
+
     it("sends no stand-in LinkedIn follow-up when the model returns nothing three times", async () => {
         vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce(linkedInLead as any);
         vi.mocked(aiService.askAI).mockResolvedValue("" as any);

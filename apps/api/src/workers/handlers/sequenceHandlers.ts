@@ -8,6 +8,7 @@ import { composeWithResearch } from "@/modules/email-campaigner/research/compose
 import { buildAudienceContext } from "@/modules/email-campaigner/service/audienceContext";
 import { linkedinProvenance, type CopyProvenance } from "@/modules/email-campaigner/service/copyProvenance";
 import { buildFollowUpPrompt } from "@/lib/ai/linkedinDraftPrompt";
+import { fitLinkedinText } from "@/lib/ai/linkedinLength";
 import { linkedinCriticEnabled, reviewLinkedinDraft } from "@/modules/email-campaigner/service/linkedinCritic";
 import { emailService } from "@/modules/email-campaigner";
 import { flagNeedsAttention, gateAiMessage, generateWithRetry, resolveApprovedMessage, settleMessageApproval } from "@/modules/governance/messageApproval";
@@ -120,6 +121,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     message = review.text;
                     connectProvenance = linkedinProvenance("connect", review);
                 }
+                message = fitLinkedinText(message, "connect");
                 const gate = await gateAiMessage({
                     teamId: connectTeamId, leadId, channel: "CONNECT", jobType: "SEQUENCE_ACTION", jobPayload: payload,
                     body: message, requesterHint: connectLead?.campaign?.ownerId, copyProvenance: connectProvenance,
@@ -172,6 +174,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     followUpMessage = review.text;
                     followUpProvenance = linkedinProvenance("followUp", review);
                 }
+                followUpMessage = fitLinkedinText(followUpMessage, "followUp");
                 const gate = await gateAiMessage({
                     teamId: followUpTeamId, leadId, channel: "MESSAGE", jobType: "SEQUENCE_ACTION", jobPayload: payload,
                     body: followUpMessage, requesterHint: followUpLead?.campaign?.ownerId, copyProvenance: followUpProvenance,

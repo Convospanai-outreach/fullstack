@@ -8,9 +8,8 @@ import { jevScreenEnabled, screenDraft } from "./draftScreen";
 // One critique call per draft; a usable rewrite replaces the draft after the same grounding guard
 // the email critic's rewrite goes through, plus a length limit (LinkedIn caps a connection note).
 
-export type LinkedinKind = "connect" | "followUp";
-
-export const LINKEDIN_LIMITS: Record<LinkedinKind, number> = { connect: 300, followUp: 600 };
+export { LINKEDIN_LIMITS, type LinkedinKind } from "@/lib/ai/linkedinLength";
+import { LINKEDIN_LIMITS, type LinkedinKind } from "@/lib/ai/linkedinLength";
 
 // Clipped so one large profile cannot bloat the critic call.
 const CONTEXT_CHARS = 3000;
