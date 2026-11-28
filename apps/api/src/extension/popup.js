@@ -285,10 +285,10 @@ function renderConnection() {
 
 // Opens the CraftMyFunnel page that signs in and hands this extension a sync token.
 function openConnectPage() {
-  const base = String(state.settings.workspaceUrl || "https://craftmyfunnel.live")
+  const base = String(state.settings.workspaceUrl || "https://app.craftmyfunnel.live")
     .trim()
     .replace(/\/+$/, "")
-    .replace(/^https:\/\/www\.craftmyfunnel\.live$/i, "https://craftmyfunnel.live");
+    .replace(/^https:\/\/(www\.)?craftmyfunnel\.live$/i, "https://app.craftmyfunnel.live");
   chrome.tabs.create({ url: `${base}/extension/connect?ext=${encodeURIComponent(chrome.runtime.id)}` });
 }
 

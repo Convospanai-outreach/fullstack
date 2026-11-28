@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "CraftMyFunnel Assistant",
   "description": "Capture visible LinkedIn profile details and prepare manual outreach drafts.",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "permissions": [
     "activeTab",
     "storage"
@@ -12,6 +12,7 @@
   ],
   "externally_connectable": {
     "matches": [
+      "https://app.craftmyfunnel.live/*",
       "https://craftmyfunnel.live/*",
       "https://www.craftmyfunnel.live/*"
     ]

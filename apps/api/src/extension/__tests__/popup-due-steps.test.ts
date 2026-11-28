@@ -147,16 +147,16 @@ describe("popup: connecting to CraftMyFunnel", () => {
         expect(detail()).toContain("Not connected yet");
         connectButton().click();
 
-        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://craftmyfunnel.live/extension/connect?ext=ext-id-1" });
+        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://app.craftmyfunnel.live/extension/connect?ext=ext-id-1" });
     });
 
-    it("opens the connect page on the bare domain when the www address was saved", async () => {
+    it("opens the connect page on the app host when the www address was saved", async () => {
         withSettings({ workspaceUrl: "https://www.craftmyfunnel.live/", syncToken: "" });
         await openPopup("https://www.linkedin.com/in/jane-doe/");
 
         connectButton().click();
 
-        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://craftmyfunnel.live/extension/connect?ext=ext-id-1" });
+        expect(chrome.tabs.create).toHaveBeenCalledWith({ url: "https://app.craftmyfunnel.live/extension/connect?ext=ext-id-1" });
     });
 
     it("shows the connected team and until when the connection is valid", async () => {

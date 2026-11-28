@@ -51,7 +51,7 @@ describe("extension background: due LinkedIn steps", () => {
 
         expect(response).toEqual({ ok: true, steps: [{ runId: "run-1", name: "Jane Doe" }] });
         const [url, init] = fetchMock.mock.calls[0];
-        expect(url).toBe("https://craftmyfunnel.live/api/extension/steps");
+        expect(url).toBe("https://app.craftmyfunnel.live/api/extension/steps");
         expect(init.headers).toEqual({ "Content-Type": "application/json", Authorization: "Bearer token-1" });
     });
 
@@ -63,7 +63,7 @@ describe("extension background: due LinkedIn steps", () => {
 
         expect(response).toMatchObject({ ok: true, sequenceResumed: true });
         const [url, init] = fetchMock.mock.calls[0];
-        expect(url).toBe("https://craftmyfunnel.live/api/extension/steps/run%2F1/done");
+        expect(url).toBe("https://app.craftmyfunnel.live/api/extension/steps/run%2F1/done");
         expect(init.method).toBe("POST");
         expect(storage.activityLog[0].message).toBe("LinkedIn step done: Send invitation");
     });
@@ -182,7 +182,7 @@ describe("extension background: connect from the CraftMyFunnel site", () => {
         expect(await sendExternal(connectMsg(), apex)).toEqual({ ok: true, version: "1.2.0" });
 
         expect(storage.settings).toMatchObject({
-            workspaceUrl: "https://craftmyfunnel.live",
+            workspaceUrl: "https://app.craftmyfunnel.live",
             syncToken: "new-token",
             syncTokenExpiresAt: "2026-12-01T00:00:00.000Z",
             team: { id: "team-1", name: "Team A" },
@@ -192,11 +192,20 @@ describe("extension background: connect from the CraftMyFunnel site", () => {
         expect(storage.activityLog[0].message).toBe("Connected to Team A");
     });
 
-    it("saves the bare domain when the page was on www", async () => {
+    it("saves the app host when the page was on www", async () => {
         const { sendExternal, storage } = loadBackground(notConnected);
 
         expect((await sendExternal(connectMsg("https://www.craftmyfunnel.live"), www)).ok).toBe(true);
-        expect(storage.settings.workspaceUrl).toBe("https://craftmyfunnel.live");
+        expect(storage.settings.workspaceUrl).toBe("https://app.craftmyfunnel.live");
+    });
+
+    it("connects from the connect page on the app host", async () => {
+        const app = { origin: "https://app.craftmyfunnel.live", url: "https://app.craftmyfunnel.live/extension/connect?ext=abc" };
+        const { sendExternal, storage } = loadBackground(notConnected);
+
+        expect((await sendExternal({ type: "CMF_PING" }, app)).ok).toBe(true);
+        expect((await sendExternal(connectMsg("https://app.craftmyfunnel.live"), app)).ok).toBe(true);
+        expect(storage.settings.workspaceUrl).toBe("https://app.craftmyfunnel.live");
     });
 
     it("refuses pages on any other site", async () => {
@@ -256,7 +265,7 @@ describe("extension background: connect from the CraftMyFunnel site", () => {
         await settle();
 
         const [url, init] = fetchMock.mock.calls[0];
-        expect(url).toBe("https://craftmyfunnel.live/api/extension/leads/capture");
+        expect(url).toBe("https://app.craftmyfunnel.live/api/extension/leads/capture");
         expect(init.headers).toEqual({ "Content-Type": "application/json", Authorization: "Bearer new-token" });
         const body = JSON.parse(init.body);
         expect(body).toMatchObject({ name: "Jane", linkedinUrl: "https://www.linkedin.com/in/jane/" });
@@ -299,10 +308,11 @@ describe("extension background: workspace address", () => {
         return fetchMock.mock.calls[0][0];
     };
 
-    it("sends requests to the bare domain when the www address was saved", async () => {
-        expect(await urlFor("https://www.craftmyfunnel.live/", { type: "CMF_LIST_DUE_STEPS" })).toBe("https://craftmyfunnel.live/api/extension/steps");
-        expect(await urlFor("https://WWW.craftmyfunnel.live", { type: "CMF_CHECK_CONNECTION" })).toBe("https://craftmyfunnel.live/api/extension/auth/validate");
-        expect(await urlFor("https://www.craftmyfunnel.live", { type: "CMF_SAVE_PREPARED_LEAD", payload: { name: "Jane" } })).toBe("https://craftmyfunnel.live/api/extension/leads/capture");
+    it("sends requests to the app host when an older install saved the bare domain or www", async () => {
+        expect(await urlFor("https://www.craftmyfunnel.live/", { type: "CMF_LIST_DUE_STEPS" })).toBe("https://app.craftmyfunnel.live/api/extension/steps");
+        expect(await urlFor("https://craftmyfunnel.live", { type: "CMF_LIST_DUE_STEPS" })).toBe("https://app.craftmyfunnel.live/api/extension/steps");
+        expect(await urlFor("https://WWW.craftmyfunnel.live", { type: "CMF_CHECK_CONNECTION" })).toBe("https://app.craftmyfunnel.live/api/extension/auth/validate");
+        expect(await urlFor("https://www.craftmyfunnel.live", { type: "CMF_SAVE_PREPARED_LEAD", payload: { name: "Jane" } })).toBe("https://app.craftmyfunnel.live/api/extension/leads/capture");
     });
 
     it("leaves any other address as it was typed, without the trailing slash", async () => {
@@ -331,7 +341,7 @@ describe("published manifest", () => {
     });
 
     it("lets only the CraftMyFunnel site talk to the extension", () => {
-        expect(manifest.externally_connectable).toEqual({ matches: ["https://craftmyfunnel.live/*", "https://www.craftmyfunnel.live/*"] });
+        expect(manifest.externally_connectable).toEqual({ matches: ["https://app.craftmyfunnel.live/*", "https://craftmyfunnel.live/*", "https://www.craftmyfunnel.live/*"] });
     });
 
     it("has a version above the first store build", () => {
