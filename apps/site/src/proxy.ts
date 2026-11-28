@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRobotsTxt } from "./app/robots";
-import { createMarkdownResponse, getMarkdownForPath, isMarkdownRequested } from "./lib/markdownNegotiator";
+import { getBlogPostBySlug } from "./lib/blog";
+import { createMarkdownResponse, isMarkdownRequested } from "./lib/markdownNegotiator";
 
 export function proxy(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
@@ -13,9 +14,14 @@ export function proxy(request: NextRequest) {
         });
     }
 
-    if (isMarkdownRequested(request)) {
-        const siteUrl = (process.env["NEXT_PUBLIC_SITE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
-        return createMarkdownResponse(getMarkdownForPath(pathname, siteUrl));
+    // Only negotiate single blog slugs backed by the same content as their HTML page.
+    const slug = pathname.match(/^\/blog\/([a-z0-9-]+)$/)?.[1];
+    if (slug && (request.method === "GET" || request.method === "HEAD")) {
+        if (isMarkdownRequested(request.headers.get("accept") ?? "")) {
+            const post = getBlogPostBySlug(slug);
+            if (post) return createMarkdownResponse(`# ${post.title}\n\n${post.content}`, request.method);
+        }
+        return NextResponse.next({ headers: { Vary: "Accept" } });
     }
 
     return NextResponse.next();

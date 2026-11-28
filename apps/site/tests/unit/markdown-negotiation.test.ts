@@ -1,131 +1,47 @@
+import { NextRequest } from 'next/server';
 import { describe, expect, it } from 'vitest';
-import {
-    isMarkdownRequested,
-    getMarkdownForPath,
-    estimateMarkdownTokens,
-    createMarkdownResponse,
-} from '../../src/lib/markdownNegotiator';
+import { getBlogPostBySlug } from '../../src/lib/blog';
+import { proxy } from '../../src/proxy';
 
-function createMockRequest(url: string, headers: Record<string, string> = {}) {
-    const parsed = new URL(url);
-    const headerMap = new Headers(headers);
-    return {
-        headers: headerMap,
-        nextUrl: {
-            pathname: parsed.pathname,
-            origin: parsed.origin,
-        },
-    };
+const slug = 'the-future-of-crm-why-ai-agents-will-replace-traditional-workflows';
+const postPath = '/blog/' + slug;
+
+function request(path: string, accept = 'text/markdown', method = 'GET') {
+    return proxy(new NextRequest('https://craftmyfunnel.live' + path, {
+        method,
+        headers: { accept },
+    }));
 }
 
-describe('Markdown for Agents — Content Negotiation (Accept: text/markdown)', () => {
-    describe('isMarkdownRequested', () => {
-        it('detects text/markdown in Accept header for pages', () => {
-            const req = createMockRequest('https://craftmyfunnel.live/pricing', {
-                accept: 'text/markdown, text/html;q=0.9',
-            });
-            expect(isMarkdownRequested(req)).toBe(true);
-        });
+describe('Marketing Markdown negotiation', () => {
+    it.each(['/', '/pricing', '/docs/mcp', '/integrations', '/case-studies', '/glossary',
+        '/blog', '/blog/nonexistent-post', '/blog/a/b', '/api/leads'])(
+        'keeps normal routing for %s when no Markdown source exists', (path) => {
+            expect(request(path).headers.get('x-middleware-next')).toBe('1');
+        },
+    );
 
-        it('ignores standard browser HTML requests', () => {
-            const req = createMockRequest('https://craftmyfunnel.live/pricing', {
-                accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            });
-            expect(isMarkdownRequested(req)).toBe(false);
-        });
-
-        it('ignores API routes even if text/markdown is accepted', () => {
-            const req = createMockRequest('https://craftmyfunnel.live/api/leads', {
-                accept: 'text/markdown',
-            });
-            expect(isMarkdownRequested(req)).toBe(false);
-        });
-
-        it('ignores static assets (images, stylesheets, scripts)', () => {
-            const imageReq = createMockRequest('https://craftmyfunnel.live/images/logo.png', {
-                accept: 'text/markdown',
-            });
-            expect(isMarkdownRequested(imageReq)).toBe(false);
-
-            const nextAssetReq = createMockRequest('https://craftmyfunnel.live/_next/static/chunks/main.js', {
-                accept: 'text/markdown',
-            });
-            expect(isMarkdownRequested(nextAssetReq)).toBe(false);
-        });
+    it('returns the complete published blog article and its real title', async () => {
+        const post = getBlogPostBySlug(slug)!;
+        const response = request(postPath);
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toBe('text/markdown; charset=utf-8');
+        expect(response.headers.get('vary')).toContain('Accept');
+        expect(response.headers.get('cache-control')).toContain('no-store');
+        expect(await response.text()).toBe('# ' + post.title + '\n\n' + post.content);
     });
 
-    describe('getMarkdownForPath', () => {
-        it('returns structured markdown for homepage (/)', () => {
-            const md = getMarkdownForPath('/');
-            expect(md).toContain('# CraftMyFunnel — Governed B2B Outbound Sales Engine');
-            expect(md).toContain('Human-in-the-Loop Governance');
-            expect(md).toContain('/llms-full.txt');
-        });
-
-        it('returns structured pricing markdown for /pricing', () => {
-            const md = getMarkdownForPath('/pricing');
-            expect(md).toContain('# CraftMyFunnel — Pricing & Commercial Models');
-            expect(md).toContain('Pilot ($49');
-            expect(md).toContain('Growth Autopilot ($99');
-            expect(md).toContain('Enterprise ($499');
-        });
-
-        it('returns FAQ markdown for /faq', () => {
-            const md = getMarkdownForPath('/faq');
-            expect(md).toContain('# CraftMyFunnel — Frequently Asked Questions (FAQ)');
-            expect(md).toContain('Google Workspace');
-        });
-
-        it('returns Integrations markdown for /integrations', () => {
-            const md = getMarkdownForPath('/integrations');
-            expect(md).toContain('# CraftMyFunnel — Integrations & Protocol Directory');
-            expect(md).toContain('HubSpot CRM');
-            expect(md).toContain('Salesforce');
-        });
-
-        it('returns Glossary markdown for /glossary', () => {
-            const md = getMarkdownForPath('/glossary');
-            expect(md).toContain('# CraftMyFunnel — Technical & Outbound Glossary');
-            expect(md).toContain('Generative Engine Optimization (GEO)');
-            expect(md).toContain('RFC 5322');
-            expect(md).toContain('RFC 8058');
-        });
-
-        it('returns Case Studies markdown for /case-studies', () => {
-            const md = getMarkdownForPath('/case-studies');
-            expect(md).toContain('# CraftMyFunnel — Enterprise Outbound Case Studies');
-            expect(md).toContain('Commercial Facility Management');
-        });
-
-        it('handles dynamic routes (/locations/[city], /industries/[vertical], /blog/[slug])', () => {
-            const locMd = getMarkdownForPath('/locations/bengaluru');
-            expect(locMd).toContain('Bengaluru');
-
-            const useCaseMd = getMarkdownForPath('/industries/gcc-services');
-            expect(useCaseMd).toContain('Gcc Services');
-
-            const blogMd = getMarkdownForPath('/blog/ai-search-optimization-ago');
-            expect(blogMd).toContain('Ai Search Optimization Ago');
-        });
+    it.each(['text/html', 'text/markdown;q=0, text/html', 'text/html, text/markdown;q=0.5',
+        'text/markdown-preview'])('keeps HTML when Accept is %s', (accept) => {
+        const response = request(postPath, accept);
+        expect(response.headers.get('x-middleware-next')).toBe('1');
+        expect(response.headers.get('vary')).toContain('Accept');
     });
 
-    describe('createMarkdownResponse & estimateMarkdownTokens', () => {
-        it('calculates reasonable token estimation', () => {
-            const text = 'Hello world! This is a test of the markdown token counter.';
-            const tokens = estimateMarkdownTokens(text);
-            expect(tokens).toBeGreaterThan(0);
-            expect(tokens).toBe(Math.ceil(text.length / 4));
-        });
-
-        it('returns 200 OK with correct Content-Type, Vary, and x-markdown-tokens headers', () => {
-            const md = '# Sample Markdown Document\n\nTesting agent readiness response.';
-            const res = createMarkdownResponse(md);
-
-            expect(res.status).toBe(200);
-            expect(res.headers.get('content-type')).toBe('text/markdown; charset=utf-8');
-            expect(res.headers.get('vary')).toBe('Accept');
-            expect(res.headers.get('x-markdown-tokens')).toBeDefined();
-            expect(parseInt(res.headers.get('x-markdown-tokens') || '0', 10)).toBeGreaterThan(0);
-        });
+    it('supports HEAD without a body, but does not intercept POST', async () => {
+        const head = request(postPath, 'text/markdown, text/html;q=0.9', 'HEAD');
+        expect(head.headers.get('content-type')).toBe('text/markdown; charset=utf-8');
+        expect(await head.text()).toBe('');
+        expect(request(postPath, 'text/markdown', 'POST').headers.get('x-middleware-next')).toBe('1');
     });
 });

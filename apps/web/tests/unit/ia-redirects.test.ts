@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import nextConfig from "../../next.config.mjs";
+import { unstable_getResponseFromNextConfig } from "next/experimental/testing/server";
 
 // One home per concept: duplicate dashboard pages redirect to their canonical page.
 const DASHBOARD = path.resolve(__dirname, "../../src/app/(dashboard)");
@@ -31,7 +32,6 @@ function childPageExists(root: string, destination: string): boolean {
 }
 
 describe("IA redirects", async () => {
-    const redirects = await nextConfig.redirects!();
     afterEach(() => vi.unstubAllEnvs());
 
     it("keeps marketing redirects disabled until the site URL is configured", async () => {
@@ -49,12 +49,36 @@ describe("IA redirects", async () => {
         expect(rules.find((rule) => rule.source === "/use-cases")?.destination).toBe("https://site.example.test/industries");
     });
 
-    it("are temporary until verified in prod", () => {
-        expect(redirects.length).toBeGreaterThan(0);
-        for (const r of redirects) expect(r.permanent).toBe(false);
+    it("permanently moves public marketing URLs but preserves checkout and internal routing", async () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.example.test");
+        for (const [path, status, destination] of [
+            ["/docs/mcp", 308, "https://site.example.test/docs/mcp"],
+            ["/pricing", 308, "https://site.example.test/pricing"],
+            ["/use-cases", 308, "https://site.example.test/industries"],
+            ["/pricing?checkout=cancelled", 307, "https://app.example.test/pricing/manage?checkout=cancelled"],
+            ["/team", 307, "https://app.example.test/settings/team"],
+        ] as const) {
+            const response = await unstable_getResponseFromNextConfig({ url: "https://app.example.test" + path, nextConfig });
+            expect(response.status, path).toBe(status);
+            expect(response.headers.get("location"), path).toBe(destination);
+        }
     });
 
-    it("land on a page that exists, in one hop", () => {
+    it("keeps auth and setup out of search without marking customer funnels or callbacks noindex", async () => {
+        for (const [path, directive] of [
+            ["/login", "noindex"], ["/login/sso", "noindex"], ["/signup", "noindex"],
+            ["/setup", "noindex"], ["/onboarding", "noindex"],
+            ["/p/customer-funnel", null], ["/api/integrations/google/oauth/callback", null],
+            ["/docs/mcp", null], ["/checkout/product", null],
+        ] as const) {
+            const response = await unstable_getResponseFromNextConfig({ url: "https://app.example.test" + path, nextConfig });
+            expect(response.headers.get("x-robots-tag"), path).toBe(directive);
+        }
+    });
+
+    it("lands on a page that exists, in one hop", async () => {
+        vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.example.test");
+        const redirects = await nextConfig.redirects!();
         const sources = new Set(redirects.map((r) => r.source));
         for (const r of redirects) {
             const external = r.destination.startsWith("http");

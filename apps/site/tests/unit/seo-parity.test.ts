@@ -4,6 +4,7 @@ import { GET as getLlmsTxt } from "@/app/llms.txt/route";
 import robots, { getRobotsTxt } from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { getJobs } from "@/lib/careers";
+import nextConfig from "../../next.config.mjs";
 
 type Params = Record<string, string>;
 type RouteModule = {
@@ -45,6 +46,26 @@ describe("public page SEO parity", () => {
     it("lists every public page once at the configured origin", () => {
         const urls = sitemap().map(({ url }) => new URL(url).href).sort();
         expect(urls).toEqual(publicPages.map(({ path }) => new URL(path, siteOrigin).href).sort());
+    });
+
+    it("does not publish deployment timestamps as content modification dates", () => {
+        expect(sitemap().filter(({ lastModified }) => lastModified !== undefined)).toEqual([]);
+    });
+
+    it("permanently moves legacy marketing pages without changing app handoffs", async () => {
+        const rules = await nextConfig.redirects!();
+        expect(rules).toEqual(expect.arrayContaining([
+            expect.objectContaining({ source: "/use-cases/cybersecurity", destination: "/industries/cybersecurity", permanent: true }),
+            expect.objectContaining({ source: "/funnel", destination: "/", permanent: true }),
+            expect.objectContaining({ source: "/login/:path*", permanent: false }),
+            expect.objectContaining({ source: "/p/:path*", permanent: false }),
+        ]));
+        expect(rules[0]).toMatchObject({
+            source: "/pricing",
+            destination: expect.stringMatching(/\/pricing\/manage$/),
+            has: [{ type: "query", key: "checkout", value: "cancelled" }],
+            permanent: false,
+        });
     });
 
     it("gives every public page its own title, description and canonical URL", () => {
