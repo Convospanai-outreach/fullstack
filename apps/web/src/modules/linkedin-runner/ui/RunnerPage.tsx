@@ -4,11 +4,15 @@ import { useState } from "react";
 import { Chrome, Loader2, PlayCircle, ShieldCheck } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/Input";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { toRunnerProfileUrl } from "./profileUrl";
 
 export default function RunnerPage() {
     const [response, setResponse] = useState<any>(null);
     const [running, setRunning] = useState(false);
+    const [profileInput, setProfileInput] = useState("");
+    const profileUrl = toRunnerProfileUrl(profileInput);
     const apiBase = getBrowserApiBase();
     const extensionBase =
         typeof window !== "undefined"
@@ -16,13 +20,14 @@ export default function RunnerPage() {
             : "http://localhost:3000/api/proxy/extension";
 
     async function run() {
+        if (!profileUrl) return;
         setRunning(true);
         try {
             const res = await fetch(apiBase + "/linkedin-runner/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    profileUrl: "https://linkedin.com/in/example",
+                    profileUrl,
                     action: "scrape",
                 }),
             }).then((r) => r.json());
@@ -70,7 +75,20 @@ export default function RunnerPage() {
                         <p className="mt-3 text-sm text-foreground/80">
                             Triggers backend linkedin-runner route for controlled smoke tests.
                         </p>
-                        <Button onClick={run} disabled={running} className="mt-4">
+                        <label htmlFor="runner-profile-url" className="mt-4 block text-xs font-medium text-foreground">
+                            LinkedIn profile to test against
+                        </label>
+                        <Input
+                            id="runner-profile-url"
+                            className="mt-1"
+                            placeholder="https://www.linkedin.com/in/their-handle"
+                            value={profileInput}
+                            onChange={(e) => setProfileInput(e.target.value)}
+                        />
+                        {profileInput.trim() && !profileUrl && (
+                            <p className="mt-1 text-xs text-destructive">Enter a linkedin.com/in/ profile URL.</p>
+                        )}
+                        <Button onClick={run} disabled={running || !profileUrl} className="mt-4">
                             {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
                             Run test action
                         </Button>
