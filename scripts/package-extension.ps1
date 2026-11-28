@@ -38,6 +38,19 @@ Write-Host "Copying extension icons..."
 Copy-Item -Path (Join-Path $SourceDir "icons") -Destination $DistDir -Recurse
 
 Write-Host "Creating extension archive..."
-Compress-Archive -Path "$DistDir\*" -DestinationPath $ZipPath -Force
+# Not Compress-Archive: on Windows PowerShell 5.1 it stores entry names with backslashes
+# (icons\icon-16.png), which Chrome does not treat as folders, so the icons go missing.
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$DistRoot = (Resolve-Path $DistDir).Path.TrimEnd("\") + "\"
+$Zip = [System.IO.Compression.ZipFile]::Open($ZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    Get-ChildItem -Path $DistDir -Recurse -File | ForEach-Object {
+        $EntryName = $_.FullName.Substring($DistRoot.Length).Replace("\", "/")
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($Zip, $_.FullName, $EntryName) | Out-Null
+    }
+} finally {
+    $Zip.Dispose()
+}
 
 Write-Host "Extension packaged successfully at $ZipPath"
