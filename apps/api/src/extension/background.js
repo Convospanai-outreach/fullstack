@@ -59,7 +59,7 @@ const DEFAULT_STATE = {
 
 // The CraftMyFunnel site may hand over a sync token from its connect page. Only these pages are
 // listed in externally_connectable, and the sender is checked again here.
-const CMF_SITE_ORIGINS = ["https://craftmyfunnel.live", "https://www.craftmyfunnel.live"];
+const CMF_SITE_ORIGINS = ["https://app.craftmyfunnel.live", "https://craftmyfunnel.live", "https://www.craftmyfunnel.live"];
 const CMF_CONNECT_PATH = "/extension/connect";
 // Replies from the workspace that mean the saved sync token no longer works.
 const CMF_AUTH_ERROR_CODES = ["INVALID_TOKEN", "TOKEN_TEAM_REVOKED", "MISSING_TOKEN", "LEGACY_IDENTITY_DISABLED", "ACCOUNT_SUSPENDED"];
@@ -189,7 +189,7 @@ function siteOrigin(sender) {
 }
 
 // Saves the sync token the connect page handed over. The workspace is always the site the
-// page is on, saved as the bare domain.
+// page is on, saved as the app host.
 async function connectFromSite(msg, origin) {
   if (msg.version !== 1) return { ok: false, error: "Update the CraftMyFunnel extension and try again." };
   const workspaceUrl = workspaceBase({ workspaceUrl: origin });
@@ -351,14 +351,15 @@ async function savePreparedLead(payload) {
   };
 }
 
-// Where requests go. www.craftmyfunnel.live redirects to the bare domain, and the browser does
-// not follow a redirect for a request that carries the sync token, so the saved address is
-// corrected here instead of asking everyone to retype it.
+// Where requests go. The app moved to app.craftmyfunnel.live; the bare domain and www now serve
+// the marketing site and only forward app paths. The browser does not follow a redirect for a
+// request that carries the sync token, so an older saved address is corrected here instead of
+// asking everyone to retype it.
 function workspaceBase(settings) {
   return String(settings?.workspaceUrl || "")
     .trim()
     .replace(/\/+$/, "")
-    .replace(/^https:\/\/www\.craftmyfunnel\.live$/i, "https://craftmyfunnel.live");
+    .replace(/^https:\/\/(www\.)?craftmyfunnel\.live$/i, "https://app.craftmyfunnel.live");
 }
 
 async function trySyncLead(lead, settings) {
