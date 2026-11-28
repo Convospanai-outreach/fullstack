@@ -65,7 +65,7 @@ interface InboxResponse {
 
 interface ThreadResponse {
     lead: { id: string; fullName: string | null; company: string | null; email: string | null; replyOutcome: string | null };
-    messages: { id: string; direction: string; sender: string | null; text: string; createdAt: string }[];
+    messages: { id: string; direction: string; platform?: string; sender: string | null; text: string; createdAt: string }[];
 }
 
 type Tab = "replies" | "approvals" | "held" | "outbox";
@@ -260,7 +260,7 @@ function ThreadPane({ reply, onChanged, replySettings }: { reply: InboxReply; on
                             <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${outbound ? "bg-primary/10 text-foreground" : "bg-muted text-foreground"}`}>
                                 <p className="whitespace-pre-wrap break-words">{message.text}</p>
                                 <p className="mt-1 text-[11px] text-muted-foreground">
-                                    {outbound ? message.sender || "You" : "Them"} · {format(new Date(message.createdAt), "d MMM, h:mm a")}
+                                    {outbound ? message.sender || "You" : "Them"} · {message.platform === "WHATSAPP" && "WhatsApp · "}{format(new Date(message.createdAt), "d MMM, h:mm a")}
                                 </p>
                             </div>
                         </div>
